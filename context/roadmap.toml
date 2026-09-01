@@ -3,7 +3,6 @@
 # references/manifest.md.
 
 next = [
-  "backlog.leadership-brief",
   "v1.testing",
 ]
 
@@ -273,18 +272,6 @@ are settled in its own planning session once the service is worth deploying.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
-
-[backlog.leadership-brief]
-name = "The leadership brief"
-repos = ["standards-lab"]
-summary = '''
-The standardized brief for the CTO and technical leaders: the vision overview led by the
-thesis, a roadmap summary from goals.v1, the Organization Contents link tree, and the
-pasteable agent-interview prompt with its hosted interview.md. Honest early-prototype tone.
-Contents, tone, and open items are the linked note, which also feeds the marathon-sitrep
-extension concept.
-'''
-context = ["standards-lab/context/concepts/leadership-brief.md"]
 
 [backlog.rolling-currency]
 name = "The rolling-currency principle"

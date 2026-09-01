@@ -53,6 +53,10 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   orientation. The mirror convention is `design/workspace-structure.md`.
 - **The workspace roadmap** (`context/roadmap.toml`) — the goal tree, tasks, and backlog for
   the buildout, ephemeral and citable by slug path; the only sequence it asserts is `next`.
+- **Leadership briefs** (`../briefs/`) — standardized orientation briefs for technical
+  leadership; `../briefs/orientation.md` is the first, paired with the agent-interview prompt
+  `../interview.md` at the repo root that initializes an interview session over the
+  organization's context and source.
 - **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
   — portable identity for every repository in the effort, with a per-machine local-directory
   map and the standard grouping. A private annex in `../private/` extends it with the prior
