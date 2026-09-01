@@ -7,7 +7,8 @@ the marathon workflow. Start from `context/README.md`.
 ## Three repositories in one directory
 
 This directory is the working tree of the public `standards-lab/org` repository — the workspace
-coordinator: `context/`, the public references catalog, and the Claude configuration. Two profile
+coordinator: `context/`, the public references catalog, the leadership briefs (`briefs/`) with
+their interview prompt (`interview.md`), and the Claude configuration. Two profile
 repositories are checked out nested inside it, each with its own `.git`, both gitignored by `org`:
 
 - `public/` is the working tree of the public `standards-lab/.github` repository — the baseline

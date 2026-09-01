@@ -1,40 +1,45 @@
-# reset · public-workspace
+# reset · leadership-brief
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** standards-lab (org, .github-private)
-- **Branch:** public-workspace
+- **Project:** standards-lab (org, .github, .github-private)
+- **Branch:** leadership-brief
 
 ## Disposition
 
-- **Integrated:** the coordinator split. `~/architecture/standards-lab/` is now the working tree
-  of the new public `standards-lab/org` repository (fresh history; the prior history stays in
-  `.github-private`): `context/`, the public references catalog, `CLAUDE.md`, the marathon
-  anchor. `.github-private` thinned to the nested `private/` working tree — the extended
-  organizational profile plus the private references annex — mirroring how `public/` holds
-  `.github`. The profile vocabulary settled as baseline (public, authored) and extended (member,
-  mirror plus member section). `design/workspace-structure.md` and `CLAUDE.md` rewritten to the
-  three-repository layout; the marathon exception shrank to the profile nesting.
-- **Integrated:** the sensitivity split. The engagement prior-R&D entries moved from the public
-  catalog to the annex (`private/references.toml`, `private/references.md`, untracked
-  `private/references.local.toml`), which extends the public catalog under one shared key
-  namespace when the member checkout is present; the layering rule is in
-  `design/repo-references.md`. Public personal prior R&D stayed public. Deployment-posture
-  wording in `design/dsl-driven-services.md` generalized; the catalog files declare the annex
-  without naming its entries.
-- **Culled:** `concepts/public-workspace.md` — executed; its open items resolved this session:
-  the repository is named `org` (it houses the organizational landing zones and names the
-  organization's own context, pairing with `docs`), fresh history over filtered migration,
-  annex scope limited to the engagement entries, annex homed in `.github-private`.
-- **Retained:** `concepts/leadership-brief.md`, its visibility open item resolved — the
-  coordination context is now publicly fetchable, so the interview prompt has public reach.
-- **Cross-repo:** roadmap — `backlog.public-workspace` deleted, its wait-on phrase dropped from
-  `backlog.leadership-brief`, `next` advanced.
+- **Integrated:** `backlog.leadership-brief` executed. `briefs/orientation.md` is the
+  standardized orientation for the CTO and technical leaders — the vision (thesis, holding
+  pattern, primitives as modular boundaries, example patterns, agentic questions), the dogfooded
+  harness (harness programming, marathon, context as specification), the roadmap at a glance
+  with the data-layer focus, and the exploration links closing on the interview prompt. The root
+  `interview.md` is the pasteable agent prompt: identity, marathon quick reference, organization
+  and architecture orientation, behavior with distilled voice guidance, and an analysis-driven
+  opening that generates a topic menu from the profile, capability map, and roadmap.
+  `context/README.md` gained the leadership-briefs capability; `CLAUDE.md`'s org summary names
+  the briefs. Placement settled: `briefs/` anticipates sitrep-generated successors; the prompt
+  stays at the root until more prompts warrant a `prompts/` directory.
+- **Integrated:** the vision statement refined across the brief and both profiles. The modern
+  primitives are framed as modular boundaries — maintenance contained, vulnerabilities and
+  technical debt mitigated, capability made reusable — composing an ecosystem of reusable
+  components, with ownership and change made legible (pinned-and-current dependency surface,
+  driving change rather than reacting). The transport-layer bullet now states the accurate
+  claim: the enterprise operationalized the lower OSI layers, not the higher data-driven ones,
+  despite mature commercial-sector standards. The three patterns are framed as examples, not
+  the set. The profiles additionally carry emergent standardization and the outermost-boundary
+  framing of graduation; the baseline body is mirrored verbatim into the extended profile.
+- **Culled:** `concepts/leadership-brief.md` — executed; its open item resolved by the placement
+  above. Its pointer survives here: the brief-plus-interview-prompt pattern is the seed the
+  marathon-sitrep extension concept (`claude-plugins/context/concepts/marathon-sitrep.md`) would
+  generate and keep current.
+- **Cross-repo:** the profile refinement lands in `.github` and `.github-private` on this step's
+  shared slug, one commit and pull request each. Roadmap — `backlog.leadership-brief` deleted,
+  `next` advanced; the edit rides this closeout commit.
 
 ## Next-focus
 
-`backlog.leadership-brief` — the standardized brief for the CTO and technical leaders: vision
-overview led by the thesis, a roadmap summary from `goals.v1`, the Organization Contents link
-tree, and the pasteable agent-interview prompt with its hosted `interview.md`. Honest
-early-prototype tone. Contents, tone, and open items: `context/concepts/leadership-brief.md`.
-Runs in standards-lab (org). `v1.testing` follows.
+`v1.testing` — the strategy session for the full testing hierarchy: principles and guidelines
+per layer; service-backed integration tiers and their cadence against CI cost (below the per-PR
+unit rate); the postgres-in-CI approach as the template for later service integrations. The
+questions and evaluation evidence: `standards-lab/context/concepts/testing-hierarchy.md` and
+`go-web-service/context/concepts/retrospective-findings.md`. All decisions settle in that
+session; it spans the Go repositories and runs from the coordinator.
