@@ -9,6 +9,9 @@ If you have further questions or would like to dig deeper into what has been fle
 paste the line below into your agent of choice. It initializes an interview session over the
 organization's context and source, answering your questions with cited sources.
 
+> [!IMPORTANT]
+> Validated with Claude and ChatGPT. Does not work with Gemini.
+
 ```md
 launch interview: https://github.com/standards-lab/org/blob/main/interview.md
 ```
