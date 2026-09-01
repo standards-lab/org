@@ -1,0 +1,387 @@
+# Roadmap — the workspace's path to its target end state, holding only what remains.
+# Maintained by the marathon-roadmap extension; the format is the plugin's
+# references/manifest.md.
+
+next = [
+  "backlog.leadership-brief",
+  "v1.testing",
+]
+
+# ── v1 ─────────────────────────────────────────────────────────────────────────────────────
+
+[goals.v1]
+name = "The reference architecture at v1.0"
+summary = '''
+go-web-service reaches v1.0.0 as a holistic enterprise reference: every capability layer a
+production web service reasonably encounters, complete in the running composition, each layer
+built holistically — proving the architecture end to end and feeding the SDK,
+infrastructure-library, and template features that emerge from it.
+'''
+criteria = [
+  "Every capability goal beneath this one is closed: code, tests, and docs/ page complete; the standard tier used throughout with native use contained and entered in the port list; the capability's provider-swap class declared; and the promotion evaluation recorded — what moved outward into the SDKs, the libraries, and the template, and what stayed the service's own.",
+  "The import-boundary lint is in place, and a docs/ page names each capability the service consumes, its class, and the port list.",
+  "The service is versionless until 1.0: minor releases cut as layers complete in whatever order they land, v1.0.0 when this goal's tree is empty; -dev.N prerelease tags serve only the cross-module-resolution case the release-and-ci principle states, never routine between-session practice. Each release is a coherent snapshot with its pins; a library change and the service change that proves it release together; a member release prompts the coordinator sweep.",
+]
+context = ["standards-lab/context/design/service-organization.md"]
+
+[goals.v1.tasks.testing]
+name = "The testing hierarchy"
+repos = ["go-core", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
+summary = '''
+The strategy session for the full testing hierarchy: principles and guidelines per layer;
+service-backed integration tiers and their cadence against CI cost (below the per-PR unit
+rate); the postgres-in-CI approach as the template for later service integrations. The linked
+brief carries the questions and the evaluation evidence; all decisions settle in this session.
+'''
+context = [
+  "standards-lab/context/concepts/testing-hierarchy.md",
+  "go-web-service/context/concepts/retrospective-findings.md",
+]
+
+[goals.v1.data]
+name = "Data composition and CQRS"
+summary = '''
+A composed data model over plain SQL and a CQRS-oriented interface, spanning go-database,
+go-web-sdk, and the service's domain packages. The domain design direction — the four domains,
+their invariants, and the CQRS contract — lives in the linked note.
+'''
+context = ["go-web-service/context/concepts/data-layer.md"]
+
+[goals.v1.data.sql]
+name = "SQL as a DSL-driven service"
+summary = '''
+The native-SQL strategy executed: go-database v0.4 replaces the ast/operation/exec vocabulary
+with authored SQL files and the thin query/migrate mechanisms; the reference service follows
+with per-domain sql/, startup verify/apply/seed, and the management listener; the docs and
+harness carry the principles. The strategy record holds the reasoning and the retrospective's
+breaking-window adjustments.
+'''
+criteria = [
+  "go-database v0.4.0 and the service change that proves it release together; the organization domain runs on authored SQL end to end.",
+  "cmd/db and golang-migrate are gone; verify/apply/seed are library mechanisms triggered by the composition root.",
+  "The DSL-driven-services principle, the rewritten go-database pages, and the service's page land in the docs tier.",
+]
+context = ["standards-lab/context/design/dsl-driven-services.md"]
+
+[goals.v1.data.sql.tasks.plan]
+name = "The SQL planning session"
+repos = ["go-database"]
+summary = '''
+Settles what the strategy defers (its §9): query signatures, Source loading, placeholder
+rebinding; catalog composition — pattern-catalog sufficiency versus build-time fragment
+composition (runtime templating is ruled out; the strategy's §3 records why); row mapping;
+Guard shape; the migration version table and force/dirty semantics.
+'''
+context = ["standards-lab/context/design/dsl-driven-services.md"]
+
+[goals.v1.data.sql.tasks.query]
+name = "go-database query"
+repos = ["go-database"]
+summary = '''
+The query mechanism — statements, Source, projection with a typed field contract, directives,
+runners, guard — plus the retrospective's breaking-window items and salvage map, carried in
+full in the linked findings note.
+'''
+context = [
+  "standards-lab/context/design/dsl-driven-services.md",
+  "go-database/context/concepts/v0.4-findings.md",
+]
+
+[goals.v1.data.sql.tasks.migrate]
+name = "go-database migrate and Verify"
+repos = ["go-database"]
+summary = '''
+The migrate mechanism and prepare-based verification; seed reconciled onto the shared
+transaction-runner shape. The mature-library cases — dirty state, non-transactional DDL,
+concurrent starters — are required acceptance criteria, not nice-to-haves (strategy A.4).
+'''
+context = ["go-database/context/concepts/v0.4-findings.md"]
+
+[goals.v1.data.sql.tasks.organization]
+name = "The organization domain on query"
+repos = ["go-database", "go-web-sdk", "go-web-service"]
+summary = '''
+A coordinated session: the organization domain rewritten onto authored SQL, the query
+mechanism, and the error-handler adapter; cmd/db and golang-migrate deleted; the per-domain
+boilerplate extracted before domains multiply (the extraction list and the API-semantics
+fixes are in the linked findings note). go-database v0.4.0, postgres, and the service release
+together.
+'''
+context = ["go-web-service/context/concepts/retrospective-findings.md"]
+
+[goals.v1.data.sql.tasks.startup]
+name = "Startup modes and the management listener"
+repos = ["go-web-service", "go-web-sdk", "go-web-sdk-template"]
+summary = '''
+Schema verify/apply and seed as configured startup concerns with the one-shot migration mode;
+the management surface on a separate listener. Absorbs the maintenance-module concept (culled
+2026-08-31); its constraints carry over: private listener disabled unless configured, auth
+gates the mutating half (administration may stage behind goals.v1.auth), config rendering
+waits on a go-core redaction contract. Needs go-web-sdk's config env segment made
+per-block ("server" is hardcoded today). Posture decisions on record: whether the serving
+role ever holds DDL, and whether off-by-default is mandated by the standard (strategy A.3,
+A.5).
+'''
+context = [
+  "standards-lab/context/design/dsl-driven-services.md",
+  "go-web-service/context/concepts/retrospective-findings.md",
+]
+
+[goals.v1.data.sql.tasks.docs]
+name = "The docs pass"
+repos = ["docs", "standards-lab"]
+summary = '''
+The DSL-driven-services principle page; the go-database pages rewritten; the SQL meta-language
+concept reframed — native SQL files become the authoring surface it sits above; the reference
+service gains its page and the service page type the v1 criteria assume; the references
+catalog refreshed. The page-by-page inventory is the linked note.
+'''
+context = ["docs/context/concepts/dsl-docs-pass.md"]
+
+[goals.v1.data.sql.tasks.hardening]
+name = "Template and harness follow-through"
+repos = ["go-web-sdk-template", "claude-plugins"]
+summary = '''
+The template scaffolds sql/, the startup modes, and the listener (the template is
+generate-and-forget: no parity check, optionally a generated-from-version annotation). The
+harness gains the sufficiency question at the plan stage and the injection, tier-header, and
+guarded-statement conventions as checkable rules.
+'''
+
+[goals.v1.data.tasks.people]
+name = "People domain"
+repos = ["go-web-service"]
+summary = "The person anchor, record status, unit membership, and its action commands."
+context = ["go-web-service/context/concepts/data-layer.md"]
+
+[goals.v1.data.tasks.inventory]
+name = "Inventory domain"
+repos = ["go-web-service"]
+summary = "The item template/instance split and the custody ledger."
+context = ["go-web-service/context/concepts/data-layer.md"]
+
+[goals.v1.data.tasks.devices]
+name = "Devices domain"
+repos = ["go-web-service"]
+summary = "The branch domain — composition over inheritance."
+context = ["go-web-service/context/concepts/data-layer.md"]
+
+[goals.v1.data.tasks.evaluation]
+name = "Evaluation and close"
+repos = ["go-web-service", "go-web-sdk-template", "go-database", "go-web-sdk"]
+summary = '''
+The cross-board evaluation of the service and the template — correctness, simplification,
+what promotes to the template or the libraries — and the port-list audit. Then the closing
+coordinated releases (purging any -dev.N tags cut for cross-module resolution) and the
+layer's docs/ page. The depguard import-boundary question re-asks here.
+'''
+
+[goals.v1.web]
+name = "The web SDK's handler contract"
+summary = '''
+The SDK completes what the adapter decision opened: error-returning handlers, a whole-response
+problem story, and the middleware set — the stdlib handler signature staying the primary
+contract throughout.
+'''
+
+[goals.v1.web.tasks.adapter]
+name = "The error-handler adapter"
+repos = ["go-web-sdk", "go-web-service"]
+summary = '''
+HandleErr and the error-returning HandlerFunc over a group-scoped ErrorWriter, with the
+whole-response problem story folded in — the shared wrapped writer, the ErrorWriter problem
+vocabulary, router 404/405 hooks, the ErrorLog bridge, and the request-side helper
+promotions. The settled API and the full item list are the linked note; the reference
+service's handlers convert.
+'''
+context = ["go-web-sdk/context/concepts/error-handling.md"]
+
+[goals.v1.web.tasks.middleware]
+name = "The middleware set"
+repos = ["go-web-sdk"]
+summary = '''
+The hand-rolled set on the shared writer and the sourced spec-surface set, per the
+middleware catalog in the linked note; the recoverer/logger ordering resolved and the request
+ID surfaced in the log record. Required before goals.v1.auth.
+'''
+context = [
+  "go-web-sdk/context/concepts/middleware-sourcing.md",
+  "standards-lab/context/design/dependency-sourcing.md",
+]
+
+[goals.v1.auth]
+name = "Auth and ABAC"
+summary = '''
+The go-auth infrastructure library with Keycloak as the declared provider (standard tier:
+OAuth 2.0, OIDC, JWT); identity linking on the person anchor; verb-keyed attribute-based
+access control over the composed model. Unit-scoped grants trigger the organization-lineage
+materialization decision. On record from the retrospective: the seams the service lacks — an
+infrastructure-backed middleware home, a request-identity carrier, an authorization predicate
+on the single-row query path, and additive DI — detailed in the linked findings note.
+'''
+context = [
+  "go-web-service/context/concepts/identity-linking.md",
+  "go-web-service/context/concepts/organization-lineage.md",
+  "go-web-service/context/concepts/retrospective-findings.md",
+]
+
+[goals.v1.observability]
+name = "Observability"
+summary = '''
+The go-observability infrastructure library: logs, metrics, and traces through OpenTelemetry,
+the collector in the compose stack; the request logger's open questions in web answered
+against OpenTelemetry's conventions.
+'''
+
+[goals.v1.storage]
+name = "Object storage"
+summary = '''
+The go-storage infrastructure library. No formal standard exists, so the organization
+establishes the standard tier as the minimal operation set common to the Azure Blob and S3
+APIs; the declared stack picks one provider (azurite locally); the service demonstrates it in
+a documented layer.
+'''
+
+[goals.v1.messaging]
+name = "Messaging and reactor services"
+summary = '''
+The go-messaging infrastructure library with NATS as the declared provider, and the layer that
+makes the service's internal/reactors real: reactor services on the event-driven interface
+messaging enables, fleshed out as first-class architecture alongside the domain layer.
+'''
+
+[goals.v1.ai]
+name = "AI"
+summary = '''
+The go-ai infrastructure library and the service layer that demonstrates it. Claim resolution
+only; the prior R&D is herald (Azure AI Foundry vision models), catalogued in the references.
+'''
+
+[goals.v1.client]
+name = "Embedded client"
+summary = '''
+A web client embedded in and served by the service binary — the herald precedent: an app/
+client with its own build, served from the server's routes. Its stack and scope are settled in
+its own planning session.
+'''
+
+[goals.v1.deployment]
+name = "Deployment"
+summary = '''
+Deployment infrastructure in its own repository, separate from the service source; its targets
+are settled in its own planning session once the service is worth deploying.
+'''
+
+# ── Backlog ────────────────────────────────────────────────────────────────────────────────
+
+[backlog.leadership-brief]
+name = "The leadership brief"
+repos = ["standards-lab"]
+summary = '''
+The standardized brief for the CTO and technical leaders: the vision overview led by the
+thesis, a roadmap summary from goals.v1, the Organization Contents link tree, and the
+pasteable agent-interview prompt with its hosted interview.md. Honest early-prototype tone.
+Contents, tone, and open items are the linked note, which also feeds the marathon-sitrep
+extension concept.
+'''
+context = ["standards-lab/context/concepts/leadership-brief.md"]
+
+[backlog.rolling-currency]
+name = "The rolling-currency principle"
+summary = '''
+Pinned-and-current as a universal landing-zone principle: every version explicit, upgrades
+becoming front-of-queue steps the moment upstream releases, staleness as debt by definition.
+The posture, its pairing with minimal-footprint, and the calibrations are the linked note.
+'''
+context = ["standards-lab/context/concepts/rolling-currency.md"]
+
+[backlog.marathon-references]
+name = "The references system as a marathon extension"
+repos = ["claude-plugins"]
+summary = '''
+Evaluate promoting the workspace's references catalog (references.toml/local/md, the
+repo-references design note) to a marathon extension owning the three-file artifact; the
+proposal and its open questions — facet, hooks, artifact location — are the linked note.
+'''
+context = ["claude-plugins/context/concepts/marathon-references-extension.md"]
+
+[backlog.context-stratification]
+name = "The context stratification pass"
+summary = '''
+The alignment pass applying the context-architecture principle across the landing zone,
+profiles, catalogs, and project context once marathon v0.9.0 lands the harness half: every
+restated detail collapses to a link to its single home.
+'''
+context = ["standards-lab/context/design/context-architecture.md"]
+
+[backlog.marathon-docs-extension]
+name = "The docs command as an extension"
+repos = ["claude-plugins"]
+summary = '''
+Evaluate promoting marathon's docs command from a core optional feature to an extension: the
+landing-zone binding is org-specific, the extension taxonomy is the mechanism for org-specific
+artifacts, and the always-loaded skill index lightens. The full case and open questions are the
+linked concept note.
+'''
+context = ["claude-plugins/context/concepts/marathon-docs-extension.md"]
+
+[backlog.harness-testing]
+name = "Harness testing and its CI fit"
+repos = ["claude-plugins"]
+summary = '''
+The deferred deep dive from v0.9.0: what behavioral testing of a living workflow skill is
+functionally helpful, and how it fits a CI pipeline whose job is tangible validation. Gated on
+observed failure modes and on claude plugin eval enablement; the position on record is the
+linked note.
+'''
+context = ["claude-plugins/context/concepts/harness-testing.md"]
+
+[backlog.second-providers]
+name = "Second providers"
+summary = '''
+Entra for auth, the storage counterpart, a second SQL engine — each proven by a focused
+reference or a real consumer, one session each. Post-1.0 candidate.
+'''
+
+[backlog.dotnet-mirror]
+name = "The .NET mirror"
+summary = "The reference architecture mirrored in .NET. Post-1.0 candidate."
+
+[backlog.external-client]
+name = "External client"
+summary = "An external web-platform-native client repository. Post-1.0 candidate."
+
+[backlog.docs-site]
+name = "The organization docs site"
+summary = "The documentation site serving the landing zone's content."
+context = ["standards-lab/context/concepts/docs-site.md"]
+
+[backlog.marathon-sitrep]
+name = "The marathon-sitrep extension"
+summary = '''
+Audience-calibrated situation reports over the workspace's git history, session record, and
+roadmap deltas. First member of the enhancement facet of the extension taxonomy.
+'''
+context = ["claude-plugins/context/concepts/marathon-sitrep.md"]
+
+[backlog.validation-first]
+name = "The validation-first layering principle"
+summary = '''
+Validation runs at the earliest possible moment within the scope where it occurs, so the
+earliest invalid state is caught and first-failure-wins surfaces the outermost defect.
+Settled during v1.data.writes.database. Remaining: document it as a Go Elemental principle in
+the docs landing zone, and run an enforcement pass across the organization's code. Its
+original worked exhibit (the ast render layer) retires with go-database v0.4; the pass names
+a current one.
+'''
+
+[backlog.sql-meta-language]
+name = "The SQL meta language"
+summary = '''
+A provider-agnostic SQL meta language: SQL-compliant core with modules and composable
+definitions, schema-typed against the migration set, compiled to provider dialects with
+declared native reach. Under the DSL strategy, the authored SQL files are the authoring
+surface it would sit above, and build-time fragment composition is its recognizable phase
+one; the concept's runtime-half framing is rewritten in the docs pass. Not a v1 dependency.
+'''
+context = ["docs/context/concepts/sql-meta-language.md"]

@@ -1,0 +1,34 @@
+# Project kind: this repository is context (profiles, references, working context),
+# not production source code.
+[project]
+kind = "context"
+
+# Workspace coordinator: standards-lab is the org-context project for the
+# reference-architecture workspace (~/architecture/). It declares the dependency
+# order a cross-repo step flows through, lowest first. The order is the
+# machine-readable projection of the capability map in context/README.md.
+[workspace]
+role = "coordinator"
+# Marathon extensions enabled for every project in the workspace. marathon-roadmap
+# maintains context/roadmap.toml here at the coordinator as the workspace's roadmap.
+extensions = ["marathon-roadmap"]
+order = [
+  "claude-plugins", # harness
+  "go-core", # core SDK
+  [
+    "go-database", # infrastructure service SDK
+    "go-web-sdk",  # web service application SDK
+  ],
+  "go-web-sdk-template", # web service application template
+  "go-web-service", # reference web service
+  "docs", # document landing zone
+]
+docs = "docs" # the workspace's docs landing zone
+
+# Remote platform and the command that publishes a finished branch.
+# All three repositories rooted in this directory (org here, .github under public/,
+# .github-private under private/) are on GitHub and publish the same way; git routes
+# each commit to its remote by working tree.
+[remote]
+platform = "github"
+publish = "gh pr create"
