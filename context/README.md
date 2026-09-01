@@ -73,6 +73,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **DSL-driven services** — the strategy distinguishing DSL-driven infrastructure (SQL first)
   from protocol-driven, and the native-SQL direction for go-database v0.4 and the reference
   service. See `design/dsl-driven-services.md`.
+- **Testing hierarchy** — the two-tier testing strategy: the hermetic per-PR unit tier for
+  every layer, and the application-layer integration tier that runs the composed service's
+  compose stack black-box through the API on merge. See `design/testing-hierarchy.md`.
 - **Context architecture** — the single-source-of-truth principle for every layer of written
   context. See `design/context-architecture.md`.
 - **Dependency sourcing** — when the organization hand-rolls a capability and when it sources
