@@ -3,7 +3,7 @@
 # references/manifest.md.
 
 next = [
-  "v1.testing",
+  "v1.data.sql.plan",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -22,20 +22,6 @@ criteria = [
   "The service is versionless until 1.0: minor releases cut as layers complete in whatever order they land, v1.0.0 when this goal's tree is empty; -dev.N prerelease tags serve only the cross-module-resolution case the release-and-ci principle states, never routine between-session practice. Each release is a coherent snapshot with its pins; a library change and the service change that proves it release together; a member release prompts the coordinator sweep.",
 ]
 context = ["standards-lab/context/design/service-organization.md"]
-
-[goals.v1.tasks.testing]
-name = "The testing hierarchy"
-repos = ["go-core", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
-summary = '''
-The strategy session for the full testing hierarchy: principles and guidelines per layer;
-service-backed integration tiers and their cadence against CI cost (below the per-PR unit
-rate); the postgres-in-CI approach as the template for later service integrations. The linked
-brief carries the questions and the evaluation evidence; all decisions settle in this session.
-'''
-context = [
-  "standards-lab/context/concepts/testing-hierarchy.md",
-  "go-web-service/context/concepts/retrospective-findings.md",
-]
 
 [goals.v1.data]
 name = "Data composition and CQRS"
@@ -79,7 +65,9 @@ repos = ["go-database"]
 summary = '''
 The query mechanism — statements, Source, projection with a typed field contract, directives,
 runners, guard — plus the retrospective's breaking-window items and salvage map, carried in
-full in the linked findings note.
+full in the linked findings note. The GOWORK=off per-module build steps enter CI first, and
+the scripted-driver fakes promote to one shared prepare-capable internal test package
+(testing hierarchy).
 '''
 context = [
   "standards-lab/context/design/dsl-driven-services.md",
@@ -92,7 +80,9 @@ repos = ["go-database"]
 summary = '''
 The migrate mechanism and prepare-based verification; seed reconciled onto the shared
 transaction-runner shape. The mature-library cases — dirty state, non-transactional DDL,
-concurrent starters — are required acceptance criteria, not nice-to-haves (strategy A.4).
+concurrent starters — are required acceptance criteria, not nice-to-haves (strategy A.4);
+per the testing hierarchy the engine-only cases are session-time acceptance proofs, and
+concurrent starters move up into the service's integration suite.
 '''
 context = ["go-database/context/concepts/v0.4-findings.md"]
 
@@ -133,7 +123,8 @@ summary = '''
 The DSL-driven-services principle page; the go-database pages rewritten; the SQL meta-language
 concept reframed — native SQL files become the authoring surface it sits above; the reference
 service gains its page and the service page type the v1 criteria assume; the references
-catalog refreshed. The page-by-page inventory is the linked note.
+catalog refreshed. The page-by-page inventory is the linked note. Once the integration tier
+is live, tests-and-docs and release-and-ci are amended per the testing hierarchy.
 '''
 context = ["docs/context/concepts/dsl-docs-pass.md"]
 
@@ -142,10 +133,24 @@ name = "Template and harness follow-through"
 repos = ["go-web-sdk-template", "claude-plugins"]
 summary = '''
 The template scaffolds sql/, the startup modes, and the listener (the template is
-generate-and-forget: no parity check, optionally a generated-from-version annotation). The
-harness gains the sufficiency question at the plan stage and the injection, tier-header, and
-guarded-statement conventions as checkable rules.
+generate-and-forget: no parity check, optionally a generated-from-version annotation), and
+seeds the integration tier's scaffolding — the tagged-suite shape, the CI job, and the
+test-integration task. The harness gains the sufficiency question at the plan stage and the
+injection, tier-header, and guarded-statement conventions as checkable rules.
 '''
+
+[goals.v1.data.sql.tasks.suite]
+name = "The integration tier"
+repos = ["go-web-service"]
+summary = '''
+The integration tier stood up per the testing hierarchy: the //go:build integration suite
+running black-box through the API against the compose stack, the CI job booting the stack
+on merge to main and workflow_dispatch, and the mise test-integration task. Gated on
+tasks.organization — the capability gate requires the rewritten API surface. The suite
+absorbs the manual compose-stack ritual and asserts the design note's behavior list;
+serve-probes-drain lands as a README step.
+'''
+context = ["standards-lab/context/design/testing-hierarchy.md"]
 
 [goals.v1.data.tasks.people]
 name = "People domain"
