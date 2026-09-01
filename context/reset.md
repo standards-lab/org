@@ -1,45 +1,43 @@
-# reset · leadership-brief
+# reset · testing
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** standards-lab (org, .github, .github-private)
-- **Branch:** leadership-brief
+- **Project:** standards-lab (org), go-web-service
+- **Branch:** testing
 
 ## Disposition
 
-- **Integrated:** `backlog.leadership-brief` executed. `briefs/orientation.md` is the
-  standardized orientation for the CTO and technical leaders — the vision (thesis, holding
-  pattern, primitives as modular boundaries, example patterns, agentic questions), the dogfooded
-  harness (harness programming, marathon, context as specification), the roadmap at a glance
-  with the data-layer focus, and the exploration links closing on the interview prompt. The root
-  `interview.md` is the pasteable agent prompt: identity, marathon quick reference, organization
-  and architecture orientation, behavior with distilled voice guidance, and an analysis-driven
-  opening that generates a topic menu from the profile, capability map, and roadmap.
-  `context/README.md` gained the leadership-briefs capability; `CLAUDE.md`'s org summary names
-  the briefs. Placement settled: `briefs/` anticipates sitrep-generated successors; the prompt
-  stays at the root until more prompts warrant a `prompts/` directory.
-- **Integrated:** the vision statement refined across the brief and both profiles. The modern
-  primitives are framed as modular boundaries — maintenance contained, vulnerabilities and
-  technical debt mitigated, capability made reusable — composing an ecosystem of reusable
-  components, with ownership and change made legible (pinned-and-current dependency surface,
-  driving change rather than reacting). The transport-layer bullet now states the accurate
-  claim: the enterprise operationalized the lower OSI layers, not the higher data-driven ones,
-  despite mature commercial-sector standards. The three patterns are framed as examples, not
-  the set. The profiles additionally carry emergent standardization and the outermost-boundary
-  framing of graduation; the baseline body is mirrored verbatim into the extended profile.
-- **Culled:** `concepts/leadership-brief.md` — executed; its open item resolved by the placement
-  above. Its pointer survives here: the brief-plus-interview-prompt pattern is the seed the
-  marathon-sitrep extension concept (`claude-plugins/context/concepts/marathon-sitrep.md`) would
-  generate and keep current.
-- **Cross-repo:** the profile refinement lands in `.github` and `.github-private` on this step's
-  shared slug, one commit and pull request each. Roadmap — `backlog.leadership-brief` deleted,
-  `next` advanced; the edit rides this closeout commit.
+- **Promoted:** `concepts/testing-hierarchy.md` → `design/testing-hierarchy.md`. `v1.testing`
+  executed: the two-tier strategy settled. The hermetic per-PR unit tier covers every layer
+  and is the home of the cheap hermetic gates (`GOWORK=off` module builds, the SQL header
+  check) as `v1.data.sql` lands them. The integration tier is an application-layer concern
+  that mirrors the developer: the compose stack is the integration stack, booted in CI the
+  way `mise run db-up` does; the `//go:build integration` suite runs black-box through the
+  API on merge to main plus `workflow_dispatch`; green licenses release. Layers below the
+  application stay unit-only — service-expressible library claims move up (concurrent
+  starters as two composition-root starts), engine-only claims (dirty state,
+  non-transactional DDL, force semantics) become session-time acceptance proofs. A
+  capability enters the suite only when its API surface is testable end to end. No third
+  tier: the suite absorbs the manual compose-stack ritual; serve-probes-drain becomes a
+  README step. `context/README.md` gained the capability entry.
+- **Integrated:** roadmap — `v1.testing` deleted; `v1.data.sql.tasks.suite` added (the
+  integration tier, gated on `tasks.organization` by the capability gate); one line each
+  appended to `v1.data.sql.tasks.query` (the shared prepare-capable fake package and the
+  `GOWORK=off` CI steps), `.migrate` (acceptance-proof form for the engine-only criteria),
+  `.hardening` (the template seeds the tier's scaffolding), and `.docs` (amend
+  tests-and-docs and release-and-ci once the tier is live); `next` advanced.
+- **Cross-repo:** go-web-service `context/concepts/retrospective-findings.md` — the "For the
+  testing session" section consumed; the header records the consumption and points at the
+  design note.
+- **Retained:** the docs landing zone's tests-and-docs and release-and-ci pages,
+  intentionally unamended — they state the shipped posture, which is still one tier; the
+  design note is the decision record until the first integration run is live.
 
 ## Next-focus
 
-`v1.testing` — the strategy session for the full testing hierarchy: principles and guidelines
-per layer; service-backed integration tiers and their cadence against CI cost (below the per-PR
-unit rate); the postgres-in-CI approach as the template for later service integrations. The
-questions and evaluation evidence: `standards-lab/context/concepts/testing-hierarchy.md` and
-`go-web-service/context/concepts/retrospective-findings.md`. All decisions settle in that
-session; it spans the Go repositories and runs from the coordinator.
+`v1.data.sql.plan` — the SQL planning session settling what the DSL strategy defers (its
+§9): query signatures, Source loading, placeholder rebinding; catalog composition; row
+mapping; Guard shape; the migration version table and force/dirty semantics (the
+acceptance-proof form for the engine-only cases is settled in
+`standards-lab/context/design/testing-hierarchy.md`). Context:
+`standards-lab/context/design/dsl-driven-services.md`. Runs in go-database.
