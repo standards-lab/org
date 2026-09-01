@@ -1,0 +1,12 @@
+# The baseline org profile (.github) is checked out here as its own repository.
+public/
+
+# The extended org profile and private annex (.github-private) are checked out
+# here as their own repository.
+private/
+
+# Per-machine local directory map for references.toml.
+references.local.toml
+
+# Marathon session plan files.
+.claude/plans/
