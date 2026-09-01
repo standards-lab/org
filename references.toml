@@ -1,0 +1,101 @@
+# Repository references — authoritative remote identity.
+#
+# Each key maps to the canonical remote for one repository. references.local.toml
+# (not committed) maps the same key to its directory on this machine. The key is
+# the join: to clone a missing repo, look up its remote here and its target
+# directory in references.local.toml. references.md describes what each key is.
+#
+# A private annex in the private repository (checked out at private/) extends this
+# catalog with the prior R&D that cannot be catalogued publicly; the layering rule
+# is context/design/repo-references.md.
+
+# Standards — named standards that sets of repositories align to. Each
+# [standards.<key>] entry declares one; a member repository's [repos.<key>] entry
+# declares standard = "<key>". A standard derived from another declares
+# derives = "<key>", and architecture names the architecture the standard
+# implements. The definition itself lives in the docs landing zone at the
+# definition URL; the declaration mechanics are context/design/standards.md.
+[standards.go-elemental]
+description = "The Go implementation of the Elemental Architecture: a complete reference architecture on the standard library"
+architecture = "elemental-architecture"
+definition = "https://github.com/standards-lab/docs/blob/main/standards/go-elemental/index.md"
+
+# Effort repositories — the standards-lab organization.
+[repos.claude-plugins]
+remote = "https://github.com/standards-lab/claude-plugins.git"
+
+[repos.docs]
+remote = "https://github.com/standards-lab/docs.git"
+
+[repos.org]
+remote = "https://github.com/standards-lab/org.git"
+
+[repos.github-private]
+remote = "https://github.com/standards-lab/.github-private.git"
+
+[repos.github-public]
+remote = "https://github.com/standards-lab/.github.git"
+
+[repos.go-core]
+remote = "https://github.com/standards-lab/go-core.git"
+standard = "go-elemental"
+
+[repos.go-database]
+remote = "https://github.com/standards-lab/go-database.git"
+standard = "go-elemental"
+
+[repos.go-web-sdk]
+remote = "https://github.com/standards-lab/go-web-sdk.git"
+standard = "go-elemental"
+
+[repos.go-web-sdk-template]
+remote = "https://github.com/standards-lab/go-web-sdk-template.git"
+standard = "go-elemental"
+
+[repos.go-web-service]
+remote = "https://github.com/standards-lab/go-web-service.git"
+standard = "go-elemental"
+
+# External references — repositories outside the effort, cited as illustrations.
+# The maintainer's user-scoped Claude Code configuration, symlinked into ~/.claude.
+[repos.claude-settings]
+remote = "https://github.com/JaimeStill/claude-settings.git"
+
+# Prior R&D — Go web service architecture.
+[repos.herald]
+remote = "https://github.com/JaimeStill/herald.git"
+
+# Prior R&D — TAU ecosystem (agentic libraries).
+[repos.tau-protocol]
+remote = "https://github.com/tailored-agentic-units/protocol.git"
+
+[repos.tau-format]
+remote = "https://github.com/tailored-agentic-units/format.git"
+
+[repos.tau-provider]
+remote = "https://github.com/tailored-agentic-units/provider.git"
+
+[repos.tau-agent]
+remote = "https://github.com/tailored-agentic-units/agent.git"
+
+[repos.tau-orchestrate]
+remote = "https://github.com/tailored-agentic-units/orchestrate.git"
+
+[repos.tau-examples]
+remote = "https://github.com/tailored-agentic-units/examples.git"
+
+[repos.tau-marketplace]
+remote = "https://github.com/tailored-agentic-units/tau-marketplace.git"
+
+[repos.tau-diagrams]
+remote = "https://github.com/tailored-agentic-units/diagrams.git"
+
+[repos.tau-blog]
+remote = "https://github.com/tailored-agentic-units/jaime.git"
+
+# Prior R&D — agentic dev process and event-driven architecture.
+[repos.curiosity]
+remote = "https://github.com/JaimeStill/curiosity.git"
+
+[repos.signal-lab]
+remote = "https://github.com/JaimeStill/signal-lab.git"
