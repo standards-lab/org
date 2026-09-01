@@ -5,6 +5,14 @@ blueprint for a modern, agentic software architecture strategy. It covers what I
 building, why I believe it matters, how it is being built, and how to explore it in depth with
 your own agent. There are no asks in this briefing beyond any feedback or questions you may have.
 
+If you have further questions or would like to dig deeper into what has been fleshed out so far,
+paste the line below into your agent of choice. It initializes an interview session over the
+organization's context and source, answering your questions with cited sources.
+
+```md
+launch interview: https://github.com/standards-lab/org/blob/main/interview.md
+```
+
 ## The vision
 
 The thesis is simple to state: clear architectural principles and standards, broken down into
@@ -52,8 +60,8 @@ treats how agents develop software — the workflows, conventions, and skills th
 something to engineer with the same discipline as the software itself, and its principles are
 part of the architecture this effort captures.
 
-The concrete workflow is marathon, from the notion that it's a marathon, not a sprint. It is an
-extensible long-haul development skill built in this effort. Each session plans one concrete
+The concrete workflow is the agent skill marathon (from the notion that it's a marathon, not a sprint).
+It is an extensible long-haul development skill built in this effort. Each session plans one concrete
 step, and a maintained reset context carries continuity from one session to the next. The
 written context lives alongside the code, layered by volatility, so knowledge graduates from
 concept to design to principle as the work proves it. Its workspace feature coordinates
@@ -118,11 +126,3 @@ together well, and dialing it in takes time.
     an initial Go Elemental web service with `gonew`.
   - [`go-web-service`](https://github.com/standards-lab/go-web-service) — the holistic
     reference web service, grown in documented layers; versionless until its 1.0.
-
-If you have further questions or would like to dig deeper into what has been fleshed out so far,
-paste the line below into your agent of choice. It initializes an interview session over the
-organization's context and source, answering your questions with cited sources.
-
-```md
-launch interview: https://github.com/standards-lab/org/blob/main/interview.md
-```
