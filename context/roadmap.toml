@@ -383,6 +383,28 @@ original worked exhibit (the ast render layer) retires with go-database v0.4; th
 a current one.
 '''
 
+[backlog.marathon-stage-review]
+name = "Stage review gate in marathon"
+repos = ["claude-plugins"]
+summary = '''
+Every marathon working session executes in stages, and a stage is not complete until the
+architect has reviewed it: the point of stages is per-stage review, so a misstep never ripples
+across the code base and the architect never reviews a whole session at once. The sequence for
+every stage, in every command that executes (start, experiment, and the context sessions'
+edits alike): (1) execute the stage; (2) stop and report with the working tree uncommitted,
+so the diff reads cleanly in the architect's tools; iterate on adjustments until the architect
+approves; (3) on approval, commit (on-commit fires first), and the architect states whether a
+reset follows to keep the context small; (4) move to the next stage. Today
+references/staged-execution.md commits before the report ("Commit … Then stop and report"),
+and the staged loop is defined only for a code project's start, so experiment inherits no gate.
+Found by the v1.data.sql.prototype experiment on 2026-09-02, whose first three stages were
+committed before review.
+'''
+context = [
+  "claude-plugins/plugins/marathon/skills/marathon/references/staged-execution.md",
+  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
+]
+
 [backlog.sql-meta-language]
 name = "The SQL meta language"
 summary = '''
