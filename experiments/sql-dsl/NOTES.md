@@ -6,10 +6,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–4 approved (2026-09-02); stage 5, seed, is built and awaits review. See the
-  decisions log.
-- **Next move:** stage 6 — the `query` core: `Load` over `sqlheader`, `Source`, `Statement`,
-  `Args` and the named-parameter rewrite, `Scan`/`Rows`, `Verify` by prepare.
+- **Stage:** 1–5 approved (2026-09-02); stage 6, the `query` core, is built and awaits
+  review. See the decisions log.
+- **Next move:** stage 6b — the seed statements as authored files under
+  `admin/database/sql/`, seed as `query`'s first consumer; then stage 7, projection and
+  guard, then the frame catalog (stage 10) and external frame sourcing (stage 11, replacing
+  the build-time shape).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -41,10 +43,62 @@ is written `@v0.5.0`, not `@template/v0.5.0`.
 _Baseline (stage 8–9), shape A load-time stitching (stage 10), shape B build-time generation
 (stage 11), the judging table, the verdict._
 
+Narrowed at the stage 6 review (the architect, 2026-09-02): build-time generation is set
+aside. A query shaped by request state can only be composed on demand, and build-time output
+is static text; what shape B offered — editor and lint reach over the final text — is
+recoverable by a lint or dump that renders every composed statement for inspection, without
+making generation the runtime source. The injection rule holds as stated: request state
+selects among build-time frames and fragments and never contributes text. Q1 therefore
+judges on-demand stitching against the convention-plus-lint baseline, and stage 11 becomes
+the proof that frames can be sourced from outside the library (an extension point, so a
+consumer or a second library can contribute frames). Frame candidates beyond the sketch's
+five, for stages 10–11 to pick from: keyset pagination, list expansion, batch insert,
+insert-if-absent/`MERGE` with its port, guard variants owning the protocol columns,
+existence and count probes, read-after-write. Content patterns (status filters, search,
+hierarchy CTEs) are the domain's; documenting them is a docs-pass item, in the landing
+zone's principle page rather than the reference service's schema.
+
 ## Q2 — The file grammar
 
 _Scanner corner cases met in real files; header lines under editor tooling; what Verify caught
 and could not; whether the field contract stays in the header._
+
+Stage 6 review settled the grammar on two conventions, both the architect's:
+
+- **Parameters are `{{name}}`**, with `{{name:type}}` binding through `CAST` to an SQL type
+  written as the engine reads it — `uuid`, `numeric(12,2)`, `timestamp with time zone` —
+  standard or native as the file's tier declares; the token reaches the engine verbatim and
+  `Verify` catches a name the engine rejects. A Go-side kind registry (`Kind`, `Typer`) was
+  built and removed in the same review: it constrained the feature to five names for no
+  gain. This supersedes decision 2's `:name`: a surrounding delimiter with no meaning in SQL needs no
+  lexer — the body is scanned by one regular expression, the delimiter is reserved even
+  inside literals and comments, and a `{{` that is not a parameter is a load error. `::uuid`,
+  `:=`, and `:name` are plain text. The syntax has room for list expansion (`{{ids...}}`),
+  deferred to a consumer.
+- **Directives are `--|` lines.** A `--| key: value` line is definitively a directive and a
+  plain `--` line definitively prose, so a misspelled key is a hard error, not silent prose;
+  a `--|` line that is not `key: value`, or one after the body has begun, fails the load.
+  The header is the loader's and is never sent: the engine receives the body
+  (`sqlheader.End`), for `query` statements and migrations alike — MySQL would reject `--|`
+  as a comment, and the header was never the engine's business.
+
+The header grammar as `Load` enforces it: `tier` required; `native` required for native and
+refused for standard; `transaction: required` is the only transaction value a query file may
+carry (`none` is migrate's, refused here); `field` is `<name> <kind>` over the five kinds;
+`key` must name a declared field; an unknown directive is a load error naming the file and
+line. The field contract declares SQL types too (`--| field: created_at timestamp`), not
+kinds: stage 7 tries binding a request's filter value as text through `CAST` and letting the
+engine parse it, mapping a data exception (SQLSTATE class 22) to the 400 path the way class
+23 maps today, so the engine is the one validator. If that proves awkward the fallback is a
+Go parser per common type. Real files and editor tooling: stage 8.
+
+Decisions for later stages, from the stage 6 API review: a domain's wiring test binds each
+handle once with sample `Args` over the driver fake, so a key mismatch fails in CI (stage
+8 sets the shape); the struct-tag row mapper reads `db` then falls back to `json`, so the
+common case needs no second tag, and lands at stage 9 with the second domain rather than
+waiting for a fourth; at promotion `MapError` joins `Session` itself, since both sessions
+carry it and the type assertion in `mapErr` would otherwise lose mapping silently for a
+foreign session.
 
 ## Q3 — The exports
 
@@ -58,7 +112,9 @@ unused; symbols missing._
   at promotion the symbols merge into `database` and the name question disappears.
 - **`ErrorMapper` added beside `Session`.** Once `Dialect()` leaves the interface, errors that
   arise after a call returns (`rows.Err()`, `Scan`) have no mapping path; `*DB` and `*Tx` both
-  expose `MapError` and a runner type-asserts it. Whether runners need it is Q3 evidence.
+  expose `MapError` and a runner type-asserts it. Earned at stage 6: `query`'s runners map
+  `rows.Err`, `Scan`, and `RowsAffected` failures through it (`mapErr`), the paths the seam
+  cannot see; a session without it passes those errors through unmapped. Kept.
 - **`Begin` does not gate on readiness.** v0.3.0's `Begin` returned `ErrNotReady` before
   `Start`; the wrapper drives `*sql.DB` directly. Readiness is the lifecycle wrapper's concern
   (`Check: db` at stage 0); a failed begin wraps `ErrConnectionFailed` as before.
@@ -302,6 +358,18 @@ _Anything deferred, with the decision it would change._
   files, and returns the rows it inserted per domain. Proven live (PostgreSQL 18.4): a fresh
   start logs `seeded organizations=7 people=6`; the next start, and the endpoint, report
   zeros; `APP_ADMIN_SEED=false` seeds nothing and the endpoint is `403 seeding is disabled`.
+- 2026-09-02 · **Stage 6 review.** Parameter syntax is `{{name}}` / `{{name:kind}}`,
+  superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
+  drops build-time generation; stage 11 proves external frame sourcing instead. The
+  content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-02 · **Stage 6.** `lib/query` core: `Load`/`MustLoad` over `sqlheader`, `Source`
+  as inventory with `Statement(name)` panicking on a miss, `Statement` with `Exec`, `Scan`
+  → `Rows[T]` with `One` (`sql.ErrNoRows` unmapped), `All`, and `Each` (closes on break),
+  `Scalar`, `Source.Verify` preparing every statement and joining every failure by name,
+  `Verifier`/`Verify`. `ErrTransactionRequired` is checked at bind, before the driver; a
+  missing argument is `*ArgumentError` naming statement and parameter, an extra is ignored.
+  The engine receives the whole file, header comments included. Projection, guard, and
+  directives are stage 7.
 - 2026-09-02 · PRQL considered and ruled out for this layer: analytical-only by its own
   statement, no Go binding, a second language above SQL. A reference point for the meta-language
   concept.

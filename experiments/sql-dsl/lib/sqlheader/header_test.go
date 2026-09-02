@@ -2,22 +2,33 @@ package sqlheader_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqlheader"
 )
 
-func TestParse_ReadsDirectivesUntilTheFirstSQLToken(t *testing.T) {
-	h := sqlheader.Parse(`
--- tier: native
---   native: postgres — pg_advisory_xact_lock. Ports: sp_getapplock, GET_LOCK.
--- a line of prose, not a directive
--- field: id uuid
+func parse(t *testing.T, text string) sqlheader.Header {
+	t.Helper()
+	h, err := sqlheader.Parse(text)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	return h
+}
 
--- field: name text
-SELECT pg_advisory_xact_lock(:key)
--- transaction: none  (after the body: not a directive)
-`)
+func TestParse_ReadsDirectivesUntilTheFirstSQLToken(t *testing.T) {
+	text := `
+--| tier: native
+--|   native: postgres — pg_advisory_xact_lock. Ports: sp_getapplock, GET_LOCK.
+-- a line of prose, not a directive
+--| field: id uuid
+
+--| field: name text
+SELECT pg_advisory_xact_lock({{key}})
+-- transaction: none  (a plain comment in the body)
+`
+	h := parse(t, text)
 	if v, ok := h.Get("tier"); !ok || v != "native" {
 		t.Errorf("tier = %q, %v", v, ok)
 	}
@@ -28,7 +39,7 @@ SELECT pg_advisory_xact_lock(:key)
 		t.Errorf("fields = %v", got)
 	}
 	if _, ok := h.Get("transaction"); ok {
-		t.Error("a directive after the body was read")
+		t.Error("a plain comment was read as a directive")
 	}
 	if got := h.Keys(); !slices.Equal(got, []string{"tier", "native", "field"}) {
 		t.Errorf("keys = %v", got)
@@ -36,15 +47,43 @@ SELECT pg_advisory_xact_lock(:key)
 	if ds := h.Directives(); ds[0].Line != 2 || ds[3].Line != 7 {
 		t.Errorf("line numbers = %d, %d", ds[0].Line, ds[3].Line)
 	}
+	if body := text[h.End():]; !strings.HasPrefix(body, "SELECT pg_advisory_xact_lock") {
+		t.Errorf("body = %q", body)
+	}
 }
 
-func TestParse_EmptyAndHeaderlessTexts(t *testing.T) {
-	for _, text := range []string{"", "SELECT 1", "-- just a comment\nSELECT 1", "-- Tier: standard\nSELECT 1"} {
-		if h := sqlheader.Parse(text); len(h.Directives()) != 0 {
+func TestParse_EndIsWhereTheBodyBegins(t *testing.T) {
+	if h := parse(t, "--| tier: standard\n"); h.End() != len("--| tier: standard\n") {
+		t.Errorf("header-only End = %d", h.End())
+	}
+	if h := parse(t, "SELECT 1"); h.End() != 0 {
+		t.Errorf("headerless End = %d", h.End())
+	}
+	if h := parse(t, "-- prose only\nSELECT 1"); h.End() != len("-- prose only\n") || len(h.Directives()) != 0 {
+		t.Errorf("prose-only header: End = %d, directives = %v", h.End(), h.Directives())
+	}
+}
+
+func TestParse_PlainCommentsAreProse(t *testing.T) {
+	for _, text := range []string{"", "SELECT 1", "-- just a comment\nSELECT 1", "-- tier: standard\nSELECT 1"} {
+		if h := parse(t, text); len(h.Directives()) != 0 {
 			t.Errorf("%q: directives = %v", text, h.Directives())
 		}
 	}
-	if v, ok := sqlheader.Parse("-- key:\nSELECT 1").Get("key"); !ok || v != "" {
+	if v, ok := parse(t, "--| key:\nSELECT 1").Get("key"); !ok || v != "" {
 		t.Errorf("empty value: %q, %v", v, ok)
+	}
+}
+
+func TestParse_RejectsMalformedAndMisplacedDirectives(t *testing.T) {
+	cases := map[string]string{
+		"no key":               "--| just words\nSELECT 1",
+		"uppercase key":        "--| Tier: standard\nSELECT 1",
+		"directive after body": "--| tier: standard\nSELECT 1\n--| key: id",
+	}
+	for name, text := range cases {
+		if _, err := sqlheader.Parse(text); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }

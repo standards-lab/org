@@ -1,12 +1,17 @@
 package sqlheader
 
 import (
-	"bufio"
+	"fmt"
 	"regexp"
 	"strings"
 )
 
-// Directive is one "-- key: value" line of the header, with its 1-based
+// Marker opens a directive line. It is a comment to every engine that
+// reads "--" without requiring whitespace after it, and it is never sent:
+// the header is the loader's, and a consumer hands the engine the body.
+const Marker = "--|"
+
+// Directive is one "--| key: value" line of the header, with its 1-based
 // line number for a consumer's error messages.
 type Directive struct {
 	Key   string
@@ -14,34 +19,57 @@ type Directive struct {
 	Line  int
 }
 
-// Header is the directives of one file, in file order. A key may repeat;
-// "field" does, once per column.
+// Header is the directives of one file, in file order, and where the body
+// begins. A key may repeat; "field" does, once per column.
 type Header struct {
 	directives []Directive
+	end        int
 }
 
 var directive = regexp.MustCompile(`^([a-z][a-z0-9_-]*):\s*(.*)$`)
 
-// Parse reads the header from text. It cannot fail: a line that is not a
-// directive is prose, and the header ends at the first non-comment line.
-func Parse(text string) Header {
+// Parse reads the header from text: the leading run of lines that are
+// blank, plain "--" comments (prose, skipped), or "--|" directives. The
+// header ends at the first line that is none of those. A directive line
+// that is not "--| key: value", or a directive after the body has begun,
+// is an error.
+func Parse(text string) (Header, error) {
 	var h Header
-	sc := bufio.NewScanner(strings.NewReader(text))
-	for n := 1; sc.Scan(); n++ {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
-			continue
+	inHeader := true
+	offset := 0
+	for n := 1; offset < len(text); n++ {
+		raw, next := text[offset:], len(text)
+		if i := strings.IndexByte(raw, '\n'); i >= 0 {
+			raw, next = raw[:i], offset+i+1
 		}
-		if !strings.HasPrefix(line, "--") {
-			break
+		line := strings.TrimSpace(raw)
+		if inHeader && line != "" && !strings.HasPrefix(line, "--") {
+			inHeader = false
+			h.end = offset
 		}
-		body := strings.TrimSpace(strings.TrimPrefix(line, "--"))
-		if m := directive.FindStringSubmatch(body); m != nil {
+		if strings.HasPrefix(line, Marker) {
+			if !inHeader {
+				return h, fmt.Errorf("sqlheader: line %d: directive after the body", n)
+			}
+			m := directive.FindStringSubmatch(strings.TrimSpace(line[len(Marker):]))
+			if m == nil {
+				return h, fmt.Errorf("sqlheader: line %d: %q is not \"--| key: value\"", n, line)
+			}
 			h.directives = append(h.directives, Directive{Key: m[1], Value: strings.TrimSpace(m[2]), Line: n})
 		}
+		offset = next
 	}
-	return h
+	if inHeader {
+		h.end = len(text)
+	}
+	return h, nil
 }
+
+// End returns the byte offset at which the body begins: the start of the
+// first line that is neither a comment nor blank, or the length of the text
+// when there is no body. A consumer sends text[End():] to the engine and
+// scans it for what only the body may contain.
+func (h Header) End() int { return h.end }
 
 // Directives returns every directive in file order.
 func (h Header) Directives() []Directive {

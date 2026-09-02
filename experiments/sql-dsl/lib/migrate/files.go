@@ -25,11 +25,12 @@ type Migration struct {
 var fileName = regexp.MustCompile(`^(\d+)_([A-Za-z0-9_-]+)\.(up|down)\.sql$`)
 
 // Files reads the NNNN_name.{up,down}.sql layout under dir in fsys into a
-// version-ordered set. The up file's header decides Transactional: the
-// "transaction" directive, "none" opting out and "required" or absence
+// version-ordered set. The up file's "--|" header decides Transactional:
+// the "transaction" directive, "none" opting out and "required" or absence
 // keeping the transaction; a down file that declares differently is an
-// error. Versions must be unique; a down without its up is an error; an up
-// without its down is allowed.
+// error. Up and Down are the files' bodies; the engine never sees a header.
+// Versions must be unique; a down without its up is an error; an up without
+// its down is allowed.
 func Files(fsys fs.FS, dir string) ([]Migration, error) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
@@ -60,7 +61,7 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 		} else if mig.Name != m[2] {
 			return nil, fmt.Errorf("migrate: version %d has two names: %q and %q", version, mig.Name, m[2])
 		}
-		transactional, err := transactional(string(text))
+		transactional, body, err := header(string(text))
 		if err != nil {
 			return nil, fmt.Errorf("migrate: %s: %w", e.Name(), err)
 		}
@@ -69,13 +70,13 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 			if mig.Up != "" {
 				return nil, fmt.Errorf("migrate: version %d has two up files", version)
 			}
-			mig.Up = string(text)
+			mig.Up = body
 			mig.Transactional = transactional
 		case "down":
 			if mig.Down != "" {
 				return nil, fmt.Errorf("migrate: version %d has two down files", version)
 			}
-			mig.Down = string(text)
+			mig.Down = body
 			downMode[version] = &transactional
 		}
 	}
@@ -93,17 +94,21 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 	return out, nil
 }
 
-// transactional reads the "transaction" directive of a file's header: "none"
-// runs the migration outside a transaction, "required" or no directive keeps
-// it inside one, and any other value is an error.
-func transactional(text string) (bool, error) {
-	v, ok := sqlheader.Parse(text).Get("transaction")
-	switch {
+// header reads a file's header and returns whether the migration runs in a
+// transaction — "none" opts out, "required" or no directive keeps it, any
+// other value is an error — and the body the engine receives.
+func header(text string) (transactional bool, body string, err error) {
+	h, err := sqlheader.Parse(text)
+	if err != nil {
+		return false, "", err
+	}
+	body = text[h.End():]
+	switch v, ok := h.Get("transaction"); {
 	case !ok, v == "required":
-		return true, nil
+		return true, body, nil
 	case v == "none":
-		return false, nil
+		return false, body, nil
 	default:
-		return false, fmt.Errorf("transaction directive %q is not required or none", v)
+		return false, "", fmt.Errorf("transaction directive %q is not required or none", v)
 	}
 }
