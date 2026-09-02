@@ -1,0 +1,8 @@
+[
+  { "unit": "platform", "given_name": "Ada", "family_name": "Lovelace", "email": "ada@acme.example", "status": "active" },
+  { "unit": "platform", "given_name": "Grace", "family_name": "Hopper", "email": "grace@acme.example", "status": "active" },
+  { "unit": "product", "given_name": "Edsger", "family_name": "Dijkstra", "email": "edsger@acme.example", "status": "pending" },
+  { "unit": "logistics", "given_name": "Barbara", "family_name": "Liskov", "email": "barbara@acme.example", "status": "active" },
+  { "unit": "finance", "given_name": "Tony", "family_name": "Hoare", "email": "tony@acme.example", "status": "inactive" },
+  { "unit": "acme", "given_name": "Frances", "family_name": "Allen", "email": "frances@acme.example", "status": "active" }
+]

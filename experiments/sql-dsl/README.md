@@ -10,7 +10,8 @@ experiment's record, position, and findings: `NOTES.md`.
 - `lib/` — promotion candidates for go-database; never imports `internal/`
   (`mise run split-check` enforces it).
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
-  at `/admin`; `admin/database` owns the schema (migrations, seeds) and its operations.
+  at `/admin`; `admin/database` owns the schema (migrations), the seed files, and their
+  operations.
 - `domain/` — the two domains, mounted at `/api` (stages 8 and 9).
 - `internal/` — the service side: `config` with its `configtest` fixtures, the composition
   root (`app`, whose `infrastructure.go`, `admin.go`, `domain.go`, and `reactors.go` wire
@@ -27,9 +28,14 @@ mise run test                  # hermetic
 mise run test-compose          # against the live stack
 ```
 
-The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, and `POST
-/schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), each a
-trigger over the same function startup calls.
+The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `POST
+/schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), and
+`POST /seed`, each a trigger over the same function startup calls.
+
+Seeding is development and test tooling behind `admin.seed` (`APP_ADMIN_SEED`): on in
+`config.local.json`, off in the base config. When on, startup seeds once the schema is
+current, and `POST /seed` runs the same loader; when off, the endpoint answers 403. The seed
+files under `admin/database/seeds/` are idempotent through each table's unique constraint.
 
 The service reads `config.json`, `config.local.json` (`APP_ENV=local`), and `APP_*`
 variables; the compose password rides `APP_DATABASE_PASSWORD` from `mise.toml`.

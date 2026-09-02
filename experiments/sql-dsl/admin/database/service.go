@@ -24,16 +24,26 @@ type Service struct {
 	db       *sqldb.DB
 	migrator *migrate.Migrator
 	logger   *slog.Logger
+	seed     bool
 	ready    atomic.Bool
 }
 
+// Options are the service's environment-dependent switches, taken from
+// config at the composition root.
+type Options struct {
+	// Seed enables seeding: at every startup, and on demand from the admin
+	// mount. Seeds are development and test tooling; production leaves it
+	// off and carries reference data as migrations.
+	Seed bool
+}
+
 // New builds the service over db and the embedded migration set.
-func New(db *sqldb.DB, logger *slog.Logger) (*Service, error) {
+func New(db *sqldb.DB, logger *slog.Logger, opts Options) (*Service, error) {
 	m, err := migrate.New(db, Migrations(), migrate.Options{Logger: logger})
 	if err != nil {
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
-	return &Service{db: db, migrator: m, logger: logger}, nil
+	return &Service{db: db, migrator: m, logger: logger, seed: opts.Seed}, nil
 }
 
 // Register declares the schema stage on lc: Start corrects the schema and
@@ -56,7 +66,8 @@ func (s *Service) Ready() bool { return s.ready.Load() }
 // the mechanism cannot correct — a dirty row, a history the set does not
 // carry — fails startup; an operator resolves it through the admin
 // endpoints (force, then up) on a process started against a corrected
-// database, or from another replica.
+// database, or from another replica. With seeding enabled, the seed runs
+// once the schema is current.
 func (s *Service) Start(ctx context.Context) error {
 	err := s.migrator.Verify(ctx)
 	if pending, ok := errors.AsType[*migrate.PendingError](err); ok {
@@ -75,6 +86,13 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 	s.logger.Info("schema current", "version", v.Version)
+	if s.seed {
+		n, err := s.Seed(ctx)
+		if err != nil {
+			return fmt.Errorf("seed: %w", err)
+		}
+		s.logger.Info("seeded", "organizations", n.Organizations, "people", n.People)
+	}
 	return nil
 }
 

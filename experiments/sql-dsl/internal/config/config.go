@@ -18,11 +18,12 @@ const envPrefix = "app"
 const defaultShutdownTimeout = 10 * time.Second
 
 // Config is the service's root configuration: the library capability blocks
-// plus the service-owned shutdown timeout.
+// plus the service-owned admin block and shutdown timeout.
 type Config struct {
 	Log             logging.Config     `json:"log"`
 	Server          web.Config         `json:"server"`
 	Database        database.Config    `json:"database"`
+	Admin           AdminConfig        `json:"admin"`
 	ShutdownTimeout libconfig.Duration `json:"shutdown_timeout"`
 }
 
@@ -38,6 +39,7 @@ func (c *Config) Merge(src *Config) {
 	c.Log.Merge(&src.Log)
 	c.Server.Merge(&src.Server)
 	c.Database.Merge(&src.Database)
+	c.Admin.Merge(&src.Admin)
 }
 
 // Finalize applies the root default, reads the root's own environment
@@ -70,6 +72,9 @@ func (c *Config) Finalize(envPrefix string) error {
 	}
 	if err := c.Database.Finalize(envPrefix); err != nil {
 		return fmt.Errorf("database: %w", err)
+	}
+	if err := c.Admin.Finalize(envPrefix); err != nil {
+		return fmt.Errorf("admin: %w", err)
 	}
 	return nil
 }

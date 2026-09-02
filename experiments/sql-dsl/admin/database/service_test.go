@@ -56,7 +56,7 @@ func newService(t *testing.T, responses ...drivertest.Response) (*database.Servi
 	t.Helper()
 	base, rec := drivertest.DB(t, responses...)
 	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
-	s, err := database.New(db, slog.New(slog.DiscardHandler))
+	s, err := database.New(db, slog.New(slog.DiscardHandler), database.Options{})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

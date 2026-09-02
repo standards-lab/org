@@ -115,3 +115,42 @@ func TestConfig_FinalizeWrapsChildErrors(t *testing.T) {
 		t.Errorf("error = %v, want the log block wrap", err)
 	}
 }
+
+// The admin block: seeding defaults off, an overlay's set value wins, and
+// the environment override reads a boolean under the prefix.
+func TestConfig_AdminSeed(t *testing.T) {
+	cfg := configtest.Minimal()
+	if err := cfg.Finalize(""); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Admin.SeedEnabled() {
+		t.Error("seed defaults on")
+	}
+
+	on := true
+	base := &config.Config{}
+	base.Merge(&config.Config{Admin: config.AdminConfig{Seed: &on}})
+	if !base.Admin.SeedEnabled() {
+		t.Error("Merge dropped the overlay's seed")
+	}
+	off := false
+	base.Merge(&config.Config{Admin: config.AdminConfig{Seed: &off}})
+	if base.Admin.SeedEnabled() {
+		t.Error("Merge cannot turn seeding off")
+	}
+
+	t.Setenv("APP_ADMIN_SEED", "true")
+	cfg = configtest.Minimal()
+	if err := cfg.Finalize("app"); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Admin.SeedEnabled() || cfg.Admin.Env.Seed != "APP_ADMIN_SEED" {
+		t.Errorf("seed = %v, env = %s", cfg.Admin.SeedEnabled(), cfg.Admin.Env.Seed)
+	}
+
+	t.Setenv("APP_ADMIN_SEED", "maybe")
+	err := configtest.Minimal().Finalize("app")
+	if err == nil || !strings.Contains(err.Error(), "admin:") {
+		t.Errorf("Finalize = %v, want the admin block wrap", err)
+	}
+}

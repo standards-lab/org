@@ -6,11 +6,10 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–3 approved (2026-09-02), each with a review correction commit; stage 4, the
-  live-engine acceptance proofs (`lib/migrate/live_test.go`, `//go:build compose`), is built
-  and awaits review. See the decisions log.
-- **Next move:** stage 5 — seed: the ~25-line loader under the admin domain, per domain's
-  JSON.
+- **Stage:** 1–4 approved (2026-09-02); stage 5, seed, is built and awaits review. See the
+  decisions log.
+- **Next move:** stage 6 — the `query` core: `Load` over `sqlheader`, `Source`, `Statement`,
+  `Args` and the named-parameter rewrite, `Scan`/`Rows`, `Verify` by prepare.
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -204,6 +203,19 @@ and what stays service-side, with the reason._
 `lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
 an internal package unless a consumer outside the module needs the grammar.
 
+**Seed stays service-side** (stage 5), as the strategy's sufficiency rule predicted, with a
+correction to the size claim: the loader in `admin/database/seed.go` is about 70 lines for
+two domains over `sqldb.Transact` and `encoding/json`, not 25 — the parent-by-code and
+unit-by-code resolution and the insert-or-find are the bulk, and neither is library-shaped.
+The seed files are the admin domain's, one per domain, in the domain's API vocabulary; the
+native tier is `ON CONFLICT` and `RETURNING`. Shape (stage 5 review): one seed function and
+one insert per table, `Seed` composing them in dependency order inside the transaction.
+Planned: once `query` exists, the seed statements become authored files under
+`admin/database/sql/`, loaded through a `Source` and verified at startup, and seed is the
+first `query` consumer ahead of the domains (Q3 evidence for `Exec`, `Rows.One`, `Args`).
+Template finding: the `admin` config block with its tri-state `seed` switch and
+`APP_ADMIN_SEED`, off by default.
+
 The destinations are wider than go-database. Recorded at the stage 1 review: the experiment
 drives the template (the `admin/` layer, `admin/database` as the schema's home, the collapsed
 composition root, the config package kept separate with `configtest` beside it), go-web-service
@@ -283,6 +295,13 @@ _Anything deferred, with the decision it would change._
   integration suite takes up. Finding: once the context has ended, a rollback or unlock
   failure on the discarded connection is noise, and `migrate` no longer reports it. The
   orphan case has an operator repair, not a library verb.
+- 2026-09-02 · **Stage 5.** Seeding is the database admin service's operation: `Seed` runs
+  at every startup of an environment whose `admin.seed` is on, once the schema is current,
+  and on demand as `POST /admin/database/seed`; off, the endpoint answers 403 with the
+  reason. It is idempotent through the tables' unique constraints, one transaction for both
+  files, and returns the rows it inserted per domain. Proven live (PostgreSQL 18.4): a fresh
+  start logs `seeded organizations=7 people=6`; the next start, and the endpoint, report
+  zeros; `APP_ADMIN_SEED=false` seeds nothing and the endpoint is `403 seeding is disabled`.
 - 2026-09-02 · PRQL considered and ruled out for this layer: analytical-only by its own
   statement, no Go binding, a second language above SQL. A reference point for the meta-language
   concept.

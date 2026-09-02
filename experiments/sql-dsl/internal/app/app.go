@@ -28,7 +28,7 @@ func New(cfg *config.Config, w io.Writer) (*App, error) {
 		return nil, err
 	}
 
-	adm, err := newAdmin(infra, lc)
+	adm, err := newAdmin(infra, cfg, lc)
 	if err != nil {
 		return nil, err
 	}
