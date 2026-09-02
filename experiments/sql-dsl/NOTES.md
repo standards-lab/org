@@ -6,13 +6,14 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 2 done — session wrapper (`lib/sqldb`), lock capability (`lib/pgdialect`),
-  driver fake (`lib/drivertest`), wired as `Infrastructure.SQL`.
-- **Next move:** stage 3 — `lib/migrate` with the history table, dirty state, per-file
-  transactions, the `-- transaction: none` header, and the lock; the migration set
-  (`0001_organization`, `0002_person`, `0003_person_unit_index`); `internal/schema.Start`
-  under `Schema.Mode`; the `-schema version|up|down|steps|force|verify` verbs.
-- **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433, empty database `app`.
+- **Stage:** 3 done — `lib/migrate`, the three-migration set, the schema lifecycle stage
+  under `Schema.Mode`, and the `-schema version|verify|up|down|steps|force` verbs.
+- **Next move:** stage 4 — the live-engine acceptance proofs as `//go:build compose` tests in
+  `lib/migrate/live_test.go` (non-transactional DDL, dirty state and force, concurrent
+  starters in-process and process-level, the unlocked negative, the cancelled-context run),
+  transcribed under Q4.
+- **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
+  version 3, clean, no data.
 
 ## Running it
 
@@ -71,6 +72,51 @@ unused; symbols missing._
 _Procedures, transcripts, engine output, and conclusions for: non-transactional DDL, dirty
 state and force, concurrent starters (in-process, process-level, and the unlocked negative),
 the cancelled-context run._
+
+### The protocol as built (stage 3)
+
+- History table `schema_version(version integer PK, name text, applied_at timestamp, dirty
+  boolean)`, created with `CREATE TABLE IF NOT EXISTS` under the lock (every engine but SQL
+  Server accepts the form; the port is a catalog-guarded create).
+- Every mutating verb runs on one pinned `*sql.Conn`: lock (`pg_advisory_lock`, session
+  scope), ensure table, read history, refuse any dirty row, require the applied rows to be
+  the set's prefix by version and name, then apply or revert; unlock under
+  `context.WithoutCancel` before the connection returns to the pool.
+- Transactional migration: `BEGIN`, the file, the history insert, `COMMIT`; a failure rolls
+  back and records nothing. Non-transactional (`-- transaction: none` in the header): insert
+  the row dirty under autocommit, run the file, clear dirty; a failure leaves the row dirty
+  and returns `*DirtyError`; only `Force` clears it.
+- `Version` and `Verify` take no lock and never create the table (existence via
+  `information_schema.tables`; a search-path caveat for a port with schemas of the same name).
+- Default lock key: FNV-1a 64 of the table name, so a second migrator over another table
+  never contends and never collides with small domain keys such as the organization tree
+  lock (`1`).
+- `Files` reads the header with a fifteen-line reader of its own rather than importing
+  `query`; whether the two packages share a header package is a Q5 item.
+
+### Stage 3 live transcript (PostgreSQL 18.4)
+
+```
+$ server -schema version            → version: 0 dirty: false
+$ server -schema verify             → schema verify failed: migrate: migrations pending: [1 2 3]   (exit 1)
+$ server -schema up
+  migration applied version=1 name=organization
+  migration applied version=2 name=person
+  migration applied version=3 name=person_unit_index transactional=false
+$ server -schema version            → version: 3 dirty: false
+$ server -schema verify             → schema verify: ok
+$ server -schema up                 → schema up: ok            (idempotent)
+$ psql … 'SELECT version, name, dirty FROM schema_version'   → 1 organization f · 2 person f · 3 person_unit_index f
+$ psql … '\di ix_person_unit_id'    → public | ix_person_unit_id | index | app | person
+$ server -schema down 1             → migration reverted version=3 … transactional=false
+$ server -schema steps 1            → migration applied version=3 …
+$ mise run serve  (schema.mode=apply)  → "schema current" mode=apply version=3, then "server ready"
+$ APP_SCHEMA_MODE=verify server, history forced to 2 → startup fails at the schema stage, exit 1, no ready record
+```
+
+Finding: `CREATE INDEX CONCURRENTLY` ran under pgx's default (extended-protocol) exec mode on
+an autocommit connection without `simple_protocol`; the risk noted at planning did not
+materialize on pgx v5.10 / PostgreSQL 18.
 
 ## Q5 — The split
 

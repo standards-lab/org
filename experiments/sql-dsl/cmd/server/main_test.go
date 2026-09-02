@@ -50,3 +50,20 @@ func TestRun_SchemaHelpPrintsUsageToStdout(t *testing.T) {
 		t.Errorf("stdout = %q, want the schema usage block", stdout.String())
 	}
 }
+
+func TestRun_SchemaVerbArgumentsAreValidatedBeforeAnyIO(t *testing.T) {
+	cases := [][]string{
+		{"-schema", "steps"},
+		{"-schema", "steps", "two"},
+		{"-schema", "force"},
+		{"-schema", "down", "1", "2"},
+		{"-schema", "up", "extra"},
+		{"-schema", "version", "extra"},
+	}
+	for _, args := range cases {
+		var stdout, stderr strings.Builder
+		if code := run(args, &stdout, &stderr); code != process.ExitUsage {
+			t.Errorf("run(%v) = %d, want ExitUsage", args, code)
+		}
+	}
+}
