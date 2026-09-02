@@ -1,43 +1,43 @@
-# reset · testing
+# reset · sql-plan
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** standards-lab (org), go-web-service
-- **Branch:** testing
+- **Session:** plan
+- **Project:** go-database, standards-lab (org)
+- **Branch:** sql-plan
 
 ## Disposition
 
-- **Promoted:** `concepts/testing-hierarchy.md` → `design/testing-hierarchy.md`. `v1.testing`
-  executed: the two-tier strategy settled. The hermetic per-PR unit tier covers every layer
-  and is the home of the cheap hermetic gates (`GOWORK=off` module builds, the SQL header
-  check) as `v1.data.sql` lands them. The integration tier is an application-layer concern
-  that mirrors the developer: the compose stack is the integration stack, booted in CI the
-  way `mise run db-up` does; the `//go:build integration` suite runs black-box through the
-  API on merge to main plus `workflow_dispatch`; green licenses release. Layers below the
-  application stay unit-only — service-expressible library claims move up (concurrent
-  starters as two composition-root starts), engine-only claims (dirty state,
-  non-transactional DDL, force semantics) become session-time acceptance proofs. A
-  capability enters the suite only when its API surface is testable end to end. No third
-  tier: the suite absorbs the manual compose-stack ritual; serve-probes-drain becomes a
-  README step. `context/README.md` gained the capability entry.
-- **Integrated:** roadmap — `v1.testing` deleted; `v1.data.sql.tasks.suite` added (the
-  integration tier, gated on `tasks.organization` by the capability gate); one line each
-  appended to `v1.data.sql.tasks.query` (the shared prepare-capable fake package and the
-  `GOWORK=off` CI steps), `.migrate` (acceptance-proof form for the engine-only criteria),
-  `.hardening` (the template seeds the tier's scaffolding), and `.docs` (amend
-  tests-and-docs and release-and-ci once the tier is live); `next` advanced.
-- **Cross-repo:** go-web-service `context/concepts/retrospective-findings.md` — the "For the
-  testing session" section consumed; the header records the consumption and points at the
-  design note.
-- **Retained:** the docs landing zone's tests-and-docs and release-and-ci pages,
-  intentionally unamended — they state the shipped posture, which is still one tier; the
-  design note is the decision record until the first integration run is live.
+- **Added:** go-database `concepts/sql-architecture.md` — the v0.4 direction as a concept:
+  the thirteen decisions the session took (named `:name` parameters resolved at load; typed
+  handles bound once at wiring; `Session` as the stdlib method set with mapping inside the
+  seam; `Transact[T]` with options; writes by convention plus a `-- transaction: required`
+  header; the field contract declared in the SQL header; one request sentinel; `seed`
+  retired; migrate's history table, per-file transactions, dirty/force, and the `Locker`
+  capability that fails typed when absent; explicit `Verify` composition; scan-function row
+  mapping; pattern templates admitted as protocol-only frames), the API sketch, the
+  organization worked example with `database.go` as the domain's sole SQL client, the five
+  questions the prototype settles with the decision each changes, and the prototype's shape.
+  A concept rather than design because the experiment supplies the evidence.
+- **Retained:** go-database `design/layers.md` (superseded banner; the query session rewrites
+  it) and `concepts/v0.4-findings.md` (cited by prototype, query, and migrate).
+- **Integrated:** go-database `context/README.md` — the capability map carries the v0.4
+  retirements (`ast`, `operation`, `exec`, `seed`) and the planned `query`, `migrate`, and
+  `internal/drivertest`. Roadmap — `v1.data.sql.plan` deleted; `v1.data.sql.prototype` added
+  ahead of `query` with the concept as its context; `query`, `migrate`, and `organization`
+  reframed as extraction from the prototype; `migrate` drops the seed reconciliation and
+  `hardening` gains the seed pattern; `next` advanced.
+- **Cross-repo:** standards-lab `design/dsl-driven-services.md` gained §11, the plan session's
+  adjustments to the strategy record: seed retired, §5.1 confirmed, pattern templates admitted
+  under the protocol/expressive split, writes by convention, named parameters in place of
+  ordinal `?`.
 
 ## Next-focus
 
-`v1.data.sql.plan` — the SQL planning session settling what the DSL strategy defers (its
-§9): query signatures, Source loading, placeholder rebinding; catalog composition; row
-mapping; Guard shape; the migration version table and force/dirty semantics (the
-acceptance-proof form for the engine-only cases is settled in
-`standards-lab/context/design/testing-hierarchy.md`). Context:
-`standards-lab/context/design/dsl-driven-services.md`. Runs in go-database.
+`v1.data.sql.prototype` — runs as `experiment` in go-database, under `experiments/sql-dsl`.
+Settle scope from the concept's "What the prototype settles" and "The prototype's shape"
+(`go-database/context/concepts/sql-architecture.md`): the five questions with the decision
+each changes; a nested module generated from `go-web-sdk-template`, depending on go-core,
+go-web-sdk, and go-database v0.3.0 only for what stays; two domains (organization, people);
+both composition shapes tried against the convention-plus-lint baseline; the migrate
+acceptance proofs against the compose stack copied from go-web-service. At close, promote
+what proved out into the concept and reframe `query` and `migrate` from it.

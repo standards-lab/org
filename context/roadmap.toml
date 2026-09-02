@@ -3,7 +3,7 @@
 # references/manifest.md.
 
 next = [
-  "v1.data.sql.plan",
+  "v1.data.sql.prototype",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -48,29 +48,40 @@ criteria = [
 ]
 context = ["standards-lab/context/design/dsl-driven-services.md"]
 
-[goals.v1.data.sql.tasks.plan]
-name = "The SQL planning session"
+[goals.v1.data.sql.tasks.prototype]
+name = "The SQL architecture prototype"
 repos = ["go-database"]
 summary = '''
-Settles what the strategy defers (its §9): query signatures, Source loading, placeholder
-rebinding; catalog composition — pattern-catalog sufficiency versus build-time fragment
-composition (runtime templating is ruled out; the strategy's §3 records why); row mapping;
-Guard shape; the migration version table and force/dirty semantics.
+An experiment session under go-database's experiments/sql-dsl: a template-generated service
+module with two domains (organization, people) that builds the whole SQL ↔ Go layer — the
+seam, query, migrate, and the protocol-only pattern templates — in one module with nothing
+published. It settles the five questions the plan session left to evidence: catalog
+composition (load-time stitching versus build-time generation, judged against the
+convention-plus-lint baseline), the file grammar, query's exports by extraction, migrate's
+protocol against a live engine, and the library/service split. Direction, API sketch, and
+the prototype's shape are the linked concept.
 '''
-context = ["standards-lab/context/design/dsl-driven-services.md"]
+proof = "Both composition shapes exercised against two domains; the migrate acceptance proofs (dirty state, non-transactional DDL, concurrent starters) recorded; the shape to promote named for query and migrate."
+context = [
+  "go-database/context/concepts/sql-architecture.md",
+  "standards-lab/context/design/dsl-driven-services.md",
+]
 
 [goals.v1.data.sql.tasks.query]
 name = "go-database query"
 repos = ["go-database"]
 summary = '''
-The query mechanism — statements, Source, projection with a typed field contract, directives,
-runners, guard — plus the retrospective's breaking-window items and salvage map, carried in
-full in the linked findings note. The GOWORK=off per-module build steps enter CI first, and
-the scripted-driver fakes promote to one shared prepare-capable internal test package
+The query mechanism extracted from the prototype into go-database — statements with named
+parameters, Source and the inventory, the typed handles, the projection with its declared
+field contract, directives, guard, verify, and the pattern templates in the shape the
+prototype proved — plus the retrospective's breaking-window items and salvage map, carried
+in full in the linked findings note. The GOWORK=off per-module build steps enter CI first,
+and the scripted-driver fakes promote to one shared prepare-capable internal test package
 (testing hierarchy).
 '''
 context = [
   "standards-lab/context/design/dsl-driven-services.md",
+  "go-database/context/concepts/sql-architecture.md",
   "go-database/context/concepts/v0.4-findings.md",
 ]
 
@@ -78,23 +89,28 @@ context = [
 name = "go-database migrate and Verify"
 repos = ["go-database"]
 summary = '''
-The migrate mechanism and prepare-based verification; seed reconciled onto the shared
-transaction-runner shape. The mature-library cases — dirty state, non-transactional DDL,
-concurrent starters — are required acceptance criteria, not nice-to-haves (strategy A.4);
-per the testing hierarchy the engine-only cases are session-time acceptance proofs, and
-concurrent starters move up into the service's integration suite.
+The migrate mechanism extracted from the prototype — the history table, per-file
+transactions with the header opt-out, dirty and force semantics, the lock capability — and
+prepare-based verification; seed retires to a documented pattern. The mature-library cases —
+dirty state, non-transactional DDL, concurrent starters — are required acceptance criteria,
+not nice-to-haves (strategy A.4); per the testing hierarchy the engine-only cases are
+session-time acceptance proofs, first demonstrated in the prototype, and concurrent starters
+move up into the service's integration suite.
 '''
-context = ["go-database/context/concepts/v0.4-findings.md"]
+context = [
+  "go-database/context/concepts/sql-architecture.md",
+  "go-database/context/concepts/v0.4-findings.md",
+]
 
 [goals.v1.data.sql.tasks.organization]
 name = "The organization domain on query"
 repos = ["go-database", "go-web-sdk", "go-web-service"]
 summary = '''
-A coordinated session: the organization domain rewritten onto authored SQL, the query
-mechanism, and the error-handler adapter; cmd/db and golang-migrate deleted; the per-domain
-boilerplate extracted before domains multiply (the extraction list and the API-semantics
-fixes are in the linked findings note). go-database v0.4.0, postgres, and the service release
-together.
+A coordinated session: the organization domain rewritten onto authored SQL as the prototype
+proved it — database.go as the domain's SQL client — over the query mechanism and the
+error-handler adapter; cmd/db and golang-migrate deleted; the per-domain boilerplate
+extracted before domains multiply (the extraction list and the API-semantics fixes are in
+the linked findings note). go-database v0.4.0, postgres, and the service release together.
 '''
 context = ["go-web-service/context/concepts/retrospective-findings.md"]
 
@@ -132,9 +148,9 @@ context = ["docs/context/concepts/dsl-docs-pass.md"]
 name = "Template and harness follow-through"
 repos = ["go-web-sdk-template", "claude-plugins"]
 summary = '''
-The template scaffolds sql/, the startup modes, and the listener (the template is
-generate-and-forget: no parity check, optionally a generated-from-version annotation), and
-seeds the integration tier's scaffolding — the tagged-suite shape, the CI job, and the
+The template scaffolds sql/, the seed pattern, the startup modes, and the listener (the
+template is generate-and-forget: no parity check, optionally a generated-from-version
+annotation), and seeds the integration tier's scaffolding — the tagged-suite shape, the CI job, and the
 test-integration task. The harness gains the sufficiency question at the plan stage and the
 injection, tier-header, and guarded-statement conventions as checkable rules.
 '''
