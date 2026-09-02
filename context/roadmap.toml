@@ -4,6 +4,10 @@
 
 next = [
   "v1.data.sql.prototype",
+  # The two marathon items run together as the next session after the prototype closes;
+  # both are small enough for one session in claude-plugins.
+  "backlog.marathon-stage-review",
+  "backlog.marathon-workspace-experiments",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -403,6 +407,28 @@ committed before review.
 context = [
   "claude-plugins/plugins/marathon/skills/marathon/references/staged-execution.md",
   "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
+]
+
+[backlog.marathon-workspace-experiments]
+name = "Experiments at the workspace coordinator"
+repos = ["claude-plugins"]
+summary = '''
+In a marathon workspace, experiments are co-located where they cannot collide with the
+development repositories' tooling: a spike inside a member repository sits under that
+repository's go.work, CI matrix, format sweeps, and module lists and either thrashes against
+them or has to be fenced from each one. The convention: the workspace coordinator is the
+default home for every experiment, whatever its scope, under its top-level experiments/
+(`standards-lab/experiments/<slug>`); a standalone project keeps its own experiments/ as
+today. commands/experiment.md and references/workspace-coordination.md state it; the reset
+file's Project line names the coordinator for such a session. Settled by the
+v1.data.sql.prototype experiment on 2026-09-02, which moved from
+go-database/experiments/sql-dsl to the coordinator for exactly this reason; the coordinator's
+own design note records the workspace's instance of the convention at that experiment's
+close.
+'''
+context = [
+  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
+  "claude-plugins/plugins/marathon/skills/marathon/references/workspace-coordination.md",
 ]
 
 [backlog.sql-meta-language]
