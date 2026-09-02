@@ -18,8 +18,5 @@
       "sslmode": "disable"
     }
   },
-  "schema": {
-    "mode": "verify"
-  },
   "shutdown_timeout": "10s"
 }

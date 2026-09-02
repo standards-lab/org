@@ -22,10 +22,6 @@ run = "go vet ./..."
 description = "Run the service locally"
 run = "go run ./cmd/server"
 
-[tasks.schema]
-description = "Run a schema verb (args after --): diag, and the migrate verbs as they land"
-run = "go run ./cmd/server -schema"
-
 [tasks.test]
 description = "Run the hermetic tests"
 run = "go test -race ./..."

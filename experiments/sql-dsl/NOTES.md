@@ -6,8 +6,11 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 3 done — `lib/migrate`, the three-migration set, the schema lifecycle stage
-  under `Schema.Mode`, and the `-schema version|verify|up|down|steps|force` verbs.
+- **Stage:** 1 approved (2026-09-02), after the review correction that introduced the admin
+  layer and collapsed the composition root; see the decisions log. Stages 2 and 3 are
+  committed and await their reviews: stage 2 is `lib/sqldb`, `lib/pgdialect`, `lib/drivertest`;
+  stage 3 is `lib/migrate` plus the migration set and the schema stage, whose verbs now live
+  on the admin mount.
 - **Next move:** stage 4 — the live-engine acceptance proofs as `//go:build compose` tests in
   `lib/migrate/live_test.go` (non-transactional DDL, dirty state and force, concurrent
   starters in-process and process-level, the unlocked negative, the cancelled-context run),
@@ -17,16 +20,13 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Running it
 
-See `README.md`. `mise run schema -- <verb>` is the one-shot mode; verbs land per stage.
+See `README.md`. Schema operations and diagnostics are the admin mount's endpoints.
 
 Stage 1 proof (2026-09-02, PostgreSQL 18.4, `postgres:18-alpine`):
 
 ```
-$ mise run schema -- diag
-dialect:        postgres
-ping:           265.34µs
-server version: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
-pool:           open=1 in_use=0 idle=1 max_open=25 wait_count=0 wait=0s
+$ curl :8081/admin/database/diagnostics     (originally `server -schema diag`; re-homed at the stage 1 review)
+{"dialect":"postgres","ping":…,"server_version":"PostgreSQL 18.4 on x86_64-pc-linux-musl, …","pool":{"open":1,…,"max_open":25,…}}
 
 $ mise run serve &  (config.local.json: 127.0.0.1:8081)
 $ curl -s -o /dev/null -w '%{http_code}' :8081/healthz   → 200
@@ -118,11 +118,53 @@ Finding: `CREATE INDEX CONCURRENTLY` ran under pgx's default (extended-protocol)
 an autocommit connection without `simple_protocol`; the risk noted at planning did not
 materialize on pgx v5.10 / PostgreSQL 18.
 
+### Stage 1 review: the same protocol through the admin mount, plus the first dirty state
+
+Fresh database, `mise run serve`:
+
+```
+schema pending; applying versions=[1 2 3]  ·  schema current version=3  ·  server ready
+GET  /readyz                     → {"status":"ready","checks":[…,{"name":"schema","ready":true}]}
+GET  /admin/database/diagnostics → {"dialect":"postgres","ping":625430,"server_version":"PostgreSQL 18.4 …","pool":{"open":1,…}}
+GET  /admin/database/schema      → {"version":3,"dirty":false,"pending":[],"ready":true,"migrations":[…]}
+POST /admin/database/schema/down → {"version":2,"dirty":false,"pending":[3],"ready":false,…}
+GET  /readyz                     → 503 … {"name":"schema","ready":false}
+POST /admin/database/schema/verify → 409 {"detail":"migrate: migrations pending: [3]"}
+POST /admin/database/schema/up   → {"version":3,…,"ready":true}
+POST /admin/database/schema/force {"version":9} → 400 {"detail":"migrate: version not in the migration set: 9"}
+```
+
+Dirty state, produced by operator misuse rather than a failing file: `force 2` deletes row 3
+but leaves the index in the schema; `steps 1` then re-runs migration 3 outside a transaction,
+the engine refuses, and the row stays dirty:
+
+```
+POST /schema/force {"version":2} → {"version":2,"dirty":false,"pending":[3],…}
+POST /schema/steps {"steps":1}   → 409 {"detail":"migrate: schema is dirty: version 3 failed: ERROR: relation \"ix_person_unit_id\" already exists (SQLSTATE 42P07)"}
+GET  /schema                     → {"version":3,"dirty":true,"pending":[],"ready":false,…}
+$ server (fresh process)         → exit 1: startup: schema: migrate: schema is dirty: version 3
+POST /schema/force {"version":3} → {"version":3,"dirty":false,"pending":[],"ready":true,…}
+POST /schema/verify              → 200
+```
+
+Two findings for the record: go-web-sdk's `ErrorWriter` sends the error text only on a 400,
+which is right for the public API and wrong for an operator surface, so the admin handler
+writes schema-state conflicts with detail itself (a go-web-sdk item for the startup task);
+and `Force` is correctly an operator override with no schema effect, which is exactly why it
+can manufacture a dirty row — the docs for the endpoint must say so.
+
 ## Q5 — The split
 
 _Directory → destination table: `lib/sqldb`, `lib/pgdialect`, `lib/query`, `lib/migrate`,
-`lib/drivertest`, `internal/sdk`, `internal/schema`, `cmd/sqlgen`, `cmd/sqllint`; and what
+`lib/drivertest`, `internal/sdk`, `admin/database`, `cmd/sqlgen`, `cmd/sqllint`; and what
 stays service-side, with the reason._
+
+The destinations are wider than go-database. Recorded at the stage 1 review: the experiment
+drives the template (the `admin/` layer, `admin/database` as the schema's home, the collapsed
+composition root, the config package kept separate with `configtest` beside it), go-web-service
+(`design/domain-architecture.md` gains the admin layer; `cmd/db` retires into it), and the
+architecture standard in the docs landing zone, where the admin mount is a new layer and the
+anchor for the runtime-administration concept the context already carries.
 
 ## Promotion recommendation
 
@@ -134,6 +176,32 @@ _The shape to promote for `query` and for `migrate`; the rewritten task-breakdow
 _Anything deferred, with the decision it would change._
 
 ## Decisions log
+
+- 2026-09-02 · **Stage 1 review.** Schema operations and diagnostics are not server
+  sub-commands. They are an administrative layer: the **admin mount** (`/admin`, beside `/api`)
+  serves the route groups of **admin domains** (`internal/admin/<service>`, one per
+  infrastructure service that needs administering), each an **admin service** whose operations
+  are triggers over library functions and which owns its service's administrative
+  infrastructure (for the database: the migrator, the embedded migration set, the seeds). The
+  database admin service also runs the startup correction: verify, apply if pending, fail
+  startup only on a state the mechanism cannot correct (dirty, unknown history), and gate
+  readiness on the result. `SchemaConfig`, `internal/schema`, and the `-schema` mode were
+  removed. `Infrastructure` exposes one database object, `SQL`; the v0.3.0 lifecycle is
+  reached through it. Layout, on the architect's second pass: `admin/` is a root package
+  like go-web-service's `domain/`, holding the admin domains; the composition root's wiring
+  packages (`internal/domain`, `internal/admin`, `internal/reactors`) collapse into files of
+  `internal/app` (`domain.go`, `admin.go`, `reactors.go`), each internalizing its mount, so
+  `routes.go` is two lines. Reactors had to move with them: `reactors.New` takes the `Domain`
+  type and would otherwise import `app`, a cycle. `internal/infrastructure` followed on the
+  third pass: with the second binary gone, `app` is its only consumer and the layers take its
+  fields, so it is wiring too (`internal/app/infrastructure.go`). `internal/config` stays a
+  package, `configtest` beside it in the stdlib `<pkg>test` convention. Template finding.
+  Promotion targets:
+  go-web-service `design/domain-architecture.md`, the template's build points.
+- 2026-09-02 · go-web-sdk finding: `ErrorWriter` sends error text only on a 400, right for
+  the public API, wrong for an operator surface. Suggested: an option such as
+  `web.WithDetail(statuses ...int)` so a handler opts statuses into carrying the text. The
+  admin handler's local `reject` stands until then.
 
 - 2026-09-02 · Home is `standards-lab/experiments/` (every experiment lives at the
   coordinator); module path `github.com/standards-lab/org/experiments/sql-dsl`; generated from

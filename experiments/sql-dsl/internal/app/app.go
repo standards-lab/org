@@ -8,14 +8,11 @@ import (
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/go-web-sdk"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/config"
-	"github.com/standards-lab/org/experiments/sql-dsl/internal/domain"
-	"github.com/standards-lab/org/experiments/sql-dsl/internal/infrastructure"
-	"github.com/standards-lab/org/experiments/sql-dsl/internal/reactors"
 )
 
-// App is the application layer: it assembles infrastructure, the domain, and
-// the reactors into a router and a lifecycle coordinator, and runs the
-// process.
+// App is the application layer: it assembles infrastructure, the admin
+// layer, the domain, and the reactors into a router and a lifecycle
+// coordinator, and runs the process.
 type App struct {
 	cfg    *config.Config
 	logger *slog.Logger
@@ -26,20 +23,25 @@ type App struct {
 func New(cfg *config.Config, w io.Writer) (*App, error) {
 	lc := lifecycle.New()
 
-	infra, err := infrastructure.New(w, cfg, lc)
+	infra, err := newInfrastructure(w, cfg, lc)
 	if err != nil {
 		return nil, err
 	}
 
-	dom := domain.New(infra)
+	adm, err := newAdmin(infra, lc)
+	if err != nil {
+		return nil, err
+	}
 
-	if _, err := reactors.New(infra, dom, lc); err != nil {
+	dom := newDomain(infra)
+
+	if _, err := newReactors(infra, dom, lc); err != nil {
 		return nil, err
 	}
 
 	router := web.NewRouter()
 	router.Use(middleware(infra)...)
-	for _, m := range routes(dom, cfg) {
+	for _, m := range routes(dom, adm, cfg) {
 		router.Mount(m)
 	}
 

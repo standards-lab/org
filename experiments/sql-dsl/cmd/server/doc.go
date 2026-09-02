@@ -1,5 +1,6 @@
-// Command server is the service binary: with no arguments it composes the
-// application and serves; with -schema <verb> it runs one schema operation
-// against the configured database through the same composition root and
-// exits.
+// The server binary: the process entrypoint and nothing else. main.go traps
+// the termination signals into the root context, loads the configuration,
+// hands both to the composition root — internal/app, where the App primitive
+// orchestrates the whole assembly — and exits with the code Run returns.
+// Extending the service never touches this package.
 package main

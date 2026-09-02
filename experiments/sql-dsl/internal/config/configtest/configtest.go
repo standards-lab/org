@@ -24,8 +24,8 @@ func Minimal() *config.Config {
 // Config returns a finalized Config whose composition performs no I/O: the
 // server on a loopback ephemeral port, debug logging so requests leave
 // records, and the database aimed at a closed loopback port so a dial is
-// refused immediately instead of timing out. The schema stage is off. The
-// empty prefix disables environment overrides.
+// refused immediately instead of timing out. The empty prefix disables
+// environment overrides.
 func Config(t *testing.T) *config.Config {
 	t.Helper()
 	cfg := Minimal()
@@ -36,7 +36,6 @@ func Config(t *testing.T) *config.Config {
 	cfg.Database.Host = "127.0.0.1"
 	port := ClosedPort(t)
 	cfg.Database.Port = &port
-	cfg.Schema.Mode = config.SchemaNone
 	if err := cfg.Finalize(""); err != nil {
 		t.Fatalf("finalize hermetic config: %v", err)
 	}

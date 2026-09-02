@@ -9,20 +9,27 @@ experiment's record, position, and findings: `NOTES.md`.
 
 - `lib/` — promotion candidates for go-database; never imports `internal/`
   (`mise run split-check` enforces it).
-- `internal/` — the service side: config, infrastructure, schema, sdk staging, and the two
-  domains.
-- `cmd/server` — the service binary; `-schema <verb>` is the one-shot schema mode.
+- `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
+  at `/admin`; `admin/database` owns the schema (migrations, seeds) and its operations.
+- `domain/` — the two domains, mounted at `/api` (stages 8 and 9).
+- `internal/` — the service side: `config` with its `configtest` fixtures, the composition
+  root (`app`, whose `infrastructure.go`, `admin.go`, `domain.go`, and `reactors.go` wire
+  the layers and mount them), and sdk staging.
+- `cmd/server` — the service binary.
 
 ## Running it
 
 ```sh
 mise trust && mise install
 mise run db-up                 # postgres:18 on 127.0.0.1:5433
-mise run schema -- diag        # connection diagnostics
-mise run serve                 # http://127.0.0.1:8081
+mise run serve                 # http://127.0.0.1:8081; startup applies pending migrations
 mise run test                  # hermetic
 mise run test-compose          # against the live stack
 ```
+
+The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, and `POST
+/schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), each a
+trigger over the same function startup calls.
 
 The service reads `config.json`, `config.local.json` (`APP_ENV=local`), and `APP_*`
 variables; the compose password rides `APP_DATABASE_PASSWORD` from `mise.toml`.
