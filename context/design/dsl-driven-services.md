@@ -389,6 +389,27 @@ they are breaking or blast-radius-coupled:
 - **Verify needs `Session.PrepareContext` and a prepare-capable test harness**; the scripted
   driver fakes are promoted to a shared internal test package.
 
+## 11. Plan session adjustments (2026-09-01)
+
+The `v1.data.sql.plan` session worked the deferred items (§9) through to a reviewed API
+design, then routed their settlement to evidence: `v1.data.sql.prototype`, an experiment in
+go-database that builds the whole SQL ↔ Go layer in one template-generated service module
+before v0.4 breaks the library, the provider, and the service in lockstep. The direction is
+`go-database/context/concepts/sql-architecture.md`. Adjustments to this record:
+
+- `seed` retires to a documented pattern (§4.1's `seed` line): under §2.4 a twenty-five-line
+  loader over the transaction runner does not justify a package.
+- §5.1 holds as stated: `database.go` is the domain's sole `query` importer, its SQL client,
+  with the operations as its methods; `service.go` never touches the mechanism.
+- Pattern templates are admitted under one split: a template carries only protocol (the
+  guard frame, the version check, the collection wrap, the identity-returning insert frame),
+  the domain all expressive content. Whether they stitch at load or generate at build is the
+  prototype's first question (§3, last entry).
+- Writes are not enforced by type. Every runner takes the session seam; a statement whose
+  semantics need transaction scope declares `-- transaction: required` in its header.
+- Parameters are named (`:name`), resolved to dialect positions once at load, in place of the
+  ordinal `?` §4.2 states.
+
 ## Appendix — review concerns
 
 Positions that go beyond the original brief or trade something away, raised for review.
