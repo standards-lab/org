@@ -6,21 +6,20 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1 approved (2026-09-02), after the review correction that introduced the admin
-  layer and collapsed the composition root; see the decisions log. Stages 2 and 3 are
-  committed and await their reviews: stage 2 is `lib/sqldb`, `lib/pgdialect`, `lib/drivertest`;
-  stage 3 is `lib/migrate` plus the migration set and the schema stage, whose verbs now live
-  on the admin mount.
-- **Next move:** stage 4 — the live-engine acceptance proofs as `//go:build compose` tests in
-  `lib/migrate/live_test.go` (non-transactional DDL, dirty state and force, concurrent
-  starters in-process and process-level, the unlocked negative, the cancelled-context run),
-  transcribed under Q4.
+- **Stage:** 1–3 approved (2026-09-02), each with a review correction commit; stage 4, the
+  live-engine acceptance proofs (`lib/migrate/live_test.go`, `//go:build compose`), is built
+  and awaits review. See the decisions log.
+- **Next move:** stage 5 — seed: the ~25-line loader under the admin domain, per domain's
+  JSON.
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
 ## Running it
 
 See `README.md`. Schema operations and diagnostics are the admin mount's endpoints.
+`mise run test-compose` runs the live proofs against the compose stack (`SQLDSL_DSN`); each
+proof owns `live_*` objects and drops them on exit. `curl :8081` resolves to IPv6 on this
+machine and the listener is IPv4; use `127.0.0.1:8081`.
 
 Stage 1 proof (2026-09-02, PostgreSQL 18.4, `postgres:18-alpine`):
 
@@ -162,6 +161,40 @@ writes schema-state conflicts with detail itself (a go-web-sdk item for the star
 and `Force` is correctly an operator override with no schema effect, which is exactly why it
 can manufacture a dirty row — the docs for the endpoint must say so.
 
+### Stage 4 · the acceptance proofs (PostgreSQL 18.4, `lib/migrate/live_test.go`)
+
+Six proofs, each a `//go:build compose` test over the compose database; all pass, the
+cancelled run eight times in a row.
+
+- **Non-transactional DDL.** `CREATE INDEX CONCURRENTLY` inside the transactional path fails
+  with SQLSTATE 25001 and records nothing (head stays clean at 1); the same file under
+  `-- transaction: none` builds a valid index (`pg_index.indisvalid`), the head is clean at 2,
+  and `Down` drops it.
+- **Dirty state, force, and the orphan.** A unique index built `CONCURRENTLY` over duplicate
+  rows fails after its catalog entry exists: `Up` returns `DirtyError{3}` carrying
+  `database.ErrUniqueViolation`, the index remains `INVALID`, `Verify` is `ErrDirty`, a second
+  `Up` returns the discovered `DirtyError` with no cause. The repair is the operator sequence
+  `DROP INDEX`, `Force(2)`, fix the data, `Up`; the index is then valid and `Verify` clean.
+- **Concurrent starters in one process.** Four migrators over one pool, a set whose first
+  migration sleeps 400 ms inside its transaction: every `Up` succeeds, the history holds each
+  version once, clean.
+- **The unlocked negative.** The same race with `Unlocked: true`: 3 of 4 starters fail with
+  42P07 (duplicate table) or 23505 (duplicate history row). The collision is what the lock
+  removes; the 400 ms window makes it reliable.
+- **Concurrent starters across processes.** The test binary re-executes itself four times
+  (`SQLDSL_HELPER=starter`), each child a process with its own pool: all exit 0, the history
+  holds each version once. The session-scoped advisory lock serializes across sessions.
+- **The cancelled-context run.** A 5 s `pg_sleep` migration under a 300 ms deadline: `Up`
+  returns in ~330 ms with exactly `migrate: apply 1 slow: timeout: context deadline
+  exceeded`, nothing is recorded, `pg_locks` shows no advisory lock, and a fresh run over the
+  same history completes at once.
+
+Finding from the cancelled run: pgx discards the cancelled connection, so the explicit
+rollback and the deferred unlock on it fail (`ErrTxDone` or `driver: bad connection`,
+racing database/sql's own rollback goroutine) while the session's end releases the lock
+anyway. `locked` and `inTx` now report neither once `ctx.Err() != nil`; the cancellation
+alone reaches the caller. The open item on unlock after cancellation is closed by this.
+
 ## Q5 — The split
 
 _Directory → destination table: `lib/sqldb`, `lib/pgdialect`, `lib/sqlheader`, `lib/query`,
@@ -187,17 +220,12 @@ _The shape to promote for `query` and for `migrate`; the rewritten task-breakdow
 
 _Anything deferred, with the decision it would change._
 
-- **Repairing orphaned dirty state.** A failed non-transactional file leaves a dirty row and
-  an unknown partial effect; the library cannot clean it up as a rule. The one detectable
-  case is the concurrent index, which PostgreSQL leaves `INVALID` in `pg_index` and a drop
-  repairs. Stage 4's dirty-state proof works that case; it decides whether the admin service
-  earns a `repair` verb beside `force`, and whether the non-transactional convention becomes
-  "one idempotent statement".
-- **Unlock after a cancelled statement.** `locked` releases the lock under `WithoutCancel` on
-  a connection pgx may have marked bad after the cancellation; the joined error could report
-  `ErrLockNotHeld` while closing the connection releases the lock anyway. Stage 4's
-  cancelled-context run decides whether `locked` tolerates an unlock failure once the
-  context has ended.
+- **Repairing orphaned dirty state.** Stage 4 proved the concrete case: a failed concurrent
+  index stays `INVALID` in `pg_index`, and the repair is drop, `Force` to the previous
+  version, fix the cause, `Up`. Detection is engine-specific and the fix depends on the
+  cause, so the library gets no `repair` verb; the admin endpoint's docs carry the sequence.
+  Whether the non-transactional convention becomes "one idempotent statement" is a docs-pass
+  question (`v1.data.sql.tasks.docs`).
 
 ## Decisions log
 
@@ -249,6 +277,12 @@ _Anything deferred, with the decision it would change._
   current version=3`, `down` → `up` → `force 3` through the admin mount, history clean at 3. `Files`' `NNNN_name.{up,down}.sql` layout is kept
   as the helper (golang-migrate's convention, already the service's); `Migration` values are
   the contract.
+- 2026-09-02 · **Stage 4.** The six acceptance proofs are `//go:build compose` tests in
+  `lib/migrate/live_test.go`; they promote with the package as the engine-only tier of the
+  testing hierarchy, and the cross-process starter proof is the shape the service's
+  integration suite takes up. Finding: once the context has ended, a rollback or unlock
+  failure on the discarded connection is noise, and `migrate` no longer reports it. The
+  orphan case has an operator repair, not a library verb.
 - 2026-09-02 · PRQL considered and ruled out for this layer: analytical-only by its own
   statement, no Go binding, a second language above SQL. A reference point for the meta-language
   concept.

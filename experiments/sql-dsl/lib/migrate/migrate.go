@@ -234,7 +234,10 @@ func (m *Migrator) Force(ctx context.Context, version int) error {
 // locked pins a connection, takes the lock when the dialect has one, makes
 // sure the history table exists, runs fn, and releases the lock under a
 // context that survives cancellation, before the connection returns to the
-// pool. A dialect without the capability is ErrNoLocker unless Unlocked.
+// pool. Once ctx has ended the driver has discarded the connection and the
+// session's end releases the lock, so an unlock failure then is noise and
+// is not reported. A dialect without the capability is ErrNoLocker unless
+// Unlocked.
 func (m *Migrator) locked(ctx context.Context, fn func(context.Context, *sql.Conn) error) (err error) {
 	if m.locker == nil && !m.opts.Unlocked {
 		return ErrNoLocker
@@ -253,7 +256,7 @@ func (m *Migrator) locked(ctx context.Context, fn func(context.Context, *sql.Con
 			return m.db.MapError(err)
 		}
 		defer func() {
-			if uerr := m.locker.Unlock(context.WithoutCancel(ctx), conn, m.opts.LockKey); uerr != nil {
+			if uerr := m.locker.Unlock(context.WithoutCancel(ctx), conn, m.opts.LockKey); uerr != nil && ctx.Err() == nil {
 				err = errors.Join(err, m.db.MapError(uerr))
 			}
 		}()
@@ -329,7 +332,10 @@ func (m *Migrator) revert(ctx context.Context, conn *sql.Conn, mig Migration) er
 }
 
 // inTx runs fn in a transaction on the pinned connection, rolling back on
-// error and mapping the failure.
+// error and mapping the failure. Once ctx has ended, database/sql rolls the
+// transaction back itself and the driver discards the connection, so the
+// explicit rollback's result carries nothing and is not joined; nor is
+// ErrTxDone, the same fact reported when that rollback lands first.
 func (m *Migrator) inTx(ctx context.Context, conn *sql.Conn, fn func(*sql.Tx) error) error {
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -337,7 +343,7 @@ func (m *Migrator) inTx(ctx context.Context, conn *sql.Conn, fn func(*sql.Tx) er
 	}
 	if err := fn(tx); err != nil {
 		err = m.db.MapError(err)
-		if rbErr := tx.Rollback(); rbErr != nil {
+		if rbErr := tx.Rollback(); rbErr != nil && ctx.Err() == nil && !errors.Is(rbErr, sql.ErrTxDone) {
 			err = errors.Join(err, fmt.Errorf("rollback: %w", rbErr))
 		}
 		return err
