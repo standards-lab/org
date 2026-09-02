@@ -10,12 +10,17 @@ import (
 	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/go-database/postgres"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/config"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-// Infrastructure holds the composed infrastructure services.
+// Infrastructure holds the composed infrastructure services. DB is the
+// lifecycle wrapper (start, shutdown, readiness); SQL is the session over it
+// that every statement runs through, with the postgres lock capability.
 type Infrastructure struct {
 	Logger *slog.Logger
 	DB     *database.DB
+	SQL    *sqldb.DB
 }
 
 // New constructs the infrastructure services in one place, each registering
@@ -49,5 +54,6 @@ func New(
 	return &Infrastructure{
 		Logger: logger,
 		DB:     db,
+		SQL:    sqldb.Wrap(db, pgdialect.Wrap(db.Dialect())),
 	}, nil
 }

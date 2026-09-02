@@ -6,9 +6,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1 done — scaffold, database up, diagnostics.
-- **Next move:** stage 2 — `lib/sqldb` (session wrapper), `lib/pgdialect` (lock capability),
-  `lib/drivertest` (prepare-capable driver fake), each with hermetic tests.
+- **Stage:** 2 done — session wrapper (`lib/sqldb`), lock capability (`lib/pgdialect`),
+  driver fake (`lib/drivertest`), wired as `Infrastructure.SQL`.
+- **Next move:** stage 3 — `lib/migrate` with the history table, dirty state, per-file
+  transactions, the `-- transaction: none` header, and the lock; the migration set
+  (`0001_organization`, `0002_person`, `0003_person_unit_index`); `internal/schema.Start`
+  under `Schema.Mode`; the `-schema version|up|down|steps|force|verify` verbs.
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433, empty database `app`.
 
 ## Running it
@@ -47,7 +50,21 @@ and could not; whether the field contract stays in the header._
 ## Q3 — The exports
 
 _Per domain, the `query` and session-wrapper symbols `database.go` used; sketch symbols left
-unused; symbols missing; the sketch-deviations ledger._
+unused; symbols missing._
+
+### Sketch-deviations ledger
+
+- **Session wrapper is a package named `sqldb`, not `database`.** The spike imports
+  go-database's root `database` for the pool, `Config`, and the sentinels in the same files;
+  at promotion the symbols merge into `database` and the name question disappears.
+- **`ErrorMapper` added beside `Session`.** Once `Dialect()` leaves the interface, errors that
+  arise after a call returns (`rows.Err()`, `Scan`) have no mapping path; `*DB` and `*Tx` both
+  expose `MapError` and a runner type-asserts it. Whether runners need it is Q3 evidence.
+- **`Begin` does not gate on readiness.** v0.3.0's `Begin` returned `ErrNotReady` before
+  `Start`; the wrapper drives `*sql.DB` directly. Readiness is the lifecycle wrapper's concern
+  (`Check: db` at stage 0); a failed begin wraps `ErrConnectionFailed` as before.
+- **`DB.Conn(ctx)` added.** A pinned `*sql.Conn` for protocols that need session scope
+  (migrate's lock and non-transactional DDL). Not in the sketch.
 
 ## Q4 — Migrate's protocol
 
