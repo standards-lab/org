@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -58,22 +59,23 @@ func (s *Service) Seed(ctx context.Context) (Seeded, error) {
 	}
 	return sqldb.Transact(ctx, s.db, func(tx *sqldb.Tx) (Seeded, error) {
 		var n Seeded
-		ids, err := seedOrganizations(ctx, tx, orgs, &n.Organizations)
+		ids, err := s.seedOrganizations(ctx, tx, orgs, &n.Organizations)
 		if err != nil {
 			return n, err
 		}
-		return n, seedPeople(ctx, tx, ids, people, &n.People)
+		return n, s.seedPeople(ctx, tx, ids, people, &n.People)
 	})
 }
 
 // The per-table seeds. Each resolves the file's references by code, calls
-// the table's insert once per row, and counts what it inserted. The SQL is
-// the native tier — ON CONFLICT, RETURNING — and moves to authored files
-// under the admin domain once query exists; seeds never port.
+// the table's insert once per row, and counts what it inserted. The
+// statements are the admin domain's authored files under sql/ — the native
+// tier, ON CONFLICT and RETURNING, declared in their headers; seeds never
+// port — held as query handles bound once in New.
 
 // seedOrganizations inserts the tree in file order, each parent before its
 // children, and returns every organization's id by code.
-func seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSeed, inserted *int) (map[string]string, error) {
+func (s *Service) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSeed, inserted *int) (map[string]string, error) {
 	ids := make(map[string]string, len(rows))
 	for _, o := range rows {
 		var parent any
@@ -84,7 +86,7 @@ func seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSee
 			}
 			parent = id
 		}
-		id, ok, err := insertOrganization(ctx, tx, parent, o)
+		id, ok, err := s.insertOrganization(ctx, tx, parent, o)
 		if err != nil {
 			return nil, fmt.Errorf("seed organization %s: %w", o.Code, err)
 		}
@@ -97,64 +99,41 @@ func seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSee
 }
 
 // insertOrganization inserts one organization or finds the one already
-// there, returning its id and whether this call inserted it.
-func insertOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
-	if found, err := scanID(tx.QueryContext(ctx,
-		"INSERT INTO organization (parent_id, code, name) VALUES ($1, $2, $3) ON CONFLICT ON CONSTRAINT uq_organization_parent_code DO NOTHING RETURNING id",
-		parent, o.Code, o.Name)); err != nil || found != "" {
-		return found, found != "", err
+// there, returning its id and whether this call inserted it. The insert
+// returns no row on conflict; sql.ErrNoRows is that signal.
+func (s *Service) insertOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
+	id, err = s.insertOrg.One(ctx, tx, query.Args{"parent": parent, "code": o.Code, "name": o.Name})
+	if err == nil {
+		return id, true, nil
 	}
-	found, err := scanID(tx.QueryContext(ctx,
-		"SELECT id FROM organization WHERE parent_id IS NOT DISTINCT FROM $1 AND code = $2", parent, o.Code))
-	if err == nil && found == "" {
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", false, err
+	}
+	id, err = s.findOrg.One(ctx, tx, query.Args{"parent": parent, "code": o.Code})
+	if errors.Is(err, sql.ErrNoRows) {
 		err = errors.New("neither inserted nor found")
 	}
-	return found, false, err
+	return id, false, err
 }
 
 // seedPeople inserts each person under the unit named by code.
-func seedPeople(ctx context.Context, tx *sqldb.Tx, units map[string]string, rows []personSeed, inserted *int) error {
+func (s *Service) seedPeople(ctx context.Context, tx *sqldb.Tx, units map[string]string, rows []personSeed, inserted *int) error {
 	for _, p := range rows {
 		unit, ok := units[p.Unit]
 		if !ok {
 			return fmt.Errorf("seed person %s: unit %q is not a seeded organization", p.Email, p.Unit)
 		}
-		ok, err := insertPerson(ctx, tx, unit, p)
+		n, err := s.insertPerson.Exec(ctx, tx, query.Args{
+			"unit": unit, "given_name": p.GivenName, "family_name": p.FamilyName, "email": p.Email, "status": p.Status,
+		})
 		if err != nil {
 			return fmt.Errorf("seed person %s: %w", p.Email, err)
 		}
-		if ok {
+		if n == 1 {
 			*inserted++
 		}
 	}
 	return nil
-}
-
-// insertPerson inserts one person, reporting whether the row was new.
-func insertPerson(ctx context.Context, tx *sqldb.Tx, unit string, p personSeed) (bool, error) {
-	res, err := tx.ExecContext(ctx,
-		"INSERT INTO person (unit_id, given_name, family_name, email, status) VALUES ($1, $2, $3, $4, $5) ON CONFLICT ON CONSTRAINT uq_person_email DO NOTHING",
-		unit, p.GivenName, p.FamilyName, p.Email, p.Status)
-	if err != nil {
-		return false, err
-	}
-	n, err := res.RowsAffected()
-	return n == 1, err
-}
-
-// scanID reads the id of the first row, or "" for no rows.
-func scanID(rows *sql.Rows, err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = rows.Close() }()
-	var id string
-	if rows.Next() {
-		if err := rows.Scan(&id); err != nil {
-			return "", err
-		}
-	}
-	return id, rows.Err()
 }
 
 // readSeed decodes seeds/<domain>.json strictly: an unknown field is a

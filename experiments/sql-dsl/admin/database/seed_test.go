@@ -91,8 +91,10 @@ func TestSeed_InsertsInOrderThenIsIdempotent(t *testing.T) {
 	if err != nil || n != (database.Seeded{}) {
 		t.Errorf("second Seed = %+v, %v, want zeros", n, err)
 	}
-	if !slices.Contains(rec.SQL(drivertest.OpQuery), "SELECT id FROM organization WHERE parent_id IS NOT DISTINCT FROM $1 AND code = $2") {
-		t.Error("an existing organization was not looked up")
+	if !slices.ContainsFunc(rec.SQL(drivertest.OpQuery), func(q string) bool {
+		return strings.Contains(q, "WHERE parent_id IS NOT DISTINCT FROM CAST($1 AS uuid) AND code = $2")
+	}) {
+		t.Error("an existing organization was not looked up through the authored statement")
 	}
 }
 

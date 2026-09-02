@@ -6,12 +6,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–5 approved (2026-09-02); stage 6, the `query` core, is built and awaits
-  review. See the decisions log.
-- **Next move:** stage 6b — the seed statements as authored files under
-  `admin/database/sql/`, seed as `query`'s first consumer; then stage 7, projection and
-  guard, then the frame catalog (stage 10) and external frame sourcing (stage 11, replacing
-  the build-time shape).
+- **Stage:** 1–6 approved (2026-09-02); stage 6b, seed as `query`'s first consumer, is
+  built and awaits review. See the decisions log.
+- **Next move:** stage 7 — projection (the collection frame, directives, engine-side value
+  parsing through `CAST`) and guard; then the organization baseline (8), people with the
+  struct-tag mapper and the lint (9), the frame catalog by on-demand stitching (10),
+  external frame sourcing (11), iterate and close (12).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -104,6 +104,14 @@ foreign session.
 
 _Per domain, the `query` and session-wrapper symbols `database.go` used; sketch symbols left
 unused; symbols missing._
+
+First consumer (stage 6b, the seed): `Rows[string].One` with `Scalar[string]` for the
+identity-returning insert, `sql.ErrNoRows` as the no-row-on-conflict signal, `Exec` for the
+count-returning insert, `Args` keyed by the file's names, and `{{parent:uuid}}` in the
+lookup so a nil parent binds with a type. Nothing missing; nothing unused among the core
+symbols. The admin domain holds its handles as service fields bound once in `New`, the
+shape `database.go` takes at stage 8, and `Start` verifies its `Source` after the schema is
+current, at lifecycle stage 1 ahead of the domains.
 
 ### Sketch-deviations ledger
 
@@ -266,9 +274,10 @@ unit-by-code resolution and the insert-or-find are the bulk, and neither is libr
 The seed files are the admin domain's, one per domain, in the domain's API vocabulary; the
 native tier is `ON CONFLICT` and `RETURNING`. Shape (stage 5 review): one seed function and
 one insert per table, `Seed` composing them in dependency order inside the transaction.
-Planned: once `query` exists, the seed statements become authored files under
-`admin/database/sql/`, loaded through a `Source` and verified at startup, and seed is the
-first `query` consumer ahead of the domains (Q3 evidence for `Exec`, `Rows.One`, `Args`).
+Done at stage 6b: the seed statements are authored files under `admin/database/sql/`
+(`insert_organization`, `find_organization`, `insert_person`), loaded through a `Source`,
+verified at startup and by the verify endpoint, and run through `query` handles; seed is the
+first `query` consumer ahead of the domains (Q3).
 Template finding: the `admin` config block with its tri-state `seed` switch and
 `APP_ADMIN_SEED`, off by default.
 
@@ -278,6 +287,26 @@ composition root, the config package kept separate with `configtest` beside it),
 (`design/domain-architecture.md` gains the admin layer; `cmd/db` retires into it), and the
 architecture standard in the docs landing zone, where the admin mount is a new layer and the
 anchor for the runtime-administration concept the context already carries.
+
+### Reusable plumbing (the architect, stage 6b review)
+
+Candidates for promotion beyond `lib/`, so a service implementation connects its own
+infrastructure and reuses the core plumbing; evaluated at stage 12 against the sufficiency
+rule, each with the second consumer that would prove it (the template, then go-web-service):
+
+- **The database admin service.** `Start` (verify, apply if pending, fail on dirty or
+  unknown, verify the source, seed), `Verify`, `Status`, the verbs, `Ready`, `Register` are
+  generic over a migration set, a `Source`, and a seed function; only those three are the
+  service's. A `dbadmin`-shaped package (go-database or go-web-sdk; the lifecycle and
+  readiness contract decides which) would leave a service with the wiring line.
+- **Seed helpers.** The JSON read with strict decoding, the per-table loop with insert
+  counting, and the code-to-id resolution repeat per table; a generic `seed.Table[T]` over a
+  per-row insert function is the shape. The plan's "documented pattern" verdict predates
+  the 70-line finding; the helper is justified when the template scaffolds a second
+  service.
+- **Handler plumbing.** The status matcher, `respond`, strict `decode`, and the
+  detail-carrying `reject` are go-web-sdk shaped, alongside the `ErrorWriter` detail
+  finding already on record.
 
 ## Promotion recommendation
 
@@ -362,6 +391,11 @@ _Anything deferred, with the decision it would change._
   superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
   drops build-time generation; stage 11 proves external frame sourcing instead. The
   content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-02 · **Stage 6b.** The seed's three statements are authored files under
+  `admin/database/sql/`, native tier with their ports declared, bound as handles in
+  `database.New`; `Start` and `Verify` prepare the admin domain's `Source` once the schema
+  is clean, so a statement the schema no longer satisfies fails startup at stage 1. Proven
+  live: fresh seed 7/6 through the authored statements, rerun zeros, verify 200.
 - 2026-09-02 · **Stage 6.** `lib/query` core: `Load`/`MustLoad` over `sqlheader`, `Source`
   as inventory with `Statement(name)` panicking on a miss, `Statement` with `Exec`, `Scan`
   → `Rows[T]` with `One` (`sql.ErrNoRows` unmapped), `All`, and `Each` (closes on break),

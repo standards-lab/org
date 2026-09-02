@@ -10,8 +10,8 @@ experiment's record, position, and findings: `NOTES.md`.
 - `lib/` — promotion candidates for go-database; never imports `internal/`
   (`mise run split-check` enforces it).
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
-  at `/admin`; `admin/database` owns the schema (migrations), the seed files, and their
-  operations.
+  at `/admin`; `admin/database` owns the schema (migrations), its own authored statements
+  (`sql/`), the seed files, and their operations.
 - `domain/` — the two domains, mounted at `/api` (stages 8 and 9).
 - `internal/` — the service side: `config` with its `configtest` fixtures, the composition
   root (`app`, whose `infrastructure.go`, `admin.go`, `domain.go`, and `reactors.go` wire

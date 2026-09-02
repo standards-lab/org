@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,8 +11,12 @@ import (
 
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/migrate"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
+
+//go:embed sql/*.sql
+var sqlFiles embed.FS
 
 // Stage is the lifecycle stage the schema correction runs in: after the
 // pool (0), before the domains verify their statements (2).
@@ -26,6 +31,13 @@ type Service struct {
 	logger   *slog.Logger
 	seed     bool
 	ready    atomic.Bool
+
+	// The admin domain's statements: the seed's inserts and lookup, bound
+	// once here the way a domain's database.go binds its own.
+	src          *query.Source
+	insertOrg    query.Rows[string]
+	findOrg      query.Rows[string]
+	insertPerson query.Statement
 }
 
 // Options are the service's environment-dependent switches, taken from
@@ -43,7 +55,14 @@ func New(db *sqldb.DB, logger *slog.Logger, opts Options) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
-	return &Service{db: db, migrator: m, logger: logger, seed: opts.Seed}, nil
+	src := query.MustLoad(sqlFiles, "sql", db.Dialect())
+	return &Service{
+		db: db, migrator: m, logger: logger, seed: opts.Seed,
+		src:          src,
+		insertOrg:    query.Scan(src.Statement("insert_organization"), query.Scalar[string]),
+		findOrg:      query.Scan(src.Statement("find_organization"), query.Scalar[string]),
+		insertPerson: src.Statement("insert_person"),
+	}, nil
 }
 
 // Register declares the schema stage on lc: Start corrects the schema and
@@ -66,8 +85,8 @@ func (s *Service) Ready() bool { return s.ready.Load() }
 // the mechanism cannot correct — a dirty row, a history the set does not
 // carry — fails startup; an operator resolves it through the admin
 // endpoints (force, then up) on a process started against a corrected
-// database, or from another replica. With seeding enabled, the seed runs
-// once the schema is current.
+// database, or from another replica. The domain's own statements are then
+// verified against the schema, and with seeding enabled the seed runs.
 func (s *Service) Start(ctx context.Context) error {
 	err := s.migrator.Verify(ctx)
 	if pending, ok := errors.AsType[*migrate.PendingError](err); ok {
@@ -86,6 +105,10 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 	s.logger.Info("schema current", "version", v.Version)
+	if err := query.Verify(ctx, s.db, s.src); err != nil {
+		s.ready.Store(false)
+		return err
+	}
 	if s.seed {
 		n, err := s.Seed(ctx)
 		if err != nil {
@@ -149,10 +172,14 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	return st, nil
 }
 
-// Verify checks the history is the set's clean head; the error names what
+// Verify checks the history is the set's clean head and, when it is, that
+// every statement of the domain prepares against it; the error names what
 // is wrong. Ready follows the result.
 func (s *Service) Verify(ctx context.Context) error {
 	err := s.migrator.Verify(ctx)
+	if err == nil {
+		err = query.Verify(ctx, s.db, s.src)
+	}
 	s.ready.Store(err == nil)
 	return err
 }
