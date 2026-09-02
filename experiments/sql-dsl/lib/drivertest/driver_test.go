@@ -26,7 +26,7 @@ func TestOpen_RecordsCallsAndServesScriptedRows(t *testing.T) {
 	}
 
 	var n int64
-	if err := pool.QueryRowContext(ctx, "SELECT n", true).Scan(&n); err != nil {
+	if err := pool.QueryRowContext(ctx, "SELECT n FROM t WHERE ok = $1", true).Scan(&n); err != nil {
 		t.Fatalf("query: %v", err)
 	}
 	if n != 7 {
@@ -113,5 +113,72 @@ func TestDB_IsStartedAndMapsThroughTheStubDialect(t *testing.T) {
 	}
 	if again := db.Dialect().MapError(err); again != err {
 		t.Error("MapError re-wrapped an already mapped error")
+	}
+}
+
+func TestOpen_UnscriptedCallFails(t *testing.T) {
+	ctx := context.Background()
+	pool, rec := drivertest.Open(t)
+	if _, err := pool.ExecContext(ctx, "DELETE FROM t"); !errors.Is(err, drivertest.ErrUnscripted) {
+		t.Errorf("exec err = %v, want ErrUnscripted", err)
+	}
+	if _, err := pool.QueryContext(ctx, "SELECT 1"); !errors.Is(err, drivertest.ErrUnscripted) {
+		t.Errorf("query err = %v, want ErrUnscripted", err)
+	}
+	if got := rec.Ops(); len(got) != 2 {
+		t.Errorf("failed calls not recorded: %v", got)
+	}
+}
+
+func TestOpen_ArgumentCountMustMatchThePlaceholders(t *testing.T) {
+	ctx := context.Background()
+	pool, _ := drivertest.Open(t, drivertest.Response{Affected: 1}, drivertest.Response{Affected: 1})
+	_, err := pool.ExecContext(ctx, "UPDATE t SET a = $1 WHERE id = $2", "x")
+	if !errors.Is(err, drivertest.ErrArguments) {
+		t.Errorf("too few: err = %v, want ErrArguments", err)
+	}
+	_, err = pool.ExecContext(ctx, "DELETE FROM t", 1)
+	if !errors.Is(err, drivertest.ErrArguments) {
+		t.Errorf("too many: err = %v, want ErrArguments", err)
+	}
+	if _, err := pool.ExecContext(ctx, "UPDATE t SET a = $1 WHERE id = $2 OR id = $1", "x", 2); err != nil {
+		t.Errorf("repeated placeholder: %v", err)
+	}
+}
+
+func TestOpen_ResponseMustFitTheCall(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		op   drivertest.Op
+		resp drivertest.Response
+	}{
+		{"rows for an exec", drivertest.OpExec, drivertest.Response{Columns: []string{"a"}, Rows: [][]driver.Value{{"x"}}}},
+		{"affected for a query", drivertest.OpQuery, drivertest.Response{Affected: 1}},
+		{"row narrower than the columns", drivertest.OpQuery, drivertest.Response{Columns: []string{"a", "b"}, Rows: [][]driver.Value{{"x"}}}},
+		{"row value that is not a driver.Value", drivertest.OpQuery, drivertest.Response{Columns: []string{"n"}, Rows: [][]driver.Value{{int(7)}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pool, _ := drivertest.Open(t, tc.resp)
+			var err error
+			switch tc.op {
+			case drivertest.OpExec:
+				_, err = pool.ExecContext(ctx, "x")
+			case drivertest.OpQuery:
+				_, err = pool.QueryContext(ctx, "x")
+			}
+			if !errors.Is(err, drivertest.ErrScript) {
+				t.Errorf("err = %v, want ErrScript", err)
+			}
+		})
+	}
+}
+
+func TestOpen_ScriptedErrorSkipsTheShapeCheck(t *testing.T) {
+	boom := errors.New("engine says no")
+	pool, _ := drivertest.Open(t, drivertest.Response{Err: boom})
+	if _, err := pool.ExecContext(context.Background(), "x"); !errors.Is(err, boom) {
+		t.Errorf("err = %v, want the scripted error", err)
 	}
 }

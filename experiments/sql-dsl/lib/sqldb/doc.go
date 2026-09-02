@@ -5,6 +5,6 @@
 // transaction runner. It exists because go-database v0.3.0's seam cannot be
 // changed in place; at promotion its symbols merge into the root database
 // package: Session becomes this method set, Begin takes options, Transact
-// and ExecTx replace the v0.3.0 ExecTx, and Locker is the dialect capability
+// replaces the v0.3.0 ExecTx, and Locker is the dialect capability
 // migrate takes.
 package sqldb

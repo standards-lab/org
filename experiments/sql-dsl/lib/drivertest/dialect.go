@@ -21,8 +21,7 @@ func (Dialect) MapError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var m *MappedError
-	if errors.As(err, &m) {
+	if _, mapped := errors.AsType[*MappedError](err); mapped {
 		return err
 	}
 	return &MappedError{Err: err}

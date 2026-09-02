@@ -107,7 +107,10 @@ func (c *conn) QueryContext(_ context.Context, query string, args []driver.Named
 }
 
 func (r *Recorder) exec(query string, args []driver.NamedValue) (driver.Result, error) {
-	resp := r.next(OpExec, query, args)
+	resp, err := r.next(OpExec, query, args)
+	if err != nil {
+		return nil, err
+	}
 	if resp.Err != nil {
 		return nil, resp.Err
 	}
@@ -115,7 +118,10 @@ func (r *Recorder) exec(query string, args []driver.NamedValue) (driver.Result, 
 }
 
 func (r *Recorder) query(query string, args []driver.NamedValue) (driver.Rows, error) {
-	resp := r.next(OpQuery, query, args)
+	resp, err := r.next(OpQuery, query, args)
+	if err != nil {
+		return nil, err
+	}
 	if resp.Err != nil {
 		return nil, resp.Err
 	}

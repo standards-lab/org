@@ -189,23 +189,6 @@ func TestTransact_PanicRollsBackAndRepanics(t *testing.T) {
 	_, _ = sqldb.Transact(context.Background(), db, func(*sqldb.Tx) (int, error) { panic("boom") })
 }
 
-func TestExecTx_VoidUnit(t *testing.T) {
-	db, rec := wrap(t)
-	err := sqldb.ExecTx(context.Background(), db, func(tx *sqldb.Tx) error {
-		_, err := tx.ExecContext(context.Background(), "DELETE FROM t")
-		return err
-	}, sqldb.ReadOnly())
-	if err != nil {
-		t.Fatalf("ExecTx: %v", err)
-	}
-	if got := rec.Ops(); !slices.Equal(got, []drivertest.Op{drivertest.OpBegin, drivertest.OpExec, drivertest.OpCommit}) {
-		t.Errorf("ops = %v", got)
-	}
-	if !rec.Calls()[0].TxOptions.ReadOnly {
-		t.Error("ReadOnly option not applied")
-	}
-}
-
 func TestConn_PinsAConnection(t *testing.T) {
 	db, rec := wrap(t, drivertest.Response{Affected: 0})
 	conn, err := db.Conn(context.Background())

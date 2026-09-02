@@ -66,6 +66,10 @@ unused; symbols missing._
   (`Check: db` at stage 0); a failed begin wraps `ErrConnectionFailed` as before.
 - **`DB.Conn(ctx)` added.** A pinned `*sql.Conn` for protocols that need session scope
   (migrate's lock and non-transactional DDL). Not in the sketch.
+- **`ExecTx` dropped.** A write is never void: `database/sql`'s `Exec` returns a `Result`, every
+  unit this spike plans returns its identity, version, or affected count, and a void runner
+  invites the caller to skip the zero-rows signal. `Transact[T]` is the one runner; a void unit
+  that surfaces in stages 5–12 is the evidence to reintroduce a variant. Stage 2 review.
 
 ## Q4 — Migrate's protocol
 
@@ -206,6 +210,13 @@ _Anything deferred, with the decision it would change._
 - 2026-09-02 · Home is `standards-lab/experiments/` (every experiment lives at the
   coordinator); module path `github.com/standards-lab/org/experiments/sql-dsl`; generated from
   `go-web-sdk-template/template@v0.5.0` (tag `template/v0.5.0`).
+- 2026-09-02 · **Stage 2 review.** `drivertest` is strict where a real driver is: an
+  unscripted exec or query fails (`ErrUnscripted`), an argument count that does not match the
+  `$N` placeholders fails (`ErrArguments`), and a response that does not fit its call fails
+  (`ErrScript`: rows for an exec, an affected count for a query, a row of the wrong width or
+  holding a non-`driver.Value`). The one leniency kept is the argument set, which is recorded
+  unconverted. Stages 1 and 3 passed unchanged under the strict driver. `ErrorMapper`'s
+  interface has no consumer yet; decided once the `query` runners exist.
 - 2026-09-02 · PRQL considered and ruled out for this layer: analytical-only by its own
   statement, no Go binding, a second language above SQL. A reference point for the meta-language
   concept.

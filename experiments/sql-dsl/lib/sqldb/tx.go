@@ -102,11 +102,3 @@ func Transact[T any](ctx context.Context, db *DB, fn func(*Tx) (T, error), opts 
 	}
 	return result, nil
 }
-
-// ExecTx is Transact for a unit without a result.
-func ExecTx(ctx context.Context, db *DB, fn func(*Tx) error, opts ...TxOption) error {
-	_, err := Transact(ctx, db, func(tx *Tx) (struct{}, error) {
-		return struct{}{}, fn(tx)
-	}, opts...)
-	return err
-}
