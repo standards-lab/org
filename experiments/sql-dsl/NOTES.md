@@ -80,8 +80,12 @@ the cancelled-context run._
 ### The protocol as built (stage 3)
 
 - History table `schema_version(version integer PK, name text, applied_at timestamp, dirty
-  boolean)`, created with `CREATE TABLE IF NOT EXISTS` under the lock (every engine but SQL
-  Server accepts the form; the port is a catalog-guarded create).
+  boolean)`, created under the lock. The engine-specific half of the protocol is exactly two
+  statements, the guarded create and the existence query, behind `migrate.Catalog`, a
+  capability the dialect may implement (resolved by assertion like `Locker`;
+  `StandardCatalog` otherwise). Every other statement is standard DML: booleans travel as
+  bound parameters, never literals, and the head is a `MAX(version)` subquery rather than
+  `FETCH FIRST` (stage 3 review).
 - Every mutating verb runs on one pinned `*sql.Conn`: lock (`pg_advisory_lock`, session
   scope), ensure table, read history, refuse any dirty row, require the applied rows to be
   the set's prefix by version and name, then apply or revert; unlock under
@@ -95,8 +99,9 @@ the cancelled-context run._
 - Default lock key: FNV-1a 64 of the table name, so a second migrator over another table
   never contends and never collides with small domain keys such as the organization tree
   lock (`1`).
-- `Files` reads the header with a fifteen-line reader of its own rather than importing
-  `query`; whether the two packages share a header package is a Q5 item.
+- `Files` reads the `transaction` directive through `lib/sqlheader`, the header package
+  `query`'s `Load` shares (stage 3 review); `required` or absence keeps the transaction,
+  `none` opts out, any other value is a layout error.
 
 ### Stage 3 live transcript (PostgreSQL 18.4)
 
@@ -159,9 +164,12 @@ can manufacture a dirty row — the docs for the endpoint must say so.
 
 ## Q5 — The split
 
-_Directory → destination table: `lib/sqldb`, `lib/pgdialect`, `lib/query`, `lib/migrate`,
-`lib/drivertest`, `internal/sdk`, `admin/database`, `cmd/sqlgen`, `cmd/sqllint`; and what
-stays service-side, with the reason._
+_Directory → destination table: `lib/sqldb`, `lib/pgdialect`, `lib/sqlheader`, `lib/query`,
+`lib/migrate`, `lib/drivertest`, `internal/sdk`, `admin/database`, `cmd/sqlgen`, `cmd/sqllint`;
+and what stays service-side, with the reason._
+
+`lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
+an internal package unless a consumer outside the module needs the grammar.
 
 The destinations are wider than go-database. Recorded at the stage 1 review: the experiment
 drives the template (the `admin/` layer, `admin/database` as the schema's home, the collapsed
@@ -178,6 +186,18 @@ _The shape to promote for `query` and for `migrate`; the rewritten task-breakdow
 ## Not proven / open
 
 _Anything deferred, with the decision it would change._
+
+- **Repairing orphaned dirty state.** A failed non-transactional file leaves a dirty row and
+  an unknown partial effect; the library cannot clean it up as a rule. The one detectable
+  case is the concurrent index, which PostgreSQL leaves `INVALID` in `pg_index` and a drop
+  repairs. Stage 4's dirty-state proof works that case; it decides whether the admin service
+  earns a `repair` verb beside `force`, and whether the non-transactional convention becomes
+  "one idempotent statement".
+- **Unlock after a cancelled statement.** `locked` releases the lock under `WithoutCancel` on
+  a connection pgx may have marked bad after the cancellation; the joined error could report
+  `ErrLockNotHeld` while closing the connection releases the lock anyway. Stage 4's
+  cancelled-context run decides whether `locked` tolerates an unlock failure once the
+  context has ended.
 
 ## Decisions log
 
@@ -217,6 +237,18 @@ _Anything deferred, with the decision it would change._
   holding a non-`driver.Value`). The one leniency kept is the argument set, which is recorded
   unconverted. Stages 1 and 3 passed unchanged under the strict driver. `ErrorMapper`'s
   interface has no consumer yet; decided once the `query` runners exist.
+- 2026-09-02 · **Stage 3 review.** Once a binary migrates the database, the database is
+  managed under that binary or newer: a history row past the set is `UnknownVersionError`
+  and startup refuses, so rolling a binary back after a forward migration is refused by
+  design. The header grammar is its own package, `lib/sqlheader`, shared by `migrate` and
+  `query`; the migrator's engine-specific SQL is reduced to the catalog pair
+  (`CreateHistory`, `HistoryExists`) behind the `Catalog` capability in `statements.go`, with
+  booleans bound as parameters and the head as a `MAX` subquery so the rest is standard DML;
+  a second engine wires in by implementing two methods on its dialect, and a consumer by
+  wrapping the dialect. Proven live on PostgreSQL 18.4 after the change: startup `schema
+  current version=3`, `down` → `up` → `force 3` through the admin mount, history clean at 3. `Files`' `NNNN_name.{up,down}.sql` layout is kept
+  as the helper (golang-migrate's convention, already the service's); `Migration` values are
+  the contract.
 - 2026-09-02 · PRQL considered and ruled out for this layer: analytical-only by its own
   statement, no Go binding, a second language above SQL. A reference point for the meta-language
   concept.

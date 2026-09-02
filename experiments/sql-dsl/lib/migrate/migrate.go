@@ -39,21 +39,15 @@ type Migrator struct {
 	migrations []Migration
 	opts       Options
 	locker     sqldb.Locker
-	sqlText    statements
-}
-
-// statements are the history-table texts, rendered once with the dialect's
-// placeholders. They are standard SQL but for CREATE TABLE IF NOT EXISTS,
-// which every engine but SQL Server accepts; the port is a
-// catalog-guarded create.
-type statements struct {
-	create, exists, history, head, insert, insertDirty, setClean, setDirty, del, delAbove string
+	sql        statements
 }
 
 var tableName = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 // New validates the set — versions positive and strictly increasing, names
-// and up texts present — and prepares the migrator. It performs no I/O.
+// and up texts present — and prepares the migrator: the lock capability and
+// the Catalog are taken from the dialect when it has them. It performs no
+// I/O.
 func New(db *sqldb.DB, migrations []Migration, opts Options) (*Migrator, error) {
 	if db == nil {
 		return nil, errors.New("migrate: nil db")
@@ -86,29 +80,16 @@ func New(db *sqldb.DB, migrations []Migration, opts Options) (*Migrator, error) 
 	set := make([]Migration, len(migrations))
 	copy(set, migrations)
 	locker, _ := db.Dialect().(sqldb.Locker)
-	p := db.Dialect().Placeholder
-	t := opts.Table
+	catalog, ok := db.Dialect().(Catalog)
+	if !ok {
+		catalog = StandardCatalog{}
+	}
 	return &Migrator{
 		db:         db,
 		migrations: set,
 		opts:       opts,
 		locker:     locker,
-		sqlText: statements{
-			create: "CREATE TABLE IF NOT EXISTS " + t + " (" +
-				"version integer PRIMARY KEY, " +
-				"name text NOT NULL, " +
-				"applied_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-				"dirty boolean NOT NULL DEFAULT FALSE)",
-			exists:      "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = " + p(1),
-			history:     "SELECT version, name, dirty FROM " + t + " ORDER BY version",
-			head:        "SELECT version, dirty FROM " + t + " ORDER BY version DESC FETCH FIRST 1 ROWS ONLY",
-			insert:      "INSERT INTO " + t + " (version, name) VALUES (" + p(1) + ", " + p(2) + ")",
-			insertDirty: "INSERT INTO " + t + " (version, name, dirty) VALUES (" + p(1) + ", " + p(2) + ", TRUE)",
-			setClean:    "UPDATE " + t + " SET dirty = FALSE WHERE version = " + p(1),
-			setDirty:    "UPDATE " + t + " SET dirty = TRUE WHERE version = " + p(1),
-			del:         "DELETE FROM " + t + " WHERE version = " + p(1),
-			delAbove:    "DELETE FROM " + t + " WHERE version > " + p(1),
-		},
+		sql:        history(opts.Table, db.Dialect().Placeholder, catalog),
 	}, nil
 }
 
@@ -127,7 +108,7 @@ func (m *Migrator) Version(ctx context.Context) (Version, error) {
 	if err != nil || !ok {
 		return v, err
 	}
-	found, err := m.queryOne(ctx, m.db, m.sqlText.head, nil, &v.Version, &v.Dirty)
+	found, err := m.queryOne(ctx, m.db, m.sql.head, nil, &v.Version, &v.Dirty)
 	if err != nil || !found {
 		return Version{}, err
 	}
@@ -230,18 +211,18 @@ func (m *Migrator) Force(ctx context.Context, version int) error {
 		}
 	}
 	return m.locked(ctx, func(ctx context.Context, conn *sql.Conn) error {
-		if _, err := conn.ExecContext(ctx, m.sqlText.delAbove, version); err != nil {
+		if _, err := conn.ExecContext(ctx, m.sql.delAbove, version); err != nil {
 			return m.db.MapError(err)
 		}
 		if version == 0 {
 			return nil
 		}
-		res, err := conn.ExecContext(ctx, m.sqlText.setClean, version)
+		res, err := conn.ExecContext(ctx, m.sql.setDirty, false, version)
 		if err != nil {
 			return m.db.MapError(err)
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
-			if _, err := conn.ExecContext(ctx, m.sqlText.insert, version, name); err != nil {
+			if _, err := conn.ExecContext(ctx, m.sql.insert, version, name, false); err != nil {
 				return m.db.MapError(err)
 			}
 		}
@@ -277,7 +258,7 @@ func (m *Migrator) locked(ctx context.Context, fn func(context.Context, *sql.Con
 			}
 		}()
 	}
-	if _, err := conn.ExecContext(ctx, m.sqlText.create); err != nil {
+	if _, err := conn.ExecContext(ctx, m.sql.create); err != nil {
 		return m.db.MapError(err)
 	}
 	return fn(ctx, conn)
@@ -293,7 +274,7 @@ func (m *Migrator) apply(ctx context.Context, conn *sql.Conn, mig Migration) err
 			if _, err := tx.ExecContext(ctx, mig.Up); err != nil {
 				return err
 			}
-			_, err := tx.ExecContext(ctx, m.sqlText.insert, mig.Version, mig.Name)
+			_, err := tx.ExecContext(ctx, m.sql.insert, mig.Version, mig.Name, false)
 			return err
 		})
 		if err != nil {
@@ -302,13 +283,13 @@ func (m *Migrator) apply(ctx context.Context, conn *sql.Conn, mig Migration) err
 		m.log("migration applied", "version", mig.Version, "name", mig.Name)
 		return nil
 	}
-	if _, err := conn.ExecContext(ctx, m.sqlText.insertDirty, mig.Version, mig.Name); err != nil {
+	if _, err := conn.ExecContext(ctx, m.sql.insert, mig.Version, mig.Name, true); err != nil {
 		return fmt.Errorf("migrate: apply %d %s: %w", mig.Version, mig.Name, m.db.MapError(err))
 	}
 	if _, err := conn.ExecContext(ctx, mig.Up); err != nil {
 		return &DirtyError{Version: mig.Version, Err: m.db.MapError(err)}
 	}
-	if _, err := conn.ExecContext(ctx, m.sqlText.setClean, mig.Version); err != nil {
+	if _, err := conn.ExecContext(ctx, m.sql.setDirty, false, mig.Version); err != nil {
 		return &DirtyError{Version: mig.Version, Err: m.db.MapError(err)}
 	}
 	m.log("migration applied", "version", mig.Version, "name", mig.Name, "transactional", false)
@@ -325,7 +306,7 @@ func (m *Migrator) revert(ctx context.Context, conn *sql.Conn, mig Migration) er
 			if _, err := tx.ExecContext(ctx, mig.Down); err != nil {
 				return err
 			}
-			_, err := tx.ExecContext(ctx, m.sqlText.del, mig.Version)
+			_, err := tx.ExecContext(ctx, m.sql.del, mig.Version)
 			return err
 		})
 		if err != nil {
@@ -334,13 +315,13 @@ func (m *Migrator) revert(ctx context.Context, conn *sql.Conn, mig Migration) er
 		m.log("migration reverted", "version", mig.Version, "name", mig.Name)
 		return nil
 	}
-	if _, err := conn.ExecContext(ctx, m.sqlText.setDirty, mig.Version); err != nil {
+	if _, err := conn.ExecContext(ctx, m.sql.setDirty, true, mig.Version); err != nil {
 		return fmt.Errorf("migrate: revert %d %s: %w", mig.Version, mig.Name, m.db.MapError(err))
 	}
 	if _, err := conn.ExecContext(ctx, mig.Down); err != nil {
 		return &DirtyError{Version: mig.Version, Err: m.db.MapError(err)}
 	}
-	if _, err := conn.ExecContext(ctx, m.sqlText.del, mig.Version); err != nil {
+	if _, err := conn.ExecContext(ctx, m.sql.del, mig.Version); err != nil {
 		return &DirtyError{Version: mig.Version, Err: m.db.MapError(err)}
 	}
 	m.log("migration reverted", "version", mig.Version, "name", mig.Name, "transactional", false)
@@ -396,14 +377,14 @@ func (m *Migrator) queryOne(ctx context.Context, q querier, query string, args [
 
 func (m *Migrator) tableExists(ctx context.Context, q querier) (bool, error) {
 	var n int
-	if _, err := m.queryOne(ctx, q, m.sqlText.exists, []any{m.opts.Table}, &n); err != nil {
+	if _, err := m.queryOne(ctx, q, m.sql.exists, []any{m.opts.Table}, &n); err != nil {
 		return false, err
 	}
 	return n > 0, nil
 }
 
 func (m *Migrator) readHistory(ctx context.Context, q querier) ([]row, error) {
-	rows, err := q.QueryContext(ctx, m.sqlText.history)
+	rows, err := q.QueryContext(ctx, m.sql.all)
 	if err != nil {
 		return nil, m.db.MapError(err)
 	}

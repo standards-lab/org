@@ -111,8 +111,8 @@ func TestSteps_TransactionalMigrationAppliesInsideOneTransaction(t *testing.T) {
 	if calls[4].SQL != set[0].Up {
 		t.Errorf("up = %q", calls[4].SQL)
 	}
-	if calls[5].SQL != "INSERT INTO schema_version (version, name) VALUES ($1, $2)" ||
-		calls[5].Args[0] != 1 || calls[5].Args[1] != "a" {
+	if calls[5].SQL != "INSERT INTO schema_version (version, name, dirty) VALUES ($1, $2, $3)" ||
+		calls[5].Args[0] != 1 || calls[5].Args[1] != "a" || calls[5].Args[2] != false {
 		t.Errorf("history insert = %+v", calls[5])
 	}
 	if last := calls[len(calls)-1]; last.SQL != "SELECT pg_advisory_unlock($1)" {
@@ -164,13 +164,13 @@ func TestUp_NonTransactionalMigrationMarksDirtyThenClean(t *testing.T) {
 		drivertest.OpQuery,
 	)
 	calls := rec.Calls()
-	if calls[3].SQL != "INSERT INTO schema_version (version, name, dirty) VALUES ($1, $2, TRUE)" {
-		t.Errorf("dirty insert = %q", calls[3].SQL)
+	if calls[3].SQL != "INSERT INTO schema_version (version, name, dirty) VALUES ($1, $2, $3)" || calls[3].Args[2] != true {
+		t.Errorf("dirty insert = %+v", calls[3])
 	}
 	if calls[4].SQL != set[1].Up {
 		t.Errorf("up = %q", calls[4].SQL)
 	}
-	if calls[5].SQL != "UPDATE schema_version SET dirty = FALSE WHERE version = $1" || calls[5].Args[0] != 2 {
+	if calls[5].SQL != "UPDATE schema_version SET dirty = $1 WHERE version = $2" || calls[5].Args[0] != false || calls[5].Args[1] != 2 {
 		t.Errorf("clean = %+v", calls[5])
 	}
 }
@@ -276,10 +276,10 @@ func TestForce_ResetsTheHistoryWithoutTouchingTheSchema(t *testing.T) {
 	if calls[2].SQL != "DELETE FROM schema_version WHERE version > $1" || calls[2].Args[0] != 1 {
 		t.Errorf("delete above = %+v", calls[2])
 	}
-	if calls[3].SQL != "UPDATE schema_version SET dirty = FALSE WHERE version = $1" {
+	if calls[3].SQL != "UPDATE schema_version SET dirty = $1 WHERE version = $2" || calls[3].Args[0] != false {
 		t.Errorf("clean = %+v", calls[3])
 	}
-	if calls[4].SQL != "INSERT INTO schema_version (version, name) VALUES ($1, $2)" || calls[4].Args[1] != "a" {
+	if calls[4].SQL != "INSERT INTO schema_version (version, name, dirty) VALUES ($1, $2, $3)" || calls[4].Args[1] != "a" {
 		t.Errorf("insert = %+v", calls[4])
 	}
 	assertOps(t, rec, drivertest.OpExec, drivertest.OpExec, drivertest.OpExec, drivertest.OpExec, drivertest.OpExec, drivertest.OpQuery)
@@ -337,6 +337,44 @@ func TestVersion_ReadsTheHead(t *testing.T) {
 	}
 	if slices.Contains(rec.Ops(), drivertest.OpBegin) || len(rec.SQL(drivertest.OpExec)) != 0 {
 		t.Error("Version took a lock or wrote")
+	}
+	if head := rec.SQL(drivertest.OpQuery)[1]; head != "SELECT version, dirty FROM schema_version WHERE version = (SELECT MAX(version) FROM schema_version)" {
+		t.Errorf("head = %q", head)
+	}
+}
+
+// catalogDialect is a dialect with the lock capability and its own Catalog,
+// the shape an engine without IF NOT EXISTS or information_schema ships.
+type catalogDialect struct{ pgdialect.Dialect }
+
+func (catalogDialect) CreateHistory(table string) string {
+	return "IF OBJECT_ID('" + table + "') IS NULL CREATE TABLE " + table + " (version int PRIMARY KEY, name nvarchar(200) NOT NULL, applied_at datetime2 NOT NULL DEFAULT SYSUTCDATETIME(), dirty bit NOT NULL DEFAULT 0)"
+}
+
+func (catalogDialect) HistoryExists(param string) string {
+	return "SELECT COUNT(*) FROM sys.tables WHERE name = " + param
+}
+
+func TestNew_TakesTheCatalogFromTheDialect(t *testing.T) {
+	ctx := context.Background()
+	base, rec := drivertest.DB(t, exists(false), locked, created, history(), unlocked)
+	d := catalogDialect{pgdialect.Wrap(base.Dialect())}
+	m, err := migrate.New(sqldb.Wrap(base, d), set, migrate.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Version(ctx); err != nil {
+		t.Fatalf("Version: %v", err)
+	}
+	if err := m.Steps(ctx, 0); err != nil {
+		t.Fatalf("Steps: %v", err)
+	}
+	_ = m.Force(ctx, 0) // one locked run: lock, create, delete above, unlock
+	if got := rec.SQL(drivertest.OpQuery)[0]; got != "SELECT COUNT(*) FROM sys.tables WHERE name = $1" {
+		t.Errorf("exists = %q", got)
+	}
+	if got := rec.SQL(drivertest.OpExec)[1]; got[:len("IF OBJECT_ID")] != "IF OBJECT_ID" {
+		t.Errorf("create = %q", got)
 	}
 }
 

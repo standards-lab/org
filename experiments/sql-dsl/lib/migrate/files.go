@@ -1,14 +1,14 @@
 package migrate
 
 import (
-	"bufio"
 	"fmt"
 	"io/fs"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
+
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqlheader"
 )
 
 // Migration is one schema step: the version and name that identify it in
@@ -25,10 +25,11 @@ type Migration struct {
 var fileName = regexp.MustCompile(`^(\d+)_([A-Za-z0-9_-]+)\.(up|down)\.sql$`)
 
 // Files reads the NNNN_name.{up,down}.sql layout under dir in fsys into a
-// version-ordered set. The up file's header decides Transactional: a leading
-// "-- transaction: none" comment line opts the migration out; a down file
-// that declares differently is an error. Versions must be unique; a down
-// without its up is an error; an up without its down is allowed.
+// version-ordered set. The up file's header decides Transactional: the
+// "transaction" directive, "none" opting out and "required" or absence
+// keeping the transaction; a down file that declares differently is an
+// error. Versions must be unique; a down without its up is an error; an up
+// without its down is allowed.
 func Files(fsys fs.FS, dir string) ([]Migration, error) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
@@ -59,7 +60,10 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 		} else if mig.Name != m[2] {
 			return nil, fmt.Errorf("migrate: version %d has two names: %q and %q", version, mig.Name, m[2])
 		}
-		transactional := !headerOptsOut(string(text))
+		transactional, err := transactional(string(text))
+		if err != nil {
+			return nil, fmt.Errorf("migrate: %s: %w", e.Name(), err)
+		}
 		switch m[3] {
 		case "up":
 			if mig.Up != "" {
@@ -89,24 +93,17 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 	return out, nil
 }
 
-// headerOptsOut reports whether the leading comment lines of text carry
-// "-- transaction: none". The header is the run of "--" lines (blank lines
-// allowed) before the first SQL token, the same grammar query's headers use.
-func headerOptsOut(text string) bool {
-	sc := bufio.NewScanner(strings.NewReader(text))
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
-			continue
-		}
-		if !strings.HasPrefix(line, "--") {
-			return false
-		}
-		body := strings.TrimSpace(strings.TrimPrefix(line, "--"))
-		key, value, ok := strings.Cut(body, ":")
-		if ok && strings.TrimSpace(key) == "transaction" && strings.TrimSpace(value) == "none" {
-			return true
-		}
+// transactional reads the "transaction" directive of a file's header: "none"
+// runs the migration outside a transaction, "required" or no directive keeps
+// it inside one, and any other value is an error.
+func transactional(text string) (bool, error) {
+	v, ok := sqlheader.Parse(text).Get("transaction")
+	switch {
+	case !ok, v == "required":
+		return true, nil
+	case v == "none":
+		return false, nil
+	default:
+		return false, fmt.Errorf("transaction directive %q is not required or none", v)
 	}
-	return false
 }

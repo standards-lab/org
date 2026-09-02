@@ -47,6 +47,7 @@ func TestFiles_RejectsBrokenSets(t *testing.T) {
 		"two names":        {"m/0001_a.up.sql": {Data: []byte("x")}, "m/0001_b.down.sql": {Data: []byte("x")}},
 		"headers disagree": {"m/0001_a.up.sql": {Data: []byte("-- transaction: none\nx")}, "m/0001_a.down.sql": {Data: []byte("x")}},
 		"zero version":     {"m/0000_a.up.sql": {Data: []byte("x")}},
+		"bad transaction":  {"m/0001_a.up.sql": {Data: []byte("-- transaction: maybe\nx")}},
 	}
 	for name, fsys := range cases {
 		if _, err := migrate.Files(fsys, "m"); err == nil {
