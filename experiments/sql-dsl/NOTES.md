@@ -518,8 +518,11 @@ _Anything deferred, with the decision it would change._
   `query.Patterns(namespace, fs, dir)`, `query.Builtin()` (namespace `sql`, aliasable with
   `As`), `PatternSource.Overlay(fs, dir)` for explicit same-name replacement (an engine's
   `sql.paging`), `query.NewCatalog(sources...)` validating each pattern's tier and slots
-  and refusing a duplicate namespace, and `Catalog.Load` replacing `query.Load` so a
-  `Statement` carries its catalog as it carries its dialect. Then `sqlint.toml`: roles as
+  and refusing a duplicate namespace, and `Catalog.CompileStatements`/`MustCompileStatements` replacing `query.Load` — named for
+  what it does: compile a domain's statements (includes resolved, parameters positional)
+  against a catalog the composition root already built, after a reader took
+  `Catalog.Load` for loading the catalog — so a `Statement`
+  carries its catalog as it carries its dialect. Then `sqlint.toml`: roles as
   directory globs, checks switchable, sources with namespaces so includes resolve as at
   runtime, the native-forms list from the configured engine; defaults equal to today's
   conventions.

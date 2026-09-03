@@ -49,8 +49,9 @@ built, hermetically tested, proven live, and lint-clean.
 1. `lib/query`: `Patterns(namespace, fs, dir)`, `Builtin()` (namespace `sql`, aliasable with
    `As`), `PatternSource.Overlay(fs, dir)` for explicit same-name replacement,
    `NewCatalog(sources...)`/`MustCatalog` validating tier and slots and refusing a duplicate
-   namespace, and `Catalog.Load`/`MustLoad` replacing the package-level `Load` and the global
-   `patterns`; a `Statement` carries its catalog as it carries its dialect.
+   namespace, and `Catalog.CompileStatements`/`MustCompileStatements` replacing the package-level `Load`
+   and the global `patterns` (the catalog is built at the composition root; a domain loads
+   its statements against it); a `Statement` carries its catalog as it carries its dialect.
 2. `internal/data.Database{*sqldb.DB; Catalog}` built in `newInfrastructure`; the domains'
    and the admin service's `New` take it (domains define no patterns).
 3. `admin/database/patterns/` as the application's namespace, registered at the root.
