@@ -76,13 +76,12 @@ type Projection[T any] struct {
 	fields map[string]Field
 }
 
-// Project binds base to scan. A base without a key or field contract, or
-// one that binds parameters of its own, is a wiring defect and panics.
-func Project[T any](base Statement, scan ScanFunc[T]) Projection[T] {
+// newProjection is Statement.Project.
+func newProjection[T any](base Statement, scan ScanFunc[T]) Projection[T] {
 	if base.key == "" || len(base.fields) == 0 {
 		panic(fmt.Sprintf("query: %s: a projection base declares a key and its fields", base.name))
 	}
-	if len(base.params) != 0 {
+	if len(base.compiled.params) != 0 {
 		panic(fmt.Sprintf("query: %s: a projection base binds no parameters of its own", base.name))
 	}
 	fields := make(map[string]Field, len(base.fields))
@@ -115,7 +114,7 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 	}
 
 	var total int
-	rows, err := s.QueryContext(ctx, p.base.catalog.render("count", map[string]string{"base": p.base.text, "where": where}), args...)
+	rows, err := s.QueryContext(ctx, p.base.catalog.render("count", map[string]string{"base": p.base.compiled.text, "where": where}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -134,7 +133,7 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 		"fetch":  p.base.dialect.Placeholder(len(args) + 2),
 	})
 	args = append(args, (d.Page.Number-1)*d.Page.Size, d.Page.Size)
-	rows, err = s.QueryContext(ctx, p.base.catalog.render("collection", map[string]string{"base": p.base.text, "where": where, "order": order, "paging": paging}), args...)
+	rows, err = s.QueryContext(ctx, p.base.catalog.render("collection", map[string]string{"base": p.base.compiled.text, "where": where, "order": order, "paging": paging}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -162,7 +161,7 @@ func (p Projection[T]) One(ctx context.Context, s sqldb.Session, field string, v
 	if err != nil {
 		return zero, err
 	}
-	rows, err := s.QueryContext(ctx, p.base.catalog.render("one", map[string]string{"base": p.base.text, "where": where}), args...)
+	rows, err := s.QueryContext(ctx, p.base.catalog.render("one", map[string]string{"base": p.base.compiled.text, "where": where}), args...)
 	if err != nil {
 		return zero, p.engine(err)
 	}
@@ -187,7 +186,7 @@ func (p Projection[T]) Verify(ctx context.Context, db sqldb.Session) error {
 	for _, f := range p.base.fields {
 		cols = append(cols, "q."+f.Name)
 	}
-	stmt, err := db.PrepareContext(ctx, p.base.catalog.render("verify", map[string]string{"columns": strings.Join(cols, ", "), "base": p.base.text}))
+	stmt, err := db.PrepareContext(ctx, p.base.catalog.render("verify", map[string]string{"columns": strings.Join(cols, ", "), "base": p.base.compiled.text}))
 	if err != nil {
 		return fmt.Errorf("query: %s: field contract: %w", p.base.name, err)
 	}

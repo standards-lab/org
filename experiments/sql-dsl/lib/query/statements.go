@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqlheader"
@@ -87,7 +88,7 @@ func (s *Statements) Statements() []Statement {
 func (s *Statements) Verify(ctx context.Context, db sqldb.Session) error {
 	var errs []error
 	for _, st := range s.Statements() {
-		stmt, err := db.PrepareContext(ctx, st.text)
+		stmt, err := db.PrepareContext(ctx, st.compiled.text)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("query: %s: %w", st.name, err))
 			continue
@@ -179,7 +180,10 @@ func (c *Catalog) parse(name, text string, d sqldb.Dialect) (Statement, error) {
 	if err != nil {
 		return st, err
 	}
-	st.text, st.params, err = rewrite(body, d.Placeholder)
+	st.compiled, err = rewrite(body, d.Placeholder)
+	if st.compiled.template != nil {
+		st.renderings = &sync.Map{}
+	}
 	return st, err
 }
 

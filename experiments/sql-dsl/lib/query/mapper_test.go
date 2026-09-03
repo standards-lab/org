@@ -30,7 +30,7 @@ func TestScanner_MatchesColumnsToTagsInRowOrder(t *testing.T) {
 		Columns: []string{"name", "id", "nickname", "parent_id", "created_at", "plain"},
 		Rows:    [][]driver.Value{{"Acme", "a", "ac", nil, now, int64(7)}},
 	})
-	rows := query.Scan(source(t).Statement("all"), query.Scanner[entity]())
+	rows := source(t).Statement("all").Scan(query.Scanner[entity]())
 	e, err := rows.One(context.Background(), db, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -46,12 +46,11 @@ func TestScanner_MatchesColumnsToTagsInRowOrder(t *testing.T) {
 
 func TestScanner_UnknownColumnIsAnError(t *testing.T) {
 	db, _ := session(t, drivertest.Response{Columns: []string{"id", "derived"}, Rows: [][]driver.Value{{"a", "x"}}})
-	_, err := query.Scan(source(t).Statement("all"), query.Scanner[entity]()).One(context.Background(), db, nil)
+	_, err := source(t).Statement("all").Scan(query.Scanner[entity]()).One(context.Background(), db, nil)
 	if err == nil || !strings.Contains(err.Error(), `column "derived" has no field`) {
 		t.Errorf("err = %v, want the unmapped column named", err)
 	}
-	var mapped *drivertest.MappedError
-	if !errors.As(err, &mapped) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Error("the scan failure did not cross the mapping boundary")
 	}
 }

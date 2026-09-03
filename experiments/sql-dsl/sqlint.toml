@@ -7,7 +7,8 @@
 # lib/query/patterns leaves the [patterns] role.
 
 # The library and the engine are named by package path and resolved through
-# go list, the form they keep after the split; only the module name changes.
+# go list, the form they keep once the library is sqlate; only the module
+# name changes.
 engine = "github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
 
 [sources]

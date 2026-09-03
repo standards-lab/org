@@ -35,11 +35,12 @@ type Seeder struct {
 // handles; a compile failure is a wiring defect and panics.
 func NewSeeder(db *Database) *Seeder {
 	stmts := db.Catalog.MustCompile(seedStatements, "statements", db.Dialect())
+	db.Register("seed", stmts)
 	return &Seeder{
 		db:         db.DB,
 		stmts:      stmts,
-		seedOrg:    query.Scan(stmts.Statement("seed_organization"), query.Scalar[string]),
-		findOrg:    query.Scan(stmts.Statement("find_organization"), query.Scalar[string]),
+		seedOrg:    stmts.Statement("seed_organization").Scan(query.Scalar[string]),
+		findOrg:    stmts.Statement("find_organization").Scan(query.Scalar[string]),
 		seedPerson: stmts.Statement("seed_person"),
 	}
 }
@@ -84,7 +85,7 @@ func (s *Seeder) Seed(ctx context.Context) (Seeded, error) {
 	if err := errors.Join(readSeed("organization", &orgs), readSeed("person", &people)); err != nil {
 		return Seeded{}, err
 	}
-	return sqldb.Transact(ctx, s.db, func(tx *sqldb.Tx) (Seeded, error) {
+	return s.db.Transact(ctx, func(tx *sqldb.Tx) (Seeded, error) {
 		var n Seeded
 		ids, err := s.seedOrganizations(ctx, tx, orgs, &n.Organizations)
 		if err != nil {

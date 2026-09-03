@@ -16,9 +16,15 @@ var ErrTransactionRequired = errors.New("query: statement requires a transaction
 type ArgumentError struct {
 	Statement string
 	Name      string
+	// Problem says what was wrong with an argument that was present; empty
+	// means it was missing.
+	Problem string
 }
 
 func (e *ArgumentError) Error() string {
+	if e.Problem != "" {
+		return fmt.Sprintf("query: %s: argument %q: %s", e.Statement, e.Name, e.Problem)
+	}
 	return fmt.Sprintf("query: %s: missing argument %q", e.Statement, e.Name)
 }
 

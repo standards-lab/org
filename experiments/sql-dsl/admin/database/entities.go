@@ -27,6 +27,32 @@ type Catalog struct {
 	Patterns   []Pattern `json:"patterns"`
 }
 
+// Inventory is the statements registry as an operator reads it: every
+// domain that registered its compiled statements, in name order, each
+// statement as the library holds it. Build-time state; no write.
+type Inventory struct {
+	Domains []DomainStatements `json:"domains"`
+}
+
+// DomainStatements is one domain's compiled inventory.
+type DomainStatements struct {
+	Name       string          `json:"name"`
+	Statements []StatementInfo `json:"statements"`
+}
+
+// StatementInfo is one compiled statement: its declarations, its
+// parameters in position order, and the text the engine receives.
+type StatementInfo struct {
+	Name                string   `json:"name"`
+	Tier                string   `json:"tier"`
+	Native              string   `json:"native,omitempty"`
+	TransactionRequired bool     `json:"transaction_required"`
+	Params              []string `json:"params"`
+	Key                 string   `json:"key,omitempty"`
+	Fields              []string `json:"fields,omitempty"`
+	Text                string   `json:"text"`
+}
+
 // Pattern is one catalog entry: its namespace and name, its tier and
 // native note, the slots its body declares, and the body as the library
 // composes or splices it.

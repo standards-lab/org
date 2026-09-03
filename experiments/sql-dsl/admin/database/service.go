@@ -30,6 +30,7 @@ var ErrSeedDisabled = errors.New("seeding is disabled")
 // and follows every operation.
 type Service struct {
 	pool     *database.DB
+	data     *data.Database
 	db       *sqldb.DB
 	catalog  *query.Catalog
 	migrator *migrate.Migrator
@@ -57,7 +58,7 @@ func New(pool *database.DB, db *data.Database, logger *slog.Logger, opts Options
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
 	return &Service{
-		pool: pool, db: db.DB, catalog: db.Catalog, migrator: m, seeder: data.NewSeeder(db),
+		pool: pool, data: db, db: db.DB, catalog: db.Catalog, migrator: m, seeder: data.NewSeeder(db),
 		logger: logger, seed: opts.Seed,
 	}, nil
 }
@@ -138,6 +139,30 @@ func (s *Service) Catalog() Catalog {
 		c.Patterns = append(c.Patterns, Pattern{Namespace: p.Namespace, Name: p.Name, Tier: string(p.Tier), Native: p.Native, Slots: slots, Text: p.Text})
 	}
 	return c
+}
+
+// Statements reads the statements registry: every domain's compiled
+// inventory, the counterpart of Catalog for authored files. No I/O.
+func (s *Service) Statements() Inventory {
+	inv := Inventory{Domains: []DomainStatements{}}
+	for _, r := range s.data.Registry() {
+		d := DomainStatements{Name: r.Name, Statements: []StatementInfo{}}
+		for _, st := range r.Statements.Statements() {
+			info := StatementInfo{
+				Name: st.Name(), Tier: string(st.Tier()), Native: st.Native(), TransactionRequired: st.TransactionRequired(),
+				Params: st.Params(), Key: st.Key(), Text: st.Text(),
+			}
+			if info.Params == nil {
+				info.Params = []string{}
+			}
+			for _, f := range st.Fields() {
+				info.Fields = append(info.Fields, f.Name+" "+f.Type)
+			}
+			d.Statements = append(d.Statements, info)
+		}
+		inv.Domains = append(inv.Domains, d)
+	}
+	return inv
 }
 
 // Diagnose reads the database's health. The version query is the one

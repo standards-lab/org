@@ -99,8 +99,7 @@ func TestVerify_PreparesEveryStatementAndJoinsFailures(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "query: edit:") || !strings.Contains(err.Error(), "query: lock_tree:") {
 		t.Fatalf("Verify = %v, want both failures named", err)
 	}
-	var mapped *drivertest.MappedError
-	if !errors.As(err, &mapped) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Error("the prepare failure did not cross the mapping boundary")
 	}
 	if got := rec.SQL(drivertest.OpPrepare); len(got) != 3 {

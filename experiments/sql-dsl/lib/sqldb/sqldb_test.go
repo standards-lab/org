@@ -22,8 +22,7 @@ func wrap(t *testing.T, responses ...drivertest.Response) (*sqldb.DB, *drivertes
 
 func mapped(t *testing.T, err error) {
 	t.Helper()
-	var m *drivertest.MappedError
-	if !errors.As(err, &m) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Errorf("error did not cross the mapping boundary: %v", err)
 	}
 	if !errors.Is(err, errDriver) {
@@ -133,7 +132,7 @@ func TestBegin_OptionsReachTheDriverAndFailureWrapsConnectionFailed(t *testing.T
 
 func TestTransact_CommitsAndReturnsTheResult(t *testing.T) {
 	db, rec := wrap(t, drivertest.Response{Affected: 1})
-	n, err := sqldb.Transact(context.Background(), db, func(tx *sqldb.Tx) (int64, error) {
+	n, err := db.Transact(context.Background(), func(tx *sqldb.Tx) (int64, error) {
 		res, err := tx.ExecContext(context.Background(), "UPDATE t SET a = 1")
 		if err != nil {
 			return 0, err
@@ -153,7 +152,7 @@ func TestTransact_RollsBackOnErrorAndJoinsRollbackFailure(t *testing.T) {
 	db, rec := wrap(t)
 	unit := errors.New("unit failed")
 
-	_, err := sqldb.Transact(context.Background(), db, func(*sqldb.Tx) (int, error) { return 0, unit })
+	_, err := db.Transact(context.Background(), func(*sqldb.Tx) (int, error) { return 0, unit })
 	if !errors.Is(err, unit) {
 		t.Fatalf("err = %v, want the unit's error", err)
 	}
@@ -162,7 +161,7 @@ func TestTransact_RollsBackOnErrorAndJoinsRollbackFailure(t *testing.T) {
 	}
 
 	rec.FailRollback = errDriver
-	_, err = sqldb.Transact(context.Background(), db, func(*sqldb.Tx) (int, error) { return 0, unit })
+	_, err = db.Transact(context.Background(), func(*sqldb.Tx) (int, error) { return 0, unit })
 	if !errors.Is(err, unit) || !errors.Is(err, errDriver) {
 		t.Errorf("err = %v, want the unit error joined with the rollback error", err)
 	}
@@ -171,7 +170,7 @@ func TestTransact_RollsBackOnErrorAndJoinsRollbackFailure(t *testing.T) {
 func TestTransact_CommitFailureIsMapped(t *testing.T) {
 	db, rec := wrap(t)
 	rec.FailCommit = errDriver
-	_, err := sqldb.Transact(context.Background(), db, func(*sqldb.Tx) (int, error) { return 1, nil })
+	_, err := db.Transact(context.Background(), func(*sqldb.Tx) (int, error) { return 1, nil })
 	mapped(t, err)
 }
 
@@ -185,7 +184,7 @@ func TestTransact_PanicRollsBackAndRepanics(t *testing.T) {
 			t.Errorf("ops = %v, want begin then rollback", got)
 		}
 	}()
-	_, _ = sqldb.Transact(context.Background(), db, func(*sqldb.Tx) (int, error) { panic("boom") })
+	_, _ = db.Transact(context.Background(), func(*sqldb.Tx) (int, error) { panic("boom") })
 }
 
 func TestConn_PinsAConnection(t *testing.T) {

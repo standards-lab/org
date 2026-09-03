@@ -39,7 +39,7 @@ var projectionFiles = fstest.MapFS{
 
 func projection(t *testing.T) query.Projection[person] {
 	t.Helper()
-	return query.Project(catalog().MustCompile(projectionFiles, "sql", drivertest.Dialect{}).Statement("person_view"), scanPerson)
+	return catalog().MustCompile(projectionFiles, "sql", drivertest.Dialect{}).Statement("person_view").Project(scanPerson)
 }
 
 func count(n int64) drivertest.Response {
@@ -234,7 +234,7 @@ func TestProject_RequiresAContractAndNoBaseParameters(t *testing.T) {
 					t.Errorf("Project(%s) did not panic", name)
 				}
 			}()
-			query.Project(stmts.Statement(name), scanPerson)
+			stmts.Statement(name).Project(scanPerson)
 		}()
 	}
 }

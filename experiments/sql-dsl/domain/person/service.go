@@ -37,6 +37,12 @@ func (s *Service) List(ctx context.Context, q web.Query) ([]Person, int, error) 
 	return s.store.list(ctx, sdk.Directives(q))
 }
 
+// FindMany returns the people among ids that exist: a batch fetch by key,
+// not a collection read, so no paging and no total beyond the result.
+func (s *Service) FindMany(ctx context.Context, ids []string) ([]Person, error) {
+	return s.store.findMany(ctx, ids)
+}
+
 // Find returns the person with the given id, or sql.ErrNoRows.
 func (s *Service) Find(ctx context.Context, id string) (Person, error) {
 	return s.store.find(ctx, id)

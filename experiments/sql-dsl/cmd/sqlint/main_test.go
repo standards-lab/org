@@ -230,6 +230,11 @@ func TestNativeForms_TrippedOnceAndSilentOtherwise(t *testing.T) {
 		"SELECT 1 FROM t WHERE note = 'it''s' AND a = 1 -- RETURNING :: now()",
 		"-- a comment line: RETURNING, LIMIT, ON CONFLICT",
 		"SELECT timestamp_tz, returning2 FROM t",
+		`SELECT "returning", "pg_x", "ILIKE" FROM t`,
+		"SELECT 1 /* RETURNING now() */ FROM t",
+		"/* a block comment",
+		"   RETURNING, LIMIT, ON CONFLICT",
+		"*/ SELECT 1 FROM t",
 	}
 	fsys := fstest.MapFS{
 		"sqlint.toml":        {Data: []byte("engine = \"engine\"\n[statements]\ndirs = [\"s\"]\n")},

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"uuid"
 
 	"github.com/standards-lab/go-database"
@@ -47,6 +48,21 @@ func (h *handler) list(w http.ResponseWriter, r *http.Request) {
 	q, err := web.ParseQuery(r.URL.Query(), h.limits)
 	if err != nil {
 		_ = h.errors.Write(w, r, err)
+		return
+	}
+	// ?id=a,b,c is a batch fetch by key — the stated set, unpaged — rather
+	// than a filtered collection; the size limit bounds the set.
+	if ids := strings.Split(q.Filters.Get("id"), ","); len(ids) > 1 {
+		if len(ids) > h.limits.MaxSize {
+			_ = web.WriteProblem(w, r, http.StatusBadRequest, "Bad Request", fmt.Sprintf("at most %d ids per request", h.limits.MaxSize))
+			return
+		}
+		items, err := h.service.FindMany(r.Context(), ids)
+		if err != nil {
+			_ = h.errors.Write(w, r, err)
+			return
+		}
+		_ = web.WriteJSON(w, http.StatusOK, web.NewPage(items, q, len(items)))
 		return
 	}
 	items, total, err := h.service.List(r.Context(), q)

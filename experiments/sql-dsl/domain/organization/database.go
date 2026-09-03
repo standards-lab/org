@@ -39,17 +39,18 @@ type store struct {
 
 func newStore(db *data.Database) *store {
 	stmts := db.Catalog.MustCompile(files, "statements", db.Dialect())
+	db.Register("organization", stmts)
 	check := stmts.Statement("version")
 	return &store{
 		db:            db.DB,
 		stmts:         stmts,
-		view:          query.Project(stmts.Statement("organization_view"), query.Scanner[Organization]()),
-		createRows:    query.Scan(stmts.Statement("create"), query.Scanner[Identity]()),
-		inSubtree:     query.Scan(stmts.Statement("in_subtree"), query.Scalar[int64]),
+		view:          stmts.Statement("organization_view").Project(query.Scanner[Organization]()),
+		createRows:    stmts.Statement("create").Scan(query.Scanner[Identity]()),
+		inSubtree:     stmts.Statement("in_subtree").Scan(query.Scalar[int64]),
 		lockTree:      stmts.Statement("lock_tree"),
-		editGuard:     query.Guarded(stmts.Statement("edit"), check, "version"),
-		transferGuard: query.Guarded(stmts.Statement("transfer"), check, "version"),
-		deleteGuard:   query.Guarded(stmts.Statement("delete"), check, "version"),
+		editGuard:     stmts.Statement("edit").Guarded(check, "version"),
+		transferGuard: stmts.Statement("transfer").Guarded(check, "version"),
+		deleteGuard:   stmts.Statement("delete").Guarded(check, "version"),
 	}
 }
 
@@ -81,7 +82,7 @@ func (s *store) edit(ctx context.Context, id string, version int64, e EditOrgani
 // moves parent_id. A nonexistent new parent falls through the walk to the
 // foreign-key violation.
 func (s *store) transfer(ctx context.Context, id string, version int64, t TransferOrganization) (Identity, error) {
-	v, err := sqldb.Transact(ctx, s.db, func(tx *sqldb.Tx) (int64, error) {
+	v, err := s.db.Transact(ctx, func(tx *sqldb.Tx) (int64, error) {
 		if _, err := s.lockTree.Exec(ctx, tx, query.Args{"name": treeLock}); err != nil {
 			return 0, err
 		}

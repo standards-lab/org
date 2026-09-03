@@ -85,7 +85,7 @@ func TestExec_BindsByNameInPositionOrder(t *testing.T) {
 
 func TestExec_RepeatedNameBindsOnce(t *testing.T) {
 	db, rec := session(t, drivertest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(1)}}})
-	n, err := query.Scan(source(t).Statement("in_tree"), query.Scalar[int64]).One(context.Background(), db, query.Args{"node": "n", "candidate": "c"})
+	n, err := source(t).Statement("in_tree").Scan(query.Scalar[int64]).One(context.Background(), db, query.Args{"node": "n", "candidate": "c"})
 	if err != nil || n != 1 {
 		t.Fatalf("One = %d, %v", n, err)
 	}
@@ -97,8 +97,8 @@ func TestExec_RepeatedNameBindsOnce(t *testing.T) {
 func TestRows_OneAllEach(t *testing.T) {
 	ctx := context.Background()
 	stmts := source(t)
-	all := query.Scan(stmts.Statement("all"), scanOrg)
-	byID := query.Scan(stmts.Statement("by_id"), scanOrg)
+	all := stmts.Statement("all").Scan(scanOrg)
+	byID := stmts.Statement("by_id").Scan(scanOrg)
 
 	db, rec := session(t, orgRows(1), orgRows(0), orgRows(3), orgRows(3))
 	o, err := byID.One(ctx, db, query.Args{"id": "a"})
@@ -132,7 +132,7 @@ func TestRows_OneAllEach(t *testing.T) {
 
 func TestRows_ErrorsCrossTheMappingBoundary(t *testing.T) {
 	ctx := context.Background()
-	all := query.Scan(source(t).Statement("all"), scanOrg)
+	all := source(t).Statement("all").Scan(scanOrg)
 	var mapped *drivertest.MappedError
 
 	db, _ := session(t, drivertest.Response{Err: errDriver})
@@ -160,7 +160,7 @@ func TestExec_TransactionRequired(t *testing.T) {
 	if len(rec.Calls()) != 0 {
 		t.Error("the statement reached the driver outside a transaction")
 	}
-	_, err := sqldb.Transact(ctx, db, func(tx *sqldb.Tx) (struct{}, error) {
+	_, err := db.Transact(ctx, func(tx *sqldb.Tx) (struct{}, error) {
 		_, err := lock.Exec(ctx, tx, query.Args{"key": int64(1)})
 		return struct{}{}, err
 	})

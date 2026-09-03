@@ -141,7 +141,24 @@ func TestStore_VerifyPreparesEveryStatement(t *testing.T) {
 	if err := s.Verify(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(rec.SQL(drivertest.OpPrepare)); n != 10 {
-		t.Errorf("prepared %d, want 9 statements + the contract probe", n)
+	if n := len(rec.SQL(drivertest.OpPrepare)); n != 11 {
+		t.Errorf("prepared %d, want 10 statements + the contract probe", n)
+	}
+}
+
+// The batch fetch by key expands its list at bind: one typed placeholder
+// per id, the ids bound as values.
+func TestStore_FindManyExpandsTheList(t *testing.T) {
+	s, rec := service(t, row())
+	people, err := s.FindMany(context.Background(), []string{validID, unitID})
+	if err != nil || len(people) != 1 || people[0].ID != validID {
+		t.Fatalf("FindMany = %v, %v", people, err)
+	}
+	c := rec.Calls()[0]
+	if !strings.HasSuffix(c.SQL, "WHERE id IN (CAST($1 AS uuid), CAST($2 AS uuid))") {
+		t.Errorf("sql = %q", c.SQL)
+	}
+	if len(c.Args) != 2 || c.Args[0] != validID || c.Args[1] != unitID {
+		t.Errorf("args = %v", c.Args)
 	}
 }

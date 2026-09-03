@@ -46,7 +46,7 @@ func TestGuard_OverIncludedPatterns(t *testing.T) {
 		"sql/version.sql": {Data: []byte("--| tier: standard\nSELECT version FROM t WHERE id = {{id}}")},
 	}, "sql", drivertest.Dialect{})
 	db, rec := session(t, drivertest.Response{Affected: 1})
-	v, err := query.Guarded(stmts.Statement("edit"), stmts.Statement("version"), "version").Run(context.Background(), db, 4, query.Args{"id": "x", "a": 1})
+	v, err := stmts.Statement("edit").Guarded(stmts.Statement("version"), "version").Run(context.Background(), db, 4, query.Args{"id": "x", "a": 1})
 	if err != nil || v != 5 {
 		t.Fatalf("Run = %d, %v", v, err)
 	}
@@ -60,9 +60,9 @@ func TestGuard_OverIncludedPatterns(t *testing.T) {
 func TestOverlay_RespellsPagingForAPort(t *testing.T) {
 	mysql := fstest.MapFS{"port/paging.sql": {Data: []byte("--| tier: native\n--| native: mysql — LIMIT/OFFSET\n LIMIT {{fetch}} OFFSET {{offset}}")}}
 	c := query.MustCatalog(query.Patterns().Overlay(mysql, "port"))
-	view := query.Project(c.MustCompile(fstest.MapFS{
+	view := c.MustCompile(fstest.MapFS{
 		"sql/v.sql": {Data: []byte("--| tier: standard\n--| key: id\n--| field: id uuid\nSELECT id FROM t")},
-	}, "sql", drivertest.Dialect{}).Statement("v"), query.Scalar[string])
+	}, "sql", drivertest.Dialect{}).Statement("v").Project(query.Scalar[string])
 	db, rec := session(t, drivertest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(0)}}}, drivertest.Response{Columns: []string{"id"}})
 	if _, _, err := view.List(context.Background(), db, query.Directives{Page: query.Page{Number: 3, Size: 4}}); err != nil {
 		t.Fatal(err)

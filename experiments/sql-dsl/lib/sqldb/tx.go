@@ -76,9 +76,9 @@ func (t *Tx) Rollback() error { return t.tx.Rollback() }
 // commit on success. On fn's error it rolls back and returns that error,
 // with a rollback failure joined onto it. A panic in fn rolls back and
 // re-panics, so no transaction leaks to the pool's reaper.
-func Transact[T any](ctx context.Context, db *DB, fn func(*Tx) (T, error), opts ...TxOption) (T, error) {
+func (d *DB) Transact[T any](ctx context.Context, fn func(*Tx) (T, error), opts ...TxOption) (T, error) {
 	var zero T
-	tx, err := db.Begin(ctx, opts...)
+	tx, err := d.Begin(ctx, opts...)
 	if err != nil {
 		return zero, err
 	}

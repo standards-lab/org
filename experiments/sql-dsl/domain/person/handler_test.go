@@ -74,3 +74,27 @@ func TestRoutes_TransitionRefusalIs409(t *testing.T) {
 		t.Errorf("activate active = %d: %s", rec.Code, rec.Body)
 	}
 }
+
+// ?id=a,b,c is the batch fetch by key: the stated set through the
+// expanded statement, unpaged; a set past the size limit is refused before
+// any I/O.
+func TestRoutes_ListByIDsIsABatchFetch(t *testing.T) {
+	rec := send(router(t, row()), "GET", "/people?id="+validID+","+unitID, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET by ids = %d: %s", rec.Code, rec.Body)
+	}
+	var page struct {
+		Items []person.Person `json:"items"`
+		Total int             `json:"total"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Total != 1 {
+		t.Errorf("page = %+v", page)
+	}
+	ids := strings.Repeat(validID+",", 100) + validID
+	if rec := send(router(t), "GET", "/people?id="+ids, "", ""); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "at most 100 ids") {
+		t.Errorf("101 ids = %d: %s", rec.Code, rec.Body)
+	}
+}

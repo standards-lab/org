@@ -107,8 +107,7 @@ func TestDialect_MapsThroughTheStub(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := drivertest.Dialect{}.MapError(errors.New("x"))
-	var m *drivertest.MappedError
-	if !errors.As(err, &m) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Errorf("MapError did not wrap: %v", err)
 	}
 	if again := (drivertest.Dialect{}).MapError(err); again != err {

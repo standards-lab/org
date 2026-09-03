@@ -21,7 +21,7 @@ var guardFiles = fstest.MapFS{
 func guard(t *testing.T) query.Guard {
 	t.Helper()
 	stmts := catalog().MustCompile(guardFiles, "sql", drivertest.Dialect{})
-	return query.Guarded(stmts.Statement("edit"), stmts.Statement("version"), "version")
+	return stmts.Statement("edit").Guarded(stmts.Statement("version"), "version")
 }
 
 func versionRow(v int64) drivertest.Response {
@@ -65,8 +65,7 @@ func TestGuard_MissClassifiesNotFoundAndMismatch(t *testing.T) {
 func TestGuard_CommandFailurePassesThroughMapped(t *testing.T) {
 	db, _ := session(t, drivertest.Response{Err: errDriver})
 	_, err := guard(t).Run(context.Background(), db, 1, query.Args{"id": "x", "name": "n"})
-	var mapped *drivertest.MappedError
-	if !errors.As(err, &mapped) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Errorf("err = %v, want mapped", err)
 	}
 }

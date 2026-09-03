@@ -17,8 +17,7 @@ func TestWrap_KeepsTheInnerDialect(t *testing.T) {
 	if d.Name() != "test" || d.Placeholder(3) != "$3" {
 		t.Errorf("inner dialect not delegated: %s %s", d.Name(), d.Placeholder(3))
 	}
-	var m *drivertest.MappedError
-	if !errors.As(d.MapError(errors.New("x")), &m) {
+	if _, ok := errors.AsType[*drivertest.MappedError](d.MapError(errors.New("x"))); !ok {
 		t.Error("MapError not delegated")
 	}
 }

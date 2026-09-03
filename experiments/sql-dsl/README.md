@@ -7,9 +7,13 @@ experiment's record, position, and findings: `NOTES.md`.
 
 ## Layout
 
-- `lib/` — promotion candidates for `go-sql`: its build graph holds no go-database, no
-  service package, and no driver (`mise run split-check` enforces it); `sqldb` wraps a plain
-  `*sql.DB` with a `sqldb.Dialect`, and the provider's dialect satisfies it structurally. `lib/query/patterns/` is the library's own SQL, namespace `sql`:
+- `lib/` — promotion candidates for `sqlate`, the SQL templating library: its build graph
+  holds no go-database, no service package, and no driver (`mise run split-check` enforces
+  it); `sqldb` wraps a plain `*sql.DB` with a `sqldb.Dialect`, and the provider's dialect
+  satisfies it structurally. The handle constructors are Go 1.27 generic methods on
+  `Statement` (`Scan`, `Project`, `Guarded`) and `DB` (`Transact`). A parameter written
+  `{{ids...}}` or `{{ids...:type}}` expands at bind to one placeholder per element of its
+  list. `lib/query/patterns/` is the library's own SQL, namespace `sql`:
   the patterns the collection read composes at request time and the ones a statement includes
   with `{{> sql.name}}`. Every pattern source carries a `sqlint.toml` whose `[export]` names
   what a consumer reads from it; `lib/pgdialect`'s declares the engine's native forms.
@@ -40,8 +44,10 @@ The API mount, `/api/organizations`: `GET` (paged, `?page=&size=&sort=&<field>=`
 `GET /path/{path...}`, `POST`, `PATCH /{id}`, `POST /{id}/transfer`, `DELETE /{id}`; the
 guarded commands take `If-Match: "<version>"`. Paging policy is the `reads` config block.
 
-`/api/people`: `GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}`, and the actions
-`POST /{id}/activate`, `POST /{id}/deactivate`, `POST /{id}/transfer-unit`.
+`/api/people`: `GET` (and `GET ?id=a,b,c`, the batch fetch by key through the expanded
+statement, unpaged and bounded by the size limit), `GET /{id}`, `POST`, `PATCH /{id}`,
+`DELETE /{id}`, and the actions `POST /{id}/activate`, `POST /{id}/deactivate`,
+`POST /{id}/transfer-unit`.
 
 `mise run lint` runs golangci-lint and `cmd/sqlint`, the SQL conventions lint, configured by
 `sqlint.toml`, one per module: a table per role with its directory globs and switches, the
@@ -52,7 +58,9 @@ named by package path and resolved through `go list`, the form they keep after t
 engine's export names its native forms as regular expressions, matched against code only.
 
 The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `GET /patterns` (the
-catalog as the library holds it: every namespace and pattern, with tier, slots, and text), `POST
+catalog as the library holds it: every namespace and pattern, with tier, slots, and text),
+`GET /statements` (the registry: every domain's compiled inventory with declarations,
+parameters, and text), `POST
 /schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), and
 `POST /seed`, each a trigger over the same function startup calls.
 

@@ -226,6 +226,30 @@ func TestRoutes_PatternsReadTheCatalog(t *testing.T) {
 	}
 }
 
+// The statements read walks the registry: the seeder registered its own
+// at construction; a domain's inventory appears once it is wired.
+func TestRoutes_StatementsReadTheRegistry(t *testing.T) {
+	s, rec := newService(t)
+	rr := httptest.NewRecorder()
+	router(s).ServeHTTP(rr, httptest.NewRequest("GET", "/admin/database/statements", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET statements = %d: %s", rr.Code, rr.Body)
+	}
+	var inv database.Inventory
+	if err := json.Unmarshal(rr.Body.Bytes(), &inv); err != nil {
+		t.Fatal(err)
+	}
+	if len(inv.Domains) != 1 || inv.Domains[0].Name != "seed" || len(inv.Domains[0].Statements) != 3 {
+		t.Fatalf("inventory = %+v", inv)
+	}
+	if st := inv.Domains[0].Statements[1]; st.Name != "seed_organization" || st.Tier != "native" || !slices.Equal(st.Params, []string{"parent", "code", "name"}) {
+		t.Errorf("seed_organization = %+v", st)
+	}
+	if len(rec.Calls()) != 0 {
+		t.Errorf("the registry read touched the database: %v", rec.Calls())
+	}
+}
+
 func TestRoutes_BodiesAreValidatedBeforeAnyIO(t *testing.T) {
 	s, rec := newService(t)
 	h := router(s)

@@ -133,8 +133,7 @@ func TestSteps_TransactionalFailureRecordsNothingAndStillUnlocks(t *testing.T) {
 	if !errors.Is(err, errDriver) {
 		t.Fatalf("Up = %v, want the engine error", err)
 	}
-	var mapped *drivertest.MappedError
-	if !errors.As(err, &mapped) {
+	if _, ok := errors.AsType[*drivertest.MappedError](err); !ok {
 		t.Error("engine error did not cross the mapping boundary")
 	}
 	if errors.Is(err, migrate.ErrDirty) {

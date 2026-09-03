@@ -27,12 +27,6 @@ type Guard struct {
 	version string
 }
 
-// Guarded binds a command and its check; version names the parameter both
-// statements bind the expected version to.
-func Guarded(command, check Statement, version string) Guard {
-	return Guard{command: command, check: check, version: version}
-}
-
 // Run executes the command with version bound under the guard's parameter
 // name alongside args. A row affected is success and the new version,
 // version+1, with no second round trip. No row affected runs the check with
@@ -49,7 +43,7 @@ func (g Guard) Run(ctx context.Context, s sqldb.Session, version int64, args Arg
 	if n > 0 {
 		return version + 1, nil
 	}
-	current, err := Scan(g.check, Scalar[int64]).One(ctx, s, bound)
+	current, err := g.check.Scan(Scalar[int64]).One(ctx, s, bound)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, sql.ErrNoRows
 	}

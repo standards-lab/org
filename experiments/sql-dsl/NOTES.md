@@ -8,9 +8,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 - **Directory:** a domain's statements live in `statements/` (renamed from `sql/` at the
   handoff, so the directory never reads as the builtin pattern namespace `sql`).
-- **Stage:** 1–11 approved (2026-09-03), each on the branch as its own commit; stage 12
-  built and proven, awaiting review. See the decisions log, Q1, Q5, and the Ontology section.
-- **Next move:** the stage 12 review, then stage 13 as defined below.
+- **Stage:** 1–13 approved (2026-09-03), each on the branch as its own commit; stage 14,
+  the sqlate preparations, built and proven, awaiting review with the final `REVIEW.md`.
+  See the decisions log, Q1, Q5, and the Ontology section.
+- **Next move:** the stage 14 review; then `close`, which promotes what `REVIEW.md`
+  recommends: the concept `standards-lab/context/concepts/sqlate.md`, the coordinator's
+  design note and roadmap edits, the cross-repo corrections, and the reset.
 - **Then stage 13 (the architect, 2026-09-03):** the comprehensive review, written to
   `REVIEW.md` with NOTES's promotion section pointing at it. Each layer of the architecture
   evaluated, then the whole; an optimization pass that is a **layout review** — which
@@ -470,6 +473,19 @@ anchor for the runtime-administration concept the context already carries.
 
 ### The DSL library as its own module (the architect, stage 9 review)
 
+*Renamed at the stage 13 review (the architect):* the library is **sqlate**, at
+`github.com/standards-lab/sqlate` — a portmanteau of SQL and template, read aloud as
+"escalate": it makes plain `.sql` files dynamic and compositional through templating rather
+than abandoning them, and escalates what a `.sql` file is capable of. It drops the `go-`
+prefix deliberately: the prefixed repositories are interdependent layers of an
+architecture, while sqlate is a standalone, independently adoptable library. The
+`<prefix>-<language>` rule below is superseded: a DSL library is named for what it does to
+the language. Root package `sqlate`; `sqlate/query`, `sqlate/migrate`, `sqlate/sqltest`,
+`sqlate/sqlint`; `sqlate/postgres` the engine sub-module. In the workspace order it sits
+beside go-core, importing nothing of ours. SQL is the first DSL to need this degree of
+host-language support; a DSL designed to compose on its own will not, and sqlate is the
+blueprint for the ones that do (`REVIEW.md` §3.1).
+
 Decided by the architect: the library is `go-sql`, its own repository, and a DSL library is
 named `<prefix>-<language>` — the language, never the service it serves — so the naming
 distinguishes a DSL library (`go-sql`) from an infrastructure service library
@@ -581,8 +597,14 @@ The two questions, answered from the evidence for stage 13:
 
 ## Promotion recommendation
 
-_The shape to promote for `query` and for `migrate`; the rewritten task-breakdown input for
-`v1.data.sql.query`, `.migrate`, `.organization`._
+`REVIEW.md` (stage 13): the layer evaluation, the layout review across go-sql, go-database,
+go-web-sdk, the template, and go-web-service, the promotion plan in dependency order, the
+workspace context adjustments, and the roadmap refinement under `v1.data.sql.integration`.
+In one line: `go-sql` from `lib/` and `sqlint` on Go 1.27 generic methods, with the
+constraint classes and the dialect folded in from go-database; go-database v0.4.0 reduced
+to the infrastructure service plus an `admin` package over go-sql; the template scaffolding
+`internal/data`, `admin/database`, and the composition root as files; the reference service
+rewritten onto it.
 
 ## Not proven / open
 
@@ -596,6 +618,39 @@ _Anything deferred, with the decision it would change._
   question (`v1.data.sql.tasks.docs`).
 
 ## Decisions log
+
+- 2026-09-03 · **Stage 14, the sqlate preparations** (the architect's call after the
+  stage 13 review). Four adjustments, each proving a claim the review makes: the handle
+  constructors as Go 1.27 generic methods — `Statement.Scan`, `Statement.Project`,
+  `Statement.Guarded`, `DB.Transact` — with both domains, the seeder, and every test as
+  consumers; list expansion — `{{ids...}}` and `{{ids...:type}}`, the argument a non-empty
+  slice, one placeholder per element, the text rendered by arity and cached by it,
+  `Verify` at arity one, a name with two arities a compile error while the type stays the
+  occurrence's — proven by the person domain's `find_by_ids` behind `GET /api/people?id=a,b,c`,
+  a batch fetch by key bounded by the size limit; the lint's stripper extended to
+  double-quoted identifiers and block comments across lines, with the escape pragma
+  considered and culled (a suppression patches the parser; the fix belongs in the
+  stripper); the statements registry on `data.Database` — each domain and the seeder
+  register at wiring, `GET /admin/database/statements` walks it beside `/patterns`,
+  verification stays each domain's stage. `REVIEW.md` finalized with the review's
+  decisions: sqlate, the vocabulary kept, the cache dropped, the meta language's first
+  phase, the EA amendment for multi-entity domains, the person domain not promoted.
+  Proven: hermetic and compose suites, lint, split-check; live — three people by ids
+  through the expanded statement, the registry listing organization (8), person (10),
+  seed (3).
+
+- 2026-09-03 · **Stage 13.** The review, `REVIEW.md`, as the architect defined it after
+  stage 11: each layer evaluated against what it proved and cost; the layout review placing
+  every type, method, and function across the five projects — the admin service to a
+  `go-database/admin` package (go-web-sdk cannot import go-database), its handler
+  scaffolded; the error classes to go-sql with `MapError`; `drivertest` public as `sqltest`;
+  `sqlheader` internal; the `Directives(web.Query)` lowering service-side by dependency
+  direction; the composition root kept as one file per layer over a `services.go`; the
+  handle constructors as Go 1.27 generic methods at promotion — the promotion plan in
+  dependency order, the context adjustments per repository with the five incubated
+  principles placed, and the roadmap draft: `prototype` deleted at close, `query`,
+  `migrate`, `organization`, `startup` superseded by `v1.data.sql.integration` with six
+  tasks, `next` continuing into `gosql` after the two marathon items.
 
 - 2026-09-03 · **Stage 12.** The split rehearsal: `sqldb.Dialect`, `sqldb.ErrConnectionFailed`,
   `sqldb.Wrap(pool *sql.DB, dialect)` with `Base()` removed; `query.ErrVersionMismatch`;
@@ -762,9 +817,13 @@ _Anything deferred, with the decision it would change._
   **arguments** a request binds at execution. Three verbs meet at that noun: **compile** an
   authored file against the catalog into a statement, once at load; **compose** a base
   statement, the catalog's patterns, and a signature into a statement, once per signature
-  when cached; **execute** a statement with arguments, every request. The cache is composed
-  statements by signature, bounded per projection. "Compose" is the request-time verb, never
-  "generate": build-time generation is the shape the stage 6 review set aside.
+  when cached; **execute** a statement with arguments, every request. "Compose" is the
+  request-time verb, never "generate": build-time generation is the shape the stage 6
+  review set aside. *Stage 13 (the architect):* the signature cache is not needed — the
+  driver keys its statement cache on text and the composition is string work — and is
+  dropped from the concepts. *Stage 14:* an **expanded parameter**, `{{ids...}}`, is the one
+  authored statement composed at bind: its text depends on the list's length, is rendered
+  by arity and cached by it, and `Text()` and `Verify` see the arity-one form.
 - 2026-09-03 · **Stage 10.** The pattern catalog: twenty-two authored patterns under
   `lib/query/patterns/`, rendered at request time for the collection read and spliced at
   load time through `{{> name}}` includes; both domains' guarded commands on

@@ -26,11 +26,6 @@ type Rows[T any] struct {
 	scan ScanFunc[T]
 }
 
-// Scan binds st to scan.
-func Scan[T any](st Statement, scan ScanFunc[T]) Rows[T] {
-	return Rows[T]{stmt: st, scan: scan}
-}
-
 // Statement returns the underlying statement.
 func (r Rows[T]) Statement() Statement { return r.stmt }
 

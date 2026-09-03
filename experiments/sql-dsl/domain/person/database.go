@@ -21,6 +21,7 @@ type store struct {
 	db                *sqldb.DB
 	stmts             *query.Statements
 	view              query.Projection[Person]
+	byIDs             query.Rows[Person]
 	createRows        query.Rows[Identity]
 	stateRows         query.Rows[state]
 	editGuard         query.Guard
@@ -32,14 +33,16 @@ type store struct {
 
 func newStore(db *data.Database) *store {
 	stmts := db.Catalog.MustCompile(files, "statements", db.Dialect())
+	db.Register("person", stmts)
 	check := stmts.Statement("version")
-	guard := func(name string) query.Guard { return query.Guarded(stmts.Statement(name), check, "version") }
+	guard := func(name string) query.Guard { return stmts.Statement(name).Guarded(check, "version") }
 	return &store{
 		db:                db.DB,
 		stmts:             stmts,
-		view:              query.Project(stmts.Statement("person_view"), query.Scanner[Person]()),
-		createRows:        query.Scan(stmts.Statement("create"), query.Scanner[Identity]()),
-		stateRows:         query.Scan(stmts.Statement("state"), query.Scanner[state]()),
+		view:              stmts.Statement("person_view").Project(query.Scanner[Person]()),
+		byIDs:             stmts.Statement("find_by_ids").Scan(query.Scanner[Person]()),
+		createRows:        stmts.Statement("create").Scan(query.Scanner[Identity]()),
+		stateRows:         stmts.Statement("state").Scan(query.Scanner[state]()),
 		editGuard:         guard("edit"),
 		deleteGuard:       guard("delete"),
 		activateGuard:     guard("activate"),
@@ -60,6 +63,12 @@ func (s *store) list(ctx context.Context, d query.Directives) ([]Person, int, er
 
 func (s *store) find(ctx context.Context, id string) (Person, error) {
 	return s.view.One(ctx, s.db, "id", id)
+}
+
+// findMany returns the people among ids that exist, the list bound as one
+// placeholder per id.
+func (s *store) findMany(ctx context.Context, ids []string) ([]Person, error) {
+	return s.byIDs.All(ctx, s.db, query.Args{"ids": ids})
 }
 
 func (s *store) create(ctx context.Context, c CreatePerson) (Identity, error) {
@@ -98,7 +107,7 @@ func (s *store) transferUnit(ctx context.Context, id string, version int64, t Tr
 // transition is the action protocol: read state, check the version, check
 // the rule, run the guard. A missing record is sql.ErrNoRows from the read.
 func (s *store) transition(ctx context.Context, id string, version int64, rule func(state) error, g query.Guard, args query.Args) (Identity, error) {
-	v, err := sqldb.Transact(ctx, s.db, func(tx *sqldb.Tx) (int64, error) {
+	v, err := s.db.Transact(ctx, func(tx *sqldb.Tx) (int64, error) {
 		st, err := s.stateRows.One(ctx, tx, query.Args{"id": id})
 		if err != nil {
 			return 0, err

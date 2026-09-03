@@ -1,6 +1,8 @@
 package query_test
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -75,5 +77,53 @@ func TestParams_MalformedIsALoadError(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "s.sql") {
 			t.Errorf("%s: err = %v, want a load error naming the file", name, err)
 		}
+	}
+}
+
+// An expanded parameter renders one placeholder per element of its list,
+// typed when declared so, the positions of every other parameter shifting
+// with it; the rendering is cached by the lists' lengths and Text is the
+// arity-one form Verify prepares.
+func TestExpansion_RendersOnePlaceholderPerElement(t *testing.T) {
+	stmt := load(t, "--| tier: standard\nSELECT 1 FROM t WHERE tenant = {{tenant}} AND id IN ({{ids...:uuid}}) AND status = {{status}}")
+	if got := stmt.Text(); got != "SELECT 1 FROM t WHERE tenant = $1 AND id IN (CAST($2 AS uuid)) AND status = $3" {
+		t.Errorf("arity-one text = %q", got)
+	}
+	if got := stmt.Params(); !slices.Equal(got, []string{"tenant", "ids", "status"}) {
+		t.Errorf("params = %v", got)
+	}
+	db, rec := session(t, drivertest.Response{Affected: 1}, drivertest.Response{Affected: 1})
+	args := query.Args{"tenant": "acme", "ids": []string{"a", "b", "c"}, "status": "active"}
+	for range 2 {
+		if _, err := stmt.Exec(context.Background(), db, args); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range rec.Calls() {
+		if c.SQL != "SELECT 1 FROM t WHERE tenant = $1 AND id IN (CAST($2 AS uuid), CAST($3 AS uuid), CAST($4 AS uuid)) AND status = $5" {
+			t.Errorf("sql = %q", c.SQL)
+		}
+		if len(c.Args) != 5 || c.Args[0] != "acme" || c.Args[1] != "a" || c.Args[3] != "c" || c.Args[4] != "active" {
+			t.Errorf("args = %v", c.Args)
+		}
+	}
+}
+
+func TestExpansion_RejectsWhatIsNotAList(t *testing.T) {
+	stmt := load(t, "--| tier: standard\nSELECT 1 FROM t WHERE id IN ({{ids...}})")
+	db, _ := session(t)
+	for want, args := range map[string]query.Args{
+		"missing argument": {},
+		"takes a slice":    {"ids": "a"},
+		"non-empty list":   {"ids": []string{}},
+	} {
+		_, err := stmt.Exec(context.Background(), db, args)
+		var arg *query.ArgumentError
+		if !errors.As(err, &arg) || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v", want, err)
+		}
+	}
+	if _, err := catalog().Compile(fstest.MapFS{"sql/s.sql": {Data: []byte("--| tier: standard\nSELECT 1 WHERE a = {{ids}} AND b IN ({{ids...}})")}}, "sql", drivertest.Dialect{}); err == nil || !strings.Contains(err.Error(), "one arity") {
+		t.Errorf("one arity = %v", err)
 	}
 }
