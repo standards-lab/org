@@ -53,7 +53,7 @@ func live(t testing.TB) *sqldb.DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = base.Shutdown(context.Background()) })
-	return sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	return sqldb.Wrap(base.Conn(), pgdialect.Wrap(base.Dialect()))
 }
 
 var liveFiles = fstest.MapFS{
@@ -140,7 +140,7 @@ func TestLive_ProjectionAndGuard(t *testing.T) {
 		t.Fatalf("guard hit = %d, %v", v, err)
 	}
 	_, err = edit.Run(ctx, db, 1, query.Args{"id": one.ID, "name": "B2"})
-	if !errors.Is(err, database.ErrVersionMismatch) || !strings.Contains(err.Error(), "expected 1, current 2") {
+	if !errors.Is(err, query.ErrVersionMismatch) || !strings.Contains(err.Error(), "expected 1, current 2") {
 		t.Errorf("stale guard = %v", err)
 	}
 	if _, err := edit.Run(ctx, db, 1, query.Args{"id": "00000000-0000-0000-0000-000000000000", "name": "x"}); !errors.Is(err, sql.ErrNoRows) {

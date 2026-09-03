@@ -36,8 +36,8 @@ func orgRows(n int) drivertest.Response {
 
 func session(t *testing.T, responses ...drivertest.Response) (*sqldb.DB, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	return sqldb.Wrap(base, base.Dialect()), rec
+	pool, rec := drivertest.Open(t, responses...)
+	return sqldb.Wrap(pool, drivertest.Dialect{}), rec
 }
 
 var testFiles = fstest.MapFS{

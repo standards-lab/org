@@ -18,7 +18,7 @@ type Admin struct {
 // corrects the schema at stage 1, ahead of the domains that verify their
 // statements.
 func newAdmin(infra *Infrastructure, cfg *config.Config, lc *lifecycle.Coordinator) (*Admin, error) {
-	db, err := database.New(infra.SQL, infra.Logger, database.Options{Seed: cfg.Admin.SeedEnabled()})
+	db, err := database.New(infra.Pool, infra.SQL, infra.Logger, database.Options{Seed: cfg.Admin.SeedEnabled()})
 	if err != nil {
 		return nil, err
 	}

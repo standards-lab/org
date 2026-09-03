@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,36 +9,34 @@ import (
 	"time"
 
 	"github.com/standards-lab/go-core/lifecycle"
+	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/migrate"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-//go:embed statements/*.sql
-var sqlFiles embed.FS
-
 // Stage is the lifecycle stage the schema correction runs in: after the
 // pool (0), before the domains verify their statements (2).
 const Stage = 1
 
+// ErrSeedDisabled reports a seed request in an environment whose config
+// does not enable seeding.
+var ErrSeedDisabled = errors.New("seeding is disabled")
+
 // Service is the database admin service. Every operation is a trigger over
-// the migrator or the session; Start runs the same functions the endpoints
-// do. Ready reports a clean, complete schema and follows every operation.
+// the migrator, the session, or the data layer's functions; Start runs the
+// same functions the endpoints do. Ready reports a clean, complete schema
+// and follows every operation.
 type Service struct {
+	pool     *database.DB
 	db       *sqldb.DB
 	catalog  *query.Catalog
 	migrator *migrate.Migrator
+	seeder   *data.Seeder
 	logger   *slog.Logger
 	seed     bool
 	ready    atomic.Bool
-
-	// The admin domain's statements: the seed's inserts and lookup, bound
-	// once here the way a domain's database.go binds its own.
-	stmts      *query.Statements
-	seedOrg    query.Rows[string]
-	findOrg    query.Rows[string]
-	seedPerson query.Statement
 }
 
 // Options are the service's environment-dependent switches, taken from
@@ -51,21 +48,27 @@ type Options struct {
 	Seed bool
 }
 
-// New builds the service over db and the embedded migration set; its own
-// statements compile against db.Catalog like a domain's.
-func New(db *data.Database, logger *slog.Logger, opts Options) (*Service, error) {
-	m, err := migrate.New(db.DB, Migrations(), migrate.Options{Logger: logger})
+// New builds the service over the pool's lifecycle object, which it
+// administers, and db, the session and catalog every domain shares, with
+// the data layer's migration set and seeder built over them.
+func New(pool *database.DB, db *data.Database, logger *slog.Logger, opts Options) (*Service, error) {
+	m, err := migrate.New(db.DB, data.Migrations(), migrate.Options{Logger: logger})
 	if err != nil {
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
-	stmts := db.Catalog.MustCompile(sqlFiles, "statements", db.Dialect())
 	return &Service{
-		db: db.DB, catalog: db.Catalog, migrator: m, logger: logger, seed: opts.Seed,
-		stmts:      stmts,
-		seedOrg:    query.Scan(stmts.Statement("seed_organization"), query.Scalar[string]),
-		findOrg:    query.Scan(stmts.Statement("find_organization"), query.Scalar[string]),
-		seedPerson: stmts.Statement("seed_person"),
+		pool: pool, db: db.DB, catalog: db.Catalog, migrator: m, seeder: data.NewSeeder(db),
+		logger: logger, seed: opts.Seed,
 	}, nil
+}
+
+// Seed runs the data layer's seed when this environment enables it; off,
+// the request is refused with the reason.
+func (s *Service) Seed(ctx context.Context) (data.Seeded, error) {
+	if !s.seed {
+		return data.Seeded{}, ErrSeedDisabled
+	}
+	return s.seeder.Seed(ctx)
 }
 
 // Register declares the schema stage on lc: Start corrects the schema and
@@ -108,7 +111,7 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 	s.logger.Info("schema current", "version", v.Version)
-	if err := query.Verify(ctx, s.db, s.stmts); err != nil {
+	if err := s.seeder.Verify(ctx); err != nil {
 		s.ready.Store(false)
 		return err
 	}
@@ -140,10 +143,9 @@ func (s *Service) Catalog() Catalog {
 // Diagnose reads the database's health. The version query is the one
 // native-tier read here; every engine spells it differently.
 func (s *Service) Diagnose(ctx context.Context) (Diagnostics, error) {
-	base := s.db.Base()
-	d := Diagnostics{Dialect: base.Dialect().Name(), Namespaces: s.catalog.Namespaces()}
+	d := Diagnostics{Dialect: s.db.Dialect().Name(), Namespaces: s.catalog.Namespaces()}
 	start := time.Now()
-	if err := base.Ping(ctx); err != nil {
+	if err := s.pool.Ping(ctx); err != nil {
 		return d, fmt.Errorf("ping: %w", err)
 	}
 	d.Ping = time.Since(start)
@@ -160,7 +162,7 @@ func (s *Service) Diagnose(ctx context.Context) (Diagnostics, error) {
 	if err := rows.Err(); err != nil {
 		return d, s.db.MapError(err)
 	}
-	st := base.Conn().Stats()
+	st := s.pool.Conn().Stats()
 	d.Pool = Pool{
 		Open: st.OpenConnections, InUse: st.InUse, Idle: st.Idle, MaxOpen: st.MaxOpenConnections,
 		WaitCount: st.WaitCount, WaitDuration: st.WaitDuration,
@@ -196,7 +198,7 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 func (s *Service) Verify(ctx context.Context) error {
 	err := s.migrator.Verify(ctx)
 	if err == nil {
-		err = query.Verify(ctx, s.db, s.stmts)
+		err = s.seeder.Verify(ctx)
 	}
 	s.ready.Store(err == nil)
 	return err

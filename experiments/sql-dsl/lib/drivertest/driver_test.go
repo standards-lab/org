@@ -101,17 +101,17 @@ func TestOpen_BeginRecordsOptions(t *testing.T) {
 	}
 }
 
-func TestDB_IsStartedAndMapsThroughTheStubDialect(t *testing.T) {
-	db, _ := drivertest.DB(t)
-	if !db.Ready() {
-		t.Fatal("DB not ready after Start")
+func TestDialect_MapsThroughTheStub(t *testing.T) {
+	pool, _ := drivertest.Open(t)
+	if err := pool.Ping(); err != nil {
+		t.Fatal(err)
 	}
-	err := db.Dialect().MapError(errors.New("x"))
+	err := drivertest.Dialect{}.MapError(errors.New("x"))
 	var m *drivertest.MappedError
 	if !errors.As(err, &m) {
 		t.Errorf("MapError did not wrap: %v", err)
 	}
-	if again := db.Dialect().MapError(err); again != err {
+	if again := (drivertest.Dialect{}).MapError(err); again != err {
 		t.Error("MapError re-wrapped an already mapped error")
 	}
 }

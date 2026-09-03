@@ -209,7 +209,7 @@ func status(err error) (int, bool) {
 		errors.Is(err, database.ErrUniqueViolation),
 		errors.Is(err, database.ErrForeignKeyViolation):
 		return http.StatusConflict, true
-	case errors.Is(err, database.ErrVersionMismatch):
+	case errors.Is(err, query.ErrVersionMismatch):
 		return http.StatusPreconditionFailed, true
 	}
 	return 0, false

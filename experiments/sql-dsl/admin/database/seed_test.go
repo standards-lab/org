@@ -48,9 +48,9 @@ func seedScript(fresh bool) []drivertest.Response {
 
 func newSeeding(t *testing.T, responses ...drivertest.Response) (*database.Service, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	db := data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), database.Patterns()))
-	s, err := database.New(db, slog.New(slog.DiscardHandler), database.Options{Seed: true})
+	pool, rec := drivertest.Open(t, responses...)
+	db := data.New(sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{})), query.MustCatalog(query.Patterns(), data.Patterns()))
+	s, err := database.New(started(t, pool), db, slog.New(slog.DiscardHandler), database.Options{Seed: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestSeed_InsertsInOrderThenIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
-	if n != (database.Seeded{Organizations: seedOrganizations, People: seedPeople}) {
+	if n != (data.Seeded{Organizations: seedOrganizations, People: seedPeople}) {
 		t.Errorf("seeded = %+v", n)
 	}
 	ops := rec.Ops()
@@ -90,7 +90,7 @@ func TestSeed_InsertsInOrderThenIsIdempotent(t *testing.T) {
 
 	rec.Queue(seedScript(false)...)
 	n, err = s.Seed(ctx)
-	if err != nil || n != (database.Seeded{}) {
+	if err != nil || n != (data.Seeded{}) {
 		t.Errorf("second Seed = %+v, %v, want zeros", n, err)
 	}
 	if !slices.ContainsFunc(rec.SQL(drivertest.OpQuery), func(q string) bool {

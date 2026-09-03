@@ -8,16 +8,25 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 - **Directory:** a domain's statements live in `statements/` (renamed from `sql/` at the
   handoff, so the directory never reads as the builtin pattern namespace `sql`).
-- **Stage:** 1–10 approved (2026-09-03), each on the branch as its own commit; stage 11
-  built and proven, awaiting review. See the decisions log and Q1.
-- **Next move:** the stage 11 review. Then stage 12: the split rehearsal (`sqldb.Wrap` over
-  a plain `*sql.DB`; `lib/` with go-database absent from its import graph, `split-check`
-  extended; `sqlint.toml`'s `sql` and `engine` switched from directories to package paths),
-  the promotion recommendation under Q5, the rewritten `v1.data.sql` breakdown, and the
-  concepts to capture at close: the content-patterns reference for the docs pass, soft
-  delete (`delete`/`restore`/`purge`), the reusable plumbing candidates, and the signature
-  cache (composed statements by signature, bounded per projection; the vocabulary is under
-  the stage 10 ontology entry).
+- **Stage:** 1–11 approved (2026-09-03), each on the branch as its own commit; stage 12
+  built and proven, awaiting review. See the decisions log, Q1, Q5, and the Ontology section.
+- **Next move:** the stage 12 review, then stage 13 as defined below.
+- **Then stage 13 (the architect, 2026-09-03):** the comprehensive review, written to
+  `REVIEW.md` with NOTES's promotion section pointing at it. Each layer of the architecture
+  evaluated, then the whole; an optimization pass that is a **layout review** — which
+  types, methods, and functions belong to `go-sql`, `go-database`, `go-web-sdk`, the
+  template, and the reference service, judged against the standard's package layering,
+  without sacrificing capability (performance only if the layout review finds a reason;
+  the signature cache stays a concept); the promotion plan for every component as the
+  adopted strategy for the DSL service integration; the workspace context adjustments the
+  experiment implies, seeded by the principles it incubated — the admin layout with a
+  consolidated database package (migrations, seeds, patterns, statements), the entity
+  roles (validation methods, the tag conventions), `internal/data`, the file-per-layer
+  composition root and a possible `services.go` collapse of `infrastructure.go`,
+  `domain.go`, and `reactors.go`, the `routes.go` mount simplification — each with the
+  note it lands in; and the roadmap refinement, a `v1.data.sql.integration` goal replacing
+  the pre-split `query`/`migrate`/`organization`/`startup` breakdown. Stage 13 drafts;
+  `close` applies the tending and the manifest. Then `close`.
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, seeded (7 organizations, 6 people); the stage 11 live proof created and
   deleted its own rows.
@@ -515,6 +524,61 @@ rule, each with the second consumer that would prove it (the template, then go-w
   detail-carrying `reject` are go-web-sdk shaped, alongside the `ErrorWriter` detail
   finding already on record.
 
+### The split rehearsal (stage 12)
+
+`lib/` builds with go-database absent from its import graph, and `split-check` now fails on
+any go-database package, any service package, or the driver's name outside tests. What the
+rehearsal had to move, and what that says about the split:
+
+- **The dialect is go-sql's.** `sqldb.Dialect` (`Name`, `Placeholder`, `MapError`) is the
+  library's own interface; go-database's postgres dialect satisfies it structurally, so the
+  composition root passes `db.Dialect()` unchanged and `pgdialect.Wrap` takes it. At
+  promotion `go-sql/postgres` owns the dialect entire — placeholders, error classes, the
+  lock — and go-database's `Dialect` (a v0.3.0 addition made for `query`) retires or is
+  reduced to what the pool itself needs; which is a stage 13 layout decision.
+- **The error classes follow the dialect.** `sqldb.ErrConnectionFailed` and
+  `sqldb.ErrInvalidValue` are the seam's; `query.ErrVersionMismatch` is the guard's own,
+  the service mapping it to 412. The constraint classes (`ErrUniqueViolation` and kin) are
+  still go-database's, produced by its mapping inside the wrapped dialect; once
+  `go-sql/postgres` owns `MapError` they are go-sql's sentinels, and go-database's retire.
+- **The seam is a plain pool.** `sqldb.Wrap(pool *sql.DB, dialect)`; lifecycle stays with
+  whoever owns the pool. The root passes `db.Conn()`. `Base()` is gone: the admin service,
+  which administers the provider's lifecycle object, takes it as its own argument
+  (`database.New(pool, db, …)`), and `Infrastructure` exposes `Pool` beside `SQL` — the
+  provider's object and the data layer's, from two libraries.
+- **`drivertest` is go-sql's.** Its go-database constructor went; a test that needs the
+  started lifecycle object builds it over `drivertest.Open`'s pool, as the admin tests do.
+  The live tests keep go-database as their compose harness (a test-only import, outside the
+  build graph): at promotion `go-sql/postgres`'s live tests take the driver directly, as
+  go-database/postgres does today.
+- **The `sqlint.toml` switch is made.** `sql` and `engine` are package paths of this
+  module, resolved through `go list` on every `mise run lint`; the split changes the module
+  name and nothing else, and `lib/query/patterns` leaves the `[patterns]` role.
+
+The two questions, answered from the evidence for stage 13:
+
+- **Is the session-with-catalog grouping library-shaped?** Both members are now go-sql
+  types, so a `query`-level type is possible. Decided (the architect, stage 12 review):
+  service-side, and `internal/data` is the service's whole database infrastructure. The
+  rehearsal showed the service holds two database objects from two libraries — the
+  provider's lifecycle object and go-sql's session — and the grouping is the service's
+  composition of them, the seam the template scaffolds and the service grows (a second
+  database, a read replica, the registry below). The stretch the review found was not two
+  packages but two concerns in one: `admin/database` held the operations and also the
+  content — migrations, seeds, the application's patterns, the seed statements — that the
+  domains depend on at runtime, which is why domain tests imported an admin package to
+  build a catalog. The content moved to `internal/data` (`Migrations()`, `Patterns()`, a
+  `Seeder` compiled against the catalog) and `admin/database` keeps the operations and
+  their policy. Layering: `data` at the bottom, the domains and the admin service peers
+  over it, `app` composing the three; nothing under `domain/` imports `admin/`. The stage
+  1 principle reads "administers the infrastructure the data layer owns".
+- **Where does a statements inventory register?** On `data.Database`: each domain's
+  `newStore` registers its compiled `Statements` under the domain's name
+  (`db.Register("organization", stmts)`), the admin service reads the registry for
+  `GET /admin/database/statements` beside `/patterns`, and verification stays each domain's
+  own lifecycle stage. The grouping is the natural owner because it already holds the
+  catalog, the patterns inventory. A promotion item, not built here.
+
 ## Promotion recommendation
 
 _The shape to promote for `query` and for `migrate`; the rewritten task-breakdown input for
@@ -532,6 +596,20 @@ _Anything deferred, with the decision it would change._
   question (`v1.data.sql.tasks.docs`).
 
 ## Decisions log
+
+- 2026-09-03 · **Stage 12.** The split rehearsal: `sqldb.Dialect`, `sqldb.ErrConnectionFailed`,
+  `sqldb.Wrap(pool *sql.DB, dialect)` with `Base()` removed; `query.ErrVersionMismatch`;
+  `pgdialect.Wrap(sqldb.Dialect)`; `drivertest.DB` removed; `Infrastructure.Pool` beside
+  `SQL`, the admin service taking the pool as its own argument; `split-check` failing on
+  go-database, the service packages, or the driver's name in `lib/`'s build graph;
+  `sqlint.toml` naming the library and the engine by package path. Findings and the two
+  answers under Q5, "The split rehearsal". Review (the architect): Go 1.27's promoted-field
+  composite-literal keys apply nowhere here (the one struct embedding is a pointer); its
+  generic methods are a stage 13 ergonomics item (`Scan`, `Project`, `Transact` as methods).
+  The consolidation of the database concerns: content to `internal/data`, operations stay
+  in `admin/database` (Q5, the grouping answer). Proven: hermetic and compose suites, lint with
+  `go list` resolution, split-check; live on PostgreSQL 18.4 — ready, diagnostics through
+  the pool, create, a stale edit 412 through `query.ErrVersionMismatch`, delete.
 
 - 2026-09-03 · **Stage 11.** The pattern catalog API: `query.Publish(namespace, fs, dir)`,
   `Patterns()`, `As`, `Overlay`, `NewCatalog`/`MustCatalog`, `Catalog.Compile`/

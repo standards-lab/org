@@ -9,10 +9,11 @@
 //   - admin domain — a package under admin/ named for the infrastructure
 //     service it administers (database today);
 //   - admin service — the domain's service: its operations are triggers over
-//     library functions, never mechanisms of their own, and it owns the
-//     administrative infrastructure of its service (for the database, the
-//     migrator, the embedded migration set, the seeds); startup calls the
-//     same functions its endpoints do;
+//     library functions and the infrastructure layer's own (for the
+//     database, lib/migrate and internal/data's migration set, seeder, and
+//     catalog), never mechanisms of their own; it administers the
+//     infrastructure the data layer owns, and startup calls the same
+//     functions its endpoints do;
 //   - admin handler — the domain's route group, mounted into the admin mount.
 //
 // The composition root (internal/app) wires the admin domains and mounts

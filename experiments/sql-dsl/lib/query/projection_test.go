@@ -175,8 +175,8 @@ func (e pgError) Error() string    { return e.msg }
 func (e pgError) SQLState() string { return e.code }
 
 func TestList_EngineDataExceptionIsAnInvalidValue(t *testing.T) {
-	base, _ := drivertest.DB(t, drivertest.Response{Err: pgError{"22P02", `invalid input syntax for type uuid: "nope"`}})
-	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	pool, _ := drivertest.Open(t, drivertest.Response{Err: pgError{"22P02", `invalid input syntax for type uuid: "nope"`}})
+	db := sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{}))
 	_, _, err := projection(t).List(context.Background(), db, query.Directives{
 		Page:    query.Page{Number: 1, Size: 5},
 		Filters: []query.Filter{{Field: "id", Op: query.OpEq, Value: "nope"}},

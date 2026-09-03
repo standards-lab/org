@@ -4,26 +4,27 @@
 # engine are paths: a producer (a Go package path, or a directory holding its
 # own sqlint.toml) declares what a consumer reads in its [export]; a bare
 # directory is the pattern files themselves, the service's own. At the split,
-# lib/query becomes "github.com/standards-lab/go-sql", lib/pgdialect its
-# postgres sub-module, and lib/query/patterns leaves the [patterns] role.
+# lib/query/patterns leaves the [patterns] role.
 
-engine = "lib/pgdialect"
+# The library and the engine are named by package path and resolved through
+# go list, the form they keep after the split; only the module name changes.
+engine = "github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
 
 [sources]
-sql = "lib/query"
-app = "admin/database/patterns"
+sql = "github.com/standards-lab/org/experiments/sql-dsl/lib/query"
+app = "internal/data/patterns"
 
 [statements]
-dirs = ["domain/*/statements", "admin/*/statements"]
+dirs = ["domain/*/statements", "internal/data/statements"]
 verb_named = true
 delimiter = true
 native_forms = true
 
 [patterns]
-dirs = ["lib/query/patterns", "admin/*/patterns"]
+dirs = ["lib/query/patterns", "internal/data/patterns"]
 delimiter = true
 native_forms = true
 
 [migrations]
-dirs = ["admin/*/migrations"]
+dirs = ["internal/data/migrations"]
 single_statement = true

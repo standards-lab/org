@@ -10,9 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/go-web-sdk"
-	admindb "github.com/standards-lab/org/experiments/sql-dsl/admin/database"
 	"github.com/standards-lab/org/experiments/sql-dsl/domain/person"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
@@ -28,8 +26,8 @@ const (
 
 func service(t *testing.T, responses ...drivertest.Response) (*person.Service, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	return person.New(data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), admindb.Patterns()))), rec
+	pool, rec := drivertest.Open(t, responses...)
+	return person.New(data.New(sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{})), query.MustCatalog(query.Patterns(), data.Patterns()))), rec
 }
 
 func identity(version int64) drivertest.Response {
@@ -124,7 +122,7 @@ func TestStore_ActionsApplyTheTransitionRuleBeforeTheGuard(t *testing.T) {
 	if _, err := s.Deactivate(ctx, validID, 1); !errors.Is(err, person.ErrTransition) {
 		t.Errorf("deactivate pending = %v, want ErrTransition", err)
 	}
-	if _, err := s.Activate(ctx, validID, 1); !errors.Is(err, database.ErrVersionMismatch) {
+	if _, err := s.Activate(ctx, validID, 1); !errors.Is(err, query.ErrVersionMismatch) {
 		t.Errorf("stale activate = %v, want ErrVersionMismatch before the rule", err)
 	}
 	if _, err := s.Activate(ctx, validID, 1); !errors.Is(err, sql.ErrNoRows) {

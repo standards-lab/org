@@ -86,8 +86,8 @@ func TestVerify_PreparesEveryStatementAndJoinsFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base, rec := drivertest.DB(t)
-	db := sqldb.Wrap(base, base.Dialect())
+	pool, rec := drivertest.Open(t)
+	db := sqldb.Wrap(pool, drivertest.Dialect{})
 	boom := errors.New("column \"name\" does not exist")
 	rec.FailPrepare = func(q string) error {
 		if strings.Contains(q, "UPDATE organization") || strings.Contains(q, "pg_advisory") {

@@ -9,7 +9,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 )
@@ -55,7 +54,7 @@ func TestGuard_MissClassifiesNotFoundAndMismatch(t *testing.T) {
 		t.Errorf("gone = %v, want sql.ErrNoRows", err)
 	}
 	_, err := g.Run(context.Background(), db, 3, query.Args{"id": "x", "name": "n"})
-	if !errors.Is(err, database.ErrVersionMismatch) || !strings.Contains(err.Error(), "expected 3, current 5") {
+	if !errors.Is(err, query.ErrVersionMismatch) || !strings.Contains(err.Error(), "expected 3, current 5") {
 		t.Errorf("moved = %v, want ErrVersionMismatch with both versions", err)
 	}
 	if check := rec.Calls()[3]; check.SQL != "SELECT version FROM organization WHERE id = $1" || check.Args[0] != "x" {

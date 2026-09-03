@@ -8,7 +8,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
@@ -17,8 +16,8 @@ var errDriver = errors.New("driver says no")
 
 func wrap(t *testing.T, responses ...drivertest.Response) (*sqldb.DB, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	return sqldb.Wrap(base, base.Dialect()), rec
+	pool, rec := drivertest.Open(t, responses...)
+	return sqldb.Wrap(pool, drivertest.Dialect{}), rec
 }
 
 func mapped(t *testing.T, err error) {
@@ -58,8 +57,8 @@ func TestDB_EveryMethodMaps(t *testing.T) {
 	if db.MapError(nil) != nil {
 		t.Error("MapError(nil) != nil")
 	}
-	if db.Dialect().Name() != "test" || db.Base() == nil {
-		t.Error("Dialect or Base not carried")
+	if db.Dialect().Name() != "test" {
+		t.Error("Dialect not carried")
 	}
 }
 
@@ -127,7 +126,7 @@ func TestBegin_OptionsReachTheDriverAndFailureWrapsConnectionFailed(t *testing.T
 
 	rec.FailBegin = errDriver
 	_, err = db.Begin(ctx)
-	if !errors.Is(err, database.ErrConnectionFailed) || !errors.Is(err, errDriver) {
+	if !errors.Is(err, sqldb.ErrConnectionFailed) || !errors.Is(err, errDriver) {
 		t.Errorf("begin failure = %v, want ErrConnectionFailed wrapping the driver error", err)
 	}
 }

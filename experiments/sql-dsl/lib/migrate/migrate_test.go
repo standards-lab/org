@@ -41,8 +41,8 @@ func exists(yes bool) drivertest.Response {
 // capability, so lock and unlock calls are part of the recorded script.
 func newMigrator(t *testing.T, opts migrate.Options, responses ...drivertest.Response) (*migrate.Migrator, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	pool, rec := drivertest.Open(t, responses...)
+	db := sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{}))
 	m, err := migrate.New(db, set, opts)
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -61,8 +61,8 @@ func assertOps(t *testing.T, rec *drivertest.Recorder, want ...drivertest.Op) {
 }
 
 func TestNew_ValidatesTheSet(t *testing.T) {
-	base, _ := drivertest.DB(t)
-	db := sqldb.Wrap(base, base.Dialect())
+	pool, _ := drivertest.Open(t)
+	db := sqldb.Wrap(pool, drivertest.Dialect{})
 	cases := map[string][]migrate.Migration{
 		"out of order": {{Version: 2, Name: "b", Up: "x"}, {Version: 1, Name: "a", Up: "x"}},
 		"duplicate":    {{Version: 1, Name: "a", Up: "x"}, {Version: 1, Name: "a", Up: "x"}},
@@ -248,10 +248,10 @@ func TestDown_RevertsTheMostRecentApplied(t *testing.T) {
 }
 
 func TestDown_WithoutDownTextIsErrNoDown(t *testing.T) {
-	base, _ := drivertest.DB(t,
+	pool, _ := drivertest.Open(t,
 		locked, created, history([]driver.Value{int64(1), "a", false}), unlocked,
 	)
-	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	db := sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{}))
 	m, err := migrate.New(db, []migrate.Migration{{Version: 1, Name: "a", Up: "x", Transactional: true}}, migrate.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -357,9 +357,9 @@ func (catalogDialect) HistoryExists(param string) string {
 
 func TestNew_TakesTheCatalogFromTheDialect(t *testing.T) {
 	ctx := context.Background()
-	base, rec := drivertest.DB(t, exists(false), locked, created, history(), unlocked)
-	d := catalogDialect{pgdialect.Wrap(base.Dialect())}
-	m, err := migrate.New(sqldb.Wrap(base, d), set, migrate.Options{})
+	pool, rec := drivertest.Open(t, exists(false), locked, created, history(), unlocked)
+	d := catalogDialect{pgdialect.Wrap(drivertest.Dialect{})}
+	m, err := migrate.New(sqldb.Wrap(pool, d), set, migrate.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,8 +379,8 @@ func TestNew_TakesTheCatalogFromTheDialect(t *testing.T) {
 }
 
 func TestLocked_DialectWithoutLockerFailsUnlessUnlocked(t *testing.T) {
-	base, rec := drivertest.DB(t, created, history(), drivertest.Response{}, drivertest.Response{})
-	db := sqldb.Wrap(base, base.Dialect()) // the stub dialect has no Locker
+	pool, rec := drivertest.Open(t, created, history(), drivertest.Response{}, drivertest.Response{})
+	db := sqldb.Wrap(pool, drivertest.Dialect{}) // the stub dialect has no Locker
 	m, err := migrate.New(db, set[:1], migrate.Options{})
 	if err != nil {
 		t.Fatal(err)

@@ -1,4 +1,4 @@
-package database
+package data
 
 import (
 	"context"
@@ -15,9 +15,39 @@ import (
 //go:embed seeds/*.json
 var seedFiles embed.FS
 
-// ErrSeedDisabled reports a seed request in an environment whose config
-// does not enable seeding.
-var ErrSeedDisabled = errors.New("seeding is disabled")
+//go:embed statements/*.sql
+var seedStatements embed.FS
+
+// Seeder is the seed operation bound to its statements: the seed's inserts
+// and lookup, authored files under statements/ — the native tier, ON
+// CONFLICT and RETURNING, declared in their headers; seeds never port —
+// compiled once against the catalog and held as handles. The admin service
+// owns the policy of when it runs; Seeder owns how.
+type Seeder struct {
+	db         *sqldb.DB
+	stmts      *query.Statements
+	seedOrg    query.Rows[string]
+	findOrg    query.Rows[string]
+	seedPerson query.Statement
+}
+
+// NewSeeder compiles the seed statements against db's catalog and binds the
+// handles; a compile failure is a wiring defect and panics.
+func NewSeeder(db *Database) *Seeder {
+	stmts := db.Catalog.MustCompile(seedStatements, "statements", db.Dialect())
+	return &Seeder{
+		db:         db.DB,
+		stmts:      stmts,
+		seedOrg:    query.Scan(stmts.Statement("seed_organization"), query.Scalar[string]),
+		findOrg:    query.Scan(stmts.Statement("find_organization"), query.Scalar[string]),
+		seedPerson: stmts.Statement("seed_person"),
+	}
+}
+
+// Verify prepares every seed statement against the live schema.
+func (s *Seeder) Verify(ctx context.Context) error {
+	return query.Verify(ctx, s.db, s.stmts)
+}
 
 // Seeded counts the rows one seed run inserted per domain; a row already
 // present counts nothing, so a seeded database reports zeros.
@@ -48,10 +78,7 @@ type personSeed struct {
 // belong to them. It is idempotent through each table's unique constraint —
 // an existing row is left as it is — so it runs at every startup of an
 // environment that enables it and on demand from the admin mount.
-func (s *Service) Seed(ctx context.Context) (Seeded, error) {
-	if !s.seed {
-		return Seeded{}, ErrSeedDisabled
-	}
+func (s *Seeder) Seed(ctx context.Context) (Seeded, error) {
 	var orgs []organizationSeed
 	var people []personSeed
 	if err := errors.Join(readSeed("organization", &orgs), readSeed("person", &people)); err != nil {
@@ -68,14 +95,11 @@ func (s *Service) Seed(ctx context.Context) (Seeded, error) {
 }
 
 // The per-table seeds. Each resolves the file's references by code, calls
-// the table's insert once per row, and counts what it inserted. The
-// statements are the admin domain's authored files under statements/ — the native
-// tier, ON CONFLICT and RETURNING, declared in their headers; seeds never
-// port — held as query handles bound once in New.
+// the table's insert once per row, and counts what it inserted.
 
 // seedOrganizations inserts the tree in file order, each parent before its
 // children, and returns every organization's id by code.
-func (s *Service) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSeed, inserted *int) (map[string]string, error) {
+func (s *Seeder) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []organizationSeed, inserted *int) (map[string]string, error) {
 	ids := make(map[string]string, len(rows))
 	for _, o := range rows {
 		var parent any
@@ -101,7 +125,7 @@ func (s *Service) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []or
 // seedOrganization seeds one organization or finds the one already there,
 // returning its id and whether this call inserted it. The statement returns
 // no row on conflict; sql.ErrNoRows is that signal.
-func (s *Service) seedOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
+func (s *Seeder) seedOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
 	id, err = s.seedOrg.One(ctx, tx, query.Args{"parent": parent, "code": o.Code, "name": o.Name})
 	if err == nil {
 		return id, true, nil
@@ -117,7 +141,7 @@ func (s *Service) seedOrganization(ctx context.Context, tx *sqldb.Tx, parent any
 }
 
 // seedPeople seeds each person under the unit named by code.
-func (s *Service) seedPeople(ctx context.Context, tx *sqldb.Tx, units map[string]string, rows []personSeed, inserted *int) error {
+func (s *Seeder) seedPeople(ctx context.Context, tx *sqldb.Tx, units map[string]string, rows []personSeed, inserted *int) error {
 	for _, p := range rows {
 		unit, ok := units[p.Unit]
 		if !ok {

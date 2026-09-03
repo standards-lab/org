@@ -43,15 +43,16 @@ description = "Run golangci-lint and the SQL conventions lint"
 run = "golangci-lint run ./... && go run ./cmd/sqlint"
 
 [tasks.split-check]
-description = "Fail if lib/ (the promotion candidates) reaches into internal/ or the driver"
+description = "Fail if lib/ (the go-sql candidates) depends on go-database, the service, or the driver"
 run = '''
 set -e
-deps=$(go list -deps ./lib/... 2>/dev/null | grep 'experiments/sql-dsl/internal' || true)
+deps=$(go list -deps ./lib/... 2>/dev/null | grep -E 'standards-lab/go-database|experiments/sql-dsl/(internal|admin|domain|cmd)' || true)
 if [ -n "$deps" ]; then
-  echo "split-check: lib/ depends on internal/:"; echo "$deps"; exit 1
+  echo "split-check: lib/ depends on what go-sql cannot:"; echo "$deps"; exit 1
 fi
-if [ -d lib ] && grep -rq jackc lib/; then
-  echo "split-check: lib/ names the driver"; exit 1
+named=$(grep -rl jackc lib/ --include='*.go' | grep -v _test.go || true)
+if [ -n "$named" ]; then
+  echo "split-check: lib/ names the driver:"; echo "$named"; exit 1
 fi
 echo "split-check: ok"
 '''

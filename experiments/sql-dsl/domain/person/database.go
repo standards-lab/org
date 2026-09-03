@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
@@ -105,7 +104,7 @@ func (s *store) transition(ctx context.Context, id string, version int64, rule f
 			return 0, err
 		}
 		if st.Version != version {
-			return 0, fmt.Errorf("%w: expected %d, current %d", database.ErrVersionMismatch, version, st.Version)
+			return 0, fmt.Errorf("%w: expected %d, current %d", query.ErrVersionMismatch, version, st.Version)
 		}
 		if err := rule(st); err != nil {
 			return 0, err

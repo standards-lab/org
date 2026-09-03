@@ -5,9 +5,28 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
-	"github.com/standards-lab/go-database"
 )
+
+// ErrConnectionFailed classifies a failure to obtain a connection or begin
+// a transaction, wrapped as fmt.Errorf("%w: %w", ErrConnectionFailed, err)
+// so errors.Is matches it and the driver's error stays reachable.
+var ErrConnectionFailed = errors.New("database connection failed")
+
+// Dialect is what the library needs from an engine: its name, how it spells
+// the nth bind parameter, and how its driver's errors classify. An engine
+// sub-module implements it; a provider library's dialect satisfies it
+// structurally. Capabilities beyond it — Locker, ErrorMapper — are separate
+// interfaces a protocol asserts.
+type Dialect interface {
+	// Name identifies the engine.
+	Name() string
+	// Placeholder renders the 1-based nth bind parameter ("$1" for
+	// postgres, "@p1" for a future mssql).
+	Placeholder(n int) string
+	// MapError translates a driver error into the library's sentinels;
+	// sql.ErrNoRows always flows through unchanged.
+	MapError(err error) error
+}
 
 // ErrInvalidValue classifies a data exception: a bound value the engine
 // could not read as the type it was cast to (SQLSTATE class 22). It is the
@@ -45,13 +64,12 @@ type Locker interface {
 	Unlock(ctx context.Context, conn *sql.Conn, name string) error
 }
 
-// DB is the pool session over a started go-database DB. Lifecycle stays with
-// the base; DB adds mapping, prepare, options on Begin, and pinned
-// connections.
+// DB is the pool session over a plain *sql.DB. Lifecycle — opening,
+// readiness, closing — belongs to whoever owns the pool; DB adds mapping,
+// prepare, options on Begin, and pinned connections.
 type DB struct {
-	base    *database.DB
 	pool    *sql.DB
-	dialect database.Dialect
+	dialect Dialect
 }
 
 var (
@@ -61,21 +79,18 @@ var (
 	_ ErrorMapper = (*Tx)(nil)
 )
 
-// Wrap builds the session over base with dialect, which is normally
-// base.Dialect() or a capability-adding wrapper of it. Nil arguments are a
-// wiring defect and panic.
-func Wrap(base *database.DB, dialect database.Dialect) *DB {
-	if base == nil || dialect == nil {
-		panic("sqldb: Wrap requires a base DB and a dialect")
+// Wrap builds the session over pool with dialect, the engine's or a
+// capability-adding wrapper of it. Nil arguments are a wiring defect and
+// panic.
+func Wrap(pool *sql.DB, dialect Dialect) *DB {
+	if pool == nil || dialect == nil {
+		panic("sqldb: Wrap requires a pool and a dialect")
 	}
-	return &DB{base: base, pool: base.Conn(), dialect: dialect}
+	return &DB{pool: pool, dialect: dialect}
 }
 
-// Base returns the lifecycle wrapper the session was built over.
-func (d *DB) Base() *database.DB { return d.base }
-
-// Dialect returns the dialect statements are loaded against.
-func (d *DB) Dialect() database.Dialect { return d.dialect }
+// Dialect returns the dialect statements are compiled against.
+func (d *DB) Dialect() Dialect { return d.dialect }
 
 // MapError routes err through the dialect; nil stays nil.
 func (d *DB) MapError(err error) error {
@@ -90,7 +105,7 @@ func (d *DB) MapError(err error) error {
 func (d *DB) Conn(ctx context.Context) (*sql.Conn, error) {
 	conn, err := d.pool.Conn(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", database.ErrConnectionFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 	return conn, nil
 }

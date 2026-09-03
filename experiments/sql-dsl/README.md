@@ -7,19 +7,21 @@ experiment's record, position, and findings: `NOTES.md`.
 
 ## Layout
 
-- `lib/` — promotion candidates for `go-sql`; never imports `internal/` (`mise run
-  split-check` enforces it). `lib/query/patterns/` is the library's own SQL, namespace `sql`:
+- `lib/` — promotion candidates for `go-sql`: its build graph holds no go-database, no
+  service package, and no driver (`mise run split-check` enforces it); `sqldb` wraps a plain
+  `*sql.DB` with a `sqldb.Dialect`, and the provider's dialect satisfies it structurally. `lib/query/patterns/` is the library's own SQL, namespace `sql`:
   the patterns the collection read composes at request time and the ones a statement includes
   with `{{> sql.name}}`. Every pattern source carries a `sqlint.toml` whose `[export]` names
   what a consumer reads from it; `lib/pgdialect`'s declares the engine's native forms.
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
-  at `/admin`; `admin/database` owns the schema (migrations), its own authored statements
-  (`statements/`), the seed files, their operations, and the application's pattern namespace
-  `app` (`patterns/`, registered at the composition root; domains define no patterns).
+  at `/admin`; `admin/database` is the operations over the data layer — verify, up, down,
+  steps, force, seed, diagnostics, the catalog read — and the policy of when the seed runs.
 - `domain/` — the two domains, mounted at `/api`: `organization` (stage 8), `person`
   (stage 9). Each holds its statements in `statements/` and its SQL client in `database.go`.
 - `internal/` — the service side: `config` with its `configtest` fixtures, `data` (the
-  database as a domain sees it: the session and the pattern catalog), the composition root
+  service's database infrastructure: the session-and-catalog grouping the domains take, the
+  schema in `migrations/`, the application's pattern namespace `app` in `patterns/`, the seed
+  files and their statements behind a `Seeder`; domains define no patterns), the composition root
   (`app`, whose `infrastructure.go` builds the catalog and, with `admin.go`, `domain.go`, and
   `reactors.go`, wires the layers and mounts them), and sdk staging.
 - `cmd/server` — the service binary.
@@ -45,8 +47,9 @@ guarded commands take `If-Match: "<version>"`. Paging policy is the `reads` conf
 `sqlint.toml`, one per module: a table per role with its directory globs and switches, the
 pattern sources and the engine as paths. A producer (a Go package path resolved through `go
 list`, or a directory holding its own `sqlint.toml`) declares what a consumer reads in its
-`[export]`; a bare directory is the service's own pattern files. The engine's export names its
-native forms as regular expressions, matched against code only.
+`[export]`; a bare directory is the service's own pattern files. The library and the engine are
+named by package path and resolved through `go list`, the form they keep after the split. The
+engine's export names its native forms as regular expressions, matched against code only.
 
 The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `GET /patterns` (the
 catalog as the library holds it: every namespace and pattern, with tier, slots, and text), `POST

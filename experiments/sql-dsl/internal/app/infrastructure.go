@@ -7,8 +7,8 @@ import (
 
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/go-core/logging"
+	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/go-database/postgres"
-	"github.com/standards-lab/org/experiments/sql-dsl/admin/database"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/config"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
@@ -25,7 +25,11 @@ import (
 // never the struct.
 type Infrastructure struct {
 	Logger *slog.Logger
-	SQL    *data.Database
+	// Pool is the database's lifecycle object — the provider's pool with
+	// its start, readiness, and shutdown — which the admin service
+	// administers; the domains never see it.
+	Pool *database.DB
+	SQL  *data.Database
 }
 
 // newInfrastructure constructs the infrastructure services in one place,
@@ -54,12 +58,13 @@ func newInfrastructure(
 		Check:    db,
 	})
 
-	catalog, err := query.NewCatalog(query.Patterns(), database.Patterns())
+	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
 	if err != nil {
 		return nil, fmt.Errorf("patterns: %w", err)
 	}
 	return &Infrastructure{
 		Logger: logger,
-		SQL:    data.New(sqldb.Wrap(db, pgdialect.Wrap(db.Dialect())), catalog),
+		Pool:   db,
+		SQL:    data.New(sqldb.Wrap(db.Conn(), pgdialect.Wrap(db.Dialect())), catalog),
 	}, nil
 }

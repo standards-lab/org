@@ -1,8 +1,9 @@
-// Package pgdialect adds to the postgres dialect go-database/postgres v0.2.0
-// ships, by wrapping it: the lock capability (session-level advisory locks
-// over plain SQL on a pinned connection) and the data-exception class in
-// MapError. It imports no driver. At promotion the methods move into the
-// postgres sub-module's dialect.
+// Package pgdialect adds to a postgres dialect — go-database/postgres
+// v0.2.0's, which satisfies sqldb.Dialect structurally — by wrapping it: the
+// lock capability (session-level advisory locks over plain SQL on a pinned
+// connection) and the data-exception class in MapError. It imports no
+// driver and no provider library. At promotion it is the postgres
+// sub-module's dialect entire, the inner one folded in.
 package pgdialect
 
 import (
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -23,7 +23,7 @@ var ErrLockNotHeld = errors.New("advisory lock not held by this session")
 // Dialect is the wrapped postgres dialect: everything the inner dialect does,
 // plus sqldb.Locker and the class-22 mapping.
 type Dialect struct {
-	database.Dialect
+	sqldb.Dialect
 }
 
 var _ sqldb.Locker = Dialect{}
@@ -50,7 +50,7 @@ func (d Dialect) MapError(err error) error {
 
 // Wrap adds the lock capability to inner, normally the postgres dialect a
 // started DB reports.
-func Wrap(inner database.Dialect) Dialect {
+func Wrap(inner sqldb.Dialect) Dialect {
 	if inner == nil {
 		panic("pgdialect: Wrap requires a dialect")
 	}

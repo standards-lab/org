@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -47,7 +46,7 @@ type Statement struct {
 	params     []string
 	key        string
 	fields     []Field
-	dialect    database.Dialect
+	dialect    sqldb.Dialect
 	catalog    *Catalog
 }
 

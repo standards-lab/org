@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
-	"github.com/standards-lab/go-database"
 )
 
 // TxOption sets a field of the sql.TxOptions Begin opens with.
@@ -27,11 +25,11 @@ func ReadOnly() TxOption {
 // and on commit.
 type Tx struct {
 	tx      *sql.Tx
-	dialect database.Dialect
+	dialect Dialect
 }
 
 // Begin opens a transaction with the options applied; a failure to begin
-// wraps database.ErrConnectionFailed.
+// wraps ErrConnectionFailed.
 func (d *DB) Begin(ctx context.Context, opts ...TxOption) (*Tx, error) {
 	var o sql.TxOptions
 	for _, opt := range opts {
@@ -39,7 +37,7 @@ func (d *DB) Begin(ctx context.Context, opts ...TxOption) (*Tx, error) {
 	}
 	tx, err := d.pool.BeginTx(ctx, &o)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", database.ErrConnectionFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 	return &Tx{tx: tx, dialect: d.dialect}, nil
 }

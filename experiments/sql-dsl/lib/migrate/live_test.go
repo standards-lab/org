@@ -72,7 +72,7 @@ func live(t testing.TB) *sqldb.DB {
 		t.Fatalf("start: %v", err)
 	}
 	t.Cleanup(func() { _ = base.Shutdown(context.Background()) })
-	return sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	return sqldb.Wrap(base.Conn(), pgdialect.Wrap(base.Dialect()))
 }
 
 // scratch drops the named objects now and at cleanup: the history table

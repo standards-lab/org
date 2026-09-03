@@ -7,8 +7,6 @@ import (
 	"errors"
 	"io"
 	"testing"
-
-	"github.com/standards-lab/go-database"
 )
 
 // Open returns a pool over a fresh Recorder, closed when the test ends.
@@ -19,23 +17,6 @@ func Open(t testing.TB, responses ...Response) (*sql.DB, *Recorder) {
 	pool := sql.OpenDB(&connector{rec: rec})
 	t.Cleanup(func() { _ = pool.Close() })
 	return pool, rec
-}
-
-// DB returns a started go-database DB over Open with the stub Dialect, so a
-// test wires the real lifecycle wrapper the way the composition root does.
-func DB(t testing.TB, responses ...Response) (*database.DB, *Recorder) {
-	t.Helper()
-	pool, rec := Open(t, responses...)
-	cfg := database.Config{Name: "test"}
-	if err := cfg.Finalize(""); err != nil {
-		t.Fatalf("drivertest: finalize config: %v", err)
-	}
-	db := database.New(pool, Dialect{}, cfg)
-	if err := db.Start(context.Background()); err != nil {
-		t.Fatalf("drivertest: start: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Shutdown(context.Background()) })
-	return db, rec
 }
 
 type connector struct{ rec *Recorder }

@@ -1,4 +1,4 @@
-package database
+package data
 
 import (
 	"embed"
@@ -15,7 +15,7 @@ var files embed.FS
 func Migrations() []migrate.Migration {
 	ms, err := migrate.Files(files, "migrations")
 	if err != nil {
-		panic(fmt.Sprintf("admin/database: %v", err))
+		panic(fmt.Sprintf("data: %v", err))
 	}
 	return ms
 }

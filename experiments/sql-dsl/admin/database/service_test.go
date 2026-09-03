@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	godb "github.com/standards-lab/go-database"
 	"github.com/standards-lab/go-web-sdk"
 	"github.com/standards-lab/org/experiments/sql-dsl/admin/database"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
@@ -49,17 +51,33 @@ func head(version int64, dirty bool) drivertest.Response {
 // applied is the history of the whole embedded set, clean.
 func applied() drivertest.Response {
 	var rows [][]driver.Value
-	for _, m := range database.Migrations() {
+	for _, m := range data.Migrations() {
 		rows = append(rows, []driver.Value{int64(m.Version), m.Name, false})
 	}
 	return history(rows...)
 }
 
+// started wraps the fake pool in the provider's lifecycle object, started,
+// the way the composition root hands it to the admin service.
+func started(t *testing.T, pool *sql.DB) *godb.DB {
+	t.Helper()
+	cfg := godb.Config{Name: "test"}
+	if err := cfg.Finalize(""); err != nil {
+		t.Fatal(err)
+	}
+	base := godb.New(pool, drivertest.Dialect{}, cfg)
+	if err := base.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = base.Shutdown(context.Background()) })
+	return base
+}
+
 func newService(t *testing.T, responses ...drivertest.Response) (*database.Service, *drivertest.Recorder) {
 	t.Helper()
-	base, rec := drivertest.DB(t, responses...)
-	db := data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), database.Patterns()))
-	s, err := database.New(db, slog.New(slog.DiscardHandler), database.Options{})
+	pool, rec := drivertest.Open(t, responses...)
+	db := data.New(sqldb.Wrap(pool, pgdialect.Wrap(drivertest.Dialect{})), query.MustCatalog(query.Patterns(), data.Patterns()))
+	s, err := database.New(started(t, pool), db, slog.New(slog.DiscardHandler), database.Options{})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -69,7 +87,7 @@ func newService(t *testing.T, responses ...drivertest.Response) (*database.Servi
 // The embedded set parses, orders, and declares its transaction modes as
 // authored: the index build runs outside a transaction.
 func TestMigrations_EmbeddedSetParses(t *testing.T) {
-	ms := database.Migrations()
+	ms := data.Migrations()
 	if len(ms) != 3 {
 		t.Fatalf("len = %d, want 3", len(ms))
 	}
@@ -109,7 +127,7 @@ func TestStart_CleanHistoryIsReady(t *testing.T) {
 // Start on an empty database applies the whole set under the lock, then
 // verifies.
 func TestStart_PendingHistoryIsApplied(t *testing.T) {
-	ms := database.Migrations()
+	ms := data.Migrations()
 	responses := []drivertest.Response{exists(false), locked, created, history()}
 	for _, m := range ms {
 		if m.Transactional {

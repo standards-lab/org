@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqlheader"
 )
@@ -29,7 +28,7 @@ type Statements struct {
 // unknown declaration, with a header the grammar rejects, or with an include
 // the catalog cannot resolve is a load error naming the file; the domain
 // treats it as a wiring defect.
-func (c *Catalog) Compile(fsys fs.FS, dir string, d database.Dialect) (*Statements, error) {
+func (c *Catalog) Compile(fsys fs.FS, dir string, d sqldb.Dialect) (*Statements, error) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return nil, fmt.Errorf("query: read %s: %w", dir, err)
@@ -54,7 +53,7 @@ func (c *Catalog) Compile(fsys fs.FS, dir string, d database.Dialect) (*Statemen
 
 // MustCompile is Compile for wiring functions, where a
 // load error is a defect.
-func (c *Catalog) MustCompile(fsys fs.FS, dir string, d database.Dialect) *Statements {
+func (c *Catalog) MustCompile(fsys fs.FS, dir string, d sqldb.Dialect) *Statements {
 	stmts, err := c.Compile(fsys, dir, d)
 	if err != nil {
 		panic(err)
@@ -122,7 +121,7 @@ func Verify(ctx context.Context, db sqldb.Session, vs ...Verifier) error {
 // (standard | native); native required when the tier is native, the reach
 // and the port as free text; transaction optional (required); key optional,
 // naming a field; field repeated, "<name> <type>", the name an identifier.
-func (c *Catalog) parse(name, text string, d database.Dialect) (Statement, error) {
+func (c *Catalog) parse(name, text string, d sqldb.Dialect) (Statement, error) {
 	st := Statement{name: name, dialect: d, catalog: c}
 	h, err := sqlheader.Parse(text)
 	if err != nil {
