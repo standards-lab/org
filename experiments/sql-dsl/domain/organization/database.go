@@ -2,7 +2,6 @@ package organization
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"fmt"
 
@@ -22,7 +21,9 @@ const treeLock = "organization.tree"
 // store is the domain's SQL client: the statements of sql/ bound once to
 // their typed handles, and the operations as methods named for their
 // commands — the file, the store method, the service method, and the route
-// share one name. It is the package's sole importer of query.
+// share one name. The entities' tags are the scan and binding contract, so
+// no scan function or Args literal is written here. It is the package's
+// sole importer of query.
 type store struct {
 	db            *sqldb.DB
 	src           *query.Source
@@ -41,8 +42,8 @@ func newStore(db *sqldb.DB) *store {
 	return &store{
 		db:            db,
 		src:           src,
-		view:          query.Project(src.Statement("organization_view"), scanOrganization),
-		createRows:    query.Scan(src.Statement("create"), scanIdentity),
+		view:          query.Project(src.Statement("organization_view"), query.Scanner[Organization]()),
+		createRows:    query.Scan(src.Statement("create"), query.Scanner[Identity]()),
 		inSubtree:     query.Scan(src.Statement("in_subtree"), query.Scalar[int64]),
 		lockTree:      src.Statement("lock_tree"),
 		editGuard:     query.Guarded(src.Statement("edit"), check, "version"),
@@ -57,20 +58,6 @@ func (s *store) Verify(ctx context.Context) error {
 	return query.Verify(ctx, s.db, s.src, s.view)
 }
 
-// scanOrganization reads one projected row in the view's SELECT order.
-func scanOrganization(rows *sql.Rows) (Organization, error) {
-	var o Organization
-	err := rows.Scan(&o.ID, &o.ParentID, &o.Code, &o.Name, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.Path)
-	return o, err
-}
-
-// scanIdentity reads create's RETURNING row.
-func scanIdentity(rows *sql.Rows) (Identity, error) {
-	var i Identity
-	err := rows.Scan(&i.ID, &i.Version)
-	return i, err
-}
-
 func (s *store) list(ctx context.Context, d query.Directives) ([]Organization, int, error) {
 	return s.view.List(ctx, s.db, d)
 }
@@ -80,11 +67,11 @@ func (s *store) find(ctx context.Context, field, value string) (Organization, er
 }
 
 func (s *store) create(ctx context.Context, c CreateOrganization) (Identity, error) {
-	return s.createRows.One(ctx, s.db, query.Args{"parent_id": c.ParentID, "code": c.Code, "name": c.Name})
+	return s.createRows.One(ctx, s.db, query.ArgsOf(c))
 }
 
 func (s *store) edit(ctx context.Context, id string, version int64, e EditOrganization) (Identity, error) {
-	v, err := s.editGuard.Run(ctx, s.db, version, query.Args{"id": id, "code": e.Code, "name": e.Name})
+	v, err := s.editGuard.Run(ctx, s.db, version, query.ArgsOf(e).With("id", id))
 	return Identity{ID: id, Version: v}, err
 }
 
@@ -106,7 +93,7 @@ func (s *store) transfer(ctx context.Context, id string, version int64, t Transf
 				return 0, fmt.Errorf("%w: %s is in the subtree of %s", ErrCycle, *t.ParentID, id)
 			}
 		}
-		return s.transferGuard.Run(ctx, tx, version, query.Args{"id": id, "parent_id": t.ParentID})
+		return s.transferGuard.Run(ctx, tx, version, query.ArgsOf(t).With("id", id))
 	})
 	return Identity{ID: id, Version: v}, err
 }

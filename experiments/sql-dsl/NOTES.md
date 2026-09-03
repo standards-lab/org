@@ -6,11 +6,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–7 approved (2026-09-03); stage 8, the organization baseline, is built and
-  awaits review. See the decisions log.
-- **Next move:** stage 9 — the person domain on a plain-table base, the struct-tag row
-  mapper (`db` then `json`), and the lint; then the frame catalog by on-demand stitching
-  (10), external frame sourcing (11), iterate and close (12).
+- **Stage:** 1–8 approved (2026-09-03); stage 9 — the person domain, the struct-tag mapper,
+  the lint — is built and awaits review. See the decisions log.
+- **Next move:** stage 10 — the frame catalog: the collection wrap, its operator and paging
+  fragments, and the guard frames as authored `.sql` files the library ships, slots in the
+  `{{ }}` syntax, composed on demand and judged against the convention-plus-lint baseline;
+  then external frame sourcing (11), iterate and close (12).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -114,6 +115,17 @@ foreign session.
 
 _Per domain, the `query` and session-wrapper symbols `database.go` used; sketch symbols left
 unused; symbols missing._
+
+Third consumer (stage 9, the person domain, nine files): the plain-table base proves the
+common case of the collection frame — `SELECT … FROM person` wrapped, filtered by
+`status`, sorted by `family_name` with the key tie-breaker. The struct-tag mapper
+(`query.Scanner[T]`, `query.ArgsOf`, `Args.With`) replaced every scan function and `Args`
+literal in both domains; `database.go` is 104 lines for organization and 110 for person,
+wiring and operations only. The action protocol — read state in the transaction, version
+check, transition rule, guarded update — is `store.transition`, shared by the three actions;
+`state` is an unexported entity scanned by tag. Still unused after three consumers:
+`Rows.All`, `Rows.Each`, every operator but `eq`, `OpIn`; the SDK's query parser decides
+whether they earn a request syntax (a go-web-sdk item).
 
 Second consumer (stage 8, the organization domain, eight files): `Project` + `List` and
 `One` over the lineage CTE base (path as an ordinary contract field, filterable and
@@ -302,6 +314,12 @@ and what stays service-side, with the reason._
 `lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
 an internal package unless a consumer outside the module needs the grammar.
 
+**`cmd/sqllint`** (stage 9) is the checkable-rules half the strategy assigns to the harness
+(`claude-plugins`, the hardening task): every `sql/` directory loads, a file is named for
+its operation, `{{` appears in no body comment or literal, a standard-tier file uses none
+of a known list of native forms, a non-transactional migration holds one statement. It runs
+in `mise run lint`; the list of native forms is the promotion's first port-list input.
+
 **`internal/sdk`** (stage 8) stages `IfMatch`/`PreconditionError` for go-web-sdk and
 `Directives(web.Query)` for the service side — the latter cannot live in go-web-sdk (it
 would import go-database) and is too small for go-database; the template scaffolds it.
@@ -326,6 +344,32 @@ composition root, the config package kept separate with `configtest` beside it),
 (`design/domain-architecture.md` gains the admin layer; `cmd/db` retires into it), and the
 architecture standard in the docs landing zone, where the admin mount is a new layer and the
 anchor for the runtime-administration concept the context already carries.
+
+### The DSL library as its own module (the architect, stage 9 review)
+
+Decided by the architect: the library is `go-sql`, its own repository, and a DSL library is
+named `<prefix>-<language>` — the language, never the service it serves — so the naming
+distinguishes a DSL library (`go-sql`) from an infrastructure service library
+(`go-database`) at a glance. Engine flavors are sub-modules (`go-sql/postgres`). The shape,
+to confirm at stage 12 against the finished catalog: go-database keeps the infrastructure
+service — configuration, provider construction over the driver,
+the pool's lifecycle and readiness, the admin service that triggers verify, migrate, and
+seed at startup. A separate DSL library owns everything from the file to the row: the
+header, the parameter syntax, `query` with projection and guard, `migrate`, the mapper, the
+frame catalog and its sourcing, `sqllint`, and the execution seam itself — `Session`, `Tx`,
+`Transact`, the dialect contract, and the error taxonomy (`ErrInvalidValue`,
+`ErrVersionMismatch`, the constraint classes), which the runners depend on and the engine
+sub-modules produce. Each engine sub-module holds what `pgdialect` holds now: placeholder
+form, error classification, `Locker`, `Catalog`, `Pager`; nothing about connections. The DSL
+library sits below go-database and imports nothing of ours, so a CLI, a worker, or a test
+harness uses authored SQL with no lifecycle machinery. Universal for any infrastructure
+service whose contract is a language rather than a protocol. Costs: a module and
+repository, a workspace-order layer, and the `v1.data.sql` task breakdown rewritten (`query`
+and `migrate` were to land in go-database v0.4.0). Settled: `go-sql` never sees
+go-database — its entry point is a plain `*sql.DB` and a dialect, so anyone can use it over
+`database/sql` and the driver of their choice, and go-database is one consumer among others.
+The one item left for the split is whether the admin service is go-database's or
+go-web-sdk's (where the lifecycle contract lives).
 
 ### Every line of SQL in a .sql file (the architect, stage 7 review)
 
@@ -440,6 +484,18 @@ _Anything deferred, with the decision it would change._
   superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
   drops build-time generation; stage 11 proves external frame sourcing instead. The
   content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-03 · **Stage 9.** The person domain (`domain/person`: view on the plain table,
+  create, edit, delete, version, state, activate, deactivate, transfer_unit), its three
+  actions on the shared transition protocol with `ErrTransition` at 409; the struct-tag
+  mapper in `lib/query` (`Scanner[T]`, `ArgsOf`, `Args.With`; `db` tag, `json` fallback,
+  field name lowercased; an unmapped column is an error), both domains moved onto it;
+  `cmd/sqllint` in the lint task. Decision: an action compares the version it read before
+  applying its rule, so a stale client gets 412 rather than a rule it never saw; the guard
+  then only catches a change between read and update. The cross-domain custody check that
+  blocks deactivation waits for the inventory domain. Proven live: active people sorted by
+  family name, create pending, duplicate email 409, deactivate-pending 409, activate → 2,
+  activate-again 409, stale 412, transfer-unit → 3, missing unit 409, edit → 4, deactivate
+  → 5, delete 204, the seed untouched.
 - 2026-09-03 · **Stage 8 review, the command ontology** (the architect). Three direct
   commands: `create` a record; `edit` — replace the fields a client may set directly, the
   editable set being the contract; `delete` — remove it. An **action** is a named state

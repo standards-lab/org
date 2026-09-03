@@ -33,6 +33,11 @@ The API mount, `/api/organizations`: `GET` (paged, `?page=&size=&sort=&<field>=`
 `GET /path/{path...}`, `POST`, `PATCH /{id}`, `POST /{id}/transfer`, `DELETE /{id}`; the
 guarded commands take `If-Match: "<version>"`. Paging policy is the `reads` config block.
 
+`/api/people`: `GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}`, and the actions
+`POST /{id}/activate`, `POST /{id}/deactivate`, `POST /{id}/transfer-unit`.
+
+`mise run lint` runs golangci-lint and `cmd/sqllint`, the SQL conventions lint.
+
 The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `POST
 /schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), and
 `POST /seed`, each a trigger over the same function startup calls.

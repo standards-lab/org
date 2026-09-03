@@ -4,6 +4,7 @@ import (
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/go-web-sdk"
 	"github.com/standards-lab/org/experiments/sql-dsl/domain/organization"
+	"github.com/standards-lab/org/experiments/sql-dsl/domain/person"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/config"
 )
 
@@ -11,6 +12,7 @@ import (
 // layer.
 type Domain struct {
 	Organization *organization.Service
+	Person       *person.Service
 }
 
 // newDomain wires the domain layer over infra: each domain package's
@@ -20,7 +22,9 @@ type Domain struct {
 func newDomain(infra *Infrastructure, lc *lifecycle.Coordinator) *Domain {
 	org := organization.New(infra.SQL)
 	org.Register(lc)
-	return &Domain{Organization: org}
+	ppl := person.New(infra.SQL)
+	ppl.Register(lc)
+	return &Domain{Organization: org, Person: ppl}
 }
 
 // mountAPI builds the API mount, /api, with each domain layer's route group
@@ -29,5 +33,6 @@ func newDomain(infra *Infrastructure, lc *lifecycle.Coordinator) *Domain {
 func mountAPI(dom *Domain, cfg *config.Config) *web.Group {
 	api := web.NewGroup("/api")
 	api.Mount(organization.Routes(dom.Organization, cfg.Reads.Limits()))
+	api.Mount(person.Routes(dom.Person, cfg.Reads.Limits()))
 	return api
 }

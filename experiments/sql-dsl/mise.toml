@@ -39,8 +39,8 @@ description = "Run go mod tidy"
 run = "go mod tidy"
 
 [tasks.lint]
-description = "Run golangci-lint"
-run = "golangci-lint run ./..."
+description = "Run golangci-lint and the SQL conventions lint"
+run = "golangci-lint run ./... && go run ./cmd/sqllint"
 
 [tasks.split-check]
 description = "Fail if lib/ (the promotion candidates) reaches into internal/ or the driver"
