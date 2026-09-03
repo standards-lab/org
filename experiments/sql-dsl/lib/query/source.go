@@ -113,9 +113,9 @@ func Verify(ctx context.Context, db sqldb.Session, vs ...Verifier) error {
 	return errors.Join(errs...)
 }
 
-// parse reads the header and rewrites the body's parameters; the engine
-// receives the body, less a trailing semicolon so the statement composes
-// as a derived table. The header grammar, from the sketch: tier required
+// parse reads the header, expands the body's pattern includes, and rewrites
+// its parameters; the engine receives the body, less a trailing semicolon
+// so the statement composes as a derived table. The header grammar, from the sketch: tier required
 // (standard | native); native required when the tier is native, the reach
 // and the port as free text; transaction optional (required); key optional,
 // naming a field; field repeated, "<name> <type>", the name an identifier.
@@ -173,7 +173,10 @@ func parse(name, text string, d database.Dialect) (Statement, error) {
 		}
 		st.key = key
 	}
-	body := strings.TrimRight(strings.TrimSpace(text[h.End():]), ";")
+	body, err := expand(strings.TrimRight(strings.TrimSpace(text[h.End():]), ";"))
+	if err != nil {
+		return st, err
+	}
 	st.text, st.params, err = rewrite(body, d.Placeholder)
 	return st, err
 }

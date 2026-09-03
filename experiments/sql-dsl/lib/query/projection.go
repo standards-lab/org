@@ -60,24 +60,15 @@ type Directives struct {
 	Filters []Filter
 }
 
-// Pager is the dialect capability rendering the paging fragment for an
-// engine without OFFSET … FETCH (MySQL, SQLite); offset and fetch are the
-// bound placeholders. The standard form otherwise.
-type Pager interface {
-	Paging(offset, fetch string) string
-}
-
 // Projection is a base statement bound to a scan function and its declared
 // field contract: the typed handle for a collection read. The collection
-// frame wraps the base as a derived table, so the base may be any query —
+// pattern wraps the base as a derived table, so the base may be any query —
 // a recursive CTE, a join tree — and the only names a directive can
 // reference are the base's output columns the header declared.
 //
-// The frame's text lives here for now, as the baseline the frame catalog
-// is judged against (stage 10): the end state is every frame and fragment
-// an authored .sql file the library ships, slots in the {{ }} syntax, with
-// Go holding only what cannot be text — the whitelist check, list arity,
-// parameter positions.
+// Every fragment of the composed text is a pattern file under patterns/; this
+// code holds only what cannot be text: the whitelist check against the
+// header, list arity, and parameter positions.
 type Projection[T any] struct {
 	base   Statement
 	scan   ScanFunc[T]
@@ -123,7 +114,7 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 	}
 
 	var total int
-	rows, err := s.QueryContext(ctx, "SELECT COUNT(*) FROM ("+p.base.text+") q"+where, args...)
+	rows, err := s.QueryContext(ctx, render("count", map[string]string{"base": p.base.text, "where": where}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -137,13 +128,12 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 	}
 	_ = rows.Close()
 
-	offset, fetch := p.base.dialect.Placeholder(len(args)+1), p.base.dialect.Placeholder(len(args)+2)
-	paging := " OFFSET " + offset + " ROWS FETCH NEXT " + fetch + " ROWS ONLY"
-	if pg, ok := p.base.dialect.(Pager); ok {
-		paging = " " + pg.Paging(offset, fetch)
-	}
+	paging := render("paging", map[string]string{
+		"offset": p.base.dialect.Placeholder(len(args) + 1),
+		"fetch":  p.base.dialect.Placeholder(len(args) + 2),
+	})
 	args = append(args, (d.Page.Number-1)*d.Page.Size, d.Page.Size)
-	rows, err = s.QueryContext(ctx, "SELECT * FROM ("+p.base.text+") q"+where+order+paging, args...)
+	rows, err = s.QueryContext(ctx, render("collection", map[string]string{"base": p.base.text, "where": where, "order": order, "paging": paging}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -171,7 +161,7 @@ func (p Projection[T]) One(ctx context.Context, s sqldb.Session, field string, v
 	if err != nil {
 		return zero, err
 	}
-	rows, err := s.QueryContext(ctx, "SELECT * FROM ("+p.base.text+") q"+where, args...)
+	rows, err := s.QueryContext(ctx, render("one", map[string]string{"base": p.base.text, "where": where}), args...)
 	if err != nil {
 		return zero, p.engine(err)
 	}
@@ -196,72 +186,52 @@ func (p Projection[T]) Verify(ctx context.Context, db sqldb.Session) error {
 	for _, f := range p.base.fields {
 		cols = append(cols, "q."+f.Name)
 	}
-	stmt, err := db.PrepareContext(ctx, "SELECT "+strings.Join(cols, ", ")+" FROM ("+p.base.text+") q")
+	stmt, err := db.PrepareContext(ctx, render("verify", map[string]string{"columns": strings.Join(cols, ", "), "base": p.base.text}))
 	if err != nil {
 		return fmt.Errorf("query: %s: field contract: %w", p.base.name, err)
 	}
 	return stmt.Close()
 }
 
-// where lowers the filters to the shared WHERE clause and its arguments,
-// each value cast to its field's declared type.
+// where lowers the filters to the shared WHERE clause and its arguments:
+// one filter pattern per operator, each request value bound through the
+// value pattern's cast to its field's declared type.
 func (p Projection[T]) where(filters []Filter) (string, []any, error) {
 	if len(filters) == 0 {
 		return "", nil, nil
 	}
-	var b strings.Builder
 	var args []any
-	b.WriteString(" WHERE ")
-	for i, f := range filters {
+	value := func(field Field, v any) string {
+		args = append(args, v)
+		return render("value", map[string]string{"placeholder": p.base.dialect.Placeholder(len(args)), "type": field.Type})
+	}
+	predicates := make([]string, 0, len(filters))
+	for _, f := range filters {
 		field, ok := p.fields[f.Field]
 		if !ok {
 			return "", nil, &UnknownFieldError{Field: f.Field, Use: FieldUseFilter}
 		}
-		if i > 0 {
-			b.WriteString(" AND ")
-		}
-		b.WriteString("q.")
-		b.WriteString(field.Name)
-		bind := func(v any) {
-			args = append(args, v)
-			b.WriteString("CAST(")
-			b.WriteString(p.base.dialect.Placeholder(len(args)))
-			b.WriteString(" AS ")
-			b.WriteString(field.Type)
-			b.WriteString(")")
-		}
+		fill := map[string]string{"field": field.Name}
 		switch f.Op {
 		case OpEq, OpNe, OpGt, OpGe, OpLt, OpLe, OpLike:
-			b.WriteString(" ")
-			b.WriteString(operators[f.Op])
-			b.WriteString(" ")
-			bind(f.Value)
-		case OpIsNull:
-			b.WriteString(" IS NULL")
-		case OpIsNotNull:
-			b.WriteString(" IS NOT NULL")
+			fill["value"] = value(field, f.Value)
+		case OpIsNull, OpIsNotNull:
 		case OpIn:
 			vals, ok := f.Value.([]any)
 			if !ok || len(vals) == 0 {
 				return "", nil, &InvalidValueError{Field: f.Field, Err: errors.New("an in filter takes a non-empty []any")}
 			}
-			b.WriteString(" IN (")
-			for j, v := range vals {
-				if j > 0 {
-					b.WriteString(", ")
-				}
-				bind(v)
+			values := make([]string, len(vals))
+			for i, v := range vals {
+				values[i] = value(field, v)
 			}
-			b.WriteString(")")
+			fill["values"] = strings.Join(values, ", ")
 		default:
 			return "", nil, &UnknownOperatorError{Op: f.Op}
 		}
+		predicates = append(predicates, render("filter_"+string(f.Op), fill))
 	}
-	return b.String(), args, nil
-}
-
-var operators = map[Op]string{
-	OpEq: "=", OpNe: "<>", OpGt: ">", OpGe: ">=", OpLt: "<", OpLe: "<=", OpLike: "LIKE",
+	return render("where", map[string]string{"predicates": strings.Join(predicates, " AND ")}), args, nil
 }
 
 // order lowers the sorts to the ORDER BY clause, the key appended as the
@@ -274,17 +244,17 @@ func (p Projection[T]) order(sorts []Sort) (string, error) {
 		if !ok {
 			return "", &UnknownFieldError{Field: s.Field, Use: FieldUseSort}
 		}
-		term := "q." + field.Name
+		name := "order_term"
 		if s.Descending {
-			term += " DESC"
+			name = "order_term_desc"
 		}
-		terms = append(terms, term)
+		terms = append(terms, render(name, map[string]string{"field": field.Name}))
 		keySorted = keySorted || s.Field == p.base.key
 	}
 	if !keySorted {
-		terms = append(terms, "q."+p.base.key)
+		terms = append(terms, render("order_term", map[string]string{"field": p.base.key}))
 	}
-	return " ORDER BY " + strings.Join(terms, ", "), nil
+	return render("order", map[string]string{"terms": strings.Join(terms, ", ")}), nil
 }
 
 // engine classifies a query failure: a data exception is the request's

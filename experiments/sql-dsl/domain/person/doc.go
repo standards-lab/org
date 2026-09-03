@@ -8,7 +8,7 @@
 // entities.go owns the shapes, their validation, and — through their tags —
 // the binding and scan contract; service.go maps endpoints to operations;
 // handler.go binds the route group. The read model is a plain-table base,
-// the common case of the collection frame.
+// the common case of the collection pattern.
 //
 // The commands: create (status pending), edit (the descriptive fields and
 // email), delete. The actions — activate, deactivate, transfer-unit — each

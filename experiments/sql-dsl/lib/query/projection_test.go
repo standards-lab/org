@@ -9,7 +9,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
@@ -237,26 +236,5 @@ func TestProject_RequiresAContractAndNoBaseParameters(t *testing.T) {
 			}()
 			query.Project(src.Statement(name), scanPerson)
 		}()
-	}
-}
-
-// pagerDialect is a dialect with the Pager capability, the MySQL/SQLite
-// shape of the one library-generated fragment with a known divergence.
-type pagerDialect struct{ database.Dialect }
-
-func (pagerDialect) Paging(offset, fetch string) string {
-	return "LIMIT " + fetch + " OFFSET " + offset
-}
-
-func TestList_PagerCapabilityRendersTheEnginesFragment(t *testing.T) {
-	base, rec := drivertest.DB(t, count(0), people(0))
-	db := sqldb.Wrap(base, base.Dialect())
-	src := query.MustLoad(projectionFiles, "sql", pagerDialect{base.Dialect()})
-	_, _, err := query.Project(src.Statement("person_view"), scanPerson).List(context.Background(), db, query.Directives{Page: query.Page{Number: 2, Size: 5}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := rec.SQL(drivertest.OpQuery)[1]; !strings.HasSuffix(got, " ORDER BY q.id LIMIT $2 OFFSET $1") {
-		t.Errorf("page = %q", got)
 	}
 }

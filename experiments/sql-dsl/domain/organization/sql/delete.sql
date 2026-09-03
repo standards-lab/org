@@ -1,3 +1,3 @@
 --| tier: standard
 DELETE FROM organization
-WHERE id = {{id}} AND version = {{version}}
+WHERE {{> sql.guard_where}}

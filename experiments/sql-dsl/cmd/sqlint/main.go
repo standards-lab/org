@@ -25,10 +25,10 @@ func main() {
 		fmt.Println(f)
 	}
 	if len(findings) > 0 {
-		fmt.Fprintf(os.Stderr, "sqllint: %d finding(s)\n", len(findings))
+		fmt.Fprintf(os.Stderr, "sqlint: %d finding(s)\n", len(findings))
 		os.Exit(1)
 	}
-	fmt.Println("sqllint: ok")
+	fmt.Println("sqlint: ok")
 }
 
 var (
@@ -38,9 +38,23 @@ var (
 	// nativeForms are engine-specific spellings a standard-tier file must
 	// not use; each names the form the file should declare native for.
 	nativeForms = []string{"RETURNING", "ON CONFLICT", "ILIKE", "CONCURRENTLY", "::", "pg_", "now()", "uuidv7()", "LIMIT ", "SERIAL", "JSONB", "timestamptz"}
-	// literalDelimiter is a {{ inside a single-quoted literal on one line.
-	literalDelimiter = regexp.MustCompile(`'[^']*\{\{`)
 )
+
+// inLiteral reports a {{ inside a single-quoted literal on one line,
+// tracking the quote state so a closed literal followed by a parameter is
+// not one.
+func inLiteral(line string) bool {
+	open := false
+	for i := 0; i < len(line); i++ {
+		switch {
+		case line[i] == '\'':
+			open = !open
+		case open && strings.HasPrefix(line[i:], "{{"):
+			return true
+		}
+	}
+	return false
+}
 
 // lint walks fsys for sql/ and migrations/ directories and returns every
 // finding as "path:line: message".
@@ -61,7 +75,7 @@ func lint(fsys fs.FS) []string {
 			return fs.SkipDir
 		}
 		switch d.Name() {
-		case "sql":
+		case "sql", "patterns":
 			lintSource(fsys, path, report)
 		case "migrations":
 			lintMigrations(fsys, path, report)
@@ -105,7 +119,7 @@ func lintBody(path, text string, end int, standard bool, report func(string, int
 		if i := strings.Index(l, "--"); i >= 0 && strings.Contains(l[i:], "{{") {
 			report(path, line, "{{ inside a comment: the delimiter is reserved for parameters")
 		}
-		if literalDelimiter.MatchString(l) {
+		if inLiteral(l) {
 			report(path, line, "{{ inside a string literal: the delimiter is reserved for parameters")
 		}
 		if standard && !strings.HasPrefix(trimmed, "--") {

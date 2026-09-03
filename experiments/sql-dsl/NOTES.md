@@ -6,12 +6,14 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–8 approved (2026-09-03); stage 9 — the person domain, the struct-tag mapper,
-  the lint — is built and awaits review. See the decisions log.
-- **Next move:** stage 10 — the frame catalog: the collection wrap, its operator and paging
-  fragments, and the guard frames as authored `.sql` files the library ships, slots in the
-  `{{ }}` syntax, composed on demand and judged against the convention-plus-lint baseline;
-  then external frame sourcing (11), iterate and close (12).
+- **Stage:** 1–9 approved (2026-09-03); stage 10, the pattern catalog, is built and awaits
+  review. See the decisions log and Q1.
+- **Next move:** stage 11 — the pattern catalog API as decided at the stage 10 review (see
+  the decisions log, "patterns and the application"): `Patterns`/`Builtin`/`As`/`Overlay`/
+  `NewCatalog`/`Catalog.Load`, `internal/data.Database`, `admin/database/patterns/` as the
+  application's namespace, a MySQL-shaped `Overlay` test for `sql.paging`, `sqlint.toml`.
+  Then iterate and close (12): the split rehearsal (`Wrap` over `*sql.DB`, `lib/` with no
+  go-database import) and the promotion recommendation.
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -43,15 +45,32 @@ is written `@v0.5.0`, not `@template/v0.5.0`.
 _Baseline (stage 8–9), shape A load-time stitching (stage 10), shape B build-time generation
 (stage 11), the judging table, the verdict._
 
+**Verdict (stage 10):** on-demand stitching over authored patterns, and it beats the baseline
+on the baseline's own terms. The library's SQL is twenty-two pattern files under
+`lib/query/patterns/`, each with a tier header, slots in the `{{ }}` syntax; `projection.go`
+holds no SQL text, only the whitelist check, list arity, and parameter positions. Two
+composition times: request time, where the collection read renders `count`, `collection`,
+`one`, `verify` from `where`/`filter_<op>`/`value`/`order`/`order_term`/`paging`; and load
+time, where a domain file includes a pattern with `{{> name}}` and `Load` splices its text
+before rewriting parameters — `guard_where` and `guard_set` are the first, and all eight
+guarded commands across both domains now write their protocol once. Against the baseline:
+the composed SQL is byte-identical to the Go-composed text (every projection test passed
+unchanged), lint reach is preserved because `sqlint` lints the patterns directory like any
+`sql/` directory and `Load` expands includes before `Verify` prepares, and editor reach is
+better, since the pattern is a `.sql` file. What Go still owns is exactly what cannot be
+text. The `Pager` capability is gone: a port overrides `paging.sql` by name, which is stage
+11's mechanism. Patterns hold slots only and never include other patterns (an internal test
+asserts it), so a pattern is readable on its own.
+
 Narrowed at the stage 6 review (the architect, 2026-09-02): build-time generation is set
 aside. A query shaped by request state can only be composed on demand, and build-time output
 is static text; what shape B offered — editor and lint reach over the final text — is
 recoverable by a lint or dump that renders every composed statement for inspection, without
 making generation the runtime source. The injection rule holds as stated: request state
-selects among build-time frames and fragments and never contributes text. Q1 therefore
+selects among build-time patterns and fragments and never contributes text. Q1 therefore
 judges on-demand stitching against the convention-plus-lint baseline, and stage 11 becomes
-the proof that frames can be sourced from outside the library (an extension point, so a
-consumer or a second library can contribute frames). Frame candidates beyond the sketch's
+the proof that patterns can be sourced from outside the library (an extension point, so a
+consumer or a second library can contribute patterns). Pattern candidates beyond the sketch's
 five, for stages 10–11 to pick from: keyset pagination, list expansion, batch insert,
 insert-if-absent/`MERGE` with its port, guard variants owning the protocol columns,
 existence and count probes, read-after-write. Content patterns (status filters, search,
@@ -117,7 +136,7 @@ _Per domain, the `query` and session-wrapper symbols `database.go` used; sketch 
 unused; symbols missing._
 
 Third consumer (stage 9, the person domain, nine files): the plain-table base proves the
-common case of the collection frame — `SELECT … FROM person` wrapped, filtered by
+common case of the collection pattern — `SELECT … FROM person` wrapped, filtered by
 `status`, sorted by `family_name` with the key tie-breaker. The struct-tag mapper
 (`query.Scanner[T]`, `query.ArgsOf`, `Args.With`) replaced every scan function and `Args`
 literal in both domains; `database.go` is 104 lines for organization and 110 for person,
@@ -308,13 +327,13 @@ alone reaches the caller. The open item on unlock after cancellation is closed b
 ## Q5 — The split
 
 _Directory → destination table: `lib/sqldb`, `lib/pgdialect`, `lib/sqlheader`, `lib/query`,
-`lib/migrate`, `lib/drivertest`, `internal/sdk`, `admin/database`, `cmd/sqlgen`, `cmd/sqllint`;
+`lib/migrate`, `lib/drivertest`, `internal/sdk`, `admin/database`, `cmd/sqlgen`, `cmd/sqlint`;
 and what stays service-side, with the reason._
 
 `lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
 an internal package unless a consumer outside the module needs the grammar.
 
-**`cmd/sqllint`** (stage 9) is the checkable-rules half the strategy assigns to the harness
+**`cmd/sqlint`** (stage 9) is the checkable-rules half the strategy assigns to the harness
 (`claude-plugins`, the hardening task): every `sql/` directory loads, a file is named for
 its operation, `{{` appears in no body comment or literal, a standard-tier file uses none
 of a known list of native forms, a non-transactional migration holds one statement. It runs
@@ -356,7 +375,7 @@ service — configuration, provider construction over the driver,
 the pool's lifecycle and readiness, the admin service that triggers verify, migrate, and
 seed at startup. A separate DSL library owns everything from the file to the row: the
 header, the parameter syntax, `query` with projection and guard, `migrate`, the mapper, the
-frame catalog and its sourcing, `sqllint`, and the execution seam itself — `Session`, `Tx`,
+pattern catalog and its sourcing, `sqlint`, and the execution seam itself — `Session`, `Tx`,
 `Transact`, the dialect contract, and the error taxonomy (`ErrInvalidValue`,
 `ErrVersionMismatch`, the constraint classes), which the runners depend on and the engine
 sub-modules produce. Each engine sub-module holds what `pgdialect` holds now: placeholder
@@ -373,13 +392,13 @@ go-web-sdk's (where the lifecycle contract lives).
 
 ### Every line of SQL in a .sql file (the architect, stage 7 review)
 
-The library's own frames are no exception: the collection wrap, the operator fragments,
-the paging fragment, the guard and check frames, composed in Go today as the baseline, are
+The library's own patterns are no exception: the collection wrap, the operator fragments,
+the paging fragment, the guard and check patterns, composed in Go today as the baseline, are
 to be authored `.sql` files the library ships, slots in the `{{ }}` syntax, judged at stage
 10 and sourced from any `fs.FS` at stage 11. Go keeps only what cannot be text — the
 whitelist check against the header, list arity, parameter positions. The domain-facing
 API (`Project`, `List`, `One`, `Guarded`, `Run`) is the seam and does not change, which is
-why stages 8–9 build against it before the frames move.
+why stages 8–9 build against it before the patterns move.
 
 ### Reusable plumbing (the architect, stage 6b review)
 
@@ -482,14 +501,59 @@ _Anything deferred, with the decision it would change._
   zeros; `APP_ADMIN_SEED=false` seeds nothing and the endpoint is `403 seeding is disabled`.
 - 2026-09-02 · **Stage 6 review.** Parameter syntax is `{{name}}` / `{{name:kind}}`,
   superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
-  drops build-time generation; stage 11 proves external frame sourcing instead. The
+  drops build-time generation; stage 11 proves external pattern sourcing instead. The
   content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-03 · **Stage 10 review, patterns and the application** (the architect). Domains
+  define no patterns: a pattern is protocol, a property of the application, so a domain
+  that needs another's pattern has found application content. Application patterns live in
+  `admin/database/patterns/` beside the migrations and seeds — the admin domain already
+  owns the service's database infrastructure — registered at the composition root under
+  the application's namespace alongside the library's and any external source. A
+  service-side type groups what a domain needs from the database — the session and the
+  catalog, the dialect through the session — because neither library may own it
+  (`go-sql` must not know the pool, `go-database` must not know patterns) and `internal/app`
+  cannot (the domains import it): `internal/data.Database`, built in `newInfrastructure`,
+  handed to every domain's and the admin service's `New`; the template scaffolds it. The
+  lint is `sqlint`. Stage 11's design, decided here: no package-level catalog or global —
+  `query.Patterns(namespace, fs, dir)`, `query.Builtin()` (namespace `sql`, aliasable with
+  `As`), `PatternSource.Overlay(fs, dir)` for explicit same-name replacement (an engine's
+  `sql.paging`), `query.NewCatalog(sources...)` validating each pattern's tier and slots
+  and refusing a duplicate namespace, and `Catalog.Load` replacing `query.Load` so a
+  `Statement` carries its catalog as it carries its dialect. Then `sqlint.toml`: roles as
+  directory globs, checks switchable, sources with namespaces so includes resolve as at
+  runtime, the native-forms list from the configured engine; defaults equal to today's
+  conventions.
+- 2026-09-03 · **Stage 10 review, the ontology** (the architect). A **pattern** is
+  reusable protocol SQL any package may publish under its namespace (the strategy's own
+  word: §6 "the pattern catalog", decision 13 "a pattern carries only protocol"); a
+  **statement** is the authored file that includes patterns and compiles to executable
+  text, the same word as its loaded form; the collection read is the library composing
+  patterns into a statement on the caller's behalf. "Fragment" retires, and "frame" was
+  the sketch's metaphor and did not describe an include. Includes are qualified —
+  `{{> sql.guard_where}}`, `sql` the library's namespace — so origin is visible and
+  collisions impossible; a bare include is a load error. The boundary is not library
+  versus domain: a domain's `patterns/` registers like the library's. Stage 11 builds the
+  registry (`query.Patterns(namespace, fs.FS)`, `Load` sourcing from it), override
+  precedence for the library's request-time patterns (an engine supplies `sql.paging`),
+  namespace aliasing at registration as the last resort against a collision, and
+  `sqlint.toml` — roles as directory globs, checks switchable, the native-forms list
+  supplied by the configured engine — with defaults equal to today's conventions. At
+  promotion: a bounded cache of the collection read's composed text keyed by directive
+  shape, so the driver reuses prepared statements; includes are already compiled once at
+  load, and only the collection read composes on demand.
+- 2026-09-03 · **Stage 10.** The pattern catalog: twenty-two authored patterns under
+  `lib/query/patterns/`, rendered at request time for the collection read and spliced at
+  load time through `{{> name}}` includes; both domains' guarded commands on
+  `guard_where`/`guard_set`; `Pager` removed in favor of overriding `paging.sql` (stage 11);
+  `sqlint` lints pattern directories and its literal check tracks quote state (a false
+  positive on `'active', {{> guard_set}}` found it). Q1's verdict is on-demand stitching.
+  Proven live: list, deactivate, activate, edit, stale edit through the patterns.
 - 2026-09-03 · **Stage 9.** The person domain (`domain/person`: view on the plain table,
   create, edit, delete, version, state, activate, deactivate, transfer_unit), its three
   actions on the shared transition protocol with `ErrTransition` at 409; the struct-tag
   mapper in `lib/query` (`Scanner[T]`, `ArgsOf`, `Args.With`; `db` tag, `json` fallback,
   field name lowercased; an unmapped column is an error), both domains moved onto it;
-  `cmd/sqllint` in the lint task. Decision: an action compares the version it read before
+  `cmd/sqlint` in the lint task. Decision: an action compares the version it read before
   applying its rule, so a stale client gets 412 rather than a rule it never saw; the guard
   then only catches a change between read and update. The cross-domain custody check that
   blocks deactivation waits for the inventory domain. Proven live: active people sorted by
@@ -509,8 +573,8 @@ _Anything deferred, with the decision it would change._
   convention, out of this experiment's scope: `delete` moves a record to the recycle bin,
   `restore` brings it back, `purge` removes it physically (administrative); the mechanics
   — a `deleted_at` column, the base excluding it with a recycle view, partial unique
-  indexes over live rows, the delete frame as an update — are a concept at close and a
-  frame-pair candidate for the catalog.
+  indexes over live rows, the delete pattern as an update — are a concept at close and a
+  pattern-pair candidate for the catalog.
 - 2026-09-03 · **Stage 8 review, separation of responsibilities** (the architect). Entity
   and command types own validation as methods (`Validate`, context-free rules only;
   existence and uniqueness stay the store's as constraint violations) and own binding and

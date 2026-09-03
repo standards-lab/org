@@ -40,7 +40,7 @@ run = "go mod tidy"
 
 [tasks.lint]
 description = "Run golangci-lint and the SQL conventions lint"
-run = "golangci-lint run ./... && go run ./cmd/sqllint"
+run = "golangci-lint run ./... && go run ./cmd/sqlint"
 
 [tasks.split-check]
 description = "Fail if lib/ (the promotion candidates) reaches into internal/ or the driver"

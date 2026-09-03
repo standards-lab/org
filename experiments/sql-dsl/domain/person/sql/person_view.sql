@@ -10,6 +10,6 @@
 --| field: created_at timestamp with time zone
 --| field: updated_at timestamp with time zone
 -- The read model: the person table as it stands, the plain-base case of
--- the collection frame.
+-- the collection pattern.
 SELECT id, unit_id, given_name, family_name, email, status, version, created_at, updated_at
 FROM person

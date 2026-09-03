@@ -19,6 +19,9 @@ var (
 	opener    = "{{"
 )
 
+// A pattern include is written {{> name}} and is resolved at load, before
+// the parameters are; see patterns.go.
+
 // typeToken is an SQL type as written in a cast or a field contract: a
 // name, optionally with a length or precision, such as text, uuid,
 // numeric(12,2), or varchar(200).

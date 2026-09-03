@@ -1,4 +1,4 @@
-// Command sqllint checks the authored SQL files of the module against the
+// Command sqlint checks the authored SQL files of the module against the
 // conventions the loader cannot, or should not, enforce at runtime: every
 // file under a sql/ directory loads (the header grammar, the parameter
 // syntax, the field contract), a file is named for its operation and not

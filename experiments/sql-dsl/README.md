@@ -7,8 +7,10 @@ experiment's record, position, and findings: `NOTES.md`.
 
 ## Layout
 
-- `lib/` — promotion candidates for go-database; never imports `internal/`
-  (`mise run split-check` enforces it).
+- `lib/` — promotion candidates for `go-sql`; never imports `internal/` (`mise run
+  split-check` enforces it). `lib/query/patterns/` is the library's own SQL: the patterns the
+  collection read composes at request time and the ones a domain file includes with
+  `{{> name}}`.
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
   at `/admin`; `admin/database` owns the schema (migrations), its own authored statements
   (`sql/`), the seed files, and their operations.
@@ -36,7 +38,7 @@ guarded commands take `If-Match: "<version>"`. Paging policy is the `reads` conf
 `/api/people`: `GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}`, and the actions
 `POST /{id}/activate`, `POST /{id}/deactivate`, `POST /{id}/transfer-unit`.
 
-`mise run lint` runs golangci-lint and `cmd/sqllint`, the SQL conventions lint.
+`mise run lint` runs golangci-lint and `cmd/sqlint`, the SQL conventions lint.
 
 The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `POST
 /schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), and
