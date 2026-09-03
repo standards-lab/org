@@ -6,8 +6,8 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–9 approved (2026-09-03); stage 10, the pattern catalog, is built and awaits
-  review. See the decisions log and Q1.
+- **Stage:** 1–10 approved (2026-09-03), each on the branch as its own commit. See the
+  decisions log and Q1.
 - **Next move:** stage 11 — the pattern catalog API as decided at the stage 10 review (see
   the decisions log, "patterns and the application"): `Patterns`/`Builtin`/`As`/`Overlay`/
   `NewCatalog`/`Catalog.Load`, `internal/data.Database`, `admin/database/patterns/` as the
