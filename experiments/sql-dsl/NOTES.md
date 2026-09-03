@@ -6,12 +6,12 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–6 approved (2026-09-02); stage 6b, seed as `query`'s first consumer, is
-  built and awaits review. See the decisions log.
-- **Next move:** stage 7 — projection (the collection frame, directives, engine-side value
-  parsing through `CAST`) and guard; then the organization baseline (8), people with the
-  struct-tag mapper and the lint (9), the frame catalog by on-demand stitching (10),
-  external frame sourcing (11), iterate and close (12).
+- **Stage:** 1–6b approved (2026-09-02); stage 7, projection and guard, is built and awaits
+  review. See the decisions log.
+- **Next move:** stage 8 — the organization baseline: `sql/` files, `database.go` as the
+  SQL client over the handles, the `Args` wiring test; then people with the struct-tag
+  mapper and the lint (9), the frame catalog by on-demand stitching (10), external frame
+  sourcing (11), iterate and close (12).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -92,6 +92,17 @@ engine parse it, mapping a data exception (SQLSTATE class 22) to the 400 path th
 23 maps today, so the engine is the one validator. If that proves awkward the fallback is a
 Go parser per common type. Real files and editor tooling: stage 8.
 
+Stage 7 tried it and it holds. A filter value binds as given — the request's text — under
+`CAST(<placeholder> AS <declared type>)`; the engine parses it, and a value it cannot read
+comes back as SQLSTATE class 22, which `pgdialect.MapError` classifies as
+`sqldb.ErrInvalidValue` and the projection wraps as `*InvalidValueError` under
+`ErrDirectives`, the engine's reason intact (`invalid input syntax for type uuid:
+"not-a-uuid"`). No Go type registry exists. Two consequences to carry: the value grammar is
+the engine's — PostgreSQL accepts `yesterday` and `now` as timestamps, and a port may accept
+other literals — so the API's documented value syntax is "what the engine reads for the
+declared type"; and the 400 surfaces at execution rather than pre-flight, one round trip
+later than a Go parser would, which the request path does not notice.
+
 Decisions for later stages, from the stage 6 API review: a domain's wiring test binds each
 handle once with sample `Args` over the driver fake, so a key mismatch fails in CI (stage
 8 sets the shape); the struct-tag row mapper reads `db` then falls back to `json`, so the
@@ -128,6 +139,15 @@ current, at lifecycle stage 1 ahead of the domains.
   (`Check: db` at stage 0); a failed begin wraps `ErrConnectionFailed` as before.
 - **`DB.Conn(ctx)` added.** A pinned `*sql.Conn` for protocols that need session scope
   (migrate's lock and non-transactional DDL). Not in the sketch.
+- **Projection deviations (stage 7).** `Project` panics on a base without a contract or
+  one binding parameters of its own: a projection base takes no `Args` in the sketch, and
+  a tenant filter is a directive until a consumer proves otherwise (open). Filter values
+  are cast to the field's declared type rather than parsed in Go (Q2). `Pager` is the
+  optional dialect capability for the paging fragment, the sketch's one library-generated
+  text with a known divergence; the standard `OFFSET … FETCH` otherwise. `Projection.Verify`
+  prepares `SELECT q.<every field> FROM (<base>) q`. `List` returns the total from the count
+  twin first, then the page. A base's trailing semicolon is stripped at load so it composes
+  as a derived table.
 - **`ExecTx` dropped.** A write is never void: `database/sql`'s `Exec` returns a `Result`, every
   unit this spike plans returns its identity, version, or affected count, and a void runner
   invites the caller to skip the zero-rows signal. `Transact[T]` is the one runner; a void unit
@@ -288,6 +308,16 @@ composition root, the config package kept separate with `configtest` beside it),
 architecture standard in the docs landing zone, where the admin mount is a new layer and the
 anchor for the runtime-administration concept the context already carries.
 
+### Every line of SQL in a .sql file (the architect, stage 7 review)
+
+The library's own frames are no exception: the collection wrap, the operator fragments,
+the paging fragment, the guard and check frames, composed in Go today as the baseline, are
+to be authored `.sql` files the library ships, slots in the `{{ }}` syntax, judged at stage
+10 and sourced from any `fs.FS` at stage 11. Go keeps only what cannot be text — the
+whitelist check against the header, list arity, parameter positions. The domain-facing
+API (`Project`, `List`, `One`, `Guarded`, `Run`) is the seam and does not change, which is
+why stages 8–9 build against it before the frames move.
+
 ### Reusable plumbing (the architect, stage 6b review)
 
 Candidates for promotion beyond `lib/`, so a service implementation connects its own
@@ -391,6 +421,15 @@ _Anything deferred, with the decision it would change._
   superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
   drops build-time generation; stage 11 proves external frame sourcing instead. The
   content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-02 · **Stage 7.** `Directives` (`Page`, `Sort`, `Op` × 10, `Filter`) carried from
+  v0.3.0 minus the `ast.Predicate` escape; `Projection[T]` with `List` (count twin, page
+  under the collection wrap, key tie-breaker), `One`, `Verify`; `Guard` with `Run` (row
+  affected → version+1, miss → check → `sql.ErrNoRows` or `database.ErrVersionMismatch`
+  with both versions), the caller's `Args` never written. The error family:
+  `ErrDirectives` with `UnknownFieldError`, `UnknownOperatorError`, `InvalidValueError`
+  unwrapping to it. `sqldb.ErrInvalidValue` and the class-22 mapping in `pgdialect` make the
+  engine the value validator (Q2). Proven live: text values parsed by type, three bad
+  values classified with the engine's reason, `One`, and all three guard outcomes.
 - 2026-09-02 · **Stage 6b.** The seed's three statements are authored files under
   `admin/database/sql/`, native tier with their ports declared, bound as handles in
   `database.New`; `Start` and `Verify` prepare the admin domain's `Source` once the schema

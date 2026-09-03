@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -40,7 +41,7 @@ func Load(fsys fs.FS, dir string, d database.Dialect) (*Source, error) {
 		if err != nil {
 			return nil, fmt.Errorf("query: read %s: %w", e.Name(), err)
 		}
-		st, err := parse(strings.TrimSuffix(e.Name(), ".sql"), string(text), d.Placeholder)
+		st, err := parse(strings.TrimSuffix(e.Name(), ".sql"), string(text), d)
 		if err != nil {
 			return nil, fmt.Errorf("query: %s: %w", e.Name(), err)
 		}
@@ -113,12 +114,13 @@ func Verify(ctx context.Context, db sqldb.Session, vs ...Verifier) error {
 }
 
 // parse reads the header and rewrites the body's parameters; the engine
-// receives the body. The header grammar, from the sketch: tier required
+// receives the body, less a trailing semicolon so the statement composes
+// as a derived table. The header grammar, from the sketch: tier required
 // (standard | native); native required when the tier is native, the reach
 // and the port as free text; transaction optional (required); key optional,
-// naming a field; field repeated, "<name> <type>".
-func parse(name, text string, placeholder func(int) string) (Statement, error) {
-	st := Statement{name: name}
+// naming a field; field repeated, "<name> <type>", the name an identifier.
+func parse(name, text string, d database.Dialect) (Statement, error) {
+	st := Statement{name: name, dialect: d}
 	h, err := sqlheader.Parse(text)
 	if err != nil {
 		return st, err
@@ -156,7 +158,7 @@ func parse(name, text string, placeholder func(int) string) (Statement, error) {
 	for _, f := range h.All("field") {
 		fname, typ, ok := strings.Cut(f, " ")
 		typ = strings.TrimSpace(typ)
-		if !ok || !sqlType.MatchString(typ) {
+		if !ok || !identifier.MatchString(fname) || !sqlType.MatchString(typ) {
 			return st, fmt.Errorf("field directive %q is not \"<name> <type>\"", f)
 		}
 		st.fields = append(st.fields, Field{Name: fname, Type: typ})
@@ -171,6 +173,11 @@ func parse(name, text string, placeholder func(int) string) (Statement, error) {
 		}
 		st.key = key
 	}
-	st.text, st.params, err = rewrite(text[h.End():], placeholder)
+	body := strings.TrimRight(strings.TrimSpace(text[h.End():]), ";")
+	st.text, st.params, err = rewrite(body, d.Placeholder)
 	return st, err
 }
+
+// identifier is a contract field name as it appears in the composed SQL:
+// unquoted, lowercase, the base's own alias for the column.
+var identifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)

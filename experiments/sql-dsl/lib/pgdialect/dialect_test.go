@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
 func TestWrap_KeepsTheInnerDialect(t *testing.T) {
@@ -64,5 +66,25 @@ func TestUnlock_FalseIsErrLockNotHeld(t *testing.T) {
 	err = pgdialect.Wrap(drivertest.Dialect{}).Unlock(ctx, conn, 7)
 	if !errors.Is(err, pgdialect.ErrLockNotHeld) {
 		t.Errorf("Unlock = %v, want ErrLockNotHeld", err)
+	}
+}
+
+type pgError struct{ code string }
+
+func (e pgError) Error() string    { return "engine: " + e.code }
+func (e pgError) SQLState() string { return e.code }
+
+func TestMapError_DataExceptionIsErrInvalidValue(t *testing.T) {
+	d := pgdialect.Wrap(drivertest.Dialect{})
+	err := d.MapError(pgError{"22P02"})
+	if !errors.Is(err, sqldb.ErrInvalidValue) || !strings.Contains(err.Error(), "22P02") {
+		t.Errorf("class 22 = %v, want ErrInvalidValue carrying the engine error", err)
+	}
+	var m *drivertest.MappedError
+	if err := d.MapError(pgError{"23505"}); !errors.As(err, &m) {
+		t.Errorf("other classes must reach the inner dialect: %v", err)
+	}
+	if d.MapError(nil) != nil {
+		t.Error("nil maps to nil")
 	}
 }

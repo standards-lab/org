@@ -1,7 +1,8 @@
-// Package pgdialect adds the lock capability to the postgres dialect
-// go-database/postgres v0.2.0 ships, by wrapping it: session-level advisory
-// locks over plain SQL on a pinned connection. It imports no driver. At
-// promotion the two methods move into the postgres sub-module's dialect.
+// Package pgdialect adds to the postgres dialect go-database/postgres v0.2.0
+// ships, by wrapping it: the lock capability (session-level advisory locks
+// over plain SQL on a pinned connection) and the data-exception class in
+// MapError. It imports no driver. At promotion the methods move into the
+// postgres sub-module's dialect.
 package pgdialect
 
 import (
@@ -9,6 +10,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/standards-lab/go-database"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
@@ -19,12 +21,32 @@ import (
 var ErrLockNotHeld = errors.New("advisory lock not held by this session")
 
 // Dialect is the wrapped postgres dialect: everything the inner dialect does,
-// plus sqldb.Locker.
+// plus sqldb.Locker and the class-22 mapping.
 type Dialect struct {
 	database.Dialect
 }
 
 var _ sqldb.Locker = Dialect{}
+
+// sqlStater is what the driver's error exposes: pgx's *pgconn.PgError
+// satisfies it at runtime. lib/ never names the driver (split-check), so
+// the structural interface is how the mapping reads the SQLSTATE.
+type sqlStater interface{ SQLState() string }
+
+// MapError classifies a data exception (SQLSTATE class 22 — invalid text
+// for a type, a value out of range, a bad datetime) as sqldb.ErrInvalidValue
+// with the engine's message reachable, and delegates everything else to the
+// inner dialect's constraint mapping.
+func (d Dialect) MapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var st sqlStater
+	if errors.As(err, &st) && strings.HasPrefix(st.SQLState(), "22") {
+		return fmt.Errorf("%w: %w", sqldb.ErrInvalidValue, err)
+	}
+	return d.Dialect.MapError(err)
+}
 
 // Wrap adds the lock capability to inner, normally the postgres dialect a
 // started DB reports.

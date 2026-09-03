@@ -3,10 +3,18 @@ package sqldb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/standards-lab/go-database"
 )
+
+// ErrInvalidValue classifies a data exception: a bound value the engine
+// could not read as the type it was cast to (SQLSTATE class 22). It is the
+// engine-side half of request validation — a filter value that is not a
+// uuid, a date that is not a date — and a dialect maps its engine's form to
+// it. At promotion it joins the root package's constraint classes.
+var ErrInvalidValue = errors.New("invalid value")
 
 // Session is the stdlib method set a runner needs, implemented by *DB and
 // *Tx, so the same statement handle runs against the pool or inside a
