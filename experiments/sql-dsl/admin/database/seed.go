@@ -69,7 +69,7 @@ func (s *Service) Seed(ctx context.Context) (Seeded, error) {
 
 // The per-table seeds. Each resolves the file's references by code, calls
 // the table's insert once per row, and counts what it inserted. The
-// statements are the admin domain's authored files under sql/ — the native
+// statements are the admin domain's authored files under statements/ — the native
 // tier, ON CONFLICT and RETURNING, declared in their headers; seeds never
 // port — held as query handles bound once in New.
 

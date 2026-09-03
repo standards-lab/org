@@ -3,7 +3,7 @@
 // per node — served under /api/organizations as paginated, filtered, sorted
 // reads and four commands.
 //
-// The layer's SQL is the sql/ directory, one authored file per statement
+// The layer's SQL is the statements/ directory, one authored file per statement
 // with its tier header; database.go is the domain's SQL client, the sole
 // importer of query: it loads the directory once, binds each statement to
 // a typed handle, and exposes the operations as the store's methods. No

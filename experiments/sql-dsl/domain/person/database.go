@@ -10,7 +10,7 @@ import (
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-//go:embed sql/*.sql
+//go:embed statements/*.sql
 var files embed.FS
 
 // store is the domain's SQL client: the statements of sql/ bound once to
@@ -31,7 +31,7 @@ type store struct {
 }
 
 func newStore(db *sqldb.DB) *store {
-	src := query.MustLoad(files, "sql", db.Dialect())
+	src := query.MustLoad(files, "statements", db.Dialect())
 	check := src.Statement("version")
 	guard := func(name string) query.Guard { return query.Guarded(src.Statement(name), check, "version") }
 	return &store{

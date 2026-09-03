@@ -3,7 +3,7 @@
 // actions that move it, served under /api/people as paginated, filtered,
 // sorted reads, three commands, and three actions.
 //
-// The layout is the organization layer's: sql/ holds one authored file per
+// The layout is the organization layer's: statements/ holds one authored file per
 // statement, database.go is the SQL client and the sole importer of query,
 // entities.go owns the shapes, their validation, and — through their tags —
 // the binding and scan contract; service.go maps endpoints to operations;

@@ -6,6 +6,8 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
+- **Directory:** a domain's statements live in `statements/` (renamed from `sql/` at the
+  handoff, so the directory never reads as the builtin pattern namespace `sql`).
 - **Stage:** 1–10 approved (2026-09-03), each on the branch as its own commit. See the
   decisions log and Q1.
 - **Next move:** stage 11 — the pattern catalog API as decided at the stage 10 review (see
@@ -56,7 +58,7 @@ before rewriting parameters — `guard_where` and `guard_set` are the first, and
 guarded commands across both domains now write their protocol once. Against the baseline:
 the composed SQL is byte-identical to the Go-composed text (every projection test passed
 unchanged), lint reach is preserved because `sqlint` lints the patterns directory like any
-`sql/` directory and `Load` expands includes before `Verify` prepares, and editor reach is
+`statements/` directory and `Load` expands includes before `Verify` prepares, and editor reach is
 better, since the pattern is a `.sql` file. What Go still owns is exactly what cannot be
 text. The `Pager` capability is gone: a port overrides `paging.sql` by name, which is stage
 11's mechanism. Patterns hold slots only and never include other patterns (an internal test
@@ -334,7 +336,7 @@ and what stays service-side, with the reason._
 an internal package unless a consumer outside the module needs the grammar.
 
 **`cmd/sqlint`** (stage 9) is the checkable-rules half the strategy assigns to the harness
-(`claude-plugins`, the hardening task): every `sql/` directory loads, a file is named for
+(`claude-plugins`, the hardening task): every `statements/` directory loads, a file is named for
 its operation, `{{` appears in no body comment or literal, a standard-tier file uses none
 of a known list of native forms, a non-transactional migration holds one statement. It runs
 in `mise run lint`; the list of native forms is the promotion's first port-list input.
@@ -350,7 +352,7 @@ unit-by-code resolution and the insert-or-find are the bulk, and neither is libr
 The seed files are the admin domain's, one per domain, in the domain's API vocabulary; the
 native tier is `ON CONFLICT` and `RETURNING`. Shape (stage 5 review): one seed function and
 one insert per table, `Seed` composing them in dependency order inside the transaction.
-Done at stage 6b: the seed statements are authored files under `admin/database/sql/`
+Done at stage 6b: the seed statements are authored files under `admin/database/statements/`
 (`seed_organization`, `find_organization`, `seed_person`), loaded through a `Source`,
 verified at startup and by the verify endpoint, and run through `query` handles; seed is the
 first `query` consumer ahead of the domains (Q3).
@@ -551,7 +553,7 @@ _Anything deferred, with the decision it would change._
   `sqlint` lints pattern directories and its literal check tracks quote state (a false
   positive on `'active', {{> guard_set}}` found it). Q1's verdict is on-demand stitching.
   Proven live: list, deactivate, activate, edit, stale edit through the patterns.
-- 2026-09-03 · **Stage 9.** The person domain (`domain/person`: view on the plain table,
+- 2026-09-03 · **Stage 9.** The person domain (`domain/person/statements`: view on the plain table,
   create, edit, delete, version, state, activate, deactivate, transfer_unit), its three
   actions on the shared transition protocol with `ErrTransition` at 409; the struct-tag
   mapper in `lib/query` (`Scanner[T]`, `ArgsOf`, `Args.With`; `db` tag, `json` fallback,
@@ -589,7 +591,7 @@ _Anything deferred, with the decision it would change._
   `Locker` capability, the migrator's default `migrate.<table>`, and the domain's
   `organization.tree`, hashed by `hashtext` in the dialect or the file. Numbers were a
   registry across domains waiting to collide.
-- 2026-09-03 · **Stage 8.** The organization domain: `sql/` (organization_view, create,
+- 2026-09-03 · **Stage 8.** The organization domain: `statements/` (organization_view, create,
   edit, transfer, delete, version, in_subtree, lock_tree; two native with ports declared,
   six standard), `database.go` as the SQL client, service and handler from the reference
   with the directive matcher collapsed, `Register` at lifecycle stage 2 running `Verify`
@@ -609,7 +611,7 @@ _Anything deferred, with the decision it would change._
   engine the value validator (Q2). Proven live: text values parsed by type, three bad
   values classified with the engine's reason, `One`, and all three guard outcomes.
 - 2026-09-02 · **Stage 6b.** The seed's three statements are authored files under
-  `admin/database/sql/`, native tier with their ports declared, bound as handles in
+  `admin/database/statements/`, native tier with their ports declared, bound as handles in
   `database.New`; `Start` and `Verify` prepare the admin domain's `Source` once the schema
   is clean, so a statement the schema no longer satisfies fails startup at stage 1. Proven
   live: fresh seed 7/6 through the authored statements, rerun zeros, verify 200.

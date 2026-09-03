@@ -15,7 +15,7 @@ import (
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-//go:embed sql/*.sql
+//go:embed statements/*.sql
 var sqlFiles embed.FS
 
 // Stage is the lifecycle stage the schema correction runs in: after the
@@ -55,7 +55,7 @@ func New(db *sqldb.DB, logger *slog.Logger, opts Options) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
-	src := query.MustLoad(sqlFiles, "sql", db.Dialect())
+	src := query.MustLoad(sqlFiles, "statements", db.Dialect())
 	return &Service{
 		db: db, migrator: m, logger: logger, seed: opts.Seed,
 		src:        src,

@@ -13,9 +13,9 @@ experiment's record, position, and findings: `NOTES.md`.
   `{{> name}}`.
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
   at `/admin`; `admin/database` owns the schema (migrations), its own authored statements
-  (`sql/`), the seed files, and their operations.
+  (`statements/`), the seed files, and their operations.
 - `domain/` — the two domains, mounted at `/api`: `organization` (stage 8), `person`
-  (stage 9). Each holds its statements in `sql/` and its SQL client in `database.go`.
+  (stage 9). Each holds its statements in `statements/` and its SQL client in `database.go`.
 - `internal/` — the service side: `config` with its `configtest` fixtures, the composition
   root (`app`, whose `infrastructure.go`, `admin.go`, `domain.go`, and `reactors.go` wire
   the layers and mount them), and sdk staging.

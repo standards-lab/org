@@ -75,7 +75,7 @@ func lint(fsys fs.FS) []string {
 			return fs.SkipDir
 		}
 		switch d.Name() {
-		case "sql", "patterns":
+		case "statements", "patterns":
 			lintSource(fsys, path, report)
 		case "migrations":
 			lintMigrations(fsys, path, report)

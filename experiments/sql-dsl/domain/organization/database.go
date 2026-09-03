@@ -9,7 +9,7 @@ import (
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-//go:embed sql/*.sql
+//go:embed statements/*.sql
 var files embed.FS
 
 // treeLock names the organization tree in the service's lock registry: one
@@ -37,7 +37,7 @@ type store struct {
 }
 
 func newStore(db *sqldb.DB) *store {
-	src := query.MustLoad(files, "sql", db.Dialect())
+	src := query.MustLoad(files, "statements", db.Dialect())
 	check := src.Statement("version")
 	return &store{
 		db:            db,
