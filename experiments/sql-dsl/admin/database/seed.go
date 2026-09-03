@@ -86,7 +86,7 @@ func (s *Service) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []or
 			}
 			parent = id
 		}
-		id, ok, err := s.insertOrganization(ctx, tx, parent, o)
+		id, ok, err := s.seedOrganization(ctx, tx, parent, o)
 		if err != nil {
 			return nil, fmt.Errorf("seed organization %s: %w", o.Code, err)
 		}
@@ -98,11 +98,11 @@ func (s *Service) seedOrganizations(ctx context.Context, tx *sqldb.Tx, rows []or
 	return ids, nil
 }
 
-// insertOrganization inserts one organization or finds the one already
-// there, returning its id and whether this call inserted it. The insert
-// returns no row on conflict; sql.ErrNoRows is that signal.
-func (s *Service) insertOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
-	id, err = s.insertOrg.One(ctx, tx, query.Args{"parent": parent, "code": o.Code, "name": o.Name})
+// seedOrganization seeds one organization or finds the one already there,
+// returning its id and whether this call inserted it. The statement returns
+// no row on conflict; sql.ErrNoRows is that signal.
+func (s *Service) seedOrganization(ctx context.Context, tx *sqldb.Tx, parent any, o organizationSeed) (id string, inserted bool, err error) {
+	id, err = s.seedOrg.One(ctx, tx, query.Args{"parent": parent, "code": o.Code, "name": o.Name})
 	if err == nil {
 		return id, true, nil
 	}
@@ -116,14 +116,14 @@ func (s *Service) insertOrganization(ctx context.Context, tx *sqldb.Tx, parent a
 	return id, false, err
 }
 
-// seedPeople inserts each person under the unit named by code.
+// seedPeople seeds each person under the unit named by code.
 func (s *Service) seedPeople(ctx context.Context, tx *sqldb.Tx, units map[string]string, rows []personSeed, inserted *int) error {
 	for _, p := range rows {
 		unit, ok := units[p.Unit]
 		if !ok {
 			return fmt.Errorf("seed person %s: unit %q is not a seeded organization", p.Email, p.Unit)
 		}
-		n, err := s.insertPerson.Exec(ctx, tx, query.Args{
+		n, err := s.seedPerson.Exec(ctx, tx, query.Args{
 			"unit": unit, "given_name": p.GivenName, "family_name": p.FamilyName, "email": p.Email, "status": p.Status,
 		})
 		if err != nil {

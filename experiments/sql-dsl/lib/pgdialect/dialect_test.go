@@ -36,18 +36,18 @@ func TestLockUnlock_IssueTheAdvisoryCallsOnTheConnection(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	d := pgdialect.Wrap(drivertest.Dialect{})
-	if err := d.Lock(ctx, conn, 42); err != nil {
+	if err := d.Lock(ctx, conn, "migrate.schema_version"); err != nil {
 		t.Fatalf("Lock: %v", err)
 	}
-	if err := d.Unlock(ctx, conn, 42); err != nil {
+	if err := d.Unlock(ctx, conn, "migrate.schema_version"); err != nil {
 		t.Fatalf("Unlock: %v", err)
 	}
 
 	calls := rec.Calls()
-	if calls[0].SQL != "SELECT pg_advisory_lock($1)" || calls[0].Args[0] != int64(42) {
+	if calls[0].SQL != "SELECT pg_advisory_lock(hashtext($1))" || calls[0].Args[0] != "migrate.schema_version" {
 		t.Errorf("lock call = %+v", calls[0])
 	}
-	if calls[1].SQL != "SELECT pg_advisory_unlock($1)" || calls[1].Args[0] != int64(42) {
+	if calls[1].SQL != "SELECT pg_advisory_unlock(hashtext($1))" || calls[1].Args[0] != "migrate.schema_version" {
 		t.Errorf("unlock call = %+v", calls[1])
 	}
 }
@@ -63,7 +63,7 @@ func TestUnlock_FalseIsErrLockNotHeld(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	err = pgdialect.Wrap(drivertest.Dialect{}).Unlock(ctx, conn, 7)
+	err = pgdialect.Wrap(drivertest.Dialect{}).Unlock(ctx, conn, "x")
 	if !errors.Is(err, pgdialect.ErrLockNotHeld) {
 		t.Errorf("Unlock = %v, want ErrLockNotHeld", err)
 	}

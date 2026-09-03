@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"log/slog"
 	"regexp"
 
@@ -16,9 +15,10 @@ import (
 type Options struct {
 	// Table names the history table; default "schema_version".
 	Table string
-	// LockKey is the advisory-lock key a run holds; default derives from the
-	// table name, so two migrators over different tables never contend.
-	LockKey int64
+	// LockName names the lock a run holds; default "migrate.<table>", so two
+	// migrators over different tables never contend and no domain lock can
+	// collide with it by number.
+	LockName string
 	// Unlocked allows runs on a dialect without the lock capability, or with
 	// it, without taking the lock; concurrent starters are then unsafe.
 	Unlocked bool
@@ -58,10 +58,8 @@ func New(db *sqldb.DB, migrations []Migration, opts Options) (*Migrator, error) 
 	if !tableName.MatchString(opts.Table) {
 		return nil, fmt.Errorf("migrate: table name %q is not a plain identifier", opts.Table)
 	}
-	if opts.LockKey == 0 {
-		h := fnv.New64a()
-		_, _ = h.Write([]byte(opts.Table))
-		opts.LockKey = int64(h.Sum64()) //nolint:gosec // a hash used as a lock key; wrap-around is fine
+	if opts.LockName == "" {
+		opts.LockName = "migrate." + opts.Table
 	}
 	last := 0
 	for _, m := range migrations {
@@ -252,11 +250,11 @@ func (m *Migrator) locked(ctx context.Context, fn func(context.Context, *sql.Con
 		}
 	}()
 	if m.locker != nil && !m.opts.Unlocked {
-		if err := m.locker.Lock(ctx, conn, m.opts.LockKey); err != nil {
+		if err := m.locker.Lock(ctx, conn, m.opts.LockName); err != nil {
 			return m.db.MapError(err)
 		}
 		defer func() {
-			if uerr := m.locker.Unlock(context.WithoutCancel(ctx), conn, m.opts.LockKey); uerr != nil && ctx.Err() == nil {
+			if uerr := m.locker.Unlock(context.WithoutCancel(ctx), conn, m.opts.LockName); uerr != nil && ctx.Err() == nil {
 				err = errors.Join(err, m.db.MapError(uerr))
 			}
 		}()

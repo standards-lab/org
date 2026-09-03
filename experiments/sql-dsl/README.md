@@ -12,7 +12,8 @@ experiment's record, position, and findings: `NOTES.md`.
 - `admin/` — the administrative layer: one admin domain per infrastructure service, mounted
   at `/admin`; `admin/database` owns the schema (migrations), its own authored statements
   (`sql/`), the seed files, and their operations.
-- `domain/` — the two domains, mounted at `/api` (stages 8 and 9).
+- `domain/` — the two domains, mounted at `/api`: `organization` (stage 8), `person`
+  (stage 9). Each holds its statements in `sql/` and its SQL client in `database.go`.
 - `internal/` — the service side: `config` with its `configtest` fixtures, the composition
   root (`app`, whose `infrastructure.go`, `admin.go`, `domain.go`, and `reactors.go` wire
   the layers and mount them), and sdk staging.
@@ -27,6 +28,10 @@ mise run serve                 # http://127.0.0.1:8081; startup applies pending 
 mise run test                  # hermetic
 mise run test-compose          # against the live stack
 ```
+
+The API mount, `/api/organizations`: `GET` (paged, `?page=&size=&sort=&<field>=`), `GET /{id}`,
+`GET /path/{path...}`, `POST`, `PATCH /{id}`, `POST /{id}/transfer`, `DELETE /{id}`; the
+guarded commands take `If-Match: "<version>"`. Paging policy is the `reads` config block.
 
 The admin mount, `/admin/database`: `GET /diagnostics`, `GET /schema`, `POST
 /schema/{verify,up,down,steps,force}` (bodies `{"steps": n}` and `{"version": v}`), and

@@ -57,24 +57,26 @@ func Wrap(inner database.Dialect) Dialect {
 	return Dialect{Dialect: inner}
 }
 
-// Lock takes the session-level advisory lock for key on conn, blocking until
-// it is granted or ctx ends. The lock belongs to the connection's session
-// and outlives any transaction on it; Unlock on the same conn releases it.
-func (Dialect) Lock(ctx context.Context, conn *sql.Conn, key int64) error {
-	if _, err := conn.ExecContext(ctx, "SELECT pg_advisory_lock($1)", key); err != nil {
-		return fmt.Errorf("advisory lock %d: %w", key, err)
+// Lock takes the session-level advisory lock for name on conn, blocking
+// until it is granted or ctx ends; the name enters the engine's 32-bit key
+// space through hashtext, the same mapping a domain's transaction-scoped
+// lock file uses. The lock belongs to the connection's session and outlives
+// any transaction on it; Unlock on the same conn releases it.
+func (Dialect) Lock(ctx context.Context, conn *sql.Conn, name string) error {
+	if _, err := conn.ExecContext(ctx, "SELECT pg_advisory_lock(hashtext($1))", name); err != nil {
+		return fmt.Errorf("advisory lock %s: %w", name, err)
 	}
 	return nil
 }
 
-// Unlock releases the session-level advisory lock for key on conn.
-func (Dialect) Unlock(ctx context.Context, conn *sql.Conn, key int64) error {
+// Unlock releases the session-level advisory lock for name on conn.
+func (Dialect) Unlock(ctx context.Context, conn *sql.Conn, name string) error {
 	var released bool
-	if err := conn.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", key).Scan(&released); err != nil {
-		return fmt.Errorf("advisory unlock %d: %w", key, err)
+	if err := conn.QueryRowContext(ctx, "SELECT pg_advisory_unlock(hashtext($1))", name).Scan(&released); err != nil {
+		return fmt.Errorf("advisory unlock %s: %w", name, err)
 	}
 	if !released {
-		return fmt.Errorf("%w: key %d", ErrLockNotHeld, key)
+		return fmt.Errorf("%w: %s", ErrLockNotHeld, name)
 	}
 	return nil
 }

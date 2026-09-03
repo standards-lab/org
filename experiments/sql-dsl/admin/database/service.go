@@ -34,10 +34,10 @@ type Service struct {
 
 	// The admin domain's statements: the seed's inserts and lookup, bound
 	// once here the way a domain's database.go binds its own.
-	src          *query.Source
-	insertOrg    query.Rows[string]
-	findOrg      query.Rows[string]
-	insertPerson query.Statement
+	src        *query.Source
+	seedOrg    query.Rows[string]
+	findOrg    query.Rows[string]
+	seedPerson query.Statement
 }
 
 // Options are the service's environment-dependent switches, taken from
@@ -58,10 +58,10 @@ func New(db *sqldb.DB, logger *slog.Logger, opts Options) (*Service, error) {
 	src := query.MustLoad(sqlFiles, "sql", db.Dialect())
 	return &Service{
 		db: db, migrator: m, logger: logger, seed: opts.Seed,
-		src:          src,
-		insertOrg:    query.Scan(src.Statement("insert_organization"), query.Scalar[string]),
-		findOrg:      query.Scan(src.Statement("find_organization"), query.Scalar[string]),
-		insertPerson: src.Statement("insert_person"),
+		src:        src,
+		seedOrg:    query.Scan(src.Statement("seed_organization"), query.Scalar[string]),
+		findOrg:    query.Scan(src.Statement("find_organization"), query.Scalar[string]),
+		seedPerson: src.Statement("seed_person"),
 	}, nil
 }
 

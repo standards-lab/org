@@ -105,8 +105,8 @@ func TestSteps_TransactionalMigrationAppliesInsideOneTransaction(t *testing.T) {
 		drivertest.OpQuery,
 	)
 	calls := rec.Calls()
-	if calls[0].SQL != "SELECT pg_advisory_lock($1)" {
-		t.Errorf("first call = %q, want the lock", calls[0].SQL)
+	if calls[0].SQL != "SELECT pg_advisory_lock(hashtext($1))" || calls[0].Args[0] != "migrate.schema_version" {
+		t.Errorf("first call = %+v, want the named lock", calls[0])
 	}
 	if calls[4].SQL != set[0].Up {
 		t.Errorf("up = %q", calls[4].SQL)
@@ -115,11 +115,11 @@ func TestSteps_TransactionalMigrationAppliesInsideOneTransaction(t *testing.T) {
 		calls[5].Args[0] != 1 || calls[5].Args[1] != "a" || calls[5].Args[2] != false {
 		t.Errorf("history insert = %+v", calls[5])
 	}
-	if last := calls[len(calls)-1]; last.SQL != "SELECT pg_advisory_unlock($1)" {
+	if last := calls[len(calls)-1]; last.SQL != "SELECT pg_advisory_unlock(hashtext($1))" {
 		t.Errorf("last call = %q, want the unlock", last.SQL)
 	}
 	if calls[0].Args[0] != calls[len(calls)-1].Args[0] {
-		t.Error("lock and unlock keys differ")
+		t.Error("lock and unlock names differ")
 	}
 }
 
@@ -402,16 +402,16 @@ func TestLocked_DialectWithoutLockerFailsUnlessUnlocked(t *testing.T) {
 	assertOps(t, rec, drivertest.OpExec, drivertest.OpQuery, drivertest.OpBegin, drivertest.OpExec, drivertest.OpExec, drivertest.OpCommit)
 }
 
-func TestOptions_TableAndLockKeyDefaultsAndOverrides(t *testing.T) {
-	m, rec := newMigrator(t, migrate.Options{Table: "app_schema", LockKey: 77},
+func TestOptions_TableAndLockNameDefaultsAndOverrides(t *testing.T) {
+	m, rec := newMigrator(t, migrate.Options{Table: "app_schema", LockName: "ops.schema"},
 		locked, created, history(), drivertest.Response{}, drivertest.Response{}, unlocked,
 	)
 	if err := m.Steps(context.Background(), 1); err != nil {
 		t.Fatal(err)
 	}
 	calls := rec.Calls()
-	if calls[0].Args[0] != int64(77) {
-		t.Errorf("lock key = %v, want 77", calls[0].Args[0])
+	if calls[0].Args[0] != "ops.schema" {
+		t.Errorf("lock name = %v, want ops.schema", calls[0].Args[0])
 	}
 	if calls[1].SQL != "CREATE TABLE IF NOT EXISTS app_schema (version integer PRIMARY KEY, name text NOT NULL, applied_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, dirty boolean NOT NULL DEFAULT FALSE)" {
 		t.Errorf("create = %q", calls[1].SQL)
@@ -422,7 +422,7 @@ func TestOptions_TableAndLockKeyDefaultsAndOverrides(t *testing.T) {
 	_ = m1.Steps(context.Background(), 0) // no-op: no calls
 	_ = m1.Up(context.Background())
 	_ = m2.Up(context.Background())
-	if rec1.Calls()[0].Args[0] == rec2.Calls()[0].Args[0] {
-		t.Error("different tables derived the same default lock key")
+	if rec1.Calls()[0].Args[0] != "migrate.schema_version" || rec2.Calls()[0].Args[0] != "migrate.other" {
+		t.Errorf("default lock names = %v, %v", rec1.Calls()[0].Args[0], rec2.Calls()[0].Args[0])
 	}
 }

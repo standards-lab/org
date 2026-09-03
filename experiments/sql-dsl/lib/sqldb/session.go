@@ -35,11 +35,14 @@ type ErrorMapper interface {
 }
 
 // Locker is the dialect capability a concurrent-starter protocol takes: a
-// session-scoped exclusive lock on a dedicated connection. A provider
-// without it cannot serialize migrations across processes.
+// session-scoped exclusive lock on a dedicated connection, identified by
+// name. Locks are named, never numbered — <owner>.<structure>, such as
+// migrate.schema_version or organization.tree — and the dialect maps the
+// name to its engine's lock space. A provider without the capability cannot
+// serialize migrations across processes.
 type Locker interface {
-	Lock(ctx context.Context, conn *sql.Conn, key int64) error
-	Unlock(ctx context.Context, conn *sql.Conn, key int64) error
+	Lock(ctx context.Context, conn *sql.Conn, name string) error
+	Unlock(ctx context.Context, conn *sql.Conn, name string) error
 }
 
 // DB is the pool session over a started go-database DB. Lifecycle stays with

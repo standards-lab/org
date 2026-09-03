@@ -6,12 +6,11 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Stage:** 1–6b approved (2026-09-02); stage 7, projection and guard, is built and awaits
-  review. See the decisions log.
-- **Next move:** stage 8 — the organization baseline: `sql/` files, `database.go` as the
-  SQL client over the handles, the `Args` wiring test; then people with the struct-tag
-  mapper and the lint (9), the frame catalog by on-demand stitching (10), external frame
-  sourcing (11), iterate and close (12).
+- **Stage:** 1–7 approved (2026-09-03); stage 8, the organization baseline, is built and
+  awaits review. See the decisions log.
+- **Next move:** stage 9 — the person domain on a plain-table base, the struct-tag row
+  mapper (`db` then `json`), and the lint; then the frame catalog by on-demand stitching
+  (10), external frame sourcing (11), iterate and close (12).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
   version 3, clean, no data.
 
@@ -116,6 +115,20 @@ foreign session.
 _Per domain, the `query` and session-wrapper symbols `database.go` used; sketch symbols left
 unused; symbols missing._
 
+Second consumer (stage 8, the organization domain, eight files): `Project` + `List` and
+`One` over the lineage CTE base (path as an ordinary contract field, filterable and
+sortable), `Scan`/`Rows.One` for the identity-returning insert and the subtree count,
+`Statement.Exec` for the lock under `transaction: required`, three `Guard`s sharing one
+check, `sqldb.Transact` for the transfer. `database.go` is 120 lines, the store's handles
+bound once in `newStore`, the operations as methods; `service.go` and `handler.go` are the
+reference service's with the matcher's two `errors.As` cases collapsed to one
+`errors.Is(err, query.ErrDirectives)`, as the concept predicted. Symbols the sketch has that
+this domain did not use: `Rows.All`, `Rows.Each`, `OpIn` and the other operators beyond
+`eq` (the SDK's query parser yields exact matches only). Nothing missing. The `Args`
+wiring test (`database_test.go`) binds every handle once over the strict driver and
+asserts the composed SQL, the lock-first transfer, and the scan order; a key that does not
+match its file fails there.
+
 First consumer (stage 6b, the seed): `Rows[string].One` with `Scalar[string]` for the
 identity-returning insert, `sql.ErrNoRows` as the no-row-on-conflict signal, `Exec` for the
 count-returning insert, `Args` keyed by the file's names, and `{{parent:uuid}}` in the
@@ -178,9 +191,11 @@ the cancelled-context run._
   and returns `*DirtyError`; only `Force` clears it.
 - `Version` and `Verify` take no lock and never create the table (existence via
   `information_schema.tables`; a search-path caveat for a port with schemas of the same name).
-- Default lock key: FNV-1a 64 of the table name, so a second migrator over another table
-  never contends and never collides with small domain keys such as the organization tree
-  lock (`1`).
+- Locks are named, never numbered (stage 8 review): `Locker` takes a name, the migrator's
+  default is `migrate.<table>`, and a domain's transaction-scoped lock file binds its own
+  name (`organization.tree`), each hashed into the engine's key space by the dialect or the
+  file (`hashtext`). A registry of names cannot collide by accident the way small integers
+  can, and a name is what the SQL Server, MySQL, and Oracle ports take directly.
 - `Files` reads the `transaction` directive through `lib/sqlheader`, the header package
   `query`'s `Load` shares (stage 3 review); `required` or absence keeps the transaction,
   `none` opts out, any other value is a layout error.
@@ -287,6 +302,10 @@ and what stays service-side, with the reason._
 `lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
 an internal package unless a consumer outside the module needs the grammar.
 
+**`internal/sdk`** (stage 8) stages `IfMatch`/`PreconditionError` for go-web-sdk and
+`Directives(web.Query)` for the service side — the latter cannot live in go-web-sdk (it
+would import go-database) and is too small for go-database; the template scaffolds it.
+
 **Seed stays service-side** (stage 5), as the strategy's sufficiency rule predicted, with a
 correction to the size claim: the loader in `admin/database/seed.go` is about 70 lines for
 two domains over `sqldb.Transact` and `encoding/json`, not 25 — the parent-by-code and
@@ -295,7 +314,7 @@ The seed files are the admin domain's, one per domain, in the domain's API vocab
 native tier is `ON CONFLICT` and `RETURNING`. Shape (stage 5 review): one seed function and
 one insert per table, `Seed` composing them in dependency order inside the transaction.
 Done at stage 6b: the seed statements are authored files under `admin/database/sql/`
-(`insert_organization`, `find_organization`, `insert_person`), loaded through a `Source`,
+(`seed_organization`, `find_organization`, `seed_person`), loaded through a `Source`,
 verified at startup and by the verify endpoint, and run through `query` handles; seed is the
 first `query` consumer ahead of the domains (Q3).
 Template finding: the `admin` config block with its tri-state `seed` switch and
@@ -421,6 +440,42 @@ _Anything deferred, with the decision it would change._
   superseding decision 2; directive lines are `--|`; the engine receives the body only. Q1
   drops build-time generation; stage 11 proves external frame sourcing instead. The
   content-patterns reference goes to the docs pass. Details under Q1 and Q2.
+- 2026-09-03 · **Stage 8 review, the command ontology** (the architect). Three direct
+  commands: `create` a record; `edit` — replace the fields a client may set directly, the
+  editable set being the contract; `delete` — remove it. An **action** is a named state
+  transition with its own validation and protocol (`transfer` here; `activate`,
+  `deactivate`, `transfer-unit` at stage 9), invoked as `POST /{id}/<action>`, returning
+  `Identity` like every command; if a change needs a lock, a check, or a transition rule
+  it is an action, never an `edit`. The command's name is the statement's file name, the
+  store method, the service method, and the route — `create.sql`, not `insert.sql`: a file
+  is named for its operation, never for its SQL verb (the seed's statements followed:
+  `seed_organization`, `seed_person`). Reserved for the soft-delete
+  convention, out of this experiment's scope: `delete` moves a record to the recycle bin,
+  `restore` brings it back, `purge` removes it physically (administrative); the mechanics
+  — a `deleted_at` column, the base excluding it with a recycle view, partial unique
+  indexes over live rows, the delete frame as an update — are a concept at close and a
+  frame-pair candidate for the catalog.
+- 2026-09-03 · **Stage 8 review, separation of responsibilities** (the architect). Entity
+  and command types own validation as methods (`Validate`, context-free rules only;
+  existence and uniqueness stay the store's as constraint violations) and own binding and
+  scanning through their tags — `db` first, `json` fallback — so `database.go` holds
+  wiring and operations only and nothing outside it imports `query`. Validation lands
+  here; the tag-driven `ArgsOf` and scanner land at stage 9 with the second domain, in
+  place of hand-written scan functions and `Args` literals.
+- 2026-09-03 · **Stage 8 review.** Every lock is named, `<owner>.<structure>`: the
+  `Locker` capability, the migrator's default `migrate.<table>`, and the domain's
+  `organization.tree`, hashed by `hashtext` in the dialect or the file. Numbers were a
+  registry across domains waiting to collide.
+- 2026-09-03 · **Stage 8.** The organization domain: `sql/` (organization_view, create,
+  edit, transfer, delete, version, in_subtree, lock_tree; two native with ports declared,
+  six standard), `database.go` as the SQL client, service and handler from the reference
+  with the directive matcher collapsed, `Register` at lifecycle stage 2 running `Verify`
+  (eight statements plus the contract probe) after the schema stage, `internal/sdk`, the
+  `reads` config block. Proven live against the seeded database: list sorted by path with
+  a filter, find by path, a bad timestamp filter value answered 400 with the engine's
+  reason, unknown field 400, create, duplicate sibling 409, edit → version 2, stale edit
+  412, cycle transfer 409, transfer to root, missing parent 409, delete with children 409,
+  delete 204, find 404.
 - 2026-09-02 · **Stage 7.** `Directives` (`Page`, `Sort`, `Op` × 10, `Filter`) carried from
   v0.3.0 minus the `ast.Predicate` escape; `Projection[T]` with `List` (count twin, page
   under the collection wrap, key tie-breaker), `One`, `Verify`; `Guard` with `Run` (row

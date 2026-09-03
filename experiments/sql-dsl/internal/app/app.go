@@ -33,7 +33,7 @@ func New(cfg *config.Config, w io.Writer) (*App, error) {
 		return nil, err
 	}
 
-	dom := newDomain(infra)
+	dom := newDomain(infra, lc)
 
 	if _, err := newReactors(infra, dom, lc); err != nil {
 		return nil, err
