@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/standards-lab/go-core/lifecycle"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/migrate"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
@@ -27,6 +28,7 @@ const Stage = 1
 // do. Ready reports a clean, complete schema and follows every operation.
 type Service struct {
 	db       *sqldb.DB
+	catalog  *query.Catalog
 	migrator *migrate.Migrator
 	logger   *slog.Logger
 	seed     bool
@@ -34,7 +36,7 @@ type Service struct {
 
 	// The admin domain's statements: the seed's inserts and lookup, bound
 	// once here the way a domain's database.go binds its own.
-	src        *query.Source
+	stmts      *query.Statements
 	seedOrg    query.Rows[string]
 	findOrg    query.Rows[string]
 	seedPerson query.Statement
@@ -49,19 +51,20 @@ type Options struct {
 	Seed bool
 }
 
-// New builds the service over db and the embedded migration set.
-func New(db *sqldb.DB, logger *slog.Logger, opts Options) (*Service, error) {
-	m, err := migrate.New(db, Migrations(), migrate.Options{Logger: logger})
+// New builds the service over db and the embedded migration set; its own
+// statements compile against db.Catalog like a domain's.
+func New(db *data.Database, logger *slog.Logger, opts Options) (*Service, error) {
+	m, err := migrate.New(db.DB, Migrations(), migrate.Options{Logger: logger})
 	if err != nil {
 		return nil, fmt.Errorf("admin/database: %w", err)
 	}
-	src := query.MustLoad(sqlFiles, "statements", db.Dialect())
+	stmts := db.Catalog.MustCompile(sqlFiles, "statements", db.Dialect())
 	return &Service{
-		db: db, migrator: m, logger: logger, seed: opts.Seed,
-		src:        src,
-		seedOrg:    query.Scan(src.Statement("seed_organization"), query.Scalar[string]),
-		findOrg:    query.Scan(src.Statement("find_organization"), query.Scalar[string]),
-		seedPerson: src.Statement("seed_person"),
+		db: db.DB, catalog: db.Catalog, migrator: m, logger: logger, seed: opts.Seed,
+		stmts:      stmts,
+		seedOrg:    query.Scan(stmts.Statement("seed_organization"), query.Scalar[string]),
+		findOrg:    query.Scan(stmts.Statement("find_organization"), query.Scalar[string]),
+		seedPerson: stmts.Statement("seed_person"),
 	}, nil
 }
 
@@ -105,7 +108,7 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 	s.logger.Info("schema current", "version", v.Version)
-	if err := query.Verify(ctx, s.db, s.src); err != nil {
+	if err := query.Verify(ctx, s.db, s.stmts); err != nil {
 		s.ready.Store(false)
 		return err
 	}
@@ -119,11 +122,26 @@ func (s *Service) Start(ctx context.Context) error {
 	return nil
 }
 
+// Catalog reads the pattern catalog: the dump for inspection of what every
+// statement compiles against, so an operator sees a pattern's text, tier,
+// and slots as the library holds them. No I/O.
+func (s *Service) Catalog() Catalog {
+	c := Catalog{Namespaces: s.catalog.Namespaces()}
+	for _, p := range s.catalog.Patterns() {
+		slots := p.Slots
+		if slots == nil {
+			slots = []string{}
+		}
+		c.Patterns = append(c.Patterns, Pattern{Namespace: p.Namespace, Name: p.Name, Tier: string(p.Tier), Native: p.Native, Slots: slots, Text: p.Text})
+	}
+	return c
+}
+
 // Diagnose reads the database's health. The version query is the one
 // native-tier read here; every engine spells it differently.
 func (s *Service) Diagnose(ctx context.Context) (Diagnostics, error) {
 	base := s.db.Base()
-	d := Diagnostics{Dialect: base.Dialect().Name()}
+	d := Diagnostics{Dialect: base.Dialect().Name(), Namespaces: s.catalog.Namespaces()}
 	start := time.Now()
 	if err := base.Ping(ctx); err != nil {
 		return d, fmt.Errorf("ping: %w", err)
@@ -178,7 +196,7 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 func (s *Service) Verify(ctx context.Context) error {
 	err := s.migrator.Verify(ctx)
 	if err == nil {
-		err = query.Verify(ctx, s.db, s.src)
+		err = query.Verify(ctx, s.db, s.stmts)
 	}
 	s.ready.Store(err == nil)
 	return err

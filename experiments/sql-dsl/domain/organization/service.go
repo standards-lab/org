@@ -6,8 +6,8 @@ import (
 
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/go-web-sdk"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/sdk"
-	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
 // ErrCycle reports a transfer whose new parent sits inside the
@@ -28,7 +28,7 @@ type Service struct {
 
 // New constructs the service over the session it reads from. Construction
 // loads and binds the statements and performs no I/O.
-func New(db *sqldb.DB) *Service {
+func New(db *data.Database) *Service {
 	return &Service{store: newStore(db)}
 }
 
@@ -42,7 +42,7 @@ func (s *Service) Register(lc *lifecycle.Coordinator) {
 func (s *Service) Verify(ctx context.Context) error { return s.store.Verify(ctx) }
 
 // List returns one page of organizations and the total count, honoring the
-// parsed query's directives and exact-match filters. An unknown sort or
+// parsed query's declarations and exact-match filters. An unknown sort or
 // filter field, or a value the engine cannot read, unwraps to
 // query.ErrDirectives.
 func (s *Service) List(ctx context.Context, q web.Query) ([]Organization, int, error) {

@@ -23,11 +23,11 @@ func (e *ArgumentError) Error() string {
 }
 
 // ErrDirectives is the request sentinel: every error a read request's
-// directives can cause unwraps to it, so a consumer's matcher is one
+// declarations can cause unwraps to it, so a consumer's matcher is one
 // errors.Is for 400.
-var ErrDirectives = errors.New("query: invalid directives")
+var ErrDirectives = errors.New("query: invalid declarations")
 
-// FieldUse names the directive position where a contract field was
+// FieldUse names the declaration position where a contract field was
 // referenced, carried by UnknownFieldError.
 type FieldUse string
 

@@ -19,7 +19,7 @@ type handler struct {
 }
 
 // Routes builds the admin domain's route group, rooted at /database. Reads:
-// diagnostics and the schema status. Operations: verify, up, down, steps,
+// diagnostics, the schema status, and the pattern catalog. Operations: verify, up, down, steps,
 // force, each a POST whose response is the resulting status, and seed,
 // whose response is the rows it inserted. force sets the history without
 // running any file — the operator's override for dirty state, after the
@@ -33,6 +33,7 @@ func Routes(service *Service) *web.Group {
 	g := web.NewGroup("/database")
 	g.HandleFunc("GET", "/diagnostics", h.diagnostics)
 	g.HandleFunc("GET", "/schema", h.status)
+	g.HandleFunc("GET", "/patterns", h.patterns)
 	g.HandleFunc("POST", "/schema/verify", h.verify)
 	g.HandleFunc("POST", "/schema/up", h.up)
 	g.HandleFunc("POST", "/schema/down", h.down)
@@ -49,6 +50,10 @@ func (h *handler) seed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = web.WriteJSON(w, http.StatusOK, n)
+}
+
+func (h *handler) patterns(w http.ResponseWriter, r *http.Request) {
+	_ = web.WriteJSON(w, http.StatusOK, h.service.Catalog())
 }
 
 func (h *handler) diagnostics(w http.ResponseWriter, r *http.Request) {

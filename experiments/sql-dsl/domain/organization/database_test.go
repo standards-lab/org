@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"github.com/standards-lab/go-web-sdk"
+	"github.com/standards-lab/org/experiments/sql-dsl/admin/database"
 	"github.com/standards-lab/org/experiments/sql-dsl/domain/organization"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -26,7 +29,7 @@ const (
 func service(t *testing.T, responses ...drivertest.Response) (*organization.Service, *drivertest.Recorder) {
 	t.Helper()
 	base, rec := drivertest.DB(t, responses...)
-	return organization.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))), rec
+	return organization.New(data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), database.Patterns()))), rec
 }
 
 func identity(id string, version int64) drivertest.Response {

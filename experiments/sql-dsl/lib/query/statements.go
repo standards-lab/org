@@ -15,24 +15,26 @@ import (
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqlheader"
 )
 
-// Source is a domain's statements, loaded from one directory: the inventory
+// Statements is a domain's statements, compiled from one directory: the inventory
 // the verification step and the management surface walk, keyed by file
 // name. It is not a registry; a domain fetches each statement once at
 // wiring.
-type Source struct {
+type Statements struct {
 	statements map[string]Statement
 }
 
-// Load reads every .sql file under dir in fsys, parses its header, and
-// resolves its parameters against d's placeholders. A file without a
-// header, with an unknown directive, or with a header the grammar rejects
-// is a load error naming the file; the domain treats it as a wiring defect.
-func Load(fsys fs.FS, dir string, d database.Dialect) (*Source, error) {
+// Compile reads every .sql file under dir in fsys, parses its
+// header, expands its includes against the catalog, and resolves its
+// parameters against d's placeholders. A file without a header, with an
+// unknown declaration, with a header the grammar rejects, or with an include
+// the catalog cannot resolve is a load error naming the file; the domain
+// treats it as a wiring defect.
+func (c *Catalog) Compile(fsys fs.FS, dir string, d database.Dialect) (*Statements, error) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return nil, fmt.Errorf("query: read %s: %w", dir, err)
 	}
-	src := &Source{statements: map[string]Statement{}}
+	stmts := &Statements{statements: map[string]Statement{}}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
 			continue
@@ -41,27 +43,28 @@ func Load(fsys fs.FS, dir string, d database.Dialect) (*Source, error) {
 		if err != nil {
 			return nil, fmt.Errorf("query: read %s: %w", e.Name(), err)
 		}
-		st, err := parse(strings.TrimSuffix(e.Name(), ".sql"), string(text), d)
+		st, err := c.parse(strings.TrimSuffix(e.Name(), ".sql"), string(text), d)
 		if err != nil {
 			return nil, fmt.Errorf("query: %s: %w", e.Name(), err)
 		}
-		src.statements[st.name] = st
+		stmts.statements[st.name] = st
 	}
-	return src, nil
+	return stmts, nil
 }
 
-// MustLoad is Load for wiring functions, where a load error is a defect.
-func MustLoad(fsys fs.FS, dir string, d database.Dialect) *Source {
-	src, err := Load(fsys, dir, d)
+// MustCompile is Compile for wiring functions, where a
+// load error is a defect.
+func (c *Catalog) MustCompile(fsys fs.FS, dir string, d database.Dialect) *Statements {
+	stmts, err := c.Compile(fsys, dir, d)
 	if err != nil {
 		panic(err)
 	}
-	return src
+	return stmts
 }
 
 // Statement returns the statement named by its file's base name; a missing
 // name is a wiring defect and panics.
-func (s *Source) Statement(name string) Statement {
+func (s *Statements) Statement(name string) Statement {
 	st, ok := s.statements[name]
 	if !ok {
 		panic(fmt.Sprintf("query: no statement %q", name))
@@ -70,7 +73,7 @@ func (s *Source) Statement(name string) Statement {
 }
 
 // Statements returns the inventory in name order.
-func (s *Source) Statements() []Statement {
+func (s *Statements) Statements() []Statement {
 	out := make([]Statement, 0, len(s.statements))
 	for _, st := range s.statements {
 		out = append(out, st)
@@ -82,7 +85,7 @@ func (s *Source) Statements() []Statement {
 // Verify prepares every statement against db, so a reference the schema no
 // longer satisfies fails here rather than at first request. Every failure is
 // reported, joined, each naming its statement.
-func (s *Source) Verify(ctx context.Context, db sqldb.Session) error {
+func (s *Statements) Verify(ctx context.Context, db sqldb.Session) error {
 	var errs []error
 	for _, st := range s.Statements() {
 		stmt, err := db.PrepareContext(ctx, st.text)
@@ -95,7 +98,7 @@ func (s *Source) Verify(ctx context.Context, db sqldb.Session) error {
 	return errors.Join(errs...)
 }
 
-// Verifier is what Verify composes: a Source, a Projection, anything that
+// Verifier is what Verify composes: Statements, a Projection, anything that
 // can check itself against the live schema.
 type Verifier interface {
 	Verify(ctx context.Context, db sqldb.Session) error
@@ -119,22 +122,22 @@ func Verify(ctx context.Context, db sqldb.Session, vs ...Verifier) error {
 // (standard | native); native required when the tier is native, the reach
 // and the port as free text; transaction optional (required); key optional,
 // naming a field; field repeated, "<name> <type>", the name an identifier.
-func parse(name, text string, d database.Dialect) (Statement, error) {
-	st := Statement{name: name, dialect: d}
+func (c *Catalog) parse(name, text string, d database.Dialect) (Statement, error) {
+	st := Statement{name: name, dialect: d, catalog: c}
 	h, err := sqlheader.Parse(text)
 	if err != nil {
 		return st, err
 	}
-	for _, dir := range h.Directives() {
+	for _, dir := range h.Declarations() {
 		switch dir.Key {
 		case "tier", "native", "transaction", "key", "field":
 		default:
-			return st, fmt.Errorf("line %d: unknown directive %q", dir.Line, dir.Key)
+			return st, fmt.Errorf("line %d: unknown declaration %q", dir.Line, dir.Key)
 		}
 	}
 	tier, ok := h.Get("tier")
 	if !ok {
-		return st, errors.New("no tier directive")
+		return st, errors.New("no tier declaration")
 	}
 	switch Tier(tier) {
 	case TierStandard, TierNative:
@@ -144,14 +147,14 @@ func parse(name, text string, d database.Dialect) (Statement, error) {
 	}
 	st.native, _ = h.Get("native")
 	if st.tier == TierNative && st.native == "" {
-		return st, errors.New("a native statement declares its reach and port in a native directive")
+		return st, errors.New("a native statement declares its reach and port in a native declaration")
 	}
 	if st.tier == TierStandard && st.native != "" {
-		return st, errors.New("a standard statement has no native directive")
+		return st, errors.New("a standard statement has no native declaration")
 	}
 	if tx, ok := h.Get("transaction"); ok {
 		if tx != "required" {
-			return st, fmt.Errorf("transaction directive %q is not required", tx)
+			return st, fmt.Errorf("transaction declaration %q is not required", tx)
 		}
 		st.txRequired = true
 	}
@@ -159,7 +162,7 @@ func parse(name, text string, d database.Dialect) (Statement, error) {
 		fname, typ, ok := strings.Cut(f, " ")
 		typ = strings.TrimSpace(typ)
 		if !ok || !identifier.MatchString(fname) || !sqlType.MatchString(typ) {
-			return st, fmt.Errorf("field directive %q is not \"<name> <type>\"", f)
+			return st, fmt.Errorf("field declaration %q is not \"<name> <type>\"", f)
 		}
 		st.fields = append(st.fields, Field{Name: fname, Type: typ})
 	}
@@ -173,7 +176,7 @@ func parse(name, text string, d database.Dialect) (Statement, error) {
 		}
 		st.key = key
 	}
-	body, err := expand(strings.TrimRight(strings.TrimSpace(text[h.End():]), ";"))
+	body, err := c.expand(strings.TrimRight(strings.TrimSpace(text[h.End():]), ";"), st.tier)
 	if err != nil {
 		return st, err
 	}

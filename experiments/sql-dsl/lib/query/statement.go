@@ -33,9 +33,11 @@ type Field struct {
 // command and its narrower check.
 type Args map[string]any
 
-// Statement is one authored file, loaded: its text with the dialect's
-// placeholders, its parameters in position order, and its header. It is a
-// value, fetched by name once at wiring and held in a typed handle.
+// Statement is one authored file, compiled: its text with the dialect's
+// placeholders and its includes spliced, its parameters in position order,
+// and its header. It carries the catalog it compiled against as it carries
+// its dialect, so a projection over it composes from the same patterns. It
+// is a value, fetched by name once at wiring and held in a typed handle.
 type Statement struct {
 	name       string
 	text       string
@@ -46,7 +48,11 @@ type Statement struct {
 	key        string
 	fields     []Field
 	dialect    database.Dialect
+	catalog    *Catalog
 }
+
+// Catalog is the catalog the statement compiled against.
+func (st Statement) Catalog() *Catalog { return st.catalog }
 
 // Name is the file's base name without the .sql extension.
 func (st Statement) Name() string { return st.name }

@@ -39,7 +39,7 @@ var projectionFiles = fstest.MapFS{
 
 func projection(t *testing.T) query.Projection[person] {
 	t.Helper()
-	return query.Project(query.MustLoad(projectionFiles, "sql", drivertest.Dialect{}).Statement("person_view"), scanPerson)
+	return query.Project(catalog().MustCompile(projectionFiles, "sql", drivertest.Dialect{}).Statement("person_view"), scanPerson)
 }
 
 func count(n int64) drivertest.Response {
@@ -164,7 +164,7 @@ func TestList_DirectiveErrorsUnwrapToErrDirectivesBeforeAnyIO(t *testing.T) {
 		t.Errorf("unknown sort = %v", err)
 	}
 	if len(rec.Calls()) != 0 {
-		t.Errorf("rejected directives reached the driver: %v", rec.Ops())
+		t.Errorf("rejected declarations reached the driver: %v", rec.Ops())
 	}
 }
 
@@ -226,7 +226,7 @@ func TestVerify_ProbesEveryContractField(t *testing.T) {
 }
 
 func TestProject_RequiresAContractAndNoBaseParameters(t *testing.T) {
-	src := query.MustLoad(projectionFiles, "sql", drivertest.Dialect{})
+	stmts := catalog().MustCompile(projectionFiles, "sql", drivertest.Dialect{})
 	for _, name := range []string{"no_contract", "with_param"} {
 		func() {
 			defer func() {
@@ -234,7 +234,7 @@ func TestProject_RequiresAContractAndNoBaseParameters(t *testing.T) {
 					t.Errorf("Project(%s) did not panic", name)
 				}
 			}()
-			query.Project(src.Statement(name), scanPerson)
+			query.Project(stmts.Statement(name), scanPerson)
 		}()
 	}
 }

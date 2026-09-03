@@ -13,8 +13,10 @@ import (
 	"testing"
 
 	"github.com/standards-lab/org/experiments/sql-dsl/admin/database"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -47,7 +49,7 @@ func seedScript(fresh bool) []drivertest.Response {
 func newSeeding(t *testing.T, responses ...drivertest.Response) (*database.Service, *drivertest.Recorder) {
 	t.Helper()
 	base, rec := drivertest.DB(t, responses...)
-	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	db := data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), database.Patterns()))
 	s, err := database.New(db, slog.New(slog.DiscardHandler), database.Options{Seed: true})
 	if err != nil {
 		t.Fatal(err)

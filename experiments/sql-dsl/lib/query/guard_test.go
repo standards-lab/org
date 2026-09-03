@@ -21,8 +21,8 @@ var guardFiles = fstest.MapFS{
 
 func guard(t *testing.T) query.Guard {
 	t.Helper()
-	src := query.MustLoad(guardFiles, "sql", drivertest.Dialect{})
-	return query.Guarded(src.Statement("edit"), src.Statement("version"), "version")
+	stmts := catalog().MustCompile(guardFiles, "sql", drivertest.Dialect{})
+	return query.Guarded(stmts.Statement("edit"), stmts.Statement("version"), "version")
 }
 
 func versionRow(v int64) drivertest.Response {

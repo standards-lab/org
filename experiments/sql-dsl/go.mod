@@ -3,6 +3,7 @@ module github.com/standards-lab/org/experiments/sql-dsl
 go 1.27
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/standards-lab/go-core v0.3.0
 	github.com/standards-lab/go-database v0.3.0
 	github.com/standards-lab/go-database/postgres v0.2.0

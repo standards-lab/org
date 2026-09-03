@@ -8,16 +8,19 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 - **Directory:** a domain's statements live in `statements/` (renamed from `sql/` at the
   handoff, so the directory never reads as the builtin pattern namespace `sql`).
-- **Stage:** 1–10 approved (2026-09-03), each on the branch as its own commit. See the
-  decisions log and Q1.
-- **Next move:** stage 11 — the pattern catalog API as decided at the stage 10 review (see
-  the decisions log, "patterns and the application"): `Patterns`/`Builtin`/`As`/`Overlay`/
-  `NewCatalog`/`Catalog.Load`, `internal/data.Database`, `admin/database/patterns/` as the
-  application's namespace, a MySQL-shaped `Overlay` test for `sql.paging`, `sqlint.toml`.
-  Then iterate and close (12): the split rehearsal (`Wrap` over `*sql.DB`, `lib/` with no
-  go-database import) and the promotion recommendation.
+- **Stage:** 1–10 approved (2026-09-03), each on the branch as its own commit; stage 11
+  built and proven, awaiting review. See the decisions log and Q1.
+- **Next move:** the stage 11 review. Then stage 12: the split rehearsal (`sqldb.Wrap` over
+  a plain `*sql.DB`; `lib/` with go-database absent from its import graph, `split-check`
+  extended; `sqlint.toml`'s `sql` and `engine` switched from directories to package paths),
+  the promotion recommendation under Q5, the rewritten `v1.data.sql` breakdown, and the
+  concepts to capture at close: the content-patterns reference for the docs pass, soft
+  delete (`delete`/`restore`/`purge`), the reusable plumbing candidates, and the signature
+  cache (composed statements by signature, bounded per projection; the vocabulary is under
+  the stage 10 ontology entry).
 - **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
-  version 3, clean, no data.
+  version 3, seeded (7 organizations, 6 people); the stage 11 live proof created and
+  deleted its own rows.
 
 ## Running it
 
@@ -42,6 +45,50 @@ Notes: the `gonew` mise shim on this machine is broken (points at a missing go@1
 `go run golang.org/x/tools/cmd/gonew@latest …@v0.5.0` works, and the nested module's version
 is written `@v0.5.0`, not `@template/v0.5.0`.
 
+## Ontology
+
+The library's vocabulary as settled at the stage 11 review (the architect, 2026-09-03),
+in the layers the words belong to. Two acts produce statements, compile and compose; one
+consumes them, execute.
+
+**Text** — SQL as written, never sent as written. A **pattern** is protocol SQL any
+package publishes under a **namespace**: a header and a body holding **slots** only, never
+an include. A slot is a `{{name}}` hole: composed, the library fills it with text it
+composed; included, it passes through and compiles as a parameter of the including
+statement. An authored file's **header** is its `--|` **declarations** — tier, native,
+transaction, key, field — the loader's and never the engine's; the **body** is what the
+engine receives. The **tier** is declared portability, standard or native, a native file
+naming the reach used and the port. A **parameter** is a statement's named input,
+`{{name}}` or `{{name:type}}`; an **include**, `{{> ns.name}}`, is a statement's reference
+to a pattern. **Protocol** SQL, which every domain would write identically, may be a
+pattern; **content** SQL is the domain's own and never is.
+
+**Catalog** — built once at the composition root, read-only after. A **pattern source** is
+one namespace's patterns as declared: a directory plus any **overlays**, an engine's
+replacement of patterns by name with the same slots; an **alias** registers a source under
+another namespace. The **catalog** is the registered sources, read and validated, the
+context every statement compiles against.
+
+**Statements** — a **statement** is compiled SQL text with parameters; it holds no values.
+**Compile** turns an authored file, against the catalog and the dialect, into a statement:
+includes spliced, parameters positional. A domain's **statements** (`query.Statements`) are
+its compiled inventory, and **verify** prepares each against the live schema at startup.
+
+**Handles** — a statement bound at wiring to what runs it: `Statement` for a command,
+`Rows[T]` with a scan, `Projection[T]` over a **base** — the authored query the collection
+read wraps as a derived table, declaring its **key** and **field contract** — and `Guard`
+over a **command** and its **check**. A domain holds handles, never text; the **mapper**
+(`Scanner[T]`, `ArgsOf`) makes the entities' tags the scan and binding contract.
+
+**Execution** — a read's **directives** are page, sorts, filters; its **signature** is the
+directives with the values abstracted: field and operator pairs, sort terms, the paging
+flag. **Compose** turns a base, the catalog's patterns, and a signature into a statement,
+once per signature when cached. **Arguments** are the values a request binds to
+parameters by name; **execute** runs a statement with them through a **session** — the
+pool or a transaction — every error mapped through the **dialect**, the engine's
+spellings. The signature cache (a promotion concept) is composed statements by signature,
+bounded per projection.
+
 ## Q1 — Catalog composition
 
 _Baseline (stage 8–9), shape A load-time stitching (stage 10), shape B build-time generation
@@ -61,8 +108,25 @@ unchanged), lint reach is preserved because `sqlint` lints the patterns director
 `statements/` directory and `Load` expands includes before `Verify` prepares, and editor reach is
 better, since the pattern is a `.sql` file. What Go still owns is exactly what cannot be
 text. The `Pager` capability is gone: a port overrides `paging.sql` by name, which is stage
-11's mechanism. Patterns hold slots only and never include other patterns (an internal test
-asserts it), so a pattern is readable on its own.
+11's mechanism. Patterns hold slots only and never include other patterns (the catalog
+refuses one that does), so a pattern is readable on its own.
+
+**Stage 11, external sourcing proven.** Patterns are sourced from any `fs.FS` under a
+namespace, and the catalog is built once at the composition root: `query.Patterns()` (the
+library's, namespace `sql`, aliasable with `As`), `database.Patterns()` (the application's,
+namespace `app`, from `admin/database/patterns/`), and for a port `Patterns().Overlay(fs,
+dir)`. `NewCatalog` validates every source — tier declared, a native pattern names its port,
+slots only, an overlay respells only a pattern its source defines and with the same slots,
+no namespace twice — and joins every failure. `Catalog.Compile` replaces the
+package-level `Load`; a `Statement` carries its catalog as it carries its dialect, so a
+projection composes from the catalog its base compiled against. Two checks the catalog
+adds: a native pattern spliced into a standard-tier statement is a load error (it would hide
+the port), and the request-time patterns resolve under whatever namespace `Builtin`
+registered as. The port proof is a MySQL-shaped overlay of `sql.paging` (`LIMIT {{fetch}}
+OFFSET {{offset}}`): the collection read composes with the port's spelling and binds offset
+then fetch as before, whatever order the port's text names them in. The first application
+pattern is `app.identity` (`RETURNING id, version`), ending both domains' `create`; the
+domains define no patterns.
 
 Narrowed at the stage 6 review (the architect, 2026-09-02): build-time generation is set
 aside. A query shaped by request state can only be composed on demand, and build-time output
@@ -335,11 +399,40 @@ and what stays service-side, with the reason._
 `lib/sqlheader` is shared by `query` and `migrate` and knows no keys; in go-database it is
 an internal package unless a consumer outside the module needs the grammar.
 
-**`cmd/sqlint`** (stage 9) is the checkable-rules half the strategy assigns to the harness
-(`claude-plugins`, the hardening task): every `statements/` directory loads, a file is named for
-its operation, `{{` appears in no body comment or literal, a standard-tier file uses none
-of a known list of native forms, a non-transactional migration holds one statement. It runs
-in `mise run lint`; the list of native forms is the promotion's first port-list input.
+**`cmd/sqlint`** (stage 9, configured at stage 11) is the checkable-rules half the
+strategy assigns to the harness (`claude-plugins`, the hardening task): every statement
+directory compiles against the pattern sources the runtime registers, every pattern
+directory validates as a catalog source, a file is named for its operation, `{{` appears in
+no body comment or literal, a standard-tier file uses none of the native forms the
+configured engine declares, a non-transactional migration holds one statement. It runs in
+`mise run lint`. Its `sqlint.toml` (the architect's design, stage 11): a table per role
+(`statements`, `patterns`, `migrations`) holding the directory globs it covers and the
+switches of its checks, with a directory set's exception written as an override table under
+its own glob, quoted as a key; `[sources]` mapping each namespace to a path, and `engine` a
+path, where a value whose first segment holds a dot is a Go package path resolved through
+`go list` to the version `go.mod` pins and anything else a directory of the tree. A
+**producer** — a package path, or a directory holding its own `sqlint.toml` — declares in
+its `[export]` table what a consumer reads: the directory its namespace publishes, or the
+overlay directory and the native forms an engine supplies; a bare directory is the pattern
+files themselves, the service's own namespace declared entirely in the root file, which
+exports nothing because nothing consumes it. A consumer inherits a producer's declarations
+and never its checks. The lint reads one file, the root's; a producer's file is read only
+through a reference, so the library's own role tables are inert until it is a module.
+Native forms are a named table of regular expressions (RE2) in the engine's export —
+`returning = '(?i)\bRETURNING\b'` — so the engine states the position and case in which a
+spelling counts, and the finding carries the name; the lint strips string literals and the
+comment tail before matching, since data versus syntax is SQL's property, not the engine's,
+and compiles each expression when the engine resolves, so a malformed one is a
+configuration finding. A test drives every entry of the real PostgreSQL declaration once
+and a silent file of identifiers, literals, and comments; tokenizing is the promotion
+refinement for what substring context still cannot see (a quoted identifier). The lint
+imports no engine and holds no list of its own; at the split `sql = "lib/query"` becomes
+`"github.com/standards-lab/go-sql"` with no other change. Promotion (the architect, stage
+11 review): `cmd/sqlint/main.go` reduces to arguments, root, output, and the exit code; a
+public `sqlint` package carries `Config` and `Load`, a `Resolver` over `go list`,
+`Lint(fs, cfg, resolver) []Finding` with a typed `Finding{Path, Line, Message}`, one file
+per role's checks, and the glob matcher — so the harness can call the lint as a package.
+Each engine sub-module ships its `sqlint.toml`.
 
 **`internal/sdk`** (stage 8) stages `IfMatch`/`PreconditionError` for go-web-sdk and
 `Directives(web.Query)` for the service side — the latter cannot live in go-web-sdk (it
@@ -440,6 +533,44 @@ _Anything deferred, with the decision it would change._
 
 ## Decisions log
 
+- 2026-09-03 · **Stage 11.** The pattern catalog API: `query.Publish(namespace, fs, dir)`,
+  `Patterns()`, `As`, `Overlay`, `NewCatalog`/`MustCatalog`, `Catalog.Compile`/
+  `MustCompile` replacing `Load`/`MustLoad` and the global `patterns`; a
+  `Statement` carries its catalog. `internal/data.Database{*sqldb.DB; Catalog}`, built in
+  `newInfrastructure` with `query.NewCatalog(query.Patterns(), database.Patterns())`, handed
+  to every domain's and the admin service's `New`. `admin/database/patterns/` is the
+  application's namespace `app`; its first pattern, `identity`, ends both `create`
+  statements. The MySQL-shaped overlay test proves the port. `sqlint` rewritten over
+  `sqlint.toml` as the architect designed it in this session (details under Q5): per-role
+  tables with quoted-glob overrides — the list form kept over named directory sets because
+  TOML tables are unordered and the override key duplicates only the glob — sources and the
+  engine as paths, `[export]` in each producer (`lib/query`, `lib/pgdialect`,
+  `admin/database`), native forms moved out of the lint. Decoding rules: an override key
+  must equal a `dirs` entry, holds switches only, and the first matching `dirs` entry wins;
+  absent the file, the roles are `**/statements`, `**/patterns`, `**/migrations` with every
+  check on and no source, so an include is a load error. Dependency added:
+  `github.com/BurntSushi/toml`. Review renames (the architect): `Catalog.CompileStatements`
+  → `Catalog.Compile`; `query.Source` → `query.Statements`, so "source" means only a
+  pattern source; `sqlheader.Directive` → `Declaration`, so "directive" means only a read's
+  directives. The read's "shape" is its **signature**; the vocabulary is under the stage
+  10 ontology entry and the Ontology section. Section 2 of the review: `PatternSource` →
+  `query.Source`, `query.Patterns(ns, fs, dir)` → `query.Publish` (the ontology's verb),
+  `query.Builtin()` → `query.Patterns()`, so every publisher exposes `Patterns()` and the
+  root reads `query.NewCatalog(query.Patterns(), database.Patterns())`; `internal/data`
+  stays, the goal's own word at the application level; `GET /admin/database/patterns`
+  reads the catalog — the dump for inspection the stage 6 review named — and diagnostics
+  lists the namespaces. A cross-domain statements inventory waits on domains registering
+  their `Statements` with the admin service, a stage 12 or promotion question. Whether the
+  session-with-catalog grouping moves into the library once `sqldb` wraps a plain `*sql.DB`
+  is on the stage 12 list. Section 3: the producer-or-directory rule for sources and
+  overlays (`admin/database/sqlint.toml` removed; `app = "admin/database/patterns"`), native
+  forms as named regular expressions in the engine's export with literal and comment
+  stripping, the every-form-once test over the real declaration, and the `cmd/sqlint`
+  decomposition recorded under Q5 for promotion. Proven live (PostgreSQL 18.4): startup verified both domains
+  and the admin statements with includes resolved from two namespaces; organization create
+  → edit → delete and person create → delete through `app.identity` and the guards; `mise
+  run lint` and `split-check` clean; the compose suite green.
+
 - 2026-09-02 · **Stage 1 review.** Schema operations and diagnostics are not server
   sub-commands. They are an administrative layer: the **admin mount** (`/admin`, beside `/api`)
   serves the route groups of **admin domains** (`internal/admin/<service>`, one per
@@ -517,10 +648,10 @@ _Anything deferred, with the decision it would change._
   cannot (the domains import it): `internal/data.Database`, built in `newInfrastructure`,
   handed to every domain's and the admin service's `New`; the template scaffolds it. The
   lint is `sqlint`. Stage 11's design, decided here: no package-level catalog or global —
-  `query.Patterns(namespace, fs, dir)`, `query.Builtin()` (namespace `sql`, aliasable with
-  `As`), `PatternSource.Overlay(fs, dir)` for explicit same-name replacement (an engine's
+  `query.Publish(namespace, fs, dir)`, `query.Patterns()` (namespace `sql`, aliasable with
+  `As`), `Source.Overlay(fs, dir)` for explicit same-name replacement (an engine's
   `sql.paging`), `query.NewCatalog(sources...)` validating each pattern's tier and slots
-  and refusing a duplicate namespace, and `Catalog.CompileStatements`/`MustCompileStatements` replacing `query.Load` — named for
+  and refusing a duplicate namespace, and `Catalog.Compile`/`MustCompile` replacing `query.Load` — named for
   what it does: compile a domain's statements (includes resolved, parameters positional)
   against a catalog the composition root already built, after a reader took
   `Catalog.Load` for loading the catalog — so a `Statement`
@@ -538,7 +669,7 @@ _Anything deferred, with the decision it would change._
   `{{> sql.guard_where}}`, `sql` the library's namespace — so origin is visible and
   collisions impossible; a bare include is a load error. The boundary is not library
   versus domain: a domain's `patterns/` registers like the library's. Stage 11 builds the
-  registry (`query.Patterns(namespace, fs.FS)`, `Load` sourcing from it), override
+  registry (`query.Publish(namespace, fs.FS)`, `Load` sourcing from it), override
   precedence for the library's request-time patterns (an engine supplies `sql.paging`),
   namespace aliasing at registration as the last resort against a collision, and
   `sqlint.toml` — roles as directory globs, checks switchable, the native-forms list
@@ -546,6 +677,16 @@ _Anything deferred, with the decision it would change._
   promotion: a bounded cache of the collection read's composed text keyed by directive
   shape, so the driver reuses prepared statements; includes are already compiled once at
   load, and only the collection read composes on demand.
+  *Vocabulary settled at the stage 11 review (the architect, 2026-09-03):* "shape" above is
+  the read's **signature** — its directives with the values abstracted: the predicates as
+  field and operator pairs (and an `in` list's arity), the sort terms, the paging flag. A
+  **statement** is compiled text with parameters and holds no values; values are the
+  **arguments** a request binds at execution. Three verbs meet at that noun: **compile** an
+  authored file against the catalog into a statement, once at load; **compose** a base
+  statement, the catalog's patterns, and a signature into a statement, once per signature
+  when cached; **execute** a statement with arguments, every request. The cache is composed
+  statements by signature, bounded per projection. "Compose" is the request-time verb, never
+  "generate": build-time generation is the shape the stage 6 review set aside.
 - 2026-09-03 · **Stage 10.** The pattern catalog: twenty-two authored patterns under
   `lib/query/patterns/`, rendered at request time for the collection read and spliced at
   load time through `{{> name}}` includes; both domains' guarded commands on

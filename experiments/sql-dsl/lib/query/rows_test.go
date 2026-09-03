@@ -49,9 +49,13 @@ var testFiles = fstest.MapFS{
 	"sql/in_tree.sql": {Data: []byte("--| tier: standard\nSELECT COUNT(*) FROM t WHERE node = {{node}} AND (a = {{candidate}} OR b = {{node}})")},
 }
 
-func source(t *testing.T) *query.Source {
+// catalog is the library's own patterns, the catalog every test compiles
+// against unless it registers more.
+func catalog() *query.Catalog { return query.MustCatalog(query.Patterns()) }
+
+func source(t *testing.T) *query.Statements {
 	t.Helper()
-	return query.MustLoad(testFiles, "sql", drivertest.Dialect{})
+	return catalog().MustCompile(testFiles, "sql", drivertest.Dialect{})
 }
 
 func TestExec_BindsByNameInPositionOrder(t *testing.T) {
@@ -92,9 +96,9 @@ func TestExec_RepeatedNameBindsOnce(t *testing.T) {
 
 func TestRows_OneAllEach(t *testing.T) {
 	ctx := context.Background()
-	src := source(t)
-	all := query.Scan(src.Statement("all"), scanOrg)
-	byID := query.Scan(src.Statement("by_id"), scanOrg)
+	stmts := source(t)
+	all := query.Scan(stmts.Statement("all"), scanOrg)
+	byID := query.Scan(stmts.Statement("by_id"), scanOrg)
 
 	db, rec := session(t, orgRows(1), orgRows(0), orgRows(3), orgRows(3))
 	o, err := byID.One(ctx, db, query.Args{"id": "a"})

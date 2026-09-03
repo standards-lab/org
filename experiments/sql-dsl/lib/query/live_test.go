@@ -86,9 +86,9 @@ func TestLive_ProjectionAndGuard(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	src := query.MustLoad(liveFiles, "sql", db.Dialect())
-	view := query.Project(src.Statement("view"), scanRow)
-	if err := query.Verify(ctx, db, src, view); err != nil {
+	stmts := catalog().MustCompile(liveFiles, "sql", db.Dialect())
+	view := query.Project(stmts.Statement("view"), scanRow)
+	if err := query.Verify(ctx, db, stmts, view); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestLive_ProjectionAndGuard(t *testing.T) {
 		t.Errorf("One miss = %v", err)
 	}
 
-	edit := query.Guarded(src.Statement("edit"), src.Statement("version"), "version")
+	edit := query.Guarded(stmts.Statement("edit"), stmts.Statement("version"), "version")
 	v, err := edit.Run(ctx, db, 1, query.Args{"id": one.ID, "name": "B"})
 	if err != nil || v != 2 {
 		t.Fatalf("guard hit = %d, %v", v, err)

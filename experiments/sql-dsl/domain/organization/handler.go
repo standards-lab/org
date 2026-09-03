@@ -188,7 +188,7 @@ func decode[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 
 // status is the layer's error vocabulary as one web.StatusMatcher: the
 // precondition pair (428 missing, 400 malformed), the validation and
-// read-directive rejections (400), the missing row (404), the state
+// read-declaration rejections (400), the missing row (404), the state
 // conflicts — cycle, unique, foreign key — (409), and the failed version
 // precondition (412). The database's check and not-null violations stay
 // unmatched on purpose: service validation owns those rules, so a breach is

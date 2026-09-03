@@ -8,14 +8,17 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/standards-lab/go-web-sdk"
 	"github.com/standards-lab/org/experiments/sql-dsl/admin/database"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/drivertest"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/migrate"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
@@ -55,7 +58,7 @@ func applied() drivertest.Response {
 func newService(t *testing.T, responses ...drivertest.Response) (*database.Service, *drivertest.Recorder) {
 	t.Helper()
 	base, rec := drivertest.DB(t, responses...)
-	db := sqldb.Wrap(base, pgdialect.Wrap(base.Dialect()))
+	db := data.New(sqldb.Wrap(base, pgdialect.Wrap(base.Dialect())), query.MustCatalog(query.Patterns(), database.Patterns()))
 	s, err := database.New(db, slog.New(slog.DiscardHandler), database.Options{})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -178,6 +181,30 @@ func TestRoutes_SchemaStatusAndVerifyConflict(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "pending: [2 3]") {
 		t.Errorf("conflict problem carries no detail for the operator: %s", rr.Body)
+	}
+}
+
+// The catalog read is the dump for inspection: both namespaces, every
+// pattern with its tier and slots, and no I/O.
+func TestRoutes_PatternsReadTheCatalog(t *testing.T) {
+	s, rec := newService(t)
+	rr := httptest.NewRecorder()
+	router(s).ServeHTTP(rr, httptest.NewRequest("GET", "/admin/database/patterns", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET patterns = %d: %s", rr.Code, rr.Body)
+	}
+	var c database.Catalog
+	if err := json.Unmarshal(rr.Body.Bytes(), &c); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(c.Namespaces, []string{"app", "sql"}) || len(c.Patterns) != 23 {
+		t.Errorf("catalog = %v, %d patterns", c.Namespaces, len(c.Patterns))
+	}
+	if p := c.Patterns[0]; p.Namespace != "app" || p.Name != "identity" || p.Tier != "native" || p.Native == "" || p.Slots == nil || len(p.Slots) != 0 || p.Text != "RETURNING id, version" {
+		t.Errorf("first entry = %+v", p)
+	}
+	if len(rec.Calls()) != 0 {
+		t.Errorf("the catalog read touched the database: %v", rec.Calls())
 	}
 }
 

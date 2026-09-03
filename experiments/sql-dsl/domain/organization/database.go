@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
@@ -26,7 +27,7 @@ const treeLock = "organization.tree"
 // sole importer of query.
 type store struct {
 	db            *sqldb.DB
-	src           *query.Source
+	stmts         *query.Statements
 	view          query.Projection[Organization]
 	createRows    query.Rows[Identity]
 	inSubtree     query.Rows[int64]
@@ -36,26 +37,26 @@ type store struct {
 	deleteGuard   query.Guard
 }
 
-func newStore(db *sqldb.DB) *store {
-	src := query.MustLoad(files, "statements", db.Dialect())
-	check := src.Statement("version")
+func newStore(db *data.Database) *store {
+	stmts := db.Catalog.MustCompile(files, "statements", db.Dialect())
+	check := stmts.Statement("version")
 	return &store{
-		db:            db,
-		src:           src,
-		view:          query.Project(src.Statement("organization_view"), query.Scanner[Organization]()),
-		createRows:    query.Scan(src.Statement("create"), query.Scanner[Identity]()),
-		inSubtree:     query.Scan(src.Statement("in_subtree"), query.Scalar[int64]),
-		lockTree:      src.Statement("lock_tree"),
-		editGuard:     query.Guarded(src.Statement("edit"), check, "version"),
-		transferGuard: query.Guarded(src.Statement("transfer"), check, "version"),
-		deleteGuard:   query.Guarded(src.Statement("delete"), check, "version"),
+		db:            db.DB,
+		stmts:         stmts,
+		view:          query.Project(stmts.Statement("organization_view"), query.Scanner[Organization]()),
+		createRows:    query.Scan(stmts.Statement("create"), query.Scanner[Identity]()),
+		inSubtree:     query.Scan(stmts.Statement("in_subtree"), query.Scalar[int64]),
+		lockTree:      stmts.Statement("lock_tree"),
+		editGuard:     query.Guarded(stmts.Statement("edit"), check, "version"),
+		transferGuard: query.Guarded(stmts.Statement("transfer"), check, "version"),
+		deleteGuard:   query.Guarded(stmts.Statement("delete"), check, "version"),
 	}
 }
 
 // Verify prepares every statement and the projection's field contract
 // against the live schema.
 func (s *store) Verify(ctx context.Context) error {
-	return query.Verify(ctx, s.db, s.src, s.view)
+	return query.Verify(ctx, s.db, s.stmts, s.view)
 }
 
 func (s *store) list(ctx context.Context, d query.Directives) ([]Organization, int, error) {

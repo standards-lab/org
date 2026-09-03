@@ -14,7 +14,7 @@ func TestFiles_ParsesTheLayoutAndTheTransactionHeader(t *testing.T) {
 		"m/0001_first.down.sql": {Data: []byte("DROP TABLE a")},
 		"m/0003_third.up.sql":   {Data: []byte("--| transaction: none\n-- built outside a transaction\n\nCREATE INDEX CONCURRENTLY ix ON a (x)")},
 		"m/0003_third.down.sql": {Data: []byte("--| transaction: none\nDROP INDEX CONCURRENTLY ix")},
-		"m/0002_second.up.sql":  {Data: []byte("-- a comment that is not a directive\nALTER TABLE a ADD y int")},
+		"m/0002_second.up.sql":  {Data: []byte("-- a comment that is not a declaration\nALTER TABLE a ADD y int")},
 		"m/notes.txt":           {Data: []byte("ignored? no: every file must match")},
 	}
 	if _, err := migrate.Files(fsys, "m"); err == nil || !strings.Contains(err.Error(), "notes.txt") {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/standards-lab/go-core/lifecycle"
 	"github.com/standards-lab/go-web-sdk"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/internal/sdk"
-	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
 // Stage is the lifecycle stage the domains verify their statements in.
@@ -20,7 +20,7 @@ type Service struct {
 
 // New constructs the service over the session; construction loads and
 // binds the statements and performs no I/O.
-func New(db *sqldb.DB) *Service { return &Service{store: newStore(db)} }
+func New(db *data.Database) *Service { return &Service{store: newStore(db)} }
 
 // Register declares the domain's startup verification on lc.
 func (s *Service) Register(lc *lifecycle.Coordinator) {
@@ -32,7 +32,7 @@ func (s *Service) Register(lc *lifecycle.Coordinator) {
 func (s *Service) Verify(ctx context.Context) error { return s.store.Verify(ctx) }
 
 // List returns one page of people and the total count under the parsed
-// query's directives.
+// query's declarations.
 func (s *Service) List(ctx context.Context, q web.Query) ([]Person, int, error) {
 	return s.store.list(ctx, sdk.Directives(q))
 }

@@ -13,11 +13,11 @@ import (
 // load parses one file through Load, the only public path to the scanner.
 func load(t *testing.T, text string) query.Statement {
 	t.Helper()
-	src, err := query.Load(fstest.MapFS{"sql/s.sql": {Data: []byte(text)}}, "sql", drivertest.Dialect{})
+	stmts, err := catalog().Compile(fstest.MapFS{"sql/s.sql": {Data: []byte(text)}}, "sql", drivertest.Dialect{})
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	return src.Statement("s")
+	return stmts.Statement("s")
 }
 
 func TestParams_Syntax(t *testing.T) {
@@ -49,7 +49,7 @@ func TestParams_Syntax(t *testing.T) {
 	}
 }
 
-// The header is not scanned and not sent: a {{ in a directive's prose is
+// The header is not scanned and not sent: a {{ in a declaration's prose is
 // neither a parameter nor an error, and the engine receives the body only.
 func TestParams_HeaderIsNotScannedOrSent(t *testing.T) {
 	st := load(t, "--| tier: native\n--| native: postgres — binds {{key}} to pg_advisory_xact_lock\n-- prose\n\nSELECT pg_advisory_xact_lock({{key}})")
@@ -71,7 +71,7 @@ func TestParams_MalformedIsALoadError(t *testing.T) {
 		"space in name":     "SELECT {{a b}}",
 	}
 	for name, body := range cases {
-		_, err := query.Load(fstest.MapFS{"sql/s.sql": {Data: []byte("--| tier: standard\n" + body)}}, "sql", drivertest.Dialect{})
+		_, err := catalog().Compile(fstest.MapFS{"sql/s.sql": {Data: []byte("--| tier: standard\n" + body)}}, "sql", drivertest.Dialect{})
 		if err == nil || !strings.Contains(err.Error(), "s.sql") {
 			t.Errorf("%s: err = %v, want a load error naming the file", name, err)
 		}

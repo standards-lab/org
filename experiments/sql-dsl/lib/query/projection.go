@@ -10,20 +10,20 @@ import (
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
 
-// Page is the 1-based page directive of a read: which page, and how many
+// Page is the 1-based page declaration of a read: which page, and how many
 // rows per page. Both must be at least 1.
 type Page struct {
 	Number int
 	Size   int
 }
 
-// Sort is one sort directive, naming a contract field.
+// Sort is one sort declaration, naming a contract field.
 type Sort struct {
 	Field      string
 	Descending bool
 }
 
-// Op is a filter directive's operator. The values are short strings so a
+// Op is a filter declaration's operator. The values are short strings so a
 // read contract can carry them verbatim.
 type Op string
 
@@ -40,7 +40,7 @@ const (
 	OpIn        Op = "in"
 )
 
-// Filter is one filter directive: a contract field, an operator, and the
+// Filter is one filter declaration: a contract field, an operator, and the
 // value. OpIsNull and OpIsNotNull ignore Value; OpIn requires a []any. A
 // value binds as given — a request's text included — cast to the field's
 // declared type, so the engine parses it and a value it cannot read is an
@@ -63,12 +63,13 @@ type Directives struct {
 // Projection is a base statement bound to a scan function and its declared
 // field contract: the typed handle for a collection read. The collection
 // pattern wraps the base as a derived table, so the base may be any query —
-// a recursive CTE, a join tree — and the only names a directive can
+// a recursive CTE, a join tree — and the only names a declaration can
 // reference are the base's output columns the header declared.
 //
-// Every fragment of the composed text is a pattern file under patterns/; this
-// code holds only what cannot be text: the whitelist check against the
-// header, list arity, and parameter positions.
+// Every piece of the composed text is a pattern of the library's namespace
+// in the base's catalog, as the library published it or an engine overlaid it;
+// this code holds only what cannot be text: the whitelist check against
+// the header, list arity, and parameter positions.
 type Projection[T any] struct {
 	base   Statement
 	scan   ScanFunc[T]
@@ -94,7 +95,7 @@ func Project[T any](base Statement, scan ScanFunc[T]) Projection[T] {
 // Statement returns the base.
 func (p Projection[T]) Statement() Statement { return p.base }
 
-// List runs the collection read: the page under the directives, and the
+// List runs the collection read: the page under the declarations, and the
 // total under the same filters. Sorts gain the key as the tie-breaker
 // whenever the caller did not sort by it, so offset paging is stable.
 func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) ([]T, int, error) {
@@ -114,7 +115,7 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 	}
 
 	var total int
-	rows, err := s.QueryContext(ctx, render("count", map[string]string{"base": p.base.text, "where": where}), args...)
+	rows, err := s.QueryContext(ctx, p.base.catalog.render("count", map[string]string{"base": p.base.text, "where": where}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -128,12 +129,12 @@ func (p Projection[T]) List(ctx context.Context, s sqldb.Session, d Directives) 
 	}
 	_ = rows.Close()
 
-	paging := render("paging", map[string]string{
+	paging := p.base.catalog.render("paging", map[string]string{
 		"offset": p.base.dialect.Placeholder(len(args) + 1),
 		"fetch":  p.base.dialect.Placeholder(len(args) + 2),
 	})
 	args = append(args, (d.Page.Number-1)*d.Page.Size, d.Page.Size)
-	rows, err = s.QueryContext(ctx, render("collection", map[string]string{"base": p.base.text, "where": where, "order": order, "paging": paging}), args...)
+	rows, err = s.QueryContext(ctx, p.base.catalog.render("collection", map[string]string{"base": p.base.text, "where": where, "order": order, "paging": paging}), args...)
 	if err != nil {
 		return nil, 0, p.engine(err)
 	}
@@ -161,7 +162,7 @@ func (p Projection[T]) One(ctx context.Context, s sqldb.Session, field string, v
 	if err != nil {
 		return zero, err
 	}
-	rows, err := s.QueryContext(ctx, render("one", map[string]string{"base": p.base.text, "where": where}), args...)
+	rows, err := s.QueryContext(ctx, p.base.catalog.render("one", map[string]string{"base": p.base.text, "where": where}), args...)
 	if err != nil {
 		return zero, p.engine(err)
 	}
@@ -186,7 +187,7 @@ func (p Projection[T]) Verify(ctx context.Context, db sqldb.Session) error {
 	for _, f := range p.base.fields {
 		cols = append(cols, "q."+f.Name)
 	}
-	stmt, err := db.PrepareContext(ctx, render("verify", map[string]string{"columns": strings.Join(cols, ", "), "base": p.base.text}))
+	stmt, err := db.PrepareContext(ctx, p.base.catalog.render("verify", map[string]string{"columns": strings.Join(cols, ", "), "base": p.base.text}))
 	if err != nil {
 		return fmt.Errorf("query: %s: field contract: %w", p.base.name, err)
 	}
@@ -203,7 +204,7 @@ func (p Projection[T]) where(filters []Filter) (string, []any, error) {
 	var args []any
 	value := func(field Field, v any) string {
 		args = append(args, v)
-		return render("value", map[string]string{"placeholder": p.base.dialect.Placeholder(len(args)), "type": field.Type})
+		return p.base.catalog.render("value", map[string]string{"placeholder": p.base.dialect.Placeholder(len(args)), "type": field.Type})
 	}
 	predicates := make([]string, 0, len(filters))
 	for _, f := range filters {
@@ -229,9 +230,9 @@ func (p Projection[T]) where(filters []Filter) (string, []any, error) {
 		default:
 			return "", nil, &UnknownOperatorError{Op: f.Op}
 		}
-		predicates = append(predicates, render("filter_"+string(f.Op), fill))
+		predicates = append(predicates, p.base.catalog.render("filter_"+string(f.Op), fill))
 	}
-	return render("where", map[string]string{"predicates": strings.Join(predicates, " AND ")}), args, nil
+	return p.base.catalog.render("where", map[string]string{"predicates": strings.Join(predicates, " AND ")}), args, nil
 }
 
 // order lowers the sorts to the ORDER BY clause, the key appended as the
@@ -248,13 +249,13 @@ func (p Projection[T]) order(sorts []Sort) (string, error) {
 		if s.Descending {
 			name = "order_term_desc"
 		}
-		terms = append(terms, render(name, map[string]string{"field": field.Name}))
+		terms = append(terms, p.base.catalog.render(name, map[string]string{"field": field.Name}))
 		keySorted = keySorted || s.Field == p.base.key
 	}
 	if !keySorted {
-		terms = append(terms, render("order_term", map[string]string{"field": p.base.key}))
+		terms = append(terms, p.base.catalog.render("order_term", map[string]string{"field": p.base.key}))
 	}
-	return render("order", map[string]string{"terms": strings.Join(terms, ", ")}), nil
+	return p.base.catalog.render("order", map[string]string{"terms": strings.Join(terms, ", ")}), nil
 }
 
 // engine classifies a query failure: a data exception is the request's

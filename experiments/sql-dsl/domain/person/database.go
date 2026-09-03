@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/standards-lab/go-database"
+	"github.com/standards-lab/org/experiments/sql-dsl/internal/data"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/query"
 	"github.com/standards-lab/org/experiments/sql-dsl/lib/sqldb"
 )
@@ -19,7 +20,7 @@ var files embed.FS
 // contract. It is the package's sole importer of query.
 type store struct {
 	db                *sqldb.DB
-	src               *query.Source
+	stmts             *query.Statements
 	view              query.Projection[Person]
 	createRows        query.Rows[Identity]
 	stateRows         query.Rows[state]
@@ -30,16 +31,16 @@ type store struct {
 	transferUnitGuard query.Guard
 }
 
-func newStore(db *sqldb.DB) *store {
-	src := query.MustLoad(files, "statements", db.Dialect())
-	check := src.Statement("version")
-	guard := func(name string) query.Guard { return query.Guarded(src.Statement(name), check, "version") }
+func newStore(db *data.Database) *store {
+	stmts := db.Catalog.MustCompile(files, "statements", db.Dialect())
+	check := stmts.Statement("version")
+	guard := func(name string) query.Guard { return query.Guarded(stmts.Statement(name), check, "version") }
 	return &store{
-		db:                db,
-		src:               src,
-		view:              query.Project(src.Statement("person_view"), query.Scanner[Person]()),
-		createRows:        query.Scan(src.Statement("create"), query.Scanner[Identity]()),
-		stateRows:         query.Scan(src.Statement("state"), query.Scanner[state]()),
+		db:                db.DB,
+		stmts:             stmts,
+		view:              query.Project(stmts.Statement("person_view"), query.Scanner[Person]()),
+		createRows:        query.Scan(stmts.Statement("create"), query.Scanner[Identity]()),
+		stateRows:         query.Scan(stmts.Statement("state"), query.Scanner[state]()),
 		editGuard:         guard("edit"),
 		deleteGuard:       guard("delete"),
 		activateGuard:     guard("activate"),
@@ -51,7 +52,7 @@ func newStore(db *sqldb.DB) *store {
 // Verify prepares every statement and the read contract against the live
 // schema.
 func (s *store) Verify(ctx context.Context) error {
-	return query.Verify(ctx, s.db, s.src, s.view)
+	return query.Verify(ctx, s.db, s.stmts, s.view)
 }
 
 func (s *store) list(ctx context.Context, d query.Directives) ([]Person, int, error) {

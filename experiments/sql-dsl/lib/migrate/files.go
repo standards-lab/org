@@ -26,7 +26,7 @@ var fileName = regexp.MustCompile(`^(\d+)_([A-Za-z0-9_-]+)\.(up|down)\.sql$`)
 
 // Files reads the NNNN_name.{up,down}.sql layout under dir in fsys into a
 // version-ordered set. The up file's "--|" header decides Transactional:
-// the "transaction" directive, "none" opting out and "required" or absence
+// the "transaction" declaration, "none" opting out and "required" or absence
 // keeping the transaction; a down file that declares differently is an
 // error. Up and Down are the files' bodies; the engine never sees a header.
 // Versions must be unique; a down without its up is an error; an up without
@@ -95,7 +95,7 @@ func Files(fsys fs.FS, dir string) ([]Migration, error) {
 }
 
 // header reads a file's header and returns whether the migration runs in a
-// transaction — "none" opts out, "required" or no directive keeps it, any
+// transaction — "none" opts out, "required" or no declaration keeps it, any
 // other value is an error — and the body the engine receives.
 func header(text string) (transactional bool, body string, err error) {
 	h, err := sqlheader.Parse(text)
@@ -109,6 +109,6 @@ func header(text string) (transactional bool, body string, err error) {
 	case v == "none":
 		return false, body, nil
 	default:
-		return false, "", fmt.Errorf("transaction directive %q is not required or none", v)
+		return false, "", fmt.Errorf("transaction declaration %q is not required or none", v)
 	}
 }
