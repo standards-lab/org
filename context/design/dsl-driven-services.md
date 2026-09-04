@@ -185,7 +185,8 @@ repository's guide documents them:
 - `sqlate/sqlint`, a sub-module: the conventions linter as a package over the TOML parser;
   `sqlint/cmd/sqlint` is its command. One `sqlint.toml` per module, at the module root; a
   source or engine is a module path, resolved through `go list -m`.
-- `sqlate/postgres`, a sub-module: placeholders, error classification, the lock, its own
+- `sqlate/postgres`, a sub-module: placeholders, error classification, the lock, the
+  server-version statement as a capability the admin service asserts (v0.1.1), its own
   `sqlint.toml`, and the integration tier's engine proofs. It adds no migration catalog, since
   the standard one serves PostgreSQL.
 
@@ -255,19 +256,23 @@ criteria of the session that built it.
 
 ## 5. go-database v0.4.0
 
-A breaking release. go-database keeps the infrastructure service: `Config` with the pool
-settings and the environment layer, the pool over the provider, lifecycle, and readiness. It
-drops `ast`, `operation`, `exec`, `seed`, `Session`, `Tx`, `Dialect`, and the constraint
-classes, all of which sqlate now owns. The `postgres` sub-module keeps the driver, the DSN, and
-pool construction, and no longer supplies a dialect; a composition root takes the dialect from
-`sqlate/postgres`.
+Released 2026-09-04 as v0.4.0, with postgres/v0.3.0, breaking. go-database keeps the
+infrastructure service: `Config` with the pool settings and the environment layer, the pool over
+the provider, lifecycle, and readiness. It dropped `ast`, `operation`, `exec`, `seed`, `Session`,
+`Tx`, `Dialect`, and the constraint classes, all of which sqlate owns. The `postgres` sub-module
+keeps the driver, the DSN, and pool construction, and supplies no dialect; a composition root
+takes the dialect from `sqlate/postgres`.
 
-It gains an `admin` package: the database admin service, generic over a migrator, a seeder, a
-catalog, and the pool. The service verifies, migrates, and seeds at startup and on demand, and
-every operation it exposes is a trigger over a library function. It lives in go-database rather
-than go-web-sdk because it depends on the pool, and a web SDK importing go-database would be an
-upward dependency. The HTTP half (the route group and handler) is small and stays application
-code that the template scaffolds.
+It gained the `admin` package: the database admin service, generic over a migrator the consumer
+builds, a `Seeder` whose `Seed` returns a count map, a `Registry` of compiled statements, the
+pattern catalog, and the pool. The service verifies, migrates, and seeds at startup and on
+demand, and every operation it exposes is a trigger over a library function. It lives in
+go-database rather than go-web-sdk because it depends on the pool, and a web SDK importing
+go-database would be an upward dependency. The HTTP half (the route group and handler) is small
+and stays application code that the template scaffolds. The server-version read is a dialect
+capability the `admin` package declares and `sqlate/postgres` implements, so engine-native text
+stays with the engine. The composition a root writes is `go-database/context/design/
+infrastructure-service.md`.
 
 ## 6. go-web-service
 
@@ -399,9 +404,9 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 ## 9. Sequence
 
 `goals.v1.data.sql.integration` carries the tasks in dependency order: `sqlate`, `database`,
-`websdk`, `template`, `service`, `listener`. The `service` task is a coordinated session, and
-go-database v0.4.0 releases together with the service change so the reference architecture
-demonstrates the split on release day. Then `docs`, `hardening`, and `suite` under
+`websdk`, `template`, `service`, `listener`. Each library releases when its task closes, since
+it depends on nothing above it, and the tasks above pin the release; the `service` task is a
+coordinated session that pins them all. Then `docs`, `hardening`, and `suite` under
 `goals.v1.data.sql`.
 
 ## 10. Open questions
@@ -455,3 +460,8 @@ demonstrates the split on release day. Then `docs`, `hardening`, and `suite` und
   struct-tag mapper; the guard as two statements; PRQL ruled out; and the service-side shape
   the template scaffolds (`internal/data`, the admin mount, the composition root as files, the
   entity roles). The library's vocabulary is the Ontology section of `NOTES.md`.
+- **2026-09-04, go-database v0.4.0.** The `database` task released the infrastructure service
+  and the `admin` package (§5), with postgres/v0.3.0 and the standalone build step in CI. The
+  server-version read became a capability of `sqlate/postgres` (v0.1.1) rather than a member of
+  `sqlate.Dialect`. The sequence (§9) no longer holds a library release for the service change:
+  each library releases as its task closes, and the tasks above pin it.

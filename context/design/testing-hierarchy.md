@@ -18,9 +18,9 @@ cost data that would justify them.
   every PR push and merge to main; green licenses merge. Needing no external service is the
   tier's contract, not a ceiling under review: fakes, scripted drivers, and port-0 listeners
   are how a package proves its behavior here. The tier is also the home of every cheap gate
-  that needs no container: the `GOWORK=off` per-module build steps in go-database (the v0.3.0
-  tag proved CI blind to pin breakage) and `sqlint` from the DSL strategy join it as
-  `v1.data.sql` lands them.
+  that needs no container: the `GOWORK=off` per-module build step in go-database (the v0.3.0
+  tag proved CI blind to pin breakage; the step landed with v0.4.0) and `sqlint` from the DSL
+  strategy, which joins it as `v1.data.sql` lands it.
 - **Integration tier** — the composed service, black-box, on merge. One build tag,
   `//go:build integration`, marks the suite; it runs against the service's own compose stack
   and exercises the service through its API. Triggers: push to main and `workflow_dispatch` —
