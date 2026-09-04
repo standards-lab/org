@@ -357,7 +357,7 @@ func codeOnly(line string, inBlock bool) (string, bool) {
 }
 
 // lintMigrations checks each migration's header and, for a
-// non-transactional file, that it holds one statement.
+// non-transactional file, that it contains exactly one statement.
 func (l *linter) lintMigrations(dir string, on map[string]bool) {
 	entries, _ := fs.ReadDir(l.fsys, dir)
 	for _, e := range entries {
@@ -374,7 +374,7 @@ func (l *linter) lintMigrations(dir string, on map[string]bool) {
 		if v, ok := h.Get("transaction"); ok && v == "none" && on["single_statement"] {
 			body := strings.TrimRight(strings.TrimSpace(string(text)[h.End():]), ";")
 			if strings.Contains(body, ";") {
-				l.report(p, 0, "a non-transactional migration holds one statement")
+				l.report(p, 0, "a non-transactional migration contains exactly one statement")
 			}
 		}
 	}
