@@ -3,8 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The DSL service integration continues with go-database v0.4.0 over sqlate v0.1.0.
-  "v1.data.sql.integration.database",
+  # The DSL service integration continues with go-web-sdk's three items over the released
+  # go-database v0.4.0.
+  "v1.data.sql.integration.websdk",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ listener; the docs and harness carry the principles. The strategy record holds t
 reasoning, the retrospective's breaking-window adjustments, and the prototype's.
 '''
 criteria = [
-  "sqlate v0.1.0 with its postgres sub-module released; go-database v0.4.0 and the service change that proves it release together; the organization domain runs on authored SQL end to end.",
+  "sqlate v0.1.0 with its postgres sub-module and go-database v0.4.0 with its admin package released; the organization domain runs on authored SQL end to end.",
   "cmd/db and golang-migrate are gone; verify/apply/seed are library mechanisms triggered by the composition root.",
   "The DSL-driven-services principle, the sqlate pages, the rewritten go-database pages, the grammar's page, and the service's page land in the docs tier.",
 ]
@@ -60,23 +61,10 @@ admin layers and the composition root as files, and the reference service rewrit
 sqlate with cmd/db and golang-migrate gone. The review is the linked record.
 '''
 criteria = [
-  "sqlate v0.1.0 with its postgres sub-module released; go-database v0.4.0 and the service change release together; the organization domain runs on authored SQL end to end.",
+  "sqlate v0.1.0 with its postgres sub-module and go-database v0.4.0 with its admin package released; the service pins them and the organization domain runs on authored SQL end to end.",
   "Every service-side principle the experiment incubated is scaffolded by the template or documented in the domain architecture.",
 ]
 context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
-
-[goals.v1.data.sql.integration.tasks.database]
-name = "go-database v0.4.0"
-repos = ["go-database"]
-summary = '''
-ast, operation, exec, seed, Session, Tx, Dialect, and the constraint classes removed;
-Config, the pool, lifecycle, and readiness kept; the admin package over sqlate (the
-service half of the prototype's admin/database, generic over a migrator, a seeder, a
-catalog, and the pool); postgres without a dialect; layers.md, the capability map, and the
-sql-architecture concept rewritten or culled.
-'''
-proof = "v0.4.0 tagged with the service change; the admin service drives verify, apply, and seed at startup in the reference service."
-context = ["go-database/context/concepts/sql-architecture.md", "go-database/context/concepts/v0.4-findings.md"]
 
 [goals.v1.data.sql.integration.tasks.websdk]
 name = "go-web-sdk's three items"
@@ -117,7 +105,8 @@ repos = ["go-web-service", "go-web-sdk", "go-web-sdk-template"]
 summary = '''
 The admin mount on its own listener, disabled unless configured, auth gating the mutating
 half (administration may stage behind goals.v1.auth), config rendering waiting on a go-core
-redaction contract; go-web-sdk's config env segment made per-block. Posture decisions on
+redaction contract (go-database's Config.Password has no redaction: no String, no
+slog.LogValuer); go-web-sdk's config env segment made per-block. Posture decisions on
 record: whether the serving role ever holds DDL, and whether off-by-default is mandated by
 the standard (the strategy's open questions, §10).
 '''
