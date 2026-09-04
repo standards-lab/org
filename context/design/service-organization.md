@@ -20,25 +20,26 @@ Each infrastructure library declares its swap class when it is built; the antici
   (minio ↔ S3). No formal standard exists, so the organization establishes the standard tier as
   the minimal operation set common to both target APIs; those operations are interchangeable,
   and consistency is interchangeable with review.
-- **SQL** — one provider per engine; built (`go-database`, `postgres`). The service is
-  schema-bound: a second engine is a second provider, and for an application a port, never a
-  switch.
+- **SQL** — one provider per engine. Built: `sqlate` with its `postgres` sub-module, and
+  go-database as the infrastructure service over it (`design/dsl-driven-services.md`). The
+  service is schema-bound: a second engine is a second provider, and for an application a
+  port, never a switch.
 
 ## Tier topology
 
-Application SDKs and infrastructure libraries are peers on the Core SDK; an application SDK
-never imports an infrastructure library, base module or provider. Cross-tier composition
-happens in the application: the SDK exposes the extension point and the application declares
-the policy — the web SDK's error-writing seam is the worked example: the SDK defines the
-error-returning handler adapter and its writer, and the application supplies the matchers that
-map go-database's error sentinels to HTTP statuses at its composition root. The adapter
-(settled at the 2026-08-31 retrospective, `goals.v1.web`) moves the mechanics into the SDK
-without moving the vocabulary: matcher policy stays the consumer's. When an infrastructure
-library later contributes to an SDK-defined surface — the management-surface direction,
-`v1.data.sql.startup` — the
-dependency points infrastructure → SDK, never the reverse. The cost is a small adapter per
-service; the return is independent releases and SDKs that accrete no infrastructure
-vocabularies. Settled during `v1.data.writes.web`.
+Application SDKs and infrastructure libraries are peers on the Core SDK. An application SDK
+never imports an infrastructure library, neither its base module nor a provider. Cross-tier
+composition happens in the application: the SDK exposes an extension point, and the
+application declares the policy. The web SDK's error writing is the worked example. The SDK
+defines the error-returning handler adapter and its writer; the application supplies, at its
+composition root, the matchers that map the database library's error types to HTTP statuses.
+The adapter (settled at the 2026-08-31 retrospective, `goals.v1.web`) moves the mechanics into
+the SDK without moving the vocabulary, so matcher policy stays the consumer's. When an
+infrastructure library contributes to an SDK-defined surface, as the management listener will
+(`v1.data.sql.integration.listener`), the dependency points from the infrastructure library to
+the SDK, never the reverse. The cost is a small adapter per service; the return is independent
+releases and SDKs that accumulate no infrastructure vocabulary. Settled during
+`v1.data.writes.web`.
 
 ## Co-evolution
 

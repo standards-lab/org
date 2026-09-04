@@ -35,6 +35,7 @@ the other.
 ## Open questions
 
 - Placement: an organizational principle beside minimal-footprint, or absorbed into the
-  architecture the way the supply-chain rationale suggests (see `concepts/elemental-naming.md`).
+  architecture the way the supply-chain rationale suggests (`design/blueprint-organization.md`
+  places the minimal-dependency principle with the architecture).
 - Whether automation (a release-watching bot opening the bump PRs) is part of the principle or a
   later convenience; the principle stands without it.

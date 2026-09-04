@@ -70,13 +70,14 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   `design/workspace-docs.md`.
 - **Service organization** — the anticipated services and providers, and how the tiers
   co-evolve. See `design/service-organization.md`.
-- **DSL-driven services** — the strategy distinguishing DSL-driven infrastructure (SQL first)
-  from protocol-driven, and the native-SQL direction — `sqlate`, the SQL templating library
-  (`concepts/sqlate.md`), go-database v0.4 reduced to the infrastructure service, and the reference
-  service. See `design/dsl-driven-services.md`.
-- **Testing hierarchy** — the two-tier testing strategy: the hermetic per-PR unit tier for
-  every layer, and the application-layer integration tier that runs the composed service's
-  compose stack black-box through the API on merge. See `design/testing-hierarchy.md`.
+- **DSL-driven services** — the strategy that distinguishes DSL-driven infrastructure (SQL
+  first) from protocol-driven, and the authored-SQL direction it produced: `sqlate`, the SQL
+  templating library (`concepts/sqlate.md`); go-database v0.4 reduced to the infrastructure
+  service; and the reference service on authored SQL. See `design/dsl-driven-services.md`.
+- **Testing hierarchy** — the two-tier testing strategy: the unit tier on every pull request
+  for every layer, needing no external service, and the integration tier that runs the composed
+  service's compose stack black-box through the API on merge. See
+  `design/testing-hierarchy.md`.
 - **Context architecture** — the single-source-of-truth principle for every layer of written
   context. See `design/context-architecture.md`.
 - **Dependency sourcing** — when the organization hand-rolls a capability and when it sources

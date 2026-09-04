@@ -22,6 +22,16 @@ directory coordinate all three.
   its own `.git` and is gitignored by `org`, so nothing private can be staged into a public
   repository.
 
+## Experiments
+
+Every experiment in this workspace lives under `~/architecture/standards-lab/experiments/`, the
+coordinator's, and never inside a member repository; `experiments/sql-dsl` is the first. The
+convention is marathon's (`references/workspace-coordination.md` in the skill): a member
+repository's Go workspace file, CI matrix, and format sweeps would either break against a spike
+or have to be fenced from it, and the coordinator carries none of that tooling. The spike
+depends on member modules at published versions, and a change it implies for a member's code
+reaches that repository only by promotion at the experiment's close.
+
 ## The profile mirror
 
 GitHub renders exactly one profile per viewer: members see `.github-private`'s

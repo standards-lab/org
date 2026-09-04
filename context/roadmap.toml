@@ -327,8 +327,8 @@ context = ["claude-plugins/context/concepts/marathon-references-extension.md"]
 name = "The context stratification pass"
 summary = '''
 The alignment pass applying the context-architecture principle across the landing zone,
-profiles, catalogs, and project context once marathon v0.9.0 lands the harness half: every
-restated detail collapses to a link to its single home.
+profiles, catalogs, and project context, now that marathon v0.9.0 landed the harness half:
+every restated detail collapses to a link to its single home.
 '''
 context = ["standards-lab/context/design/context-architecture.md"]
 
