@@ -136,7 +136,7 @@ The admin mount on its own listener, disabled unless configured, auth gating the
 half (administration may stage behind goals.v1.auth), config rendering waiting on a go-core
 redaction contract; go-web-sdk's config env segment made per-block. Posture decisions on
 record: whether the serving role ever holds DDL, and whether off-by-default is mandated by
-the standard (strategy A.3, A.5).
+the standard (the strategy's open questions, §10).
 '''
 context = ["standards-lab/context/design/dsl-driven-services.md"]
 
