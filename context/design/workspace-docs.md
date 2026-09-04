@@ -6,10 +6,20 @@ session.
 
 ## One landing zone per workspace
 
-In a marathon workspace, human-facing documentation is centralized in one landing-zone
-repository — here, `docs` — rather than authored per repository. Member repositories never grow
-a `docs/` directory of their own. A standalone marathon project, outside any workspace, keeps
+In a marathon workspace, the architecture's documentation is centralized in one landing-zone
+repository, here `docs`, rather than authored per repository: the principles, the standards,
+and the pages that describe each member's place in the architecture. A member repository never
+grows a `docs/` directory for that. A standalone marathon project, outside any workspace, keeps
 its own `docs/` under the same conventions.
+
+## A library's user guide lives with the library
+
+A standalone library the organization builds adjacent to the architecture, one any project can
+adopt on its own, keeps its user guide in its own repository: a README that indexes the guide
+and a `docs/` directory the README orders. Its audience is outside the organization, and the
+module zip carries the guide with the code. The landing zone still documents the library's
+place in the architecture, and its page links to the guide for usage rather than restating it.
+sqlate is the first case.
 
 The landing zone is where context ultimately strives to end up: a design note that settles and
 generalizes migrates into a landing-zone page, and the repository's `context/` links to that

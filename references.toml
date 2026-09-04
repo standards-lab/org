@@ -56,6 +56,11 @@ standard = "go-elemental"
 remote = "https://github.com/standards-lab/go-web-service.git"
 standard = "go-elemental"
 
+# sqlate is adjacent to the standard, not a member: a standalone library the
+# standard's libraries consume, so its entry declares no standard.
+[repos.sqlate]
+remote = "https://github.com/standards-lab/sqlate.git"
+
 # External references — repositories outside the effort, cited as illustrations.
 # The maintainer's user-scoped Claude Code configuration, symlinked into ~/.claude.
 [repos.claude-settings]

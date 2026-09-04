@@ -32,7 +32,7 @@ cost data that would justify them.
 The integration stack is the compose stack — the same definition that runs the service
 holistically (`compose.yml` and its includes), not a parallel container list maintained for
 CI. The CI job boots it the way a developer does (`docker compose up -d --wait`, the
-`mise run db-up` gesture) and then runs the tagged suite; locally, `mise run test-integration`
+`mise run db-up` gesture) and then runs the tagged suite; locally, `mise run integration`
 does the same. When a capability lands, its backing service joins the compose stack and the
 integration stack follows automatically; there is nothing separate to keep in sync.
 
@@ -88,7 +88,7 @@ rather than a CI tier.
 ## A prepare-capable scripted driver is a unit-tier asset
 
 Prepare-based verification is provable on the unit tier because the scripted driver can
-prepare. The prototype built that driver as `sqlate/sqltest` (`concepts/sqlate.md`), a public
+prepare. The prototype built that driver as `sqlate/sqltest`, a public
 package, so every consumer's unit tests run over it; it replaced go-database's driver fakes,
 which were duplicated across four packages and could not prepare (go-database
 `context/concepts/v0.4-findings.md` item 6). The gap closed on the unit tier rather than being

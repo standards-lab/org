@@ -89,6 +89,14 @@ variants are never switches inside it; a variant is a separate focused reference
 composition patterns are proven before they promote outward into the SDKs, the libraries, and
 the template. Versionless until its 1.0.
 
+### sqlate
+The SQL templating library: authored `.sql` files made dynamic and composable, with the
+PostgreSQL dialect as the `postgres` sub-module and the conventions linter as the `sqlint`
+sub-module. A standalone library any Go project can adopt, adjacent to the `go-elemental`
+standard rather than a member of it: the standard's libraries consume it, and it is the
+blueprint for how a domain-specific language gains host-language support. The base module
+depends on the standard library alone; the base and each sub-module are tagged independently.
+
 ## External references
 
 Repositories outside the effort, cited as illustrations.

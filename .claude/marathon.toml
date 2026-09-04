@@ -14,7 +14,10 @@ role = "coordinator"
 extensions = ["marathon-roadmap"]
 order = [
   "claude-plugins", # harness
-  "go-core", # core SDK
+  [
+    "go-core", # core SDK
+    "sqlate",  # SQL templating library, adjacent to the standard
+  ],
   [
     "go-database", # infrastructure service SDK
     "go-web-sdk",  # web service application SDK

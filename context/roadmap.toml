@@ -3,8 +3,8 @@
 # references/manifest.md.
 
 next = [
-  # The DSL service integration begins with the sqlate repository.
-  "v1.data.sql.integration.sqlate",
+  # The DSL service integration continues with go-database v0.4.0 over sqlate v0.1.0.
+  "v1.data.sql.integration.database",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -63,20 +63,7 @@ criteria = [
   "sqlate v0.1.0 with its postgres sub-module released; go-database v0.4.0 and the service change release together; the organization domain runs on authored SQL end to end.",
   "Every service-side principle the experiment incubated is scaffolded by the template or documented in the domain architecture.",
 ]
-context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "standards-lab/context/concepts/sqlate.md"]
-
-[goals.v1.data.sql.integration.tasks.sqlate]
-name = "Create sqlate"
-repos = ["standards-lab"]
-summary = '''
-The repository and module from experiments/sql-dsl's lib/ and cmd/sqlint per the review's
-layout: the seam and taxonomy at the root, query, migrate, sqltest, sqlint, the postgres
-sub-module with the constraint mapping folded in from go-database's dialect and the live
-tests over the driver; the workspace order gains the layer beside go-core; the concept
-moves into the repository's own context.
-'''
-proof = "sqlate v0.1.0 and sqlate/postgres tagged; the spike's suites green against the module; sqlint runs as a package."
-context = ["standards-lab/context/concepts/sqlate.md"]
+context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
 
 [goals.v1.data.sql.integration.tasks.database]
 name = "go-database v0.4.0"
@@ -167,7 +154,7 @@ repos = ["go-web-service"]
 summary = '''
 The integration tier stood up per the testing hierarchy: the //go:build integration suite
 running black-box through the API against the compose stack, the CI job booting the stack
-on merge to main and workflow_dispatch, and the mise test-integration task. Gated on
+on merge to main and workflow_dispatch, and the mise integration task. Gated on
 integration.service — the capability gate requires the rewritten API surface. The suite
 absorbs the manual compose-stack ritual and asserts the design note's behavior list;
 serve-probes-drain lands as a README step.
@@ -335,7 +322,9 @@ summary = '''
 Evaluate promoting marathon's docs command from a core optional feature to an extension: the
 landing-zone binding is org-specific, the extension taxonomy is the mechanism for org-specific
 artifacts, and the always-loaded skill index lightens. The full case and open questions are the
-linked concept note.
+linked concept note. The command's workspace rule also needs the distinction the coordinator's
+workspace-docs note now draws: architecture documentation centralizes in the landing zone, and
+a standalone library's user guide lives with the library.
 '''
 context = ["claude-plugins/context/concepts/marathon-docs-extension.md"]
 
