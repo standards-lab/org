@@ -7,8 +7,9 @@ go-web-service, and it was adjusted three times since; §11 lists each adjustmen
 Every section below states the current position.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and
-the shape of the result. Implementation detail lives elsewhere: the `sqlate` concept
-(`concepts/sqlate.md`) for the library's packages and grammar, the prototype's review
+the shape of the result. Implementation detail lives elsewhere: the sqlate repository's own
+guide (`github.com/standards-lab/sqlate`, its README and `docs/`) for the library's packages
+and grammar, the prototype's review
 (`experiments/sql-dsl/REVIEW.md`) for the placement of every type, and the roadmap
 (`goals.v1.data.sql`) for the task breakdown.
 
@@ -161,23 +162,32 @@ meta-language concept, not a mechanism.
 
 ### 4.1 A standalone library below the infrastructure service
 
-The library is its own module, `github.com/standards-lab/sqlate`, and it imports only the
-standard library. It owns everything from the `.sql` file to the scanned row. go-database v0.4
-is the infrastructure service above it (§5). The original plan kept `query` and `migrate`
-inside go-database; the prototype's split rehearsal showed the library needs nothing of the
-service, so a CLI, a worker, or a test harness can use authored SQL with no lifecycle
-machinery. The packages, in brief; `concepts/sqlate.md` lists their contents:
+The library is its own repository and module, `github.com/standards-lab/sqlate`, released at
+v0.1.0 on 2026-09-04. Its base module imports only the standard library; a sourced dependency
+enters only through a sub-module's `go.mod`. It owns everything from the `.sql` file to the
+scanned row. go-database v0.4 is the infrastructure service above it (§5). The original plan
+kept `query` and `migrate` inside go-database; the prototype's split rehearsal showed the
+library needs nothing of the service, so a CLI, a worker, or a test harness can use authored
+SQL with no lifecycle machinery. The library is adjacent to the standard rather than a layer of
+it: the standard's libraries consume it, it is the blueprint for how a DSL gains host-language
+support, and its own text names nothing of the architecture. The packages, in brief; the
+repository's guide documents them:
 
 - `sqlate`, the root package: `Session`, `DB` over a plain `*sql.DB`, transactions, the
-  `Dialect` interface, the advisory lock, and the error types the engine sub-modules return.
+  `Dialect` interface, the lock capability, and the error types the engine sub-modules return.
+- `sqlate/header`: the declaration grammar. Public, because the linter is a separate module and
+  parses headers for every role.
 - `sqlate/query`: the pattern catalog, compilation, statements, the typed values that run them,
   the struct-tag mapping, request directives, the guard, and verification.
 - `sqlate/migrate`: schema versioning over embedded SQL files. It replaces golang-migrate in
   every consumer.
 - `sqlate/sqltest`: the scripted `database/sql` driver every consumer's unit tests run over.
-- `sqlate/sqlint`: the conventions lint as a package; `cmd/sqlint` is its command.
-- `sqlate/postgres`, a sub-module: placeholders, error classification, the lock, the migration
-  catalog, and its own `sqlint.toml`.
+- `sqlate/sqlint`, a sub-module: the conventions linter as a package over the TOML parser;
+  `sqlint/cmd/sqlint` is its command. One `sqlint.toml` per module, at the module root; a
+  source or engine is a module path, resolved through `go list -m`.
+- `sqlate/postgres`, a sub-module: placeholders, error classification, the lock, its own
+  `sqlint.toml`, and the integration tier's engine proofs. It adds no migration catalog, since
+  the standard one serves PostgreSQL.
 
 ### 4.2 The query package
 
@@ -356,7 +366,7 @@ sub-module overlays the one pattern it spells differently. The composition root 
 catalog once, and every domain compiles its statements against it. A statement includes a
 pattern at compile time with `{{> sql.guard_where}}`; the collection read composes the
 request-time patterns (`collection`, `count`, `one`, `where`, the operators, `order`, `paging`)
-from a base and the request's signature. `sqlint.toml` names the same sources, so the lint
+from a base and the request's signature. `sqlint.toml` names the same sources, so the linter
 resolves includes exactly as the runtime does.
 
 The conventions the standard names. Each is a SQL shape; a Go function is listed only where one
@@ -378,7 +388,7 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 
 | Artifact | Change |
 |---|---|
-| sqlate | a new repository and module from the prototype's `lib/` and `cmd/sqlint` (§4.1); v0.1.0 with `sqlate/postgres` |
+| sqlate | done: the repository and module from the prototype's `lib/` and `cmd/sqlint` (§4.1), released as v0.1.0 with `postgres/v0.1.0` and `sqlint/v0.1.0` on 2026-09-04 |
 | go-database | v0.4.0 (§5): the infrastructure service plus `admin`; `ast`, `operation`, `exec`, `seed`, the session types, the dialect, and the constraint classes removed; `layers.md` rewritten |
 | go-web-sdk | the If-Match precondition parse, the error writer's detail option, the strict body decode and the respond plumbing; the operator-syntax decision for the query parser |
 | go-web-sdk-template | scaffolds `internal/data` (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statement registry), `admin/database` over go-database's admin service, the composition root as one file per layer, `sqlint.toml`, and the mise tasks |
