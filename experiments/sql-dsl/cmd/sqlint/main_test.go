@@ -86,7 +86,7 @@ func TestLint_FindsEachConvention(t *testing.T) {
 		`orphan.sql: include of unknown namespace "org" (registered: sql)`,
 		`seed.sql:2: "RETURNING" (returning) in a standard-tier file`,
 		"admin/x/patterns: query: pattern identity.sql (lint): a native pattern declares",
-		"0001_a.up.sql: a non-transactional migration holds one statement",
+		"0001_a.up.sql: a non-transactional migration contains exactly one statement",
 		"0002_b.up.sql: sqlheader: line 1",
 	)
 	reject(t, findings, "native.sql", "edit.sql", "sqlint.toml")
@@ -104,7 +104,7 @@ func TestLint_OverrideRefinesOneDirectorySet(t *testing.T) {
 func TestLint_RoleSwitchesOff(t *testing.T) {
 	cfg := strings.NewReplacer("[statements]\n", "[statements]\nnative_forms = false\n", "[migrations]\n", "[migrations]\nsingle_statement = false\n").Replace(config)
 	findings := lint(tree(cfg), nil)
-	reject(t, findings, "in a standard-tier file", "holds one statement")
+	reject(t, findings, "in a standard-tier file", "contains exactly one statement")
 	want(t, findings, "0002_b.up.sql: sqlheader")
 }
 
@@ -119,7 +119,7 @@ func TestLint_Defaults(t *testing.T) {
 		"insert_thing.sql: named for its SQL verb",
 		"list.sql:4: {{ inside a string literal",
 		`edit.sql: include of unknown namespace "sql" (registered: )`,
-		"0001_a.up.sql: a non-transactional migration holds one statement",
+		"0001_a.up.sql: a non-transactional migration contains exactly one statement",
 	)
 	reject(t, findings, "in a standard-tier file", "lib/patterns", "sqlint.toml")
 }

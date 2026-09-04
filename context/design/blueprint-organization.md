@@ -1,19 +1,20 @@
 # The blueprint organization
 
-Standards Lab's repositories are not only worked examples of a standard's tiers — the
-organization itself is the worked example of a standards-based, agentic organizational
-architecture strategy. The vision already claims each repository as a worked example for
-others to follow; this extends the claim one level up: how an organization defines architectures,
-standards, and principles, binds them with the narrowing rule, organizes their repositories by
-the topology principle, documents them in a landing zone, and develops them with the harness —
-that whole arrangement is the deliverable, demonstrated by being lived. Agentic is a first-class
-dimension of the strategy, not tooling beside it: the harness level's programming standards and
-workflow integrations are part of the architecture itself, even though the harness stands
-outside the software's repository tiers and governs how agent tooling is built rather than what
-the software does. The thesis binding the two: clear architectural principles and standards,
-broken down into appropriately layered boundaries, optimize the utility of agentic workflows in
-creating well-structured software — the structure that keeps a system legible to people is what
-lets agents build it well.
+Standards Lab's repositories are worked examples of a standard's tiers, and the organization
+itself is the worked example of a standards-based, agentic organizational strategy. The vision
+already claims each repository as an example for others to follow. This note extends the claim
+one level up. How an organization defines architectures, standards, and principles; binds them
+with the narrowing rule; organizes their repositories by the topology principle; documents them
+in a landing zone; and develops them with the harness: that whole arrangement is the
+deliverable, demonstrated by being lived.
+
+The agentic dimension is part of the strategy rather than tooling beside it. The harness
+level's programming standards and workflow integrations belong to the architecture, even though
+the harness stands outside the software's repository tiers and governs how agent tooling is
+built rather than what the software does. The thesis that binds the two: clear architectural
+principles and standards, broken down into well-layered boundaries, make agentic workflows
+effective at creating well-structured software. The structure that keeps a system legible to
+people is what lets agents build it well.
 
 Settled 2026-08-31, promoted from the concept captured during the workspace-sweep session; the
 Go Elemental rename (`backlog.go-elemental-rename`, recorded in the session that landed this

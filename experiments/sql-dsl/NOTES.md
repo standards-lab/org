@@ -6,33 +6,17 @@ sessions learn; the reset file at `../../context/reset.md` carries the handoff.
 
 ## Position
 
-- **Directory:** a domain's statements live in `statements/` (renamed from `sql/` at the
-  handoff, so the directory never reads as the builtin pattern namespace `sql`).
-- **Stage:** 1–13 approved (2026-09-03), each on the branch as its own commit; stage 14,
-  the sqlate preparations, built and proven, awaiting review with the final `REVIEW.md`.
-  See the decisions log, Q1, Q5, and the Ontology section.
-- **Next move:** the stage 14 review; then `close`, which promotes what `REVIEW.md`
-  recommends: the concept `standards-lab/context/concepts/sqlate.md`, the coordinator's
-  design note and roadmap edits, the cross-repo corrections, and the reset.
-- **Then stage 13 (the architect, 2026-09-03):** the comprehensive review, written to
-  `REVIEW.md` with NOTES's promotion section pointing at it. Each layer of the architecture
-  evaluated, then the whole; an optimization pass that is a **layout review** — which
-  types, methods, and functions belong to `go-sql`, `go-database`, `go-web-sdk`, the
-  template, and the reference service, judged against the standard's package layering,
-  without sacrificing capability (performance only if the layout review finds a reason;
-  the signature cache stays a concept); the promotion plan for every component as the
-  adopted strategy for the DSL service integration; the workspace context adjustments the
-  experiment implies, seeded by the principles it incubated — the admin layout with a
-  consolidated database package (migrations, seeds, patterns, statements), the entity
-  roles (validation methods, the tag conventions), `internal/data`, the file-per-layer
-  composition root and a possible `services.go` collapse of `infrastructure.go`,
-  `domain.go`, and `reactors.go`, the `routes.go` mount simplification — each with the
-  note it lands in; and the roadmap refinement, a `v1.data.sql.integration` goal replacing
-  the pre-split `query`/`migrate`/`organization`/`startup` breakdown. Stage 13 drafts;
-  `close` applies the tending and the manifest. Then `close`.
-- **Compose state:** `sql-dsl-postgres` up on 127.0.0.1:5433; database `app` at schema
-  version 3, seeded (7 organizations, 6 people); the stage 11 live proof created and
-  deleted its own rows.
+- **Closed** on 2026-09-03 (`close`, commit `cef2527`): fourteen stages, each approved and on
+  the branch as its own commit. `REVIEW.md` is the verdict. The promotion it recommended lives
+  in the coordinator's `context/concepts/sqlate.md`, `context/design/dsl-driven-services.md`,
+  and the roadmap under `goals.v1.data.sql.integration`; this file is the record of how the
+  spike got there.
+- **Directory:** a domain's statements live in `statements/`, renamed from `sql/` at the
+  stage 10 handoff so the directory never reads as the library's pattern namespace `sql`.
+- **The code is the durable record** and the source the `v1.data.sql.integration.sqlate` task
+  moves: `lib/` and `cmd/sqlint` build with go-database absent from their import graph.
+- **Compose state at close:** `sql-dsl-postgres` on 127.0.0.1:5433, database `app` at schema
+  version 3, seeded with 7 organizations and 6 people. `mise run db-down` stops it.
 
 ## Running it
 
@@ -60,46 +44,48 @@ is written `@v0.5.0`, not `@template/v0.5.0`.
 ## Ontology
 
 The library's vocabulary as settled at the stage 11 review (the architect, 2026-09-03),
-in the layers the words belong to. Two acts produce statements, compile and compose; one
-consumes them, execute.
+grouped by the layer each term belongs to. Two operations produce statements, compile and
+compose; one consumes them, execute.
 
-**Text** — SQL as written, never sent as written. A **pattern** is protocol SQL any
-package publishes under a **namespace**: a header and a body holding **slots** only, never
-an include. A slot is a `{{name}}` hole: composed, the library fills it with text it
-composed; included, it passes through and compiles as a parameter of the including
-statement. An authored file's **header** is its `--|` **declarations** — tier, native,
-transaction, key, field — the loader's and never the engine's; the **body** is what the
-engine receives. The **tier** is declared portability, standard or native, a native file
-naming the reach used and the port. A **parameter** is a statement's named input,
-`{{name}}` or `{{name:type}}`; an **include**, `{{> ns.name}}`, is a statement's reference
-to a pattern. **Protocol** SQL, which every domain would write identically, may be a
-pattern; **content** SQL is the domain's own and never is.
+**Files.** SQL as written, never sent as written. A **pattern** is a SQL file that the library
+or the application publishes under a **namespace**: a header and a body that contains
+**placeholders** only, never an include. A placeholder is written `{{name}}`. When the library
+composes a pattern, it fills the placeholder with text it composed; when a statement includes a
+pattern, the placeholder passes through and compiles as a parameter of the including
+statement. An authored file's **header** is its `--|` **declarations** (tier, native,
+transaction, key, field); the compiler reads the header and the engine never sees it. The
+**body** is what the engine receives. The **tier** declares portability, standard or native; a
+native file names the engine feature it uses and the port. A **parameter** is a statement's
+named input, `{{name}}` or `{{name:type}}`. An **include**, `{{> ns.name}}`, is a statement's
+reference to a pattern. SQL that implements a rule every domain shares may be a pattern; SQL
+that expresses a domain's own query belongs to the domain and never is.
 
-**Catalog** — built once at the composition root, read-only after. A **pattern source** is
-one namespace's patterns as declared: a directory plus any **overlays**, an engine's
-replacement of patterns by name with the same slots; an **alias** registers a source under
-another namespace. The **catalog** is the registered sources, read and validated, the
-context every statement compiles against.
+**Catalog.** Built once at the composition root and read-only after. A **source** is one
+namespace's patterns as declared: a directory, plus any **overlays**, an engine's replacement
+of patterns by name with the same placeholders. An **alias** registers a source under another
+namespace. The **catalog** is the set of registered sources, read and validated; every
+statement compiles against it.
 
-**Statements** — a **statement** is compiled SQL text with parameters; it holds no values.
-**Compile** turns an authored file, against the catalog and the dialect, into a statement:
-includes spliced, parameters positional. A domain's **statements** (`query.Statements`) are
-its compiled inventory, and **verify** prepares each against the live schema at startup.
+**Statements.** A **statement** is compiled SQL text with parameters and no values.
+**Compile** turns an authored file into a statement against the catalog and the dialect, with
+includes spliced and parameters positional. A domain's **statements** (`query.Statements`) are
+its compiled inventory, and **verify** prepares each one against the live schema at startup.
 
-**Handles** — a statement bound at wiring to what runs it: `Statement` for a command,
-`Rows[T]` with a scan, `Projection[T]` over a **base** — the authored query the collection
-read wraps as a derived table, declaring its **key** and **field contract** — and `Guard`
-over a **command** and its **check**. A domain holds handles, never text; the **mapper**
-(`Scanner[T]`, `ArgsOf`) makes the entities' tags the scan and binding contract.
+**Typed values.** A statement bound at wiring to the code that runs it: `Statement` for a
+command; `Rows[T]` with a scan function; `Projection[T]` over a **base**, the authored query
+the collection read wraps as a derived table, which declares its **key** and the **fields** a
+request may filter or sort by; and `Guard` over a **command** and its version **check**. A
+domain holds these values and never SQL text. `Scanner[T]` and `ArgsOf` make the entities'
+struct tags the contract for scanning rows and binding arguments.
 
-**Execution** — a read's **directives** are page, sorts, filters; its **signature** is the
-directives with the values abstracted: field and operator pairs, sort terms, the paging
-flag. **Compose** turns a base, the catalog's patterns, and a signature into a statement,
-once per signature when cached. **Arguments** are the values a request binds to
-parameters by name; **execute** runs a statement with them through a **session** — the
-pool or a transaction — every error mapped through the **dialect**, the engine's
-spellings. The signature cache (a promotion concept) is composed statements by signature,
-bounded per projection.
+**Execution.** A collection read's **directives** are its page, sorts, and filters. Its
+**signature** is the directives with the values removed: the field and operator pairs, the
+sort terms, and the paging flag. **Compose** turns a base, the catalog's patterns, and a
+signature into a statement. **Arguments** are the values a request binds to parameters by
+name. **Execute** runs a statement with them through a **session**, the pool or a
+transaction, and every error is mapped through the **dialect**, the engine's spellings. The
+signature cache (composed statements by signature, bounded per projection) was considered and
+dropped; `REVIEW.md` §2.5 records why.
 
 ## Q1 — Catalog composition
 

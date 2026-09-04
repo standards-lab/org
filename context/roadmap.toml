@@ -3,11 +3,7 @@
 # references/manifest.md.
 
 next = [
-  # The two marathon items run together as the next session; both are small enough for one
-  # session in claude-plugins. Then the DSL service integration begins with the sqlate
-  # repository.
-  "backlog.marathon-stage-review",
-  "backlog.marathon-workspace-experiments",
+  # The DSL service integration begins with the sqlate repository.
   "v1.data.sql.integration.sqlate",
 ]
 
@@ -136,7 +132,7 @@ The admin mount on its own listener, disabled unless configured, auth gating the
 half (administration may stage behind goals.v1.auth), config rendering waiting on a go-core
 redaction contract; go-web-sdk's config env segment made per-block. Posture decisions on
 record: whether the serving role ever holds DDL, and whether off-by-default is mandated by
-the standard (strategy A.3, A.5).
+the standard (the strategy's open questions, §10).
 '''
 context = ["standards-lab/context/design/dsl-driven-services.md"]
 
@@ -327,8 +323,8 @@ context = ["claude-plugins/context/concepts/marathon-references-extension.md"]
 name = "The context stratification pass"
 summary = '''
 The alignment pass applying the context-architecture principle across the landing zone,
-profiles, catalogs, and project context once marathon v0.9.0 lands the harness half: every
-restated detail collapses to a link to its single home.
+profiles, catalogs, and project context, now that marathon v0.9.0 landed the harness half:
+every restated detail collapses to a link to its single home.
 '''
 context = ["standards-lab/context/design/context-architecture.md"]
 
@@ -392,50 +388,6 @@ the docs landing zone, and run an enforcement pass across the organization's cod
 original worked exhibit (the ast render layer) retires with go-database v0.4; the pass names
 a current one.
 '''
-
-[backlog.marathon-stage-review]
-name = "Stage review gate in marathon"
-repos = ["claude-plugins"]
-summary = '''
-Every marathon working session executes in stages, and a stage is not complete until the
-architect has reviewed it: the point of stages is per-stage review, so a misstep never ripples
-across the code base and the architect never reviews a whole session at once. The sequence for
-every stage, in every command that executes (start, experiment, and the context sessions'
-edits alike): (1) execute the stage; (2) stop and report with the working tree uncommitted,
-so the diff reads cleanly in the architect's tools; iterate on adjustments until the architect
-approves; (3) on approval, commit (on-commit fires first), and the architect states whether a
-reset follows to keep the context small; (4) move to the next stage. Today
-references/staged-execution.md commits before the report ("Commit … Then stop and report"),
-and the staged loop is defined only for a code project's start, so experiment inherits no gate.
-Found by the v1.data.sql.prototype experiment on 2026-09-02, whose first three stages were
-committed before review.
-'''
-context = [
-  "claude-plugins/plugins/marathon/skills/marathon/references/staged-execution.md",
-  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
-]
-
-[backlog.marathon-workspace-experiments]
-name = "Experiments at the workspace coordinator"
-repos = ["claude-plugins"]
-summary = '''
-In a marathon workspace, experiments are co-located where they cannot collide with the
-development repositories' tooling: a spike inside a member repository sits under that
-repository's go.work, CI matrix, format sweeps, and module lists and either thrashes against
-them or has to be fenced from each one. The convention: the workspace coordinator is the
-default home for every experiment, whatever its scope, under its top-level experiments/
-(`standards-lab/experiments/<slug>`); a standalone project keeps its own experiments/ as
-today. commands/experiment.md and references/workspace-coordination.md state it; the reset
-file's Project line names the coordinator for such a session. Settled by the
-v1.data.sql.prototype experiment on 2026-09-02, which moved from
-go-database/experiments/sql-dsl to the coordinator for exactly this reason; the coordinator's
-own design note records the workspace's instance of the convention at that experiment's
-close.
-'''
-context = [
-  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
-  "claude-plugins/plugins/marathon/skills/marathon/references/workspace-coordination.md",
-]
 
 [backlog.sql-meta-language]
 name = "The SQL meta language"

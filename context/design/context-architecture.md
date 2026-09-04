@@ -43,11 +43,11 @@ principle rather than a bug class:
 
 ## Enforcement path
 
-The principle lands in phases, tracked on the roadmap:
+The principle lands in phases:
 
-- `backlog.marathon-staged-execution` applies it to the harness: command playbooks cite the
-  references instead of restating them; the triplicated workspace and hook blocks collapse to
-  one home; the role boundary is defined once in the skill and linked from the repos.
+- marathon v0.9.0 applied it to the harness: command playbooks cite the references instead of
+  restating them, the workspace and hook blocks are printed once, and the architect's role is
+  defined once in the skill.
 - `backlog.context-stratification` is the alignment pass across the landing zone, profiles,
-  catalogs, and project context once the harness half is in place.
+  catalogs, and project context, now that the harness half is in place.
 - A docs principle page states the rule for human contributors when the docs task runs.
