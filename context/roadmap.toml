@@ -3,7 +3,12 @@
 # references/manifest.md.
 
 next = [
-  "v1.data.sql.prototype",
+  # The two marathon items run together as the next session; both are small enough for one
+  # session in claude-plugins. Then the DSL service integration begins with the sqlate
+  # repository.
+  "backlog.marathon-stage-review",
+  "backlog.marathon-workspace-experiments",
+  "v1.data.sql.integration.sqlate",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -35,124 +40,129 @@ context = ["go-web-service/context/concepts/data-layer.md"]
 [goals.v1.data.sql]
 name = "SQL as a DSL-driven service"
 summary = '''
-The native-SQL strategy executed: go-database v0.4 replaces the ast/operation/exec vocabulary
-with authored SQL files and the thin query/migrate mechanisms; the reference service follows
-with per-domain sql/, startup verify/apply/seed, and the management listener; the docs and
-harness carry the principles. The strategy record holds the reasoning and the retrospective's
-breaking-window adjustments.
+The native-SQL strategy executed as the prototype proved it: sqlate, the standalone SQL
+templating library, owns everything from the file to the row; go-database v0.4 is reduced
+to the infrastructure service with an admin package over sqlate; the reference service
+follows with per-domain statements/, the data layer, the admin mount, and the management
+listener; the docs and harness carry the principles. The strategy record holds the
+reasoning, the retrospective's breaking-window adjustments, and the prototype's.
 '''
 criteria = [
-  "go-database v0.4.0 and the service change that proves it release together; the organization domain runs on authored SQL end to end.",
+  "sqlate v0.1.0 with its postgres sub-module released; go-database v0.4.0 and the service change that proves it release together; the organization domain runs on authored SQL end to end.",
   "cmd/db and golang-migrate are gone; verify/apply/seed are library mechanisms triggered by the composition root.",
-  "The DSL-driven-services principle, the rewritten go-database pages, and the service's page land in the docs tier.",
+  "The DSL-driven-services principle, the sqlate pages, the rewritten go-database pages, the grammar's page, and the service's page land in the docs tier.",
 ]
-context = ["standards-lab/context/design/dsl-driven-services.md"]
+context = ["standards-lab/context/design/dsl-driven-services.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
-[goals.v1.data.sql.tasks.prototype]
-name = "The SQL architecture prototype"
+[goals.v1.data.sql.integration]
+name = "The DSL service integration"
+summary = '''
+The prototype's shape adopted across the workspace in dependency order: sqlate created
+from the spike's lib/ and sqlint, go-database reduced to the infrastructure service and
+given the admin package, go-web-sdk's three items, the template scaffolding the data and
+admin layers and the composition root as files, and the reference service rewritten onto
+sqlate with cmd/db and golang-migrate gone. The review is the linked record.
+'''
+criteria = [
+  "sqlate v0.1.0 with its postgres sub-module released; go-database v0.4.0 and the service change release together; the organization domain runs on authored SQL end to end.",
+  "Every service-side principle the experiment incubated is scaffolded by the template or documented in the domain architecture.",
+]
+context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "standards-lab/context/concepts/sqlate.md"]
+
+[goals.v1.data.sql.integration.tasks.sqlate]
+name = "Create sqlate"
+repos = ["standards-lab"]
+summary = '''
+The repository and module from experiments/sql-dsl's lib/ and cmd/sqlint per the review's
+layout: the seam and taxonomy at the root, query, migrate, sqltest, sqlint, the postgres
+sub-module with the constraint mapping folded in from go-database's dialect and the live
+tests over the driver; the workspace order gains the layer beside go-core; the concept
+moves into the repository's own context.
+'''
+proof = "sqlate v0.1.0 and sqlate/postgres tagged; the spike's suites green against the module; sqlint runs as a package."
+context = ["standards-lab/context/concepts/sqlate.md"]
+
+[goals.v1.data.sql.integration.tasks.database]
+name = "go-database v0.4.0"
 repos = ["go-database"]
 summary = '''
-An experiment session under go-database's experiments/sql-dsl: a template-generated service
-module with two domains (organization, people) that builds the whole SQL ↔ Go layer — the
-seam, query, migrate, and the protocol-only pattern templates — in one module with nothing
-published. It settles the five questions the plan session left to evidence: catalog
-composition (load-time stitching versus build-time generation, judged against the
-convention-plus-lint baseline), the file grammar, query's exports by extraction, migrate's
-protocol against a live engine, and the library/service split. Direction, API sketch, and
-the prototype's shape are the linked concept.
+ast, operation, exec, seed, Session, Tx, Dialect, and the constraint classes removed;
+Config, the pool, lifecycle, and readiness kept; the admin package over sqlate (the
+service half of the prototype's admin/database, generic over a migrator, a seeder, a
+catalog, and the pool); postgres without a dialect; layers.md, the capability map, and the
+sql-architecture concept rewritten or culled.
 '''
-proof = "Both composition shapes exercised against two domains; the migrate acceptance proofs (dirty state, non-transactional DDL, concurrent starters) recorded; the shape to promote named for query and migrate."
-context = [
-  "go-database/context/concepts/sql-architecture.md",
-  "standards-lab/context/design/dsl-driven-services.md",
-]
+proof = "v0.4.0 tagged with the service change; the admin service drives verify, apply, and seed at startup in the reference service."
+context = ["go-database/context/concepts/sql-architecture.md", "go-database/context/concepts/v0.4-findings.md"]
 
-[goals.v1.data.sql.tasks.query]
-name = "go-database query"
-repos = ["go-database"]
+[goals.v1.data.sql.integration.tasks.websdk]
+name = "go-web-sdk's three items"
+repos = ["go-web-sdk"]
 summary = '''
-The query mechanism extracted from the prototype into go-database — statements with named
-parameters, Source and the inventory, the typed handles, the projection with its declared
-field contract, directives, guard, verify, and the pattern templates in the shape the
-prototype proved — plus the retrospective's breaking-window items and salvage map, carried
-in full in the linked findings note. The GOWORK=off per-module build steps enter CI first,
-and the scripted-driver fakes promote to one shared prepare-capable internal test package
-(testing hierarchy).
+IfMatch and PreconditionError promoted from the service's sdk staging; ErrorWriter's option
+to carry the error text on chosen statuses; the strict body decode and the respond
+plumbing every handler repeats. The operator-syntax decision for the query parser is taken,
+either way.
 '''
-context = [
-  "standards-lab/context/design/dsl-driven-services.md",
-  "go-database/context/concepts/sql-architecture.md",
-  "go-database/context/concepts/v0.4-findings.md",
-]
 
-[goals.v1.data.sql.tasks.migrate]
-name = "go-database migrate and Verify"
-repos = ["go-database"]
+[goals.v1.data.sql.integration.tasks.template]
+name = "The template scaffolds the shape"
+repos = ["go-web-sdk-template"]
 summary = '''
-The migrate mechanism extracted from the prototype — the history table, per-file
-transactions with the header opt-out, dirty and force semantics, the lock capability — and
-prepare-based verification; seed retires to a documented pattern. The mature-library cases —
-dirty state, non-transactional DDL, concurrent starters — are required acceptance criteria,
-not nice-to-haves (strategy A.4); per the testing hierarchy the engine-only cases are
-session-time acceptance proofs, first demonstrated in the prototype, and concurrent starters
-move up into the service's integration suite.
+internal/data with its directories, the seeder skeleton, and the statements registry;
+admin/database over go-database's admin package; the composition root as one file per
+layer with routes.go the list of mounts; internal/sdk seeded with the directives lowering;
+sqlint.toml; the mise tasks; the entity conventions (validation methods, the tag
+conventions) documented. The integration tier's scaffolding moves here from hardening.
 '''
-context = [
-  "go-database/context/concepts/sql-architecture.md",
-  "go-database/context/concepts/v0.4-findings.md",
-]
 
-[goals.v1.data.sql.tasks.organization]
-name = "The organization domain on query"
-repos = ["go-database", "go-web-sdk", "go-web-service"]
+[goals.v1.data.sql.integration.tasks.service]
+name = "The reference service on sqlate"
+repos = ["go-web-service", "go-database", "go-web-sdk"]
 summary = '''
-A coordinated session: the organization domain rewritten onto authored SQL as the prototype
-proved it — database.go as the domain's SQL client — over the query mechanism and the
-error-handler adapter; cmd/db and golang-migrate deleted; the per-domain boilerplate
-extracted before domains multiply (the extraction list and the API-semantics fixes are in
-the linked findings note). go-database v0.4.0, postgres, and the service release together.
+The coordinated rewrite: the organization domain on authored SQL as the spike built it,
+internal/data with the statements registry, the admin layer, the composition root as
+files, cmd/db and golang-migrate deleted; the per-domain boilerplate extracted before
+domains multiply (the linked findings note); the domain architecture and composition root
+notes rewritten; the release with go-database v0.4.0.
 '''
-context = ["go-web-service/context/concepts/retrospective-findings.md"]
+context = ["go-web-service/context/concepts/retrospective-findings.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
-[goals.v1.data.sql.tasks.startup]
-name = "Startup modes and the management listener"
+[goals.v1.data.sql.integration.tasks.listener]
+name = "The management listener"
 repos = ["go-web-service", "go-web-sdk", "go-web-sdk-template"]
 summary = '''
-Schema verify/apply and seed as configured startup concerns with the one-shot migration mode;
-the management surface on a separate listener. Absorbs the maintenance-module concept (culled
-2026-08-31); its constraints carry over: private listener disabled unless configured, auth
-gates the mutating half (administration may stage behind goals.v1.auth), config rendering
-waits on a go-core redaction contract. Needs go-web-sdk's config env segment made
-per-block ("server" is hardcoded today). Posture decisions on record: whether the serving
-role ever holds DDL, and whether off-by-default is mandated by the standard (strategy A.3,
-A.5).
+The admin mount on its own listener, disabled unless configured, auth gating the mutating
+half (administration may stage behind goals.v1.auth), config rendering waiting on a go-core
+redaction contract; go-web-sdk's config env segment made per-block. Posture decisions on
+record: whether the serving role ever holds DDL, and whether off-by-default is mandated by
+the standard (strategy A.3, A.5).
 '''
-context = [
-  "standards-lab/context/design/dsl-driven-services.md",
-  "go-web-service/context/concepts/retrospective-findings.md",
-]
+context = ["standards-lab/context/design/dsl-driven-services.md"]
 
 [goals.v1.data.sql.tasks.docs]
 name = "The docs pass"
 repos = ["docs", "standards-lab"]
 summary = '''
-The DSL-driven-services principle page; the go-database pages rewritten; the SQL meta-language
-concept reframed — native SQL files become the authoring surface it sits above; the reference
-service gains its page and the service page type the v1 criteria assume; the references
-catalog refreshed. The page-by-page inventory is the linked note. Once the integration tier
-is live, tests-and-docs and release-and-ci are amended per the testing hierarchy.
+The DSL-driven-services principle page; the sqlate pages and the grammar recorded as the
+standard's own artifact, sqlate its first host; the go-database pages rewritten; the SQL
+meta-language concept reframed with the experiment as its first phase, what remains being
+schema typing and portability by construction; the content-patterns reference; the
+architecture definition amended so a Domain Service anchors a domain, a composition of one
+or more Entities; the reference service gains its page and the service page type the v1
+criteria assume; the references catalog refreshed. The page-by-page inventory is the linked
+note. Once the integration tier is live, tests-and-docs and release-and-ci are amended per
+the testing hierarchy.
 '''
-context = ["docs/context/concepts/dsl-docs-pass.md"]
+context = ["docs/context/concepts/dsl-docs-pass.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
 [goals.v1.data.sql.tasks.hardening]
-name = "Template and harness follow-through"
-repos = ["go-web-sdk-template", "claude-plugins"]
+name = "Harness follow-through"
+repos = ["claude-plugins"]
 summary = '''
-The template scaffolds sql/, the seed pattern, the startup modes, and the listener (the
-template is generate-and-forget: no parity check, optionally a generated-from-version
-annotation), and seeds the integration tier's scaffolding — the tagged-suite shape, the CI job, and the
-test-integration task. The harness gains the sufficiency question at the plan stage and the
-injection, tier-header, and guarded-statement conventions as checkable rules.
+The harness gains the sufficiency question at the plan stage, and the injection,
+declaration, and guarded-statement conventions as sqlint, called as a package rather than
+re-implemented as rules. The template's share moved to integration.template.
 '''
 
 [goals.v1.data.sql.tasks.suite]
@@ -162,7 +172,7 @@ summary = '''
 The integration tier stood up per the testing hierarchy: the //go:build integration suite
 running black-box through the API against the compose stack, the CI job booting the stack
 on merge to main and workflow_dispatch, and the mise test-integration task. Gated on
-tasks.organization — the capability gate requires the rewritten API surface. The suite
+integration.service — the capability gate requires the rewritten API surface. The suite
 absorbs the manual compose-stack ritual and asserts the design note's behavior list;
 serve-probes-drain lands as a README step.
 '''
@@ -383,13 +393,58 @@ original worked exhibit (the ast render layer) retires with go-database v0.4; th
 a current one.
 '''
 
+[backlog.marathon-stage-review]
+name = "Stage review gate in marathon"
+repos = ["claude-plugins"]
+summary = '''
+Every marathon working session executes in stages, and a stage is not complete until the
+architect has reviewed it: the point of stages is per-stage review, so a misstep never ripples
+across the code base and the architect never reviews a whole session at once. The sequence for
+every stage, in every command that executes (start, experiment, and the context sessions'
+edits alike): (1) execute the stage; (2) stop and report with the working tree uncommitted,
+so the diff reads cleanly in the architect's tools; iterate on adjustments until the architect
+approves; (3) on approval, commit (on-commit fires first), and the architect states whether a
+reset follows to keep the context small; (4) move to the next stage. Today
+references/staged-execution.md commits before the report ("Commit … Then stop and report"),
+and the staged loop is defined only for a code project's start, so experiment inherits no gate.
+Found by the v1.data.sql.prototype experiment on 2026-09-02, whose first three stages were
+committed before review.
+'''
+context = [
+  "claude-plugins/plugins/marathon/skills/marathon/references/staged-execution.md",
+  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
+]
+
+[backlog.marathon-workspace-experiments]
+name = "Experiments at the workspace coordinator"
+repos = ["claude-plugins"]
+summary = '''
+In a marathon workspace, experiments are co-located where they cannot collide with the
+development repositories' tooling: a spike inside a member repository sits under that
+repository's go.work, CI matrix, format sweeps, and module lists and either thrashes against
+them or has to be fenced from each one. The convention: the workspace coordinator is the
+default home for every experiment, whatever its scope, under its top-level experiments/
+(`standards-lab/experiments/<slug>`); a standalone project keeps its own experiments/ as
+today. commands/experiment.md and references/workspace-coordination.md state it; the reset
+file's Project line names the coordinator for such a session. Settled by the
+v1.data.sql.prototype experiment on 2026-09-02, which moved from
+go-database/experiments/sql-dsl to the coordinator for exactly this reason; the coordinator's
+own design note records the workspace's instance of the convention at that experiment's
+close.
+'''
+context = [
+  "claude-plugins/plugins/marathon/skills/marathon/commands/experiment.md",
+  "claude-plugins/plugins/marathon/skills/marathon/references/workspace-coordination.md",
+]
+
 [backlog.sql-meta-language]
 name = "The SQL meta language"
 summary = '''
-A provider-agnostic SQL meta language: SQL-compliant core with modules and composable
-definitions, schema-typed against the migration set, compiled to provider dialects with
-declared native reach. Under the DSL strategy, the authored SQL files are the authoring
-surface it would sit above, and build-time fragment composition is its recognizable phase
-one; the concept's runtime-half framing is rewritten in the docs pass. Not a v1 dependency.
+A provider-agnostic SQL meta language. Its first phase exists: the sqlate grammar —
+declarations, parameters and expansion, includes, namespaced patterns, tiers, overlays — is
+language independent, and sqlate is its first host. What remains is schema typing (types
+from the migration set rather than declared) and portability by construction (compiled to
+a dialect rather than declared by tier); the concept is reframed in the docs pass. Not a
+v1 dependency.
 '''
 context = ["docs/context/concepts/sql-meta-language.md"]

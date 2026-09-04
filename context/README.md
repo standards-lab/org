@@ -71,7 +71,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **Service organization** — the anticipated services and providers, and how the tiers
   co-evolve. See `design/service-organization.md`.
 - **DSL-driven services** — the strategy distinguishing DSL-driven infrastructure (SQL first)
-  from protocol-driven, and the native-SQL direction for go-database v0.4 and the reference
+  from protocol-driven, and the native-SQL direction — `sqlate`, the SQL templating library
+  (`concepts/sqlate.md`), go-database v0.4 reduced to the infrastructure service, and the reference
   service. See `design/dsl-driven-services.md`.
 - **Testing hierarchy** — the two-tier testing strategy: the hermetic per-PR unit tier for
   every layer, and the application-layer integration tier that runs the composed service's

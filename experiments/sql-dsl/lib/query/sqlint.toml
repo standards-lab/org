@@ -1,0 +1,10 @@
+# The library's own sqlint.toml. A consumer reads [export]: the directory
+# its namespace publishes. The rest lints the library itself.
+
+[export]
+patterns = "patterns"
+
+[patterns]
+dirs = ["patterns"]
+delimiter = true
+native_forms = true

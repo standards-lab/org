@@ -1,0 +1,71 @@
+# The experiment carries its own toolchain: standards-lab is not a
+# development repository and pins nothing.
+[tools]
+go = "1.27"
+golangci-lint = "2.13.2"
+
+[env]
+APP_ENV = "local"
+# The compose stack's defaults; the service reads only APP_DATABASE_*.
+APP_DATABASE_PASSWORD = "app"
+SQLDSL_DSN = "postgres://app:app@127.0.0.1:5433/app?sslmode=disable"
+
+[tasks.build]
+description = "Build every package"
+run = "go build ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.serve]
+description = "Run the service locally"
+run = "go run ./cmd/server"
+
+[tasks.test]
+description = "Run the hermetic tests"
+run = "go test -race ./..."
+
+[tasks.test-compose]
+description = "Run the compose-backed tests against the live stack (SQLDSL_DSN)"
+run = "go test -race -tags compose -count=1 ./..."
+
+[tasks.fmt]
+description = "Format all Go source"
+run = "gofmt -w ."
+
+[tasks.tidy]
+description = "Run go mod tidy"
+run = "go mod tidy"
+
+[tasks.lint]
+description = "Run golangci-lint and the SQL conventions lint"
+run = "golangci-lint run ./... && go run ./cmd/sqlint"
+
+[tasks.split-check]
+description = "Fail if lib/ (the go-sql candidates) depends on go-database, the service, or the driver"
+run = '''
+set -e
+deps=$(go list -deps ./lib/... 2>/dev/null | grep -E 'standards-lab/go-database|experiments/sql-dsl/(internal|admin|domain|cmd)' || true)
+if [ -n "$deps" ]; then
+  echo "split-check: lib/ depends on what go-sql cannot:"; echo "$deps"; exit 1
+fi
+named=$(grep -rl jackc lib/ --include='*.go' | grep -v _test.go || true)
+if [ -n "$named" ]; then
+  echo "split-check: lib/ names the driver:"; echo "$named"; exit 1
+fi
+echo "split-check: ok"
+'''
+
+# services
+[tasks.db-up]
+description = "Start the local postgres and wait for health"
+run = "docker compose up -d --wait"
+
+[tasks.db-down]
+description = "Stop the local postgres (keep data)"
+run = "docker compose down"
+
+[tasks.db-reset]
+description = "Stop the local postgres and drop its data"
+run = "docker compose down -v"

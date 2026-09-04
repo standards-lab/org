@@ -1,0 +1,31 @@
+# sqlint — the SQL conventions lint's configuration, one per module. Each role
+# owns a table: the directory globs it covers and the switches of its checks;
+# a directory set overrides a switch under its own glob. Sources and the
+# engine are paths: a producer (a Go package path, or a directory holding its
+# own sqlint.toml) declares what a consumer reads in its [export]; a bare
+# directory is the pattern files themselves, the service's own. At the split,
+# lib/query/patterns leaves the [patterns] role.
+
+# The library and the engine are named by package path and resolved through
+# go list, the form they keep once the library is sqlate; only the module
+# name changes.
+engine = "github.com/standards-lab/org/experiments/sql-dsl/lib/pgdialect"
+
+[sources]
+sql = "github.com/standards-lab/org/experiments/sql-dsl/lib/query"
+app = "internal/data/patterns"
+
+[statements]
+dirs = ["domain/*/statements", "internal/data/statements"]
+verb_named = true
+delimiter = true
+native_forms = true
+
+[patterns]
+dirs = ["lib/query/patterns", "internal/data/patterns"]
+delimiter = true
+native_forms = true
+
+[migrations]
+dirs = ["internal/data/migrations"]
+single_statement = true

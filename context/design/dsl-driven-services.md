@@ -152,32 +152,53 @@ domains, by build-time fragment composition — stitching includes into complete
 statements before embed — which is recognizably phase one of the meta-language concept. The
 `v1.data.sql.plan` session carries the investigation.
 
+**PRQL.** Considered at the prototype (2026-09-02) and ruled out for this layer: analytical-only
+by its own statement, no Go binding, and a second language above SQL. A reference point for
+the meta-language concept, not a mechanism.
+
 ## 4. go-database
 
-### 4.1 Shape (planned, v0.4.0)
+### 4.1 Shape (settled by the prototype, 2026-09-03)
 
-One module, and a consumer imports two packages:
+Two modules, and the mechanism is a standalone library below the infrastructure service.
+`sqlate` (`github.com/standards-lab/sqlate`; the concept is `concepts/sqlate.md`) owns
+everything from the file to the row and imports the standard library alone:
 
 ```
-database   — pool, lifecycle, Session, Tx, Config, Dialect, sentinels, error mapping
-query      — the mechanism: statements, the field contract, composition, runners, guard, verify
-migrate    — schema versioning over embedded SQL (new; replaces golang-migrate in consumers)
-seed       — reconciled with migrate's runner shape (§10)
-postgres   — provider capabilities re-homed (§10)
+sqlate           — the seam: Session, DB over a plain *sql.DB, Tx, Transact, Dialect, Locker,
+                   ErrorMapper, and the error taxonomy the engine sub-modules produce
+sqlate/query     — the mechanism: the pattern catalog, compile, statements, the handles, the
+                   field contract, directives, the guard, the mapper, verify
+sqlate/migrate   — schema versioning over embedded SQL (replaces golang-migrate in consumers)
+sqlate/sqltest   — the scripted driver every consumer's hermetic tests run over
+sqlate/sqlint    — the conventions lint as a package; cmd/sqlint is its entrypoint
+sqlate/postgres  — the engine sub-module: placeholders, error classes, the lock, migrate's
+                   catalog, its sqlint.toml
 ```
 
-`ast`, `operation`, and `exec` are removed. This is a breaking release, v0.4.0.
+go-database v0.4.0 is the infrastructure service: `Config`, the pool over the provider,
+lifecycle and readiness, and `admin`, the database admin service over sqlate that a
+service's admin mount triggers. `ast`, `operation`, `exec`, `seed`, `Session`, `Tx`,
+`Dialect`, and the constraint classes leave it; `postgres` keeps the driver and pool
+construction and supplies no dialect. A breaking release. The original single-module plan
+(`query` and `migrate` inside go-database) is superseded: the prototype's split rehearsal
+showed the mechanism needs nothing of the service, so a CLI, a worker, or a test harness
+uses authored SQL with no lifecycle machinery.
 
 ### 4.2 The `query` mechanism
 
 Described at the level of responsibilities; the exact signatures belong to the session that
 builds them.
 
-**Statements.** The rendered unit is text plus ordered arguments. Text comes from literals or
-embedded files and uses one placeholder convention (`?`), rebound to the dialect at run time by
-a scanner that respects quoted strings and comments. A `Source` loaded from an `embed.FS` gives a
-domain package its statements by name, parses each file's tier header, and is the inventory the
-verification step and the management surface both walk.
+**Statements.** The rendered unit is text plus ordered arguments. Text comes from authored
+files; a parameter is written `{{name}}`, or `{{name:type}}` to cast through the engine's own
+type, or `{{ids...}}` to expand a list into one placeholder per element, resolved to the
+dialect's positions once at compile (the `?` and `:name` grammars this section and §11 stated
+are superseded). A file's `--|` declarations state its tier, its native reach, whether it
+needs a transaction, and a base's key and field contract; the engine receives the body alone.
+`Statements` compiled from an `embed.FS` against the pattern catalog give a domain its
+statements by name and are the inventory the verification step and the admin mount walk
+through the service's statements registry.
 
 **The field contract.** A projection is an authored base statement plus a map of contract names
 to columns of that base. It is the whitelist of §2.5 and the vocabulary that request directives
@@ -317,6 +338,16 @@ reach"): a phase-one form of a settled direction, not a regression.
 
 ## 6. The pattern catalog
 
+As the prototype built it (2026-09-03): a **pattern** is protocol SQL any package publishes
+under a namespace, authored as a `.sql` file with a tier and slots; the library's own SQL is
+patterns too (namespace `sql`), an application registers its namespace beside them, and an
+engine overlays the one pattern it spells differently. A statement includes a pattern at
+compile with `{{> sql.guard_where}}`; the collection read composes the request-time patterns
+(`collection`, `count`, `one`, `where`, the operators, `order`, `paging`) at request time from
+a base and the read's signature. The catalog is built once at the composition root and every
+statement compiles against it; `sqlint.toml` names the same sources so the lint resolves
+includes as the runtime does. The admission rule below stands; the shapes are now files.
+
 Conventions the standard names. Each is a SQL shape; a mechanism function is listed only where
 one exists.
 
@@ -336,17 +367,21 @@ stated, and it earns a mechanism only if it carries a protocol the SQL cannot gu
 
 | Artifact | Change |
 |---|---|
-| go-database | v0.4.0: `query` and `migrate` added; `ast`, `operation`, `exec` removed; `Session` gains `PrepareContext`; `layers.md` rewritten around §2 |
-| go-web-service | `cmd/db` and golang-migrate removed; `sql/` per domain; `database.go` rewritten; startup verify/apply/seed; management listener |
-| docs | new go-elemental principle page: DSL-driven services (§2.1–2.5); go-database pages rewritten; the SQL meta-language concept notes that native SQL files are the authoring surface it would sit above |
-| go-web-sdk-template | scaffolds `sql/`, the `Source`, the startup modes, and the management listener |
-| claude-plugins | the sufficiency question (§2.4) enters the `plan` stage; the injection and tier conventions (§2.5, §5.4) become checkable rules |
+| sqlate | new repository and module from the prototype's `lib/` and `cmd/sqlint` (§4.1); v0.1.0 with `sqlate/postgres` |
+| go-database | v0.4.0: reduced to the infrastructure service plus `admin` over sqlate; `ast`, `operation`, `exec`, `seed`, the seam, the dialect, and the constraint classes removed; `layers.md` rewritten |
+| go-web-sdk | the If-Match precondition parse, the error writer's detail option, the strict decode and respond plumbing; the operator-syntax decision for the query parser |
+| go-web-sdk-template | scaffolds `internal/data` (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statements registry), `admin/database` over go-database's admin service, the composition root as one file per layer, `sqlint.toml`, and the mise tasks |
+| go-web-service | `cmd/db` and golang-migrate removed; `statements/` per domain; `database.go` rewritten over sqlate's handles; the admin mount; the entity roles (validation methods, the tag conventions); the management listener |
+| docs | the DSL-driven-services principle page (§2.1–2.5); the sqlate pages; the go-database pages rewritten; the grammar recorded as the standard's own artifact, sqlate its first host; the SQL meta-language concept reframed as having this experiment as its first phase; the architecture definition amended so a Domain Service anchors a domain, a composition of one or more Entities |
+| claude-plugins | the sufficiency question (§2.4) enters the `plan` stage; the conventions are `sqlint` as a package the harness calls |
 
 ## 8. Sequence
 
-`goals.v1.data.sql` carries the task breakdown: `plan` → `query` → `migrate` → `organization`
-(a coordinated session; the library and service changes release together so the reference
-architecture demonstrates the split on release day) → `startup` → `docs` → `hardening`.
+`goals.v1.data.sql.integration` carries the task breakdown in dependency order: `sqlate` →
+`database` → `websdk` → `template` → `service` (a coordinated session; go-database v0.4.0 and
+the service change release together so the reference architecture demonstrates the split on
+release day) → `listener`; then `docs`, `hardening`, and `suite` under `goals.v1.data.sql`.
+The pre-split breakdown (`query`, `migrate`, `organization`, `startup`) is superseded.
 
 ## 9. Deferred to sessions
 
@@ -409,6 +444,20 @@ before v0.4 breaks the library, the provider, and the service in lockstep. The d
   semantics need transaction scope declares `-- transaction: required` in its header.
 - Parameters are named (`:name`), resolved to dialect positions once at load, in place of the
   ordinal `?` §4.2 states.
+
+## 12. Prototype adjustments (2026-09-03)
+
+The `v1.data.sql.prototype` experiment (`experiments/sql-dsl` at the coordinator; its
+record is `NOTES.md`, its verdict `REVIEW.md`) settled the five questions the plan left to
+evidence and changed this record where the sections above now say so: the split into
+`sqlate` and go-database (§4.1, §7, §8); the file grammar of `{{name}}` parameters, list
+expansion, and `--|` declarations (§4.2); the pattern catalog as authored, namespaced files
+composed on demand (§6); PRQL ruled out (§3). Beyond this record it settled the service-side
+shape the template scaffolds — `internal/data`, the admin mount over an admin domain, the
+composition root as files, the entity roles — recorded in `REVIEW.md` §3 and §5 for the
+integration tasks, and the vocabulary in `NOTES.md`'s Ontology section: pattern, slot,
+namespace, source, catalog, statement, declaration, parameter, include, base, field
+contract, directives, signature, handle, and the verbs compile, compose, execute.
 
 ## Appendix — review concerns
 
