@@ -1,50 +1,59 @@
-# reset · database-v0.4
+# reset · websdk-v0.6
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** sqlate, go-database, standards-lab
-- **Branch:** database-v0.4
+- **Project:** go-web-sdk, standards-lab, go-web-service
+- **Branch:** websdk-v0.6
 
 ## Disposition
 
-- **Integrated:** `v1.data.sql.integration.database`. go-database v0.4.0 is built and validated:
-  the `ast`, `operation`, `exec`, and `seed` packages, the `Session`, `Tx`, and `Dialect` types,
-  the `Provider` constant, and the constraint classes are gone; `New` is `New(conn, cfg)`; the
-  `postgres` sub-module keeps the driver, the DSN, and pool construction and supplies no
-  dialect; the `admin` package holds the database admin service over sqlate, generic over a
-  prebuilt migrator, a `Seeder` returning a count map, a `Registry`, the catalog, and the pool;
-  CI and the mise build task build each module with `GOWORK=off`. The unit tier is green (20
-  tests in `admin` over `sqlate/sqltest`), and the behavior check against PostgreSQL 18.4 drove
-  verify, apply, seed, the verbs, and `Diagnose` end to end. The tags `v0.4.0` and
-  `postgres/v0.3.0` are cut on merge, bottom-up: the base first, then the provider's `require`
-  bumped and its transient `replace` dropped. The task is deleted from the roadmap and `next`
-  advanced.
-- **Integrated:** `go-database/context/design/layers.md` decayed into
-  `design/infrastructure-service.md`: the four-layer ontology, the guard contract, and the
-  dialect material are sqlate's; the new note holds the boundaries between go-database, sqlate,
-  and the application, the composition a root writes, and the wiring rule. The capability map
-  names `database`, `admin`, and `postgres`.
-- **Culled:** `go-database/context/concepts/sql-architecture.md` (its record is sqlate's
-  documentation and `experiments/sql-dsl/REVIEW.md`) and `concepts/v0.4-findings.md` (every
-  item consumed; the one deferral, `Config.Password` redaction, is cited on the `listener` task).
-- **Retained:** `docs/context/concepts/dsl-docs-pass.md` line 41 still lists the go-database
-  index page as rewritten around `query`, `migrate`, and `seed`; its header paragraph corrects
-  it and the docs pass consumes the note. go-web-service's context describes its code at the
-  pinned v0.3.0 until the `service` task rewrites it. The landing zone's `layers.md`,
-  `dialect.md`, and `index.md` under go-database describe v0.3.0; the docs pass inventories them.
-- **Cross-repo:** sqlate `postgres/v0.1.1`, merged and tagged in-session: `Dialect.ServerVersion`
-  as a capability rather than a member of `sqlate.Dialect`. At the coordinator:
-  `design/dsl-driven-services.md` §4.1, §5, §9, and History state v0.4.0 as built and drop the
-  claim that a library release waits for the service change; `context/README.md` and
-  `design/testing-hierarchy.md` say the same; the roadmap's two integration criteria are
-  corrected to match, the `listener` task cites the password-redaction defect, and `next` is
-  `websdk`. The `goals.v1` criterion "a library change and the service change that proves it
-  release together" is left for the architect's ruling.
+- **Integrated:** `v1.data.sql.integration.websdk`. go-web-sdk v0.6.0 is built and validated in
+  six stages: `ErrorWriter.Detail` over a built-in detail set of 400, 413, and 428; `IfMatch`
+  and `PreconditionError` promoted verbatim from the service's `sdk` staging; `DecodeJSON` and
+  `BodyError`, answering 413 for a body over its limit where the service's `decode` answered
+  400 and rejecting anything after the first value; the bracket operator grammar
+  `field[op]=value` in `ParseQuery`, `Query.Filters` now an ordered `[]Filter` with the operator
+  lexical; and the adapter core pulled forward from `v1.web.adapter` in place of a respond
+  helper — `HandlerFunc`, `Handle`, `Group.SetErrorWriter`, `Group.HandleErr`, and a
+  committed-tracking `recorder` so the adapter never writes a second response, reporting a
+  post-commit error through `ErrorWriter.Log`. The SDK's own error types carry their status
+  through the unexported `statusError` interface, sealed on purpose: consumer policy stays the
+  matcher list. The unit suite is green with race and lint; the end-to-end test drives ten
+  outcomes through router, module, group, and the three request helpers. The root regrouped by
+  doc.go section (`errors.go`, `request.go`, `response.go`, `handler.go`; `env.go` into
+  `config.go`), 14 files. The tag `v0.6.0` is cut on merge.
+- **Integrated:** `go-web-sdk/context/concepts/error-handling.md` §1 and §2.5 decayed into
+  `handler.go`, `request.go`, and `group.go`; the note now holds only what `v1.web.adapter`
+  still owns, plus the idiom line: wiring-time methods for optional behavior, struct options for
+  construction-time configuration, per the go-patterns constructors reference. The capability
+  map and `concepts/direction.md` say v0.6.0.
+- **Culled:** the claim "never functional options" (the same note, its former line 65) — it
+  overstated the go-patterns rule, which reserves struct configs for production constructors
+  and allows variadic or method-style variation for genuinely optional behavior.
+- **Retained:** the landing-zone pages v0.6.0 moved out from under, for the docs pass:
+  `go-web-sdk/problems.md` (detail on 400 only; one built-in type), `reads.md` (filters as
+  `url.Values`, exact match), `routing.md` (no `HandleErr`), and a request-helpers page that does
+  not exist; `docs/context/concepts/dsl-docs-pass.md` is left for that pass to inventory.
+  `go-web-service/sdk/web.go` and its `doc.go` describe staging for a promotion that has landed;
+  they retire at `integration.service` with the handlers they serve. The service's context
+  describes its code at the pinned v0.5.0 until that rewrite.
+- **Cross-repo:** at the coordinator, `design/dsl-driven-services.md` §8 marks go-web-sdk done,
+  §10 drops the operator-syntax question, and History records 2026-09-05;
+  `design/service-organization.md` says the adapter is built. The roadmap deletes the `websdk`
+  task, rewords `v1.web.tasks.adapter` to its remaining items with `go-web-sdk` as its one
+  repository, names the go-web-sdk pages in the `docs` task, and advances `next` to `template`.
+  At go-web-service, `design/domain-architecture.md`, `concepts/data-layer.md`, and
+  `concepts/retrospective-findings.md` no longer route the adapter and the decode promotion
+  through `v1.web.adapter`; they landed in v0.6.0 and the service adopts them at
+  `integration.service`.
 
 ## Next-focus
 
-`v1.data.sql.integration.websdk`, a `start` session at go-web-sdk: `IfMatch` and
-`PreconditionError` promoted from the service's `sdk` staging, the `ErrorWriter` option to carry
-the error text on chosen statuses (the admin handler's `reject` retires on it), the strict body
-decode and the respond plumbing every handler repeats, and the operator-syntax decision for the
-query parser. The template and the service pin the release.
+`v1.data.sql.integration.template`, a `start` session at go-web-sdk-template: pin go-web-sdk
+v0.6.0 and go-database v0.4.0 with sqlate, then scaffold `internal/data` with its directories
+and the seeder skeleton, `admin/database` over go-database's admin package as error-returning
+handlers, the composition root as one file per layer with `routes.go` the list of mounts,
+`internal/sdk` with the directives lowering onto sqlate's operators, `sqlint.toml`, the mise
+tasks, and the entity conventions. SETTLE opens with the engine question: the template is
+engine-free today, and scaffolding the data layer means declaring Postgres or parameterizing
+the provider. The template and the service are sized as separate sessions on purpose.

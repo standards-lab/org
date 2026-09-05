@@ -395,7 +395,7 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 |---|---|
 | sqlate | done: the repository and module from the prototype's `lib/` and `cmd/sqlint` (§4.1), released as v0.1.0 with `postgres/v0.1.0` and `sqlint/v0.1.0` on 2026-09-04 |
 | go-database | v0.4.0 (§5): the infrastructure service plus `admin`; `ast`, `operation`, `exec`, `seed`, the session types, the dialect, and the constraint classes removed; `layers.md` rewritten |
-| go-web-sdk | the If-Match precondition parse, the error writer's detail option, the strict body decode and the respond plumbing; the operator-syntax decision for the query parser |
+| go-web-sdk | done: v0.6.0 (2026-09-05): `IfMatch` and `DecodeJSON`, `ErrorWriter.Detail`, the error-returning handler adapter pulled forward from `v1.web.adapter` in place of a respond helper, and the bracket operator grammar in `ParseQuery` |
 | go-web-sdk-template | scaffolds `internal/data` (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statement registry), `admin/database` over go-database's admin service, the composition root as one file per layer, `sqlint.toml`, and the mise tasks |
 | go-web-service | `cmd/db` and golang-migrate removed; a `statements/` directory per domain; `database.go` rewritten over sqlate; the admin mount; the entity roles (validation methods, the tag conventions); the management listener |
 | docs | the DSL-driven-services principle page (§2); the sqlate pages; the go-database pages rewritten; the grammar recorded as the standard's own artifact, sqlate its first host; the SQL meta-language concept reframed with this work as its first phase; the architecture definition amended so a Domain Service anchors a domain, a composition of one or more Entities |
@@ -419,9 +419,6 @@ coordinated session that pins them all. Then `docs`, `hardening`, and `suite` un
   listener task decides.
 - **The confirmation token** for `down` and `force`: its mechanism, with the listener's
   authentication.
-- **Operator syntax in the query parser.** Every operator but `eq` and `in` is unused after
-  three consumers because `web.Query` yields exact matches only. go-web-sdk's decision, either
-  way, under the `websdk` task.
 - **Guarded-statement conventions in the lint.** The library no longer guarantees the guard's
   SQL shape, so a consumer can write a guarded update that forgets the increment or the version
   predicate. A check that a file named or annotated as guarded contains both clauses belongs to
@@ -465,3 +462,11 @@ coordinated session that pins them all. Then `docs`, `hardening`, and `suite` un
   server-version read became a capability of `sqlate/postgres` (v0.1.1) rather than a member of
   `sqlate.Dialect`. The sequence (§9) no longer holds a library release for the service change:
   each library releases as its task closes, and the tasks above pin it.
+- **2026-09-05, go-web-sdk v0.6.0.** The `websdk` task promoted the If-Match parse and the strict
+  body decode (413 on overflow), gave the error writer its detail set, and, in place of a
+  respond helper, pulled the error-returning handler adapter forward from `v1.web.adapter` so
+  the service rewrite writes its handlers once. The operator-syntax question closed with the
+  bracket grammar, `field[op]=value`, the operator lexical for sqlate's `query` package to
+  validate, taken now because `Query.Filters` had no consumer past the service rewrite. The
+  SDK's own errors map themselves through a sealed interface; consumer policy stays the
+  matchers.
