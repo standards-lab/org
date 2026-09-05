@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The DSL service integration continues with go-web-sdk's three items over the released
-  # go-database v0.4.0.
-  "v1.data.sql.integration.websdk",
+  # The DSL service integration continues with the template scaffolding the shape over the
+  # released go-web-sdk v0.6.0 and go-database v0.4.0.
+  "v1.data.sql.integration.template",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -66,16 +66,6 @@ criteria = [
 ]
 context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
 
-[goals.v1.data.sql.integration.tasks.websdk]
-name = "go-web-sdk's three items"
-repos = ["go-web-sdk"]
-summary = '''
-IfMatch and PreconditionError promoted from the service's sdk staging; ErrorWriter's option
-to carry the error text on chosen statuses; the strict body decode and the respond
-plumbing every handler repeats. The operator-syntax decision for the query parser is taken,
-either way.
-'''
-
 [goals.v1.data.sql.integration.tasks.template]
 name = "The template scaffolds the shape"
 repos = ["go-web-sdk-template"]
@@ -117,7 +107,9 @@ name = "The docs pass"
 repos = ["docs", "standards-lab"]
 summary = '''
 The DSL-driven-services principle page; the sqlate pages and the grammar recorded as the
-standard's own artifact, sqlate its first host; the go-database pages rewritten; the SQL
+standard's own artifact, sqlate its first host; the go-database pages rewritten; the
+go-web-sdk pages v0.6.0 moved out from under (problems, reads, routing, a request-helpers
+page); the SQL
 meta-language concept reframed with the experiment as its first phase, what remains being
 schema typing and portability by construction; the content-patterns reference; the
 architecture definition amended so a Domain Service anchors a domain, a composition of one
@@ -187,14 +179,16 @@ contract throughout.
 '''
 
 [goals.v1.web.tasks.adapter]
-name = "The error-handler adapter"
-repos = ["go-web-sdk", "go-web-service"]
+name = "The adapter's remaining work"
+repos = ["go-web-sdk"]
 summary = '''
-HandleErr and the error-returning HandlerFunc over a group-scoped ErrorWriter, with the
-whole-response problem story folded in — the shared wrapped writer, the ErrorWriter problem
-vocabulary, router 404/405 hooks, the ErrorLog bridge, and the request-side helper
-promotions. The settled API and the full item list are the linked note; the reference
-service's handlers convert.
+The adapter core landed in go-web-sdk v0.6.0 (HandleErr, the error-returning HandlerFunc
+over a group-scoped ErrorWriter, IfMatch and DecodeJSON). What remains is the whole-response
+problem story: the recorder exported as the shared wrapped writer and the request logger
+rewritten onto it, the ErrorWriter problem vocabulary, router 404/405 hooks, the ErrorLog
+bridge with MaxHeaderBytes and the swallowed encoder error, writer inheritance if a consumer
+asks. The item list is the linked note; the reference service's handlers convert at
+integration.service.
 '''
 context = ["go-web-sdk/context/concepts/error-handling.md"]
 

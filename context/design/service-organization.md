@@ -33,8 +33,8 @@ composition happens in the application: the SDK exposes an extension point, and 
 application declares the policy. The web SDK's error writing is the worked example. The SDK
 defines the error-returning handler adapter and its writer; the application supplies, at its
 composition root, the matchers that map the database library's error types to HTTP statuses.
-The adapter (settled at the 2026-08-31 retrospective, `goals.v1.web`) moves the mechanics into
-the SDK without moving the vocabulary, so matcher policy stays the consumer's. When an
+The adapter (settled at the 2026-08-31 retrospective, built in go-web-sdk v0.6.0) moves the
+mechanics into the SDK without moving the vocabulary, so matcher policy stays the consumer's. When an
 infrastructure library contributes to an SDK-defined surface, as the management listener will
 (`v1.data.sql.integration.listener`), the dependency points from the infrastructure library to
 the SDK, never the reverse. The cost is a small adapter per service; the return is independent
