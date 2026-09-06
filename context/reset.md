@@ -1,65 +1,63 @@
-# reset · template-v0.6
+# reset · service-on-sqlate
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** go-web-sdk-template, standards-lab, go-database, go-web-service
-- **Branch:** template-v0.6
+- **Project:** go-web-service, standards-lab, go-database, go-web-sdk, go-web-sdk-template
+- **Branch:** service-on-sqlate
 
 ## Disposition
 
-- **Integrated:** `v1.data.sql.integration.template`, reduced at SETTLE. go-web-sdk-template
-  template/v0.6.0 is built and validated in three stages: the pin to go-web-sdk v0.6.0 with the
-  `reads` policy block (`ReadsConfig`, defaults 20 and 100, `APP_READS_DEFAULT_SIZE` and
-  `APP_READS_MAX_SIZE`, validated to the invariant `web.ParseQuery` panics on, its env names
-  recorded like the log and server blocks); the composition root as one file per layer under
-  `internal/app` (`infrastructure.go`, `admin.go`, `domain.go`, `reactors.go`, each
-  constructing its layer and owning its mount, `routes.go` the list of mounts) with the three
-  packages deleted and the empty admin layer added as shape with its `/admin` group; and the
-  starter README, the root README, and the changelog. Vet, race tests, lint, gofmt, and tidy
-  are clean; the run-and-verify pass served the probes, answered 404 on both empty mounts, and
-  drained on SIGINT to exit 0. The tag `template/v0.6.0` is cut on merge.
-- **Integrated:** the template's `context/README.md` capability map says the layer files and
-  the reads block; its Next bullet is gone, and a candidate-direction bullet says the admin
-  layer's content and the database infrastructure patterns standardize from the reference
-  service after `v1.data.sql.integration.service`.
-- **Culled:** the template's data scaffolding as an item. The architect settled at SETTLE that
-  the template stays engine-free: scaffolding `internal/data` and `admin/database` means
-  declaring an engine, and database infrastructure setup and management are
-  reference-architecture patterns go-web-service proves and the docs pass documents. The
-  `internal/data`, `admin/database`, seeder, directives lowering, `sqlint.toml`, compose stack,
-  mise tasks, and entity-conventions items moved to the `service` task.
-- **Retained:** the landing-zone pages template/v0.6.0 moved out from under, for the docs
-  pass: `docs/standards/go-elemental/go-web-sdk-template/index.md` (engine-free principle,
-  five build points), `baseline.md` (four packages), and `elements.md` (`internal/reactors`,
-  `internal/domain` as packages), plus the topology-and-naming principle's sentence naming
-  the three packages. The `/admin` group serves on the API listener with no route; the
-  starter README tells a generated service to settle the mount's isolation before mounting
-  the first admin service, and the listener task decides the standard's posture.
-- **Cross-repo:** at the coordinator, `roadmap.toml` deletes the `template` task, rewords the
-  `integration` goal's summary and second criterion, moves the scaffolding items into
-  `service` with the data-layer note linked, names the template's three pages and the
-  database-infrastructure pattern pages in `docs`, corrects `hardening`'s last sentence, and
-  advances `next` to `v1.data.sql.integration.service`; `design/dsl-driven-services.md` §5
-  and §7 say the reference service builds the HTTP half and the `app` namespace comes from
-  the service's `data` package, §8 marks the template done and moves the scaffolding to the
-  service row, and §11 records 2026-09-06. At go-database,
-  `design/infrastructure-service.md` and `context/README.md` no longer say the template
-  scaffolds the HTTP half. At go-web-service, `design/composition-root.md`'s superseded
-  paragraph and `concepts/data-layer.md` record the settled service layout: a root-level
-  `data` package (the grouping with the registry, migrations, patterns, seeds behind the
-  seeder, and the directives lowering) beside `domain/` and `admin/`, since domain packages
-  import it and the topology-and-naming principle forbids a root-level package importing
-  `internal/*`; `concepts/retrospective-findings.md` no longer cites the template task for
-  the listener's reshape.
+- **Integrated:** `v1.data.sql.integration.service`. go-web-service runs on authored SQL end
+  to end over go-database v0.4.0 with postgres/v0.3.0, go-web-sdk v0.6.0, and sqlate v0.1.0
+  with postgres/v0.1.1, built in seven stages: the pins and the root-level `data` package (the
+  session with the pattern catalog and the statements registry, the migration set, the `app`
+  pattern namespace, the seeder, the lock-name registry with the one lock statement behind
+  `Database.Lock`, the `web.Query` to `query.Directives` lowering, and the shared status
+  matcher); the `sdk` package re-seeded with `PathID` and `Command`; the organization domain on
+  seven statement files with `Validate` on each command, edit on `PUT /{id}`, transfer
+  requiring the `parent_id` key; `admin/database` as the HTTP half over go-database's admin
+  service with detail on 403 and 409; the `admin.seed` config block (`APP_ADMIN_SEED`); the
+  composition root as one file per layer with the pool at stage 0, the schema at stage 1, and
+  the domains at stage 2; `sqlint.toml` with `go tool sqlint` in mise's lint and CI, the
+  `cmd/db` tasks gone, the README and changelog rewritten. Every package proves its SQL over
+  `sqlate/sqltest`. The run-and-verify pass against a fresh compose stack proved startup
+  migration and seeding, the probes with the schema check, the filter grammar (equality,
+  membership, `like`, an unknown field, an unknown operator, and a malformed value as typed
+  400s), create with Location and the duplicate 409, PUT with 200, 400, 412, 428, and 404,
+  transfer with the required key, the cycle 409, path recomposition, the root move, delete with
+  204 and 412 and the children 409, every admin endpoint, the idempotent seed with counts of
+  zero, 403 with seeding off, and a clean drain to exit 0. The service stays versionless.
+- **Integrated:** the service's `design/domain-architecture.md`, `design/composition-root.md`,
+  and `design/stack.md` are rewritten for the code as built (the superseded blocks gone; the
+  verb rule, the matcher composition, the lock rule, the three stages, the port list as the
+  native-tier files plus the migrations); `concepts/data-layer.md`'s settled-layout paragraph
+  decayed and its evaluation section names the `sdk` tenants, the `data` package's
+  non-scaffoldable pieces, and the seed helper; `concepts/retrospective-findings.md`'s
+  domain-rewrite section is consumed; `context/README.md`'s baseline names the admin service.
+- **Culled:** nothing. Soft delete, recommended by the prototype's review and not in the task,
+  is recorded as a deferred convention under `concepts/data-layer.md`'s domain direction.
+- **Retained:** the 503 on a database outage is wired in `data.Status` and unproven live; the
+  integration tier asserts it. For the docs pass: the landing zone's topology-and-naming
+  principle and the go-web-sdk-template pages still name `internal/infrastructure` and
+  `internal/domain`, and both index pages list go-web-service as planned.
+- **Cross-repo:** at the coordinator, `roadmap.toml` deletes the `service` task, opens the
+  `suite` task's gate and adds the 503 to its list, marks the `integration` goal's summary
+  landed but for the listener, and advances `next` to `v1.data.sql.tasks.suite`;
+  `design/dsl-driven-services.md` §6.1 records the lock's and the guarded-command read's
+  placements and edit on PUT, §8 marks the service done, and §11 records 2026-09-06;
+  `context/README.md` dates the service. At go-database, `context/README.md` and
+  `design/infrastructure-service.md` say the reference service built the admin HTTP half. At
+  go-web-sdk, `concepts/error-handling.md`'s service section says the conversion landed and
+  names the two staged candidates. At go-web-sdk-template, `context/README.md`'s candidate
+  direction says the service proved the patterns.
 
 ## Next-focus
 
-`v1.data.sql.integration.service`, a `start` session at go-web-service: the coordinated
-rewrite onto sqlate v0.1.0, go-database v0.4.0 with postgres/v0.3.0, and go-web-sdk v0.6.0,
-on the layout `concepts/data-layer.md` now records — the root-level `data` package, the
-organization domain on authored SQL as the spike built it, `admin/database` and the admin
-mount, the composition root as files as template/v0.6.0 ships it, `cmd/db` and golang-migrate
-deleted, `sqlint.toml` with the compose stack and mise tasks, and the entity conventions in the
-domain architecture. SETTLE opens with the size question: the task lists three repositories,
-and the go-database and go-web-sdk shares are context only unless the rewrite finds a library
-defect. Nothing else remains in front of it.
+`v1.data.sql.tasks.suite`, a `start` session at go-web-service: the integration tier per
+`standards-lab/context/design/testing-hierarchy.md`, the `//go:build integration` suite
+black-box through the API against the compose stack, the CI job booting the stack on merge to
+main and `workflow_dispatch`, and the mise task. The assertion list is the run-and-verify pass
+above plus the hierarchy's list (two concurrent transfers under the lock, migration DDL via
+startup, seed idempotency on a second run) and the 503 on an outage. Once the first run is
+live, the docs amendments the hierarchy names (tests-and-docs, release-and-ci) land in
+whichever session is next in the docs repository. After it, `v1.data.sql.integration.listener`.
