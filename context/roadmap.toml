@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The DSL service integration continues with the reference service rewritten onto sqlate
-  # over the released go-web-sdk v0.6.0, go-database v0.4.0, and template/v0.6.0.
-  "v1.data.sql.integration.service",
+  # The reference service runs on authored SQL end to end; the integration tier now locks
+  # in the behaviors the rewrite proved by hand before the listener reshapes the root.
+  "v1.data.sql.tasks.suite",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -58,8 +58,9 @@ The prototype's shape adopted across the workspace in dependency order: sqlate c
 from the spike's lib/ and sqlint, go-database reduced to the infrastructure service and
 given the admin package, go-web-sdk's three items, the template laying the composition
 root out as files with the admin layer as shape, and the reference service rewritten onto
-sqlate with cmd/db and golang-migrate gone. Database infrastructure setup and management
-are reference-architecture patterns the service proves and the docs pass documents; the
+sqlate with cmd/db and golang-migrate gone, all landed by 2026-09-06. What remains is the
+management listener. Database infrastructure setup and management are
+reference-architecture patterns the service proves and the docs pass documents; the
 template stays engine-free. The review is the linked record.
 '''
 criteria = [
@@ -67,23 +68,6 @@ criteria = [
   "Every service-side principle the experiment incubated is built in the reference service and documented in the domain architecture or the landing zone.",
 ]
 context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
-
-[goals.v1.data.sql.integration.tasks.service]
-name = "The reference service on sqlate"
-repos = ["go-web-service", "go-database", "go-web-sdk"]
-summary = '''
-The coordinated rewrite: the organization domain on authored SQL as the spike built it;
-the root-level data package (the session-and-catalog grouping with the statements
-registry, migrations, patterns, the seeds behind the seeder, and the directives lowering
-from web.Query, placed per the layout in the linked data-layer note); admin/database over
-go-database's admin package and the admin mount; the composition root as files as
-template/v0.6.0 ships it; cmd/db and golang-migrate deleted; sqlint.toml, the compose
-stack, and the mise tasks; the entity conventions (validation methods, the tag
-conventions) documented in the domain architecture; the per-domain boilerplate extracted
-before domains multiply (the linked findings note); the domain architecture and
-composition root notes rewritten; the release with go-database v0.4.0.
-'''
-context = ["go-web-service/context/concepts/data-layer.md", "go-web-service/context/concepts/retrospective-findings.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
 [goals.v1.data.sql.integration.tasks.listener]
 name = "The management listener"
@@ -134,10 +118,12 @@ repos = ["go-web-service"]
 summary = '''
 The integration tier stood up per the testing hierarchy: the //go:build integration suite
 running black-box through the API against the compose stack, the CI job booting the stack
-on merge to main and workflow_dispatch, and the mise integration task. Gated on
-integration.service — the capability gate requires the rewritten API surface. The suite
-absorbs the manual compose-stack ritual and asserts the design note's behavior list;
-serve-probes-drain lands as a README step.
+on merge to main and workflow_dispatch, and the mise integration task. The capability gate
+is open: the rewritten API surface landed at integration.service, and its run-and-verify
+pass (the reset file of 2026-09-06) is the first assertion list. The suite absorbs the manual
+compose-stack ritual and asserts the design note's behavior list, including the 503 on a
+database outage that the rewrite wired but did not prove live; serve-probes-drain lands as a
+README step.
 '''
 context = ["standards-lab/context/design/testing-hierarchy.md"]
 

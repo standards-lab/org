@@ -277,6 +277,9 @@ infrastructure-service.md`.
 
 ## 6. go-web-service
 
+Built at `v1.data.sql.integration.service` (2026-09-06); the service's
+`context/design/domain-architecture.md` and `composition-root.md` carry the rules.
+
 ### 6.1 A domain on authored SQL
 
 ```
@@ -289,10 +292,9 @@ domain/organization/
   statements/
     organization_view.sql   # the read model: columns plus the computed path, a recursive CTE
     in_subtree.sql
-    lock_tree.sql
-    create.sql              # native: RETURNING
-    edit.sql                # guarded
-    transfer.sql            # guarded
+    create.sql              # native through the app.identity include: RETURNING
+    edit.sql                # guarded; PUT, full replacement
+    transfer.sql            # guarded; the action, under the tree lock the data package takes
     delete.sql              # guarded
     version.sql             # the guard's check
 ```
@@ -304,7 +306,9 @@ the domain that imports the library. It compiles the directory against the catal
 the inventory, binds each statement to its typed value, and exposes each operation as a method
 that reads as what it does. A command's validation belongs to the entity's `Validate` method;
 existence and uniqueness belong to the store, as constraint violations. A statement is named
-for its operation, never its SQL verb.
+for its operation, never its SQL verb. The one advisory lock statement is the service's, in its
+`data` package beside the lock-name registry, so the port list carries the mechanism once and a
+domain takes a lock by its registered name.
 
 ### 6.2 Startup
 
@@ -398,7 +402,7 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 | go-database | v0.4.0 (§5): the infrastructure service plus `admin`; `ast`, `operation`, `exec`, `seed`, the session types, the dialect, and the constraint classes removed; `layers.md` rewritten |
 | go-web-sdk | done: v0.6.0 (2026-09-05): `IfMatch` and `DecodeJSON`, `ErrorWriter.Detail`, the error-returning handler adapter pulled forward from `v1.web.adapter` in place of a respond helper, and the bracket operator grammar in `ParseQuery` |
 | go-web-sdk-template | done: template/v0.6.0 (2026-09-06): the composition root as one file per layer with the empty admin layer and its `/admin` mount, and the `reads` policy block. The template stays engine-free: database infrastructure setup and management are reference-architecture patterns the service proves and the docs pass documents, never template scaffolding |
-| go-web-service | `cmd/db` and golang-migrate removed; the root-level `data` package (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statement registry, the directives lowering); a `statements/` directory per domain; `database.go` rewritten over sqlate; `admin/database` over go-database's admin service and the admin mount; the entity roles (validation methods, the tag conventions); `sqlint.toml`, the compose stack, and the mise tasks; the management listener |
+| go-web-service | done: `v1.data.sql.integration.service` (2026-09-06): `cmd/db` and golang-migrate removed; the root-level `data` package (the session-and-catalog grouping with the statements registry, migrations, the application's patterns, the seeder, the lock registry with the one lock statement, the directives lowering, the shared status matcher); a `statements/` directory per domain; `database.go` rewritten over sqlate; `admin/database` over go-database's admin service and the admin mount; the entity roles; `sqlint.toml` in lint and CI. Remaining: the management listener |
 | docs | the DSL-driven-services principle page (§2); the sqlate pages; the go-database pages rewritten; the grammar recorded as the standard's own artifact, sqlate its first host; the SQL meta-language concept reframed with this work as its first phase; the architecture definition amended so a Domain Service anchors a domain, a composition of one or more Entities |
 | claude-plugins | the sufficiency question (§2.4) enters the `plan` stage; the checkable conventions are `sqlint` called as a package, not rules the harness re-implements |
 
@@ -479,3 +483,12 @@ coordinated session that pins them all. Then `docs`, `hardening`, and `suite` un
   database home was settled as a root-level `data` package, since domain packages import it
   and the topology-and-naming principle forbids a root-level package importing `internal/*`;
   the directives lowering lives there too. The scaffolding items moved to the `service` task.
+- **2026-09-06, go-web-service.** The `service` task rewrote the reference service onto the
+  released libraries: the `data` package, the organization domain on seven authored statements,
+  the admin mount's HTTP half, the composition root as files, `sqlint` in lint and CI, and the
+  run-and-verify pass against a fresh compose stack (startup migration and seeding, the filter
+  grammar, the guarded commands, the admin verbs, idempotent seed, drain). Two placements moved
+  from §6.1 as drafted: the advisory-lock statement joined the lock-name registry in the `data`
+  package, and the guarded-command read joined the path parse in the service's `sdk` staging
+  package for go-web-sdk. Edit is `PUT`, full replacement; an action is its own `POST`. The
+  integration goal's remaining task is the listener; `next` is the integration tier.
