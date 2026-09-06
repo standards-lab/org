@@ -269,7 +269,8 @@ pattern catalog, and the pool. The service verifies, migrates, and seeds at star
 demand, and every operation it exposes is a trigger over a library function. It lives in
 go-database rather than go-web-sdk because it depends on the pool, and a web SDK importing
 go-database would be an upward dependency. The HTTP half (the route group and handler) is small
-and stays application code that the template scaffolds. The server-version read is a dialect
+and stays application code the reference service builds; it is a documented pattern, not
+template scaffolding (§8). The server-version read is a dialect
 capability the `admin` package declares and `sqlate/postgres` implements, so engine-native text
 stays with the engine. The composition a root writes is `go-database/context/design/
 infrastructure-service.md`.
@@ -366,7 +367,7 @@ feature declares it.
 
 A pattern is SQL that implements a shared rule, published as a `.sql` file with a tier and
 placeholders under a namespace. The library's own SQL is patterns under the namespace `sql`; an
-application registers its own namespace beside it (`app`, from `internal/data`); an engine
+application registers its own namespace beside it (`app`, from the service's `data` package); an engine
 sub-module overlays the one pattern it spells differently. The composition root builds the
 catalog once, and every domain compiles its statements against it. A statement includes a
 pattern at compile time with `{{> sql.guard_where}}`; the collection read composes the
@@ -396,8 +397,8 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 | sqlate | done: the repository and module from the prototype's `lib/` and `cmd/sqlint` (§4.1), released as v0.1.0 with `postgres/v0.1.0` and `sqlint/v0.1.0` on 2026-09-04 |
 | go-database | v0.4.0 (§5): the infrastructure service plus `admin`; `ast`, `operation`, `exec`, `seed`, the session types, the dialect, and the constraint classes removed; `layers.md` rewritten |
 | go-web-sdk | done: v0.6.0 (2026-09-05): `IfMatch` and `DecodeJSON`, `ErrorWriter.Detail`, the error-returning handler adapter pulled forward from `v1.web.adapter` in place of a respond helper, and the bracket operator grammar in `ParseQuery` |
-| go-web-sdk-template | scaffolds `internal/data` (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statement registry), `admin/database` over go-database's admin service, the composition root as one file per layer, `sqlint.toml`, and the mise tasks |
-| go-web-service | `cmd/db` and golang-migrate removed; a `statements/` directory per domain; `database.go` rewritten over sqlate; the admin mount; the entity roles (validation methods, the tag conventions); the management listener |
+| go-web-sdk-template | done: template/v0.6.0 (2026-09-06): the composition root as one file per layer with the empty admin layer and its `/admin` mount, and the `reads` policy block. The template stays engine-free: database infrastructure setup and management are reference-architecture patterns the service proves and the docs pass documents, never template scaffolding |
+| go-web-service | `cmd/db` and golang-migrate removed; the root-level `data` package (the session-and-catalog grouping, migrations, the application's patterns, the seeds behind a seeder, the statement registry, the directives lowering); a `statements/` directory per domain; `database.go` rewritten over sqlate; `admin/database` over go-database's admin service and the admin mount; the entity roles (validation methods, the tag conventions); `sqlint.toml`, the compose stack, and the mise tasks; the management listener |
 | docs | the DSL-driven-services principle page (§2); the sqlate pages; the go-database pages rewritten; the grammar recorded as the standard's own artifact, sqlate its first host; the SQL meta-language concept reframed with this work as its first phase; the architecture definition amended so a Domain Service anchors a domain, a composition of one or more Entities |
 | claude-plugins | the sufficiency question (§2.4) enters the `plan` stage; the checkable conventions are `sqlint` called as a package, not rules the harness re-implements |
 
@@ -470,3 +471,11 @@ coordinated session that pins them all. Then `docs`, `hardening`, and `suite` un
   validate, taken now because `Query.Filters` had no consumer past the service rewrite. The
   SDK's own errors map themselves through a sealed interface; consumer policy stays the
   matchers.
+- **2026-09-06, template/v0.6.0.** The `template` task settled at SETTLE that the template
+  stays engine-free: scaffolding the data layer means declaring an engine, and database
+  infrastructure setup and management are reference-architecture patterns the service proves
+  and the docs pass documents. The template shipped the composition root as one file per
+  layer, the empty admin layer with its mount, and the `reads` policy block. The service's
+  database home was settled as a root-level `data` package, since domain packages import it
+  and the topology-and-naming principle forbids a root-level package importing `internal/*`;
+  the directives lowering lives there too. The scaffolding items moved to the `service` task.

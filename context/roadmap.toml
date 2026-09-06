@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The DSL service integration continues with the template scaffolding the shape over the
-  # released go-web-sdk v0.6.0 and go-database v0.4.0.
-  "v1.data.sql.integration.template",
+  # The DSL service integration continues with the reference service rewritten onto sqlate
+  # over the released go-web-sdk v0.6.0, go-database v0.4.0, and template/v0.6.0.
+  "v1.data.sql.integration.service",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -56,38 +56,34 @@ name = "The DSL service integration"
 summary = '''
 The prototype's shape adopted across the workspace in dependency order: sqlate created
 from the spike's lib/ and sqlint, go-database reduced to the infrastructure service and
-given the admin package, go-web-sdk's three items, the template scaffolding the data and
-admin layers and the composition root as files, and the reference service rewritten onto
-sqlate with cmd/db and golang-migrate gone. The review is the linked record.
+given the admin package, go-web-sdk's three items, the template laying the composition
+root out as files with the admin layer as shape, and the reference service rewritten onto
+sqlate with cmd/db and golang-migrate gone. Database infrastructure setup and management
+are reference-architecture patterns the service proves and the docs pass documents; the
+template stays engine-free. The review is the linked record.
 '''
 criteria = [
   "sqlate v0.1.0 with its postgres sub-module and go-database v0.4.0 with its admin package released; the service pins them and the organization domain runs on authored SQL end to end.",
-  "Every service-side principle the experiment incubated is scaffolded by the template or documented in the domain architecture.",
+  "Every service-side principle the experiment incubated is built in the reference service and documented in the domain architecture or the landing zone.",
 ]
 context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
-
-[goals.v1.data.sql.integration.tasks.template]
-name = "The template scaffolds the shape"
-repos = ["go-web-sdk-template"]
-summary = '''
-internal/data with its directories, the seeder skeleton, and the statements registry;
-admin/database over go-database's admin package; the composition root as one file per
-layer with routes.go the list of mounts; internal/sdk seeded with the directives lowering;
-sqlint.toml; the mise tasks; the entity conventions (validation methods, the tag
-conventions) documented. The integration tier's scaffolding moves here from hardening.
-'''
 
 [goals.v1.data.sql.integration.tasks.service]
 name = "The reference service on sqlate"
 repos = ["go-web-service", "go-database", "go-web-sdk"]
 summary = '''
-The coordinated rewrite: the organization domain on authored SQL as the spike built it,
-internal/data with the statements registry, the admin layer, the composition root as
-files, cmd/db and golang-migrate deleted; the per-domain boilerplate extracted before
-domains multiply (the linked findings note); the domain architecture and composition root
-notes rewritten; the release with go-database v0.4.0.
+The coordinated rewrite: the organization domain on authored SQL as the spike built it;
+the root-level data package (the session-and-catalog grouping with the statements
+registry, migrations, patterns, the seeds behind the seeder, and the directives lowering
+from web.Query, placed per the layout in the linked data-layer note); admin/database over
+go-database's admin package and the admin mount; the composition root as files as
+template/v0.6.0 ships it; cmd/db and golang-migrate deleted; sqlint.toml, the compose
+stack, and the mise tasks; the entity conventions (validation methods, the tag
+conventions) documented in the domain architecture; the per-domain boilerplate extracted
+before domains multiply (the linked findings note); the domain architecture and
+composition root notes rewritten; the release with go-database v0.4.0.
 '''
-context = ["go-web-service/context/concepts/retrospective-findings.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
+context = ["go-web-service/context/concepts/data-layer.md", "go-web-service/context/concepts/retrospective-findings.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
 [goals.v1.data.sql.integration.tasks.listener]
 name = "The management listener"
@@ -109,7 +105,10 @@ summary = '''
 The DSL-driven-services principle page; the sqlate pages and the grammar recorded as the
 standard's own artifact, sqlate its first host; the go-database pages rewritten; the
 go-web-sdk pages v0.6.0 moved out from under (problems, reads, routing, a request-helpers
-page); the SQL
+page); the go-web-sdk-template pages template/v0.6.0 moved out from under (index, baseline,
+elements: the composition root as files, the admin layer, the reads block, and the
+engine-free principle restated as database infrastructure being reference-architecture
+patterns); the database infrastructure pattern pages the service page type carries; the SQL
 meta-language concept reframed with the experiment as its first phase, what remains being
 schema typing and portability by construction; the content-patterns reference; the
 architecture definition amended so a Domain Service anchors a domain, a composition of one
@@ -126,7 +125,7 @@ repos = ["claude-plugins"]
 summary = '''
 The harness gains the sufficiency question at the plan stage, and the injection,
 declaration, and guarded-statement conventions as sqlint, called as a package rather than
-re-implemented as rules. The template's share moved to integration.template.
+re-implemented as rules. The integration tier's scaffolding is the service's, under suite.
 '''
 
 [goals.v1.data.sql.tasks.suite]
