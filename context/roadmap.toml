@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The toolkit ships beside the SDKs; the development database now needs to reach any
-  # state a scenario names.
-  "v1.data.sql.tasks.states",
+  # Named states landed; the admin mount's mutating half, the state transition included,
+  # now needs its own listener and the confirmation token.
+  "v1.data.sql.integration.tasks.listener",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -73,8 +73,9 @@ context = ["standards-lab/experiments/sql-dsl/REVIEW.md", "sqlate/README.md"]
 name = "The management listener"
 repos = ["go-web-service", "go-web-sdk", "go-web-sdk-template"]
 summary = '''
-The admin mount on its own listener, disabled unless configured, auth gating the mutating
-half (administration may stage behind goals.v1.auth), config rendering waiting on a go-core
+The admin mount on its own listener, disabled unless configured, auth and the confirmation
+token gating the mutating half, the destructive down, force, and state verbs first
+(administration may stage behind goals.v1.auth), config rendering waiting on a go-core
 redaction contract (go-database's Config.Password has no redaction: no String, no
 slog.LogValuer); go-web-sdk's config env segment made per-block. Posture decisions on
 record: whether the serving role ever holds DDL, and whether off-by-default is mandated by
@@ -101,7 +102,9 @@ criteria assume; the references catalog refreshed. The page-by-page inventory is
 note. The integration tier is live (2026-09-07); tests-and-docs and release-and-ci are
 amended per the testing hierarchy, and the toolkit's pages join: go-core's
 process/processtest, go-web-sdk's webtest, the template's integration tier and its task
-table, and the library-toolkit convention.
+table, and the library-toolkit convention. Named states (2026-09-07) join the go-database
+pages and the service page: the Seeder's sets, the state transition, and a set as the data a
+deployment initializes with.
 '''
 context = ["docs/context/concepts/dsl-docs-pass.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
@@ -114,17 +117,6 @@ declaration, and guarded-statement conventions as sqlint, called as a package ra
 re-implemented as rules. The integration tier's scaffolding is the SDKs' toolkit (go-core's
 process/processtest, go-web-sdk's webtest) and the service's `integration` package over it.
 '''
-
-[goals.v1.data.sql.tasks.states]
-name = "Named database states"
-repos = ["go-database", "go-web-service"]
-summary = '''
-Named seed sets declared as data and a transition in go-database's admin service that resets
-the schema and applies one, exposed through the admin mount and a startup switch, with mise
-run db-state for the developer and the suite's Reset becoming one call to the same endpoint.
-The direction is the linked note.
-'''
-context = ["go-web-service/context/concepts/integration-tier.md"]
 
 [goals.v1.data.tasks.people]
 name = "People domain"

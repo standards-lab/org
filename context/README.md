@@ -73,9 +73,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **DSL-driven services** — the strategy that distinguishes DSL-driven infrastructure (SQL
   first) from protocol-driven, and the authored-SQL direction it produced: `sqlate`, the SQL
   templating library, at v0.1.1 with its own guide (`github.com/standards-lab/sqlate`);
-  go-database v0.4.0, the infrastructure service and the `admin` package over `sqlate`,
-  released 2026-09-04; and the reference service on authored SQL, rewritten 2026-09-06. See
-  `design/dsl-driven-services.md`.
+  go-database v0.5.0, the infrastructure service and the `admin` package over `sqlate` with
+  named states, released 2026-09-07; and the reference service on authored SQL, rewritten
+  2026-09-06. See `design/dsl-driven-services.md`.
 - **Testing hierarchy** — the two-tier testing strategy: the unit tier on every pull request
   for every layer, needing no external service, and the integration tier that runs the composed
   service black-box through the API against its own compose project on merge, built in the
