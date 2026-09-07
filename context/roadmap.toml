@@ -7,7 +7,6 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.alignment.review",
   "v1.alignment.docs",
   "v1.harness.hardening",
   "v1.harness.sitrep",
@@ -55,22 +54,6 @@ criteria = [
   "Each repository's context/ asserts only what its code expresses or intends; no stale slug, version, or claim remains.",
   "The DSL-driven-services principle, the sqlate pages, the rewritten go-database pages, the grammar's page, the service's page, and the amended principle pages land in the docs tier.",
 ]
-context = ["standards-lab/context/design/context-architecture.md"]
-
-[goals.v1.alignment.tasks.review]
-name = "The workspace context review"
-repos = ["standards-lab", "claude-plugins", "go-core", "sqlate", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service", "docs"]
-summary = '''
-A review pass over every repository in workspace order, the coordinator first: each context/
-against its code, the coordinator's design notes and capability map, the profiles and the
-references catalog against what the organization now ships. Known defects it fixes: the
-member-repo citations of the retired listener slug (go-web-sdk error-handling.md item 6,
-go-database infrastructure-service.md, go-web-service retrospective-findings.md and its three
-code comments and README line) now cite v1.admin-listener; go-web-service
-retrospective-findings.md cites a backlog.workspace-sweep that the manifest does not hold.
-Absorbs the context stratification pass: every restated detail across the landing zone,
-profiles, catalogs, and project context collapses to a link to its single home.
-'''
 context = ["standards-lab/context/design/context-architecture.md"]
 
 [goals.v1.alignment.tasks.docs]
