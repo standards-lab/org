@@ -58,22 +58,20 @@ The baseline organizational profile (`.github`), public facing and the authored 
 profile body. Holds only `profile/README.md`. Checked out nested inside this repo at `public/`.
 
 ### go-core
-The Core SDK of the `go-elemental` standard: layered configuration, the process lifecycle, and
-the logger — the process-level packages the standard's programs build on. Released; depends on
-the standard library alone.
+The Core SDK of the `go-elemental` standard: the process-level primitives every program of the
+standard builds on, and the process half of the integration toolkit. Its README lists the
+packages. Released; depends on the standard library alone.
 
 ### go-database
-The SQL infrastructure library of the `go-elemental` standard: the data layer's standard tier
-(`database`) and reference-data seeding (`seed`) in the base module, with the PostgreSQL provider
-as the `postgres` sub-module. Released, base and provider tagged independently; the base depends
-on the standard library and `go-core`.
+The SQL infrastructure library of the `go-elemental` standard: the infrastructure service over
+a pool and the database admin service over `sqlate`, with the PostgreSQL provider as the
+`postgres` sub-module. Its README lists the packages. Released, base and provider tagged
+independently; the base depends on the standard library, `go-core`, and `sqlate`.
 
 ### go-web-sdk
-The Application SDK for web services of the `go-elemental` standard: the HTTP server and its
-configuration, routing, RFC 9457 problem responses, the liveness and readiness probes, the
-paginated read contract, the error-to-problem mapping, and the middleware primitives (`web`),
-with the middleware implementations in the `middleware` package. Released; depends on the
-standard library and `go-core`.
+The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service
+is built on, its middleware, and the HTTP half of the integration toolkit. Its README lists the
+packages. Released; depends on the standard library and `go-core`.
 
 ### go-web-sdk-template
 The web service template of the `go-elemental` standard: scaffolds an initial Go Elemental web
