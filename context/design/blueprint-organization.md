@@ -17,8 +17,7 @@ effective at creating well-structured software. The structure that keeps a syste
 people is what lets agents build it well.
 
 Settled 2026-08-31, promoted from the concept captured during the workspace-sweep session; the
-Go Elemental rename (`backlog.go-elemental-rename`, recorded in the session that landed this
-note) was its first consequence.
+Go Elemental rename was its first consequence.
 
 ## The three roles
 

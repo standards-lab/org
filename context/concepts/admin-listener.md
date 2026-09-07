@@ -96,7 +96,7 @@ The findings are grouped by repository, lowest dependency first. Line references
 
 ## The posture questions
 
-Open in `design/dsl-driven-services.md` §10 and reassigned to this goal:
+Open in `design/dsl-driven-services.md` §9 and reassigned to this goal:
 
 - **DDL in the serving role.** Whether a process that serves traffic should hold DDL privileges,
   and whether the standard should mandate a separate migration role and a one-shot invocation of
