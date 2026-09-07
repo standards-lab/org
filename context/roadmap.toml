@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The integration tier is live in the reference service; its harness now moves to the
-  # layers that own what it exercises, and the template gains the wiring.
-  "v1.data.sql.tasks.toolkit",
+  # The toolkit ships beside the SDKs; the development database now needs to reach any
+  # state a scenario names.
+  "v1.data.sql.tasks.states",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,9 @@ architecture definition amended so a Domain Service anchors a domain, a composit
 or more Entities; the reference service gains its page and the service page type the v1
 criteria assume; the references catalog refreshed. The page-by-page inventory is the linked
 note. The integration tier is live (2026-09-07); tests-and-docs and release-and-ci are
-amended per the testing hierarchy.
+amended per the testing hierarchy, and the toolkit's pages join: go-core's
+process/processtest, go-web-sdk's webtest, the template's integration tier and its task
+table, and the library-toolkit convention.
 '''
 context = ["docs/context/concepts/dsl-docs-pass.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
@@ -109,24 +111,9 @@ repos = ["claude-plugins"]
 summary = '''
 The harness gains the sufficiency question at the plan stage, and the injection,
 declaration, and guarded-statement conventions as sqlint, called as a package rather than
-re-implemented as rules. The integration tier's scaffolding is the service's `integration`
-package.
+re-implemented as rules. The integration tier's scaffolding is the SDKs' toolkit (go-core's
+process/processtest, go-web-sdk's webtest) and the service's `integration` package over it.
 '''
-
-[goals.v1.data.sql.tasks.toolkit]
-name = "The integration toolkit"
-repos = ["go-core", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
-summary = '''
-The service's integration harness moves to the layers that own what it exercises: the
-process runner to go-core beside process, the client and problem decoding to a
-go-web-sdk/webtest package, the forwarder wherever its second consumer puts it; the template
-gains the engine-free wiring (an integration package with the boot, probe, and drain suite,
-the isolated-project mise task, the CI job); the libraries release and the service re-pins
-and thins its harness to the toolkit. The convention lands in the testing hierarchy: a
-library whose infrastructure is exercised by integration testing ships its integration
-toolkit beside it. The direction is the linked note.
-'''
-context = ["go-web-service/context/concepts/integration-tier.md", "standards-lab/context/design/testing-hierarchy.md"]
 
 [goals.v1.data.sql.tasks.states]
 name = "Named database states"
