@@ -324,8 +324,12 @@ composition root triggers, in three concerns kept separate because their risks d
   endpoints. Whether a process that serves traffic should ever hold DDL privileges, and whether
   the standard should mandate a separate migration role and a one-shot invocation of the same
   binary, are open posture questions (§10).
-- **Seed** is development and test tooling, off unless the environment enables it. Reference
-  data that production needs is a migration.
+- **Seed** applies a named set, the data a deployment or a scenario starts from, declared by
+  the service as data and applied idempotently, so the set the environment names initializes
+  a new deployment at its first start and leaves it alone at every later one. Structural
+  reference data the schema itself needs is a migration. Built at `v1.data.sql.tasks.states`
+  (2026-09-07): go-database v0.5.0's `Seeder` declares its states and the service's sets are
+  one file per state, keyed by table.
 
 The admin service owns the first lifecycle stage. The domains verify their statements at the
 second, against the migrated schema.
@@ -333,14 +337,17 @@ second, against the migrated schema.
 ### 6.3 The admin mount and the management listener
 
 The admin service is mounted under `/admin` with the former CLI verbs (verify, up, down, steps,
-force, seed), the pattern catalog and the statement inventory for inspection, and diagnostics
+force, seed), the named states (a read of the names, and the state transition that reverts
+every migration, applies the set, and seeds the named state, which the integration tier's
+`Reset` and the developer's `mise run db-state` call), the pattern catalog and the statement
+inventory for inspection, and diagnostics
 the CLI never had: pool statistics, ping latency, the server version and dialect, and native
 views such as active sessions. Every endpoint calls the same function startup calls.
 
 In production the mount lives on its own listener: its own port or socket, authenticated,
 unreachable from the public API's network path, with audit logging on anything that mutates.
-That isolation is a design constraint, not a deployment detail. `down` and `force` are
-destructive and require an explicit confirmation token. The listener, its authentication, and
+That isolation is a design constraint, not a deployment detail. `down`, `force`, and `state`
+are destructive and require an explicit confirmation token. The listener, its authentication, and
 the token are the `v1.data.sql.integration.listener` task; config rendering on it waits on a
 redaction contract in go-core.
 
