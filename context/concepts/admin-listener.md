@@ -9,15 +9,9 @@ own sessions settle it.
 
 ## The requirement
 
-- The mount lives on its own listener: its own port or socket, unreachable from the public API's
-  network path.
-- The listener is authenticated. Authentication comes from the auth layer (`goals.v1.auth`); the
-  listener is a consumer of whatever that layer settles.
-- Anything that mutates is audit logged. Audit logging comes from the observability layer
-  (`goals.v1.observability`).
-- The destructive verbs, `down`, `force`, and `state`, require an explicit confirmation token in
-  addition to authentication.
-- Config rendering on the listener waits on a redaction contract in go-core.
+The requirement is `design/dsl-driven-services.md` §6.3. The listener is a consumer of what two
+later layers settle: its authentication comes from `goals.v1.auth`, and the audit record on
+anything that mutates from `goals.v1.observability`.
 
 ## Why it waits
 

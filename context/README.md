@@ -71,25 +71,29 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **Service organization** — the anticipated services and providers, and how the tiers
   co-evolve. See `design/service-organization.md`.
 - **DSL-driven services** — the strategy that distinguishes DSL-driven infrastructure (SQL
-  first) from protocol-driven, and the authored-SQL direction it produced: `sqlate`, the SQL
-  templating library, at v0.1.1 with its own guide (`github.com/standards-lab/sqlate`);
-  go-database v0.5.0, the infrastructure service and the `admin` package over `sqlate` with
-  named states, released 2026-09-07; and the reference service on authored SQL, rewritten
-  2026-09-06. See `design/dsl-driven-services.md`.
+  first) from protocol-driven, and the authored-SQL direction it produced, all shipped:
+  `sqlate`, the SQL templating library, adjacent to the standard with its own guide
+  (`github.com/standards-lab/sqlate`); go-database's infrastructure service and the `admin`
+  package over `sqlate` with named states; and the reference service on authored SQL. See
+  `design/dsl-driven-services.md`.
 - **Testing hierarchy** — the two-tier testing strategy: the unit tier on every pull request
   for every layer, needing no external service, and the integration tier that runs the composed
   service black-box through the API against its own compose project on merge, built in the
-  reference service 2026-09-07, with its toolkit shipped beside the SDKs the same day. See
+  reference service and the template, with its toolkit shipped beside the SDKs. See
   `design/testing-hierarchy.md`.
 - **Context architecture** — the single-source-of-truth principle for every layer of written
   context. See `design/context-architecture.md`.
 - **Dependency sourcing** — when the organization hand-rolls a capability and when it sources
   an industry-standard one, and how a sourced dependency stays inside the dependency-line
   principle. See `design/dependency-sourcing.md`.
-- **Workspace structure** — the two-repository layout that lets one tree coordinate the public
-  and member profiles, and the profile mirror convention. See `design/workspace-structure.md`.
+- **Workspace structure** — the three-repository layout that lets one tree coordinate the
+  coordinator and the public and member profiles, the profile mirror convention, and the home
+  of the workspace's experiments (`../experiments/`). See `design/workspace-structure.md`.
+- **Reference-architecture context authoring** — how each reference architecture's stable
+  context stands on its own. See `design/reference-architecture-context.md`.
 - **Naming** — how the organization and its standards are named in prose. See
   `design/naming.md`.
-- **Cross-repo coordination** — coordinating the Standards Lab repositories as a group; the
-  workspace order in `.claude/marathon.toml` is the dependency graph in machine-readable form.
-  Kept minimal; it grows only as concrete needs appear.
+- **Cross-repo coordination** — coordinating the Standards Lab repositories as a group: the
+  references catalog (`../references.md`) is the repository list, and the workspace order in
+  `.claude/marathon.toml` is its dependency graph in machine-readable form. Kept minimal; it
+  grows only as concrete needs appear.

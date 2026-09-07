@@ -17,9 +17,8 @@ repositories are checked out nested inside it, each with its own `.git`, both gi
   extended organizational profile (`private/profile/README.md`, the baseline body plus the
   member-only section) and the private references annex.
 
-Git routes commits by working tree: edits under `public/` land in `.github`, edits under `private/`
-land in `.github-private`, and edits anywhere else land in `org`. A change that touches more than
-one produces one commit and one pull request per touched remote.
+Git routes commits by working tree, one commit and one pull request per touched remote; the
+routing and the profile mirror convention are `context/design/workspace-structure.md`.
 
 ## A documented marathon exception
 

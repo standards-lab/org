@@ -6,7 +6,8 @@ kind = "context"
 # Workspace coordinator: standards-lab is the org-context project for the
 # reference-architecture workspace (~/architecture/). It declares the dependency
 # order a cross-repo step flows through, lowest first. The order is the
-# machine-readable projection of the capability map in context/README.md.
+# machine-readable dependency graph of the repositories the references
+# catalog (references.md) lists.
 [workspace]
 role = "coordinator"
 # Marathon extensions enabled for every project in the workspace. marathon-roadmap
