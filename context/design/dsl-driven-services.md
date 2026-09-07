@@ -423,7 +423,7 @@ The integration goal carried its tasks in dependency order: `sqlate`, `database`
 `template`, `service`. Each library released when its task closed, since it depends on nothing
 above it, and the tasks above pinned the release; the `service` task was a coordinated session
 that pinned them all. `suite`, `toolkit`, and `states` followed on 2026-09-07, and the goal closed
-with them. What remains is the docs pass under `v1.context`, `hardening` under `v1.harness`, and
+with them. What remains is the docs pass under `v1.alignment`, `hardening` under `v1.harness`, and
 the management listener as `v1.admin-listener`, sequenced behind auth and observability.
 
 ## 10. Open questions

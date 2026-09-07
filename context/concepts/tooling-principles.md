@@ -2,7 +2,7 @@
 
 Eleven principles for software that serves an agent, stated for adoption across the workspace.
 Each names what it asks, why it holds, and how it shows in practice. Their consumers: the docs
-pass (`v1.context.docs`) adopts the harness principles (1, 2, 8, 9, 10, 11) into the landing
+pass (`v1.alignment.docs`) adopts the harness principles (1, 2, 8, 9, 10, 11) into the landing
 zone's harness pages and the architecture principles (3 through 7) into the org and architecture
 principle pages where the Elemental Architecture does not already state them; the harness tasks
 (`v1.harness.hardening`, `v1.harness.sitrep`) and `backlog.harness-tooling` apply them.
