@@ -64,8 +64,10 @@ The reference architecture is marathon-managed, so every change is a session.
   defect fixed in the same change.
 - A refinement that proves a better pattern promotes outward — into the SDKs and the
   infrastructure libraries, the template, and the standard — so the seeded baseline never
-  drifts from the reference service. Because the tiers co-evolve, a library change and the
-  service change that proves it release as a coordinated snapshot.
+  drifts from the reference service. The criterion is fit, not a count of consumers: a piece
+  promotes when it is expressed in the lower layer's terms and depends on nothing above it. A
+  second consumer confirms the shape; it is not the license. Because the tiers co-evolve, a
+  library change and the service change that proves it release as a coordinated snapshot.
 - A release in a member repository prompts a coordinator-side sweep in the session that follows
   it: the profiles and the references catalog are checked against what the organization now
   ships. Presentation states shipped-versus-planned without pinning versions; each repository's

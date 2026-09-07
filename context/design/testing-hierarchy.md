@@ -118,11 +118,22 @@ from:
 - The harness proves itself hermetically on the unit tier, against loopback stand-ins.
 - Timing is a first-class diagnostic; per-call timing found every cause above.
 
-Planned under `v1.data.sql.tasks.toolkit`: the harness's pieces move to the layers that own
-what they exercise, and the convention lands that a library whose infrastructure is exercised
-by integration testing ships its integration toolkit beside it, the way `sqltest` ships
-beside sqlate for the unit tier. The direction is go-web-service
-`context/concepts/integration-tier.md`.
+## The library-toolkit convention
+
+A library whose infrastructure is exercised by integration testing ships its integration
+toolkit beside it, the way `sqltest` ships beside sqlate for the unit tier. Built at
+`v1.data.sql.tasks.toolkit` (2026-09-07): the reference service's harness was written with
+its promotion seams one file each, and each piece moved to the layer that owns what it
+exercises, its API as built. go-core's `process/processtest` runs a program as the binary and
+drives it through signals, its exit code, and a condition a client observes, and relays a
+backing service's connection so a test can sever it; go-web-sdk's `webtest` drives a running
+service through its HTTP surface, reading responses and problems as `web` writes them, and
+observes its liveness probe. The template ships the wiring engine-free: an `integration`
+package over the toolkit with the boot, probe, and drain suite, the `integration` task, and
+the CI job on merge to main; a generated service adds its compose stack as an isolated project
+with its first backing service. The reference service's package keeps only its configuration
+and its admin-mount state control over the toolkit. The relay moved on fit, not on a second
+consumer (`design/service-organization.md`).
 
 ## A prepare-capable scripted driver is a unit-tier asset
 
@@ -136,5 +147,7 @@ worked around at the integration tier.
 ## The docs rule
 
 The tier is live, so the docs amendments — tests-and-docs' "CI needs no database container"
-claim and release-and-ci's CI section — land in the docs pass (`v1.data.sql.tasks.docs`): the
-landing zone states what exists, and until then this note is where the decision lives.
+claim and release-and-ci's CI section, and the toolkit's pages (go-core's `processtest`,
+go-web-sdk's `webtest`, the template's tier and its task table, and this convention) — land
+in the docs pass (`v1.data.sql.tasks.docs`): the landing zone states what exists, and until
+then this note is where the decision lives.

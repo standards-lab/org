@@ -79,7 +79,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **Testing hierarchy** — the two-tier testing strategy: the unit tier on every pull request
   for every layer, needing no external service, and the integration tier that runs the composed
   service black-box through the API against its own compose project on merge, built in the
-  reference service 2026-09-07. See `design/testing-hierarchy.md`.
+  reference service 2026-09-07, with its toolkit shipped beside the SDKs the same day. See
+  `design/testing-hierarchy.md`.
 - **Context architecture** — the single-source-of-truth principle for every layer of written
   context. See `design/context-architecture.md`.
 - **Dependency sourcing** — when the organization hand-rolls a capability and when it sources
