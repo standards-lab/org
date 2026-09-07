@@ -45,8 +45,8 @@ The findings are grouped by repository, lowest dependency first. Line references
   changes the field's type, a breaking release of both modules, which pin go-core v0.3.0 and
   would move to the release that carries the contract.
 - The destructive class of `Down`, `Force`, and `Reset` is documented, not encoded: the `admin`
-  package exposes no class marker, and `design/infrastructure-service.md` states that the
-  application's administrative surface gates them. Whether the class becomes machine-readable is
+  package exposes no class marker, and its package comment states that the administrative
+  surface decides who may call them. Whether the class becomes machine-readable is
   the goal's decision.
 
 ### go-web-sdk
