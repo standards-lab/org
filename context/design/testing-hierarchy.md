@@ -6,10 +6,11 @@ retrospective. The docs landing zone's
 [tests-and-docs](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/principles/tests-and-docs.md)
 and
 [release-and-ci](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/principles/release-and-ci.md)
-principles state the shipped posture; this note is the decision record for the hierarchy,
-including the tier that is not yet built. The strategy is deliberately no more complex than
-implementing integration testing through `goals.v1.data` requires; refinements wait for the
-cost data that would justify them.
+principles state the shipped posture; this note is the decision record for the hierarchy. Both
+tiers are built: the integration tier landed in go-web-service at `v1.data.sql.tasks.suite`
+(2026-09-07) as the root `integration` package. The strategy is deliberately no more complex
+than implementing integration testing through `goals.v1.data` requires; refinements wait for
+the cost data that would justify them.
 
 ## Two tiers
 
@@ -31,10 +32,12 @@ cost data that would justify them.
 
 The integration stack is the compose stack — the same definition that runs the service
 holistically (`compose.yml` and its includes), not a parallel container list maintained for
-CI. The CI job boots it the way a developer does (`docker compose up -d --wait`, the
-`mise run db-up` gesture) and then runs the tagged suite; locally, `mise run integration`
-does the same. When a capability lands, its backing service joins the compose stack and the
-integration stack follows automatically; there is nothing separate to keep in sync.
+CI. `mise run integration` boots that definition as its own compose project on its own port
+(`docker compose up -d --wait` under a project name), runs the tagged suite, and tears the
+project down with its volume on exit, so the developer's stack and data are never touched and
+every run starts from an empty database; the CI job runs the same task. When a capability
+lands, its backing service joins the compose stack and the integration stack follows
+automatically; there is nothing separate to keep in sync.
 
 The suite tests the way a developer tested manually: operations against the running
 composition through the API surface. A cross-service domain behavior — a command that writes
@@ -80,10 +83,46 @@ The go-web-service suite asserts, through the API, the behaviors the 2026-08-31 
 found proven only by hand: transfer cycle rejection; two concurrent transfers under the
 advisory lock; the guard's 404-versus-412 split on absent and stale rows; root-code
 uniqueness (`NULLS NOT DISTINCT`) as the conflict response; path recomposition after
-transfer; migration DDL via startup verify/apply; and seed idempotency on a second run. The
-suite absorbs the manual compose-stack ritual — there is no third tier: the compose stack
-remains dev tooling, and the serve-probes-drain check becomes a documented README step
-rather than a CI tier.
+transfer; migration DDL via startup verify/apply; seed idempotency on a second run and across
+a second start; two concurrent composition-root starts against one empty schema; every admin
+verb; and the 503 on a database outage, which the suite proved was half wired (a read
+surfaced the driver's raw error) and sqlate v0.1.1 closed. The suite absorbs the manual
+compose-stack ritual — there is no third tier: the compose stack remains dev tooling, and the
+serve-probes-drain check is a documented README step rather than a CI tier. A dirty migration
+history stays a session-time acceptance proof.
+
+## The harness
+
+The harness runs the service as the binary and drives it only through production seams:
+configuration by `APP_*` environment variables, the API and the admin mount for state control,
+the network through a loopback relay for fault injection, and signals and the exit code for
+lifecycle. Nothing in the runtime exists for the tests' sake. Its rules, each learned from a
+stall the first suite hit, are the decision record the docs pass and the toolkit task read
+from:
+
+- A stall is a finding, never a sleep. Every wait is a bounded poll on an observable
+  condition; an unexplained second is traced to its cause and removed.
+- A race-instrumented service drops the race runtime's exit sleep (`atexit_sleep_ms=0`); races
+  are reported during the run.
+- One client per process, one connection per client. The harness mirrors the runtime's
+  single-instance shape, and a transport that could dial a second connection leaves the server's
+  graceful shutdown a request-less connection to wait five seconds on.
+- Cleanup drains before it kills: interrupt first, kill only a process that does not exit, so
+  backing services see every connection close.
+- Readiness is observed through the API, on a port the harness chose; the log is diagnostic
+  output, never parsed.
+- State control goes through the operator's surface; a case starts from a state it made.
+- Fault injection is at the network: the relay severs and restores deterministically, and the
+  service cannot tell it from an outage.
+- Diagnostics ride with the failure: every process's output is captured and attached.
+- The harness proves itself hermetically on the unit tier, against loopback stand-ins.
+- Timing is a first-class diagnostic; per-call timing found every cause above.
+
+Planned under `v1.data.sql.tasks.toolkit`: the harness's pieces move to the layers that own
+what they exercise, and the convention lands that a library whose infrastructure is exercised
+by integration testing ships its integration toolkit beside it, the way `sqltest` ships
+beside sqlate for the unit tier. The direction is go-web-service
+`context/concepts/integration-tier.md`.
 
 ## A prepare-capable scripted driver is a unit-tier asset
 
@@ -94,10 +133,8 @@ which were duplicated across four packages and could not prepare (go-database
 `context/concepts/v0.4-findings.md` item 6). The gap closed on the unit tier rather than being
 worked around at the integration tier.
 
-## Sequencing and the docs rule
+## The docs rule
 
-The tier does not gate the DSL rewrite: `v1.data.sql` proceeds on the settled strategy, and
-the integration suite lands once the capability gate opens. The docs amendments —
-tests-and-docs' "CI needs no database container" claim and release-and-ci's CI section —
-land once the first integration run is live, in whichever session that is true for: the
+The tier is live, so the docs amendments — tests-and-docs' "CI needs no database container"
+claim and release-and-ci's CI section — land in the docs pass (`v1.data.sql.tasks.docs`): the
 landing zone states what exists, and until then this note is where the decision lives.

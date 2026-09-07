@@ -411,8 +411,8 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 `goals.v1.data.sql.integration` carries the tasks in dependency order: `sqlate`, `database`,
 `websdk`, `template`, `service`, `listener`. Each library releases when its task closes, since
 it depends on nothing above it, and the tasks above pin the release; the `service` task is a
-coordinated session that pins them all. Then `docs`, `hardening`, and `suite` under
-`goals.v1.data.sql`.
+coordinated session that pins them all. Then `docs` and `hardening` under `goals.v1.data.sql`;
+`suite` closed 2026-09-07, and `toolkit` and `states` follow from it.
 
 ## 10. Open questions
 
@@ -492,3 +492,11 @@ coordinated session that pins them all. Then `docs`, `hardening`, and `suite` un
   package, and the guarded-command read joined the path parse in the service's `sdk` staging
   package for go-web-sdk. Edit is `PUT`, full replacement; an action is its own `POST`. The
   integration goal's remaining task is the listener; `next` is the integration tier.
+- **2026-09-07, the integration tier.** The `suite` task built go-web-service's root
+  `integration` package: a harness that runs the built service as a subprocess and drives it
+  through its production seams, and the tagged suite asserting the lifecycle, the organization
+  API, every admin verb, and the outage, on an isolated compose project, in CI on merge to main.
+  The 503 on an outage was half wired: sqlate wrapped `ErrConnectionFailed` only on `Conn` and
+  `Begin`, so a read against an unreachable engine surfaced the driver's raw error; sqlate
+  v0.1.1 classifies connectivity on every session call, and the service pins it. `next` is the
+  toolkit.
