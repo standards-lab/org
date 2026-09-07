@@ -11,7 +11,8 @@ the shape of the result. Implementation detail lives elsewhere: the sqlate repos
 guide (`github.com/standards-lab/sqlate`, its README and `docs/`) for the library's packages
 and grammar, the prototype's review
 (`experiments/sql-dsl/REVIEW.md`) for the placement of every type, and the roadmap
-(`goals.v1.data.sql`) for the task breakdown.
+(`context/roadmap.toml`) for what remains: the docs pass, the harness follow-through, and the
+management listener.
 
 ## 1. The ambition
 
@@ -347,9 +348,12 @@ views such as active sessions. Every endpoint calls the same function startup ca
 In production the mount lives on its own listener: its own port or socket, authenticated,
 unreachable from the public API's network path, with audit logging on anything that mutates.
 That isolation is a design constraint, not a deployment detail. `down`, `force`, and `state`
-are destructive and require an explicit confirmation token. The listener, its authentication, and
-the token are the `v1.data.sql.integration.listener` task; config rendering on it waits on a
-redaction contract in go-core.
+are destructive and require an explicit confirmation token. Today the mount serves on the API
+listener, and the service's README states it is not for a public deployment. The listener, its
+authentication, and the token are the `v1.admin-listener` goal, sequenced behind the auth and
+observability layers that supply the authentication and the audit record; config rendering on it
+waits on a redaction contract in go-core. `concepts/admin-listener.md` records what the
+2026-09-07 exploration found and why the build waits.
 
 ### 6.4 The tier declaration
 
@@ -409,27 +413,29 @@ and it earns a Go function only if it carries a protocol the SQL cannot guarante
 | go-database | v0.4.0 (§5): the infrastructure service plus `admin`; `ast`, `operation`, `exec`, `seed`, the session types, the dialect, and the constraint classes removed; `layers.md` rewritten |
 | go-web-sdk | done: v0.6.0 (2026-09-05): `IfMatch` and `DecodeJSON`, `ErrorWriter.Detail`, the error-returning handler adapter pulled forward from `v1.web.adapter` in place of a respond helper, and the bracket operator grammar in `ParseQuery` |
 | go-web-sdk-template | done: template/v0.6.0 (2026-09-06): the composition root as one file per layer with the empty admin layer and its `/admin` mount, and the `reads` policy block. The template stays engine-free: database infrastructure setup and management are reference-architecture patterns the service proves and the docs pass documents, never template scaffolding |
-| go-web-service | done: `v1.data.sql.integration.service` (2026-09-06): `cmd/db` and golang-migrate removed; the root-level `data` package (the session-and-catalog grouping with the statements registry, migrations, the application's patterns, the seeder, the lock registry with the one lock statement, the directives lowering, the shared status matcher); a `statements/` directory per domain; `database.go` rewritten over sqlate; `admin/database` over go-database's admin service and the admin mount; the entity roles; `sqlint.toml` in lint and CI. Remaining: the management listener |
+| go-web-service | done: `v1.data.sql.integration.service` (2026-09-06): `cmd/db` and golang-migrate removed; the root-level `data` package (the session-and-catalog grouping with the statements registry, migrations, the application's patterns, the seeder, the lock registry with the one lock statement, the directives lowering, the shared status matcher); a `statements/` directory per domain; `database.go` rewritten over sqlate; `admin/database` over go-database's admin service and the admin mount; the entity roles; `sqlint.toml` in lint and CI. The management listener is `v1.admin-listener` (§6.3) |
 | docs | the DSL-driven-services principle page (§2); the sqlate pages; the go-database pages rewritten; the grammar recorded as the standard's own artifact, sqlate its first host; the SQL meta-language concept reframed with this work as its first phase; the architecture definition amended so a Domain Service anchors a domain, a composition of one or more Entities |
 | claude-plugins | the sufficiency question (§2.4) enters the `plan` stage; the checkable conventions are `sqlint` called as a package, not rules the harness re-implements |
 
 ## 9. Sequence
 
-`goals.v1.data.sql.integration` carries the tasks in dependency order: `sqlate`, `database`,
-`websdk`, `template`, `service`, `listener`. Each library releases when its task closes, since
-it depends on nothing above it, and the tasks above pin the release; the `service` task is a
-coordinated session that pins them all. Then `docs` and `hardening` under `goals.v1.data.sql`;
-`suite` closed 2026-09-07, and `toolkit` and `states` follow from it.
+The integration goal carried its tasks in dependency order: `sqlate`, `database`, `websdk`,
+`template`, `service`. Each library released when its task closed, since it depends on nothing
+above it, and the tasks above pinned the release; the `service` task was a coordinated session
+that pinned them all. `suite`, `toolkit`, and `states` followed on 2026-09-07, and the goal closed
+with them. What remains is the docs pass under `v1.alignment`, `hardening` under `v1.harness`, and
+the management listener as `v1.admin-listener`, sequenced behind auth and observability.
 
 ## 10. Open questions
 
 - **DDL in the serving role.** Whether a process that serves traffic should ever hold DDL
   privileges, and whether the standard should mandate a separate migration role and a one-shot
-  invocation of the same binary. The prototype applies at startup; the listener task decides.
+  invocation of the same binary. The service applies at startup; `v1.admin-listener` decides.
 - **The management listener's default.** Whether network isolation is sufficient, or the
-  standard should require the listener to be off by default and enabled per environment. The
-  listener task decides.
-- **The confirmation token** for `down` and `force`: its mechanism, with the listener's
+  standard should require the listener to be off by default and enabled per environment.
+  `v1.admin-listener` decides.
+- **The confirmation token** for `down`, `force`, and `state`: its mechanism, with the
+  listener's authentication. `v1.admin-listener` decides, after `goals.v1.auth` settles the
   authentication.
 - **Guarded-statement conventions in the lint.** The library no longer guarantees the guard's
   SQL shape, so a consumer can write a guarded update that forgets the increment or the version
@@ -507,3 +513,8 @@ coordinated session that pins them all. Then `docs` and `hardening` under `goals
   `Begin`, so a read against an unreachable engine surfaced the driver's raw error; sqlate
   v0.1.1 classifies connectivity on every session call, and the service pins it. `next` is the
   toolkit.
+- **2026-09-07, the listener deferred.** Named states landed (`v1.data.sql.tasks.states`), and
+  the session that opened on the management listener found that its token, its authentication,
+  and its audit record are choices the auth and observability layers make properly later. The
+  listener became the `v1.admin-listener` goal, sequenced behind both, with the exploration
+  recorded in `concepts/admin-listener.md`; the integration goal closed.

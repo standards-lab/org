@@ -1,69 +1,68 @@
-# reset · states
+# reset · admin-listener
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** go-database, go-web-service, go-core, standards-lab
-- **Branch:** states
+- **Session:** plan
+- **Project:** standards-lab
+- **Branch:** admin-listener
 
 ## Disposition
 
-- **Integrated:** `v1.data.sql.tasks.states`. Named database states, in seven stages across
-  go-database and go-web-service with one mid-session release, plus a go-core fix the session
-  found. go-database v0.5.0: `admin.Seeder` declares its sets (`States`, `Seed(ctx, state)`),
-  `Options.Seed` names the set that applies at every startup, `Service.Seed` takes a name
-  (empty for the configured set), `Service.Reset` is the transition to a named state (every
-  migration reverted, the set applied, the state's set seeded, composing the migrator's `Down`
-  and `Up` with the seeder, answering a `Transition`), `ErrUnknownState` refuses an undeclared
-  name before I/O. The service: one file per state under `data/seeds/`, keyed by table
-  (`default`, the reference tree; `empty`, no rows), decoded strictly; `admin.seed`
-  (`APP_ADMIN_SEED`) is a state name, the local overlay naming `default`; `GET
-  /admin/database/states`, `POST /admin/database/state`, and an optional `{"state"}` body on
-  `POST /admin/database/seed`; `mise run db-state <state>` through mise's `usage` field; the
-  suite's `Reset` is one call and walks seeded to empty, a named seed over it, and back,
-  reading the organizations after each. Validation: both modules' vet, unit tier, lint, and
-  tidy green; `GOWORK=off` builds of the service against the tags; `mise run integration`
-  green over the bridge, over the pin, and twice on one compose project; the run-and-verify
-  against the local stack through the task and the mount, drain logged.
-- **Integrated:** the premise correction. The architect ruled that a set is not development
-  and test tooling: it is how a new deployment initializes its data. Applying a set is
-  therefore a production operation, idempotent and ungated beyond a name; only the reset is
-  destructive, and it joins `down` and `force` in the class the management listener's
-  confirmation token gates. There is no reset-at-boot switch. The framing left every doc
-  comment, README sentence, and design note the step touched: go-database
-  `design/infrastructure-service.md` states the set's role and `Reset`'s class; the coordinator's
-  `design/dsl-driven-services.md` §6.2 restates the Seed concern and §6.3 adds the states and
-  the gated `state` verb.
-- **Integrated:** go-core v0.4.1. `processtest.Main` resolved the module root with `go list
-  -m`, which under a multi-module `go.work` is every module, so the service's suite could not
-  build under the sibling-development convention; it now asks for the suite package's own
-  module. Proved by the service's integration tier under a two-module `go.work`, a session-time
-  acceptance proof. The service pins it; the `go.work` convention in `concepts/data-layer.md`
-  stands as written.
-- **Integrated:** go-web-service `concepts/integration-tier.md` lost its named-states section
-  (the code and README express it); `context/README.md` and `design/composition-root.md` name
-  the configured seed set and the states.
+- **Integrated:** the management listener re-homed. The session opened as `start` on the
+  listener and the architect ruled it premature: its token, its authentication, and its audit
+  record are choices the auth and observability layers make properly later, and a reference
+  architecture should not document an interim scheme it intends to replace. The listener is now
+  `goals.v1.admin-listener`, a goal at claim resolution sequenced behind both layers.
+  `design/dsl-driven-services.md` §6.3, §8, §9, §10, and §11 and `design/service-organization.md`
+  cite the goal; `design/testing-hierarchy.md`'s sqlint claim is dated. `concepts/admin-listener.md`
+  carries the exploration across go-core, go-database, go-web-sdk, go-web-service, and the
+  template, so the goal's session does not repeat it: the per-block env segment, the singular
+  composition root in the service and the template, the ungated destructive verbs and their
+  seam, the one-client harness, the absent redaction contract and go-database's plain-string
+  password, and the three posture questions.
+- **Integrated:** the v1 execution sequence, settled with the architect and recorded as `next`:
+  `v1.alignment.review`, `v1.alignment.docs`, `v1.harness.hardening`, `v1.harness.sitrep`,
+  `v1.auth.strategy`, `v1.web`, `v1.observability`, `v1.storage`, `v1.auth`,
+  `v1.admin-listener`, `v1.messaging`, `v1.data`, `v1.ai`, `v1.client`, `v1.deployment`. The
+  reasoning: the written context aligned before anything builds on it; the harness next; the
+  auth strategy (a plan session) before any layer or domain builds to its contract; the web
+  SDK's handler contract and then observability so each later layer instruments as it lands;
+  the domains once the integration standards they enhance exist. `goals.v1.auth` analyzes the
+  authorization model across RBAC, ReBAC, and ABAC rather than assuming ABAC.
+  `goals.v1.observability` names the LGTM stack (Loki, Grafana, Tempo, Mimir) as the
+  development-side stack, run natively as a container stack.
+- **Integrated:** the roadmap restructured. `goals.v1.data.sql.integration` closed (its releases
+  and the service rewrite landed; the listener left it) and `goals.v1.data.sql` closed with it
+  (its docs criterion moved). `goals.v1.alignment` holds `review` (every repository's context
+  against its code, absorbing the context stratification pass) and `docs` (the docs pass,
+  gaining the validation-first, rolling-currency, and tooling-principles pages).
+  `goals.v1.harness` holds `hardening` (moved) and `sitrep` (promoted from the backlog): the
+  organization's situational-awareness tool over a GitHub Pages dev blog, with sitreps and
+  briefs as its first entry categories and `briefs/` and `interview.md` transitioning into it.
+  `goals.v1` records the extraction ruling: a layer goal closes on its extracted record wherever
+  the layer was proven; v1.0 keeps the running composition, with adoption a sweep task per
+  layer. `v1.data.evaluation` carries the validation-first enforcement pass and rules from the
+  extracted record if the extension has landed.
 - **Promoted:** nothing.
-- **Culled:** the "development and test tooling" framing of seeding, everywhere the step
-  touched it.
-- **Retained:** the per-domain protocol helpers in `concepts/integration-tier.md`, for
-  `v1.data.tasks.people`. go-web-sdk-template pins go-core v0.4.0; the fix does not affect a
-  single-module suite, and the template picks up v0.4.1 at its next release. The stage list in
-  the plan ordered `internal/app` before `admin/database`, which it imports; the session
-  swapped them, a reminder that the dependency order is between packages, not layers. The docs
-  pass (`v1.data.sql.tasks.docs`) carries the states.
-- **Cross-repo:** at the coordinator, `roadmap.toml` deletes `v1.data.sql.tasks.states`,
-  advances `next` to `v1.data.sql.integration.tasks.listener`, names the state verb among the
-  ones the listener's token gates, and adds the states to the `docs` summary;
-  `context/README.md`'s DSL entry cites go-database v0.5.0. At go-database, `context/README.md`
-  recorded the admin capability as built (rode the release) and
-  `design/infrastructure-service.md` is tended on its own `states` branch.
+- **Culled:** `backlog.context-stratification`, `backlog.validation-first`,
+  `backlog.rolling-currency`, and `backlog.marathon-sitrep`, each folded into a goal task as
+  above. `backlog.marathon-extraction` and `backlog.harness-tooling` were added.
+- **Retained:** `concepts/marathon-extraction.md` and `concepts/tooling-principles.md`, filed
+  this session as candidate direction for `claude-plugins` and the docs pass. The member-repo
+  citations of the retired listener slug, left for `v1.alignment.review` rather than four
+  one-line pull requests: `go-web-sdk/context/concepts/error-handling.md` item 6,
+  `go-database/context/design/infrastructure-service.md`,
+  `go-web-service/context/concepts/retrospective-findings.md` (which also cites a
+  `backlog.workspace-sweep` the manifest does not hold), the service's three code comments
+  (`internal/app/admin.go`, `admin/database/doc.go`, `admin/database/handler.go`), and its
+  README's admin section. A manifest constraint found while editing: a goal slug cannot be a
+  field name (`context`, `name`, `summary`, `criteria`, `repos`, `proof`, `tasks`), since TOML
+  reads `[goals.v1.context]` as the parent's `context` field; the alignment goal was renamed for
+  it, and the manifest reference should say so when `v1.harness.hardening` runs.
 
 ## Next-focus
 
-`v1.data.sql.integration.tasks.listener`, a `start` session in go-web-service first, with
-go-web-sdk and go-web-sdk-template as the step settles them: the admin mount on its own
-listener, disabled unless configured, the confirmation token gating `down`, `force`, and
-`state`, auth staged as the strategy's §10 posture questions decide, config rendering waiting
-on a go-core redaction contract, and go-web-sdk's config env segment made per-block. The
-direction is standards-lab `design/dsl-driven-services.md` §6.3 and §10. After it, the domain
-tasks under `v1.data.tasks` or the docs pass, as the architect weighs them.
+`v1.alignment.review`, a `review` session over the whole workspace, the coordinator first and
+then the repositories in the coordinator's `order`: each `context/` against its code, the
+coordinator's notes, the profiles and the references catalog against what the organization now
+ships, the known stale citations above fixed, and every restated detail collapsed to a link to
+its single home. Then `v1.alignment.docs`.

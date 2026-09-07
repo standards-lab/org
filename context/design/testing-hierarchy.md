@@ -21,7 +21,7 @@ the cost data that would justify them.
   are how a package proves its behavior here. The tier is also the home of every cheap gate
   that needs no container: the `GOWORK=off` per-module build step in go-database (the v0.3.0
   tag proved CI blind to pin breakage; the step landed with v0.4.0) and `sqlint` from the DSL
-  strategy, which joins it as `v1.data.sql` lands it.
+  strategy, which joined it at `v1.data.sql.integration.service` (2026-09-06).
 - **Integration tier** — the composed service, black-box, on merge. One build tag,
   `//go:build integration`, marks the suite; it runs against the service's own compose stack
   and exercises the service through its API. Triggers: push to main and `workflow_dispatch` —
