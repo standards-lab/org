@@ -3,9 +3,9 @@
 # references/manifest.md.
 
 next = [
-  # The reference service runs on authored SQL end to end; the integration tier now locks
-  # in the behaviors the rewrite proved by hand before the listener reshapes the root.
-  "v1.data.sql.tasks.suite",
+  # The integration tier is live in the reference service; its harness now moves to the
+  # layers that own what it exercises, and the template gains the wiring.
+  "v1.data.sql.tasks.toolkit",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -98,8 +98,8 @@ schema typing and portability by construction; the content-patterns reference; t
 architecture definition amended so a Domain Service anchors a domain, a composition of one
 or more Entities; the reference service gains its page and the service page type the v1
 criteria assume; the references catalog refreshed. The page-by-page inventory is the linked
-note. Once the integration tier is live, tests-and-docs and release-and-ci are amended per
-the testing hierarchy.
+note. The integration tier is live (2026-09-07); tests-and-docs and release-and-ci are
+amended per the testing hierarchy.
 '''
 context = ["docs/context/concepts/dsl-docs-pass.md", "standards-lab/experiments/sql-dsl/REVIEW.md"]
 
@@ -109,23 +109,35 @@ repos = ["claude-plugins"]
 summary = '''
 The harness gains the sufficiency question at the plan stage, and the injection,
 declaration, and guarded-statement conventions as sqlint, called as a package rather than
-re-implemented as rules. The integration tier's scaffolding is the service's, under suite.
+re-implemented as rules. The integration tier's scaffolding is the service's `integration`
+package.
 '''
 
-[goals.v1.data.sql.tasks.suite]
-name = "The integration tier"
-repos = ["go-web-service"]
+[goals.v1.data.sql.tasks.toolkit]
+name = "The integration toolkit"
+repos = ["go-core", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
 summary = '''
-The integration tier stood up per the testing hierarchy: the //go:build integration suite
-running black-box through the API against the compose stack, the CI job booting the stack
-on merge to main and workflow_dispatch, and the mise integration task. The capability gate
-is open: the rewritten API surface landed at integration.service, and its run-and-verify
-pass (the reset file of 2026-09-06) is the first assertion list. The suite absorbs the manual
-compose-stack ritual and asserts the design note's behavior list, including the 503 on a
-database outage that the rewrite wired but did not prove live; serve-probes-drain lands as a
-README step.
+The service's integration harness moves to the layers that own what it exercises: the
+process runner to go-core beside process, the client and problem decoding to a
+go-web-sdk/webtest package, the forwarder wherever its second consumer puts it; the template
+gains the engine-free wiring (an integration package with the boot, probe, and drain suite,
+the isolated-project mise task, the CI job); the libraries release and the service re-pins
+and thins its harness to the toolkit. The convention lands in the testing hierarchy: a
+library whose infrastructure is exercised by integration testing ships its integration
+toolkit beside it. The direction is the linked note.
 '''
-context = ["standards-lab/context/design/testing-hierarchy.md"]
+context = ["go-web-service/context/concepts/integration-tier.md", "standards-lab/context/design/testing-hierarchy.md"]
+
+[goals.v1.data.sql.tasks.states]
+name = "Named database states"
+repos = ["go-database", "go-web-service"]
+summary = '''
+Named seed sets declared as data and a transition in go-database's admin service that resets
+the schema and applies one, exposed through the admin mount and a startup switch, with mise
+run db-state for the developer and the suite's Reset becoming one call to the same endpoint.
+The direction is the linked note.
+'''
+context = ["go-web-service/context/concepts/integration-tier.md"]
 
 [goals.v1.data.tasks.people]
 name = "People domain"
