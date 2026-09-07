@@ -81,7 +81,8 @@ without breaking consumers.
 
 **In practice.**
 
-- go-database is the reference pattern for the adapter interface.
+- sqlate's `Dialect`, implemented by its engine sub-modules, is the reference pattern for the
+  adapter interface; go-database keeps the pool over the provider and supplies no dialect.
 - Downstream consumers read `export` output (JSON); they never parse the authoring format
   directly.
 - A new provider is a new adapter, never a change to the interface.
@@ -181,6 +182,5 @@ to respect rather than work to start. A working loop exposes which abstractions 
   are declared, schema-stable files, which principle 3 extends with the schema as the contract.
 - The org principles (`docs/principles/`): principles 3, 4, 5, 6, and 7 where no page states
   them.
-- sqlate: the reference for principle 7.
+- sqlate: the reference for principles 5 and 7.
 - go-web-sdk and go-web-sdk-template: the reference for principle 4.
-- go-database: the reference for principle 5.

@@ -29,11 +29,11 @@ review are the mechanism throughout; there is no enforcement machinery.
 A repository belongs to exactly one standard — the one whose author answers for it. Another
 standard that finds a member's modules sufficient adopts them as ordinary dependencies at
 pinned releases, never as members. This is the downward-dependency principle applied across
-standards; no second membership mechanism exists. The rule is documented in the landing zone's
-downward-dependencies principle; it is restated here because the catalog is where a violation
-would first appear.
+standards; no second membership mechanism exists. The rule is the landing zone's
+[downward-dependencies](https://github.com/standards-lab/docs/blob/main/principles/downward-dependencies.md)
+principle; the catalog is where a violation would first appear.
 
 ## Rollout
 
 `go-elemental` is the first standard, defined in the landing zone with its members declared in
-the catalog. `dotnet-minimal` is anticipated as its derived standard.
+the catalog. `dotnet-elemental` is anticipated as its derived standard.

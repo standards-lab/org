@@ -62,6 +62,11 @@ standard:
 - [go-web-service](https://github.com/standards-lab/go-web-service) — the holistic reference web
   service, grown in documented layers; versionless until its 1.0.
 
+Adjacent to the standard, consumed by its libraries:
+
+- [sqlate](https://github.com/standards-lab/sqlate) — the SQL templating library: authored `.sql`
+  files made dynamic and composable, with its own guide.
+
 ## Behavior
 
 - Start from the profile and the docs landing zone; read module source when a question calls for

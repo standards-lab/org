@@ -48,6 +48,6 @@ The principle lands in phases:
 - marathon v0.9.0 applied it to the harness: command playbooks cite the references instead of
   restating them, the workspace and hook blocks are printed once, and the architect's role is
   defined once in the skill.
-- `backlog.context-stratification` is the alignment pass across the landing zone, profiles,
-  catalogs, and project context, now that the harness half is in place.
+- `v1.alignment.review` is the alignment pass across the landing zone, profiles, catalogs,
+  and project context, now that the harness half is in place.
 - A docs principle page states the rule for human contributors when the docs task runs.

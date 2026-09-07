@@ -9,15 +9,9 @@ own sessions settle it.
 
 ## The requirement
 
-- The mount lives on its own listener: its own port or socket, unreachable from the public API's
-  network path.
-- The listener is authenticated. Authentication comes from the auth layer (`goals.v1.auth`); the
-  listener is a consumer of whatever that layer settles.
-- Anything that mutates is audit logged. Audit logging comes from the observability layer
-  (`goals.v1.observability`).
-- The destructive verbs, `down`, `force`, and `state`, require an explicit confirmation token in
-  addition to authentication.
-- Config rendering on the listener waits on a redaction contract in go-core.
+The requirement is `design/dsl-driven-services.md` §6.3. The listener is a consumer of what two
+later layers settle: its authentication comes from `goals.v1.auth`, and the audit record on
+anything that mutates from `goals.v1.observability`.
 
 ## Why it waits
 
@@ -51,8 +45,8 @@ The findings are grouped by repository, lowest dependency first. Line references
   changes the field's type, a breaking release of both modules, which pin go-core v0.3.0 and
   would move to the release that carries the contract.
 - The destructive class of `Down`, `Force`, and `Reset` is documented, not encoded: the `admin`
-  package exposes no class marker, and `design/infrastructure-service.md` states that the
-  application's administrative surface gates them. Whether the class becomes machine-readable is
+  package exposes no class marker, and its package comment states that the administrative
+  surface decides who may call them. Whether the class becomes machine-readable is
   the goal's decision.
 
 ### go-web-sdk
@@ -96,7 +90,7 @@ The findings are grouped by repository, lowest dependency first. Line references
 
 ## The posture questions
 
-Open in `design/dsl-driven-services.md` §10 and reassigned to this goal:
+Open in `design/dsl-driven-services.md` §9 and reassigned to this goal:
 
 - **DDL in the serving role.** Whether a process that serves traffic should hold DDL privileges,
   and whether the standard should mandate a separate migration role and a one-shot invocation of

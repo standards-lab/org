@@ -38,8 +38,8 @@ mechanics into the SDK without moving the vocabulary, so matcher policy stays th
 infrastructure library contributes to an SDK-defined surface, as the management listener will
 (`v1.admin-listener`), the dependency points from the infrastructure library to
 the SDK, never the reverse. The cost is a small adapter per service; the return is independent
-releases and SDKs that accumulate no infrastructure vocabulary. Settled during
-`v1.data.writes.web`.
+releases and SDKs that accumulate no infrastructure vocabulary. Settled at the service's
+first write layer.
 
 ## Co-evolution
 

@@ -21,7 +21,8 @@ the cost data that would justify them.
   are how a package proves its behavior here. The tier is also the home of every cheap gate
   that needs no container: the `GOWORK=off` per-module build step in go-database (the v0.3.0
   tag proved CI blind to pin breakage; the step landed with v0.4.0) and `sqlint` from the DSL
-  strategy, which joined it at `v1.data.sql.integration.service` (2026-09-06).
+  strategy, which runs in sqlate's own lint task and joined the service's at
+  `v1.data.sql.integration.service` (2026-09-06).
 - **Integration tier** — the composed service, black-box, on merge. One build tag,
   `//go:build integration`, marks the suite; it runs against the service's own compose stack
   and exercises the service through its API. Triggers: push to main and `workflow_dispatch` —
@@ -97,8 +98,8 @@ The harness runs the service as the binary and drives it only through production
 configuration by `APP_*` environment variables, the API and the admin mount for state control,
 the network through a loopback relay for fault injection, and signals and the exit code for
 lifecycle. Nothing in the runtime exists for the tests' sake. Its rules, each learned from a
-stall the first suite hit, are the decision record the docs pass and the toolkit task read
-from:
+stall the first suite hit, are the decision record the toolkit was built to and the docs pass
+reads from:
 
 - A stall is a finding, never a sleep. Every wait is a bounded poll on an observable
   condition; an unexplained second is traced to its cause and removed.
@@ -122,26 +123,20 @@ from:
 
 A library whose infrastructure is exercised by integration testing ships its integration
 toolkit beside it, the way `sqltest` ships beside sqlate for the unit tier. Built at
-`v1.data.sql.tasks.toolkit` (2026-09-07): the reference service's harness was written with
-its promotion seams one file each, and each piece moved to the layer that owns what it
-exercises, its API as built. go-core's `process/processtest` runs a program as the binary and
-drives it through signals, its exit code, and a condition a client observes, and relays a
-backing service's connection so a test can sever it; go-web-sdk's `webtest` drives a running
-service through its HTTP surface, reading responses and problems as `web` writes them, and
-observes its liveness probe. The template ships the wiring engine-free: an `integration`
-package over the toolkit with the boot, probe, and drain suite, the `integration` task, and
-the CI job on merge to main; a generated service adds its compose stack as an isolated project
-with its first backing service. The reference service's package keeps only its configuration
-and its admin-mount state control over the toolkit. The relay moved on fit, not on a second
-consumer (`design/service-organization.md`).
+`v1.data.sql.tasks.toolkit` (2026-09-07): the reference service's harness was written with its
+promotion seams one file each, and each piece moved to the layer that owns what it exercises.
+go-core's `process/processtest` is the process half and go-web-sdk's `webtest` the HTTP half;
+the template ships the wiring engine-free (its `integration` package, task, and CI job), and a
+generated service adds its compose stack. Each package's `doc.go` states its API. What the
+reference service's tier grows next is its `context/concepts/integration-tier.md`. The relay
+moved on fit, not on a second consumer (`design/service-organization.md`).
 
 ## A prepare-capable scripted driver is a unit-tier asset
 
 Prepare-based verification is provable on the unit tier because the scripted driver can
 prepare. The prototype built that driver as `sqlate/sqltest`, a public
 package, so every consumer's unit tests run over it; it replaced go-database's driver fakes,
-which were duplicated across four packages and could not prepare (go-database
-`context/concepts/v0.4-findings.md` item 6). The gap closed on the unit tier rather than being
+which were duplicated across four packages and could not prepare. The gap closed on the unit tier rather than being
 worked around at the integration tier.
 
 ## The docs rule
@@ -149,5 +144,5 @@ worked around at the integration tier.
 The tier is live, so the docs amendments — tests-and-docs' "CI needs no database container"
 claim and release-and-ci's CI section, and the toolkit's pages (go-core's `processtest`,
 go-web-sdk's `webtest`, the template's tier and its task table, and this convention) — land
-in the docs pass (`v1.data.sql.tasks.docs`): the landing zone states what exists, and until
+in the docs pass (`v1.alignment.docs`): the landing zone states what exists, and until
 then this note is where the decision lives.

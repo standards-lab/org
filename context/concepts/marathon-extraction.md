@@ -150,10 +150,10 @@ data from a production consumer.
 
 ## Where the roadmap records it
 
-- `backlog.marathon-extraction` (repos: claude-plugins) carries the extension, ahead of
-  `backlog.marathon-sitrep`'s remainder if the reassignment proceeds and behind the harness
-  tasks otherwise. The taxonomy amendment to `references/extensions.md` that the hybrid facet
-  needs lands with whichever hybrid extension ships first.
+- `backlog.marathon-extraction` (repos: claude-plugins) carries the extension; its place
+  relative to `v1.harness.sitrep` and `v1.harness.hardening` is `roadmap.toml`'s to state. The
+  taxonomy amendment to `references/extensions.md` that the hybrid facet needs lands with
+  whichever hybrid extension ships first.
 - `v1.data.evaluation` rules from the extracted record if the extension has landed, and its
   findings are the ledger's first entries either way.
 - If a consumer proceeds, its annex key is created by the first intake per
