@@ -16,7 +16,7 @@ same key namespace when the member checkout is present at `private/`. The layeri
 
 A standard is a named, technology-specific implementation of an architecture that a set of
 repositories declares alignment to. Definitions live in the
-[docs landing zone](https://github.com/standards-lab/docs); the declaration mechanics are in
+[architecture repository](https://github.com/standards-lab/architecture); the declaration mechanics are in
 `context/design/standards.md`. Each standard has a `[standards.<key>]` entry in
 `references.toml` with a `definition` URL and the `architecture` it implements, and a member
 repository's entry declares `standard = "<key>"`.
@@ -25,7 +25,7 @@ repository's entry declares `standard = "<key>"`.
 
 The Go implementation of the Elemental Architecture, the organization's first standard, built
 on the standard library. Defined at
-[standards/go-elemental](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/index.md).
+[standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-web-sdk`, and `go-web-sdk-template` (released), and
 `go-web-service`, the reference web service (versionless until its 1.0). `dotnet-elemental` is
 anticipated as its derived standard (`derives = "go-elemental"`).
@@ -36,17 +36,16 @@ anticipated as its derived standard (`derives = "go-elemental"`).
 The plugin host for the organization, mirroring the structure of `tau-marketplace`. Ships the `marathon`
 workflow plugin and its `marathon-roadmap` extension. The harness level of the reference architecture.
 
-### docs
-The organization's documentation landing zone: the canonical home for its architectures,
-standards, principles, and the documented details of every repository, published as plain
-markdown with YAML front matter. The workspace's centralized docs tier
-(`context/design/workspace-docs.md`); anticipated host content for the organization
-documentation site.
+### architecture
+The organization's architecture layer: the canonical home for its architectures, standards,
+principles, and a catalog of the repositories that implement them, published as plain markdown
+with YAML front matter. The workspace's architecture repository
+(`context/design/architecture-layer.md`); anticipated host content for the organization documentation site.
 
 ### org
 This repository: the workspace context that coordinates the organization — `context/`, the
-references catalog, the marathon anchor. The landing zone for the organization's context about
-running itself, as `docs` is for the architecture's. Marathon is anchored here.
+references catalog, the marathon anchor. The home of the organization's context about running itself, as
+`architecture` is for the architecture's. Marathon is anchored here.
 
 ### github-private
 The extended organizational profile (`profile/README.md`): the baseline profile's body plus the

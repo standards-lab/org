@@ -52,7 +52,7 @@ The narrowing rule says a lower level enhances a principle it derives from and n
 it, and each repository already states its own dependency line as an enhancement — go-core
 declares the standard library alone. Sourcing stays compatible the same way: a repository that
 admits sourced dependencies **states its line explicitly** — which categories it admits (spec,
-threat model, crypto) and under which markers — beside its landing-zone link, exactly as
+threat model, crypto) and under which markers — beside its architecture link, exactly as
 go-core states its stricter line. The org principle ("a minimal, deliberate dependency
 footprint") is then enhanced per repo in both directions: tighter where possible, admitting
 sourced correctness where the alternative is hand-rolled incorrectness. A silent import that

@@ -2,7 +2,7 @@
 
 Settled 2026-08-31, at the retrospective. The organizational principle for how written context
 is structured across every layer that carries it: harness instructions (the marathon skill and
-its extensions), the docs landing zone, repository `CLAUDE.md` files, and each project's
+its extensions), the architecture repository, repository `CLAUDE.md` files, and each project's
 `context/` tree.
 
 ## The principle
@@ -19,24 +19,24 @@ principle rather than a bug class:
 - Marathon's decay rule was defined with its protective qualifier in one reference and restated
   without the qualifier in three command playbooks — the commonly loaded copies authorized
   deleting notes the authoritative copy protects.
-- The docs landing zone, the repository READMEs, and the references catalog restate each
+- The architecture repository, the repository READMEs, and the references catalog restate each
   repository's package inventory; the READMEs and catalog were two releases stale while the
-  landing zone and `doc.go` files were current.
+  architecture repository and `doc.go` files were current.
 
 ## In practice
 
 - **One home per detail.** A mechanic, principle, pattern, or boundary is defined where its
   authority lives: API behavior in the code and its `doc.go`; a repository's design reasoning in
-  its landing-zone page; org-level principles in `docs/principles/`; workflow mechanics in the
+  its README and documentation; org-level principles in the architecture repository's `principles/`; workflow mechanics in the
   marathon skill's single owning file; volatile direction in the owning repo's `context/`.
 - **Link, don't restate.** A layer that needs a detail defined elsewhere cites the home — a
   command playbook cites the reference, a `CLAUDE.md` links the skill, a profile links the
-  landing zone. A summary that adds no information beyond the link is a restatement; a
+  architecture repository. A summary that adds no information beyond the link is a restatement; a
   *narrowing* (a profile stating less than the design supports, a repo declaring a tighter
   dependency line) is not, because it asserts something the home does not.
 - **Layer for the reader.** The workspace carries large, technically dense information; the
   layering is also how a human digests it. Each layer answers its own question — what the org
-  believes (principles), what a repo is (landing zone), how to work here (`CLAUDE.md`), what is
+  believes (principles), what a repo is (the architecture's catalog), how to work here (`CLAUDE.md`), what is
   in flight (`context/`) — and hands the reader a link when the question changes.
 - **A duplicate found is a defect fixed.** The session that finds a restatement collapses it to
   a link, in the same change, the way a stale claim is already treated.
@@ -48,6 +48,7 @@ The principle lands in phases:
 - marathon v0.9.0 applied it to the harness: command playbooks cite the references instead of
   restating them, the workspace and hook blocks are printed once, and the architect's role is
   defined once in the skill.
-- `v1.alignment.review` is the alignment pass across the landing zone, profiles, catalogs,
+- `v1.alignment.review` is the alignment pass across the architecture repository, profiles, catalogs,
   and project context, now that the harness half is in place.
-- A docs principle page states the rule for human contributors when the docs task runs.
+- The architecture's principle page, `docs/principles/context-architecture.md`, states the rule
+  for human contributors (2026-09-08).

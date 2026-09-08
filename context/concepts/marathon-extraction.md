@@ -89,7 +89,7 @@ extension inherits the behavior when it is built.
 
 Each ledger entry, and each bundle entry, carries:
 
-- `kind`: `design` (a pattern for a module's design note or landing-zone page) or `convention`
+- `kind`: `design` (a pattern for a module's design note or architecture page) or `convention`
   (an org or standard principle with no single module).
 - `claim`: the pattern stated as a docs page would state it, general, with no domain nouns.
 - `evidence`: why it is the standard's and not the domain's. The DSL docs pass draws this line
@@ -151,7 +151,7 @@ data from a production consumer.
 ## Where the roadmap records it
 
 - `backlog.marathon-extraction` (repos: claude-plugins) carries the extension; its place
-  relative to `v1.harness.sitrep` and `v1.harness.hardening` is `roadmap.toml`'s to state. The
+  relative to `backlog.marathon-sitrep` and `v1.harness.hardening` is `roadmap.toml`'s to state. The
   taxonomy amendment to `references/extensions.md` that the hybrid facet needs lands with
   whichever hybrid extension ships first.
 - `v1.data.evaluation` rules from the extracted record if the extension has landed, and its

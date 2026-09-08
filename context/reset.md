@@ -1,90 +1,78 @@
-# reset · alignment-review
+# reset · dsl-docs-pass
 
 - **Status:** closeout
-- **Session:** review
-- **Project:** standards-lab (org, .github, .github-private), claude-plugins, go-core, sqlate, go-database, go-web-sdk, go-web-sdk-template, go-web-service, docs
-- **Branch:** alignment-review
+- **Session:** start
+- **Project:** claude-plugins, architecture, standards-lab (org), go-core, sqlate, go-database, go-web-sdk, go-web-sdk-template, go-web-service
+- **Branch:** dsl-docs-pass
 
 ## Disposition
 
-- **Integrated:** four design notes decayed. `standards-lab/design/elemental-architecture.md`
-  (its two pointers live at `goals.v1.messaging` and go-web-service's `concepts/data-layer.md`);
-  `claude-plugins/design/skill-is-the-source-of-truth.md` (`scripts/check.sh` enforces it;
-  CLAUDE.md and the context README keep the one-line rule);
-  `go-database/design/infrastructure-service.md` (the ownership boundary, wiring rule,
-  lifecycle stage, and `Versioner` capability are the `database` and `admin` package comments;
-  the one-set-per-service assumption moved to the capability map);
-  `go-web-service/design/composition-root.md` (`internal/app/doc.go`, the `admin` package
-  comment, and the landing zone's composition-root principle express it; why the base layers
-  sit at the module root moved to `design/domain-architecture.md`).
-- **Integrated:** restated detail collapsed to its home. `design/dsl-driven-services.md` §4–§8
-  became one paragraph each pointing at sqlate's guide, the module doc comments, and the
-  CHANGELOGs, the release ledger removed and §9–§11 renumbered to §8–§10;
-  `design/testing-hierarchy.md`'s toolkit inventory points at the packages' `doc.go`;
-  `design/standards.md` links the downward-dependencies principle; `references.md` states
-  purpose and points at each README for the packages; `CLAUDE.md` links the routing rule;
-  `concepts/admin-listener.md`'s requirement is its §6.3 link; `concepts/marathon-extraction.md`
-  defers sequencing to the roadmap. In the members: claude-plugins' host and marathon READMEs
-  link the extensions and staged-execution references; the go-core, sqlate, go-database,
-  go-web-sdk, and template capability maps point at their READMEs and doc comments;
-  go-web-sdk's `middleware-sourcing.md` cites the coordinator's rule, markers, and obligations;
-  go-web-service's `domain-architecture.md` defers the detail policy and read grammar to the
-  SDK, `documented-layers.md` the release discipline to the `goals.v1` criteria and the
-  principle pages, and CLAUDE.md the test tiers to the README; docs' context README defers
-  the tier rule to CLAUDE.md, the tree to README.md, and hosting to `backlog.docs-site`.
-- **Integrated:** stale claims fixed. Forward citations under retired slugs: the listener is
-  `v1.admin-listener` in go-web-sdk's `error-handling.md` item 6, go-web-service's
-  `retrospective-findings.md`, `internal/app/admin.go`, and `admin/database/doc.go`;
-  `backlog.context-stratification` → `v1.alignment.review`; `backlog.marathon-sitrep` →
-  `v1.harness.sitrep`; the docs-pass slug → `v1.alignment.docs` in testing-hierarchy, the
-  go-database and go-web-sdk maps, and both docs concepts; `backlog.workspace-sweep`,
-  `backlog.validation-first`, `v1.data.writes.web`, and `backlog.go-elemental-rename` dropped;
-  `v1.data.writes.operations` → `v1.data.evaluation`; `v1.data.tasks.people` →
-  `v1.data.people`. Versions and names: go-database v0.5.0 and the `Seeder` as named states,
-  sqlate v0.1.1, go-web-sdk and the template v0.7.0 (pins dropped from the maps per
-  `design/service-organization.md`); `dotnet-elemental`; the three-repository layout;
-  go-core's staged lifecycle and five packages in its README and CLAUDE.md; the template's
-  task list and gitignore delta; marathon-roadmap's floor at 0.10; go-web-sdk's
-  dependency-line statement (the admitted categories are stated when the first sourced
-  middleware lands) and httpsnoop dropped for the SDK's own recorder; the reference service's
-  `retrospective-findings.md` signatures and its closed startup findings; `RecursivePath` in
-  `organization-lineage.md`; `sql-meta-language.md`'s body agreeing with its banners;
-  `entrypoint-composition-split.md`'s path; the brief's current focus and layer order;
-  sqlate added to both profiles, the brief, and the interview.
-- **Promoted:** nothing.
-- **Culled:** `standards-lab/concepts/external-providers.md` (the provider seam is sqlate's;
-  the remainder is `backlog.second-providers` and `backlog.dotnet-mirror`);
-  `claude-plugins/concepts/marathon-functions.md` (the architect ruled a divergence from
-  strategy is talked through and pivoted, not handled by a functions tier);
-  `go-web-sdk/concepts/direction.md` and `service-middleware.md` (the readiness type hook
-  joined `error-handling.md` item 2; the placement reasoning joined `middleware-sourcing.md`);
-  `claude-plugins/concepts/marathon-sitrep.md`'s output-formats section (the publish target
-  is `v1.harness.sitrep`'s); go-web-service's `retrospective-findings.md` reduced to its auth
-  section, and `data-layer.md`, `organization-lineage.md`, and `integration-tier.md` to what
-  remains.
-- **Retained:** the harness rules in `design/testing-hierarchy.md` and the Idiom section in
-  go-web-sdk's `error-handling.md`, design content no code states; `concepts/docs-site.md`,
-  the direction `backlog.docs-site` cites (its dispatch-triggered site repository and the
-  roadmap summary's sitrep-blog starting point differ, both at claim resolution); the README
-  Standard sections of the template and go-database, the declaration mechanism
-  `design/standards.md` names; `concepts/tooling-principles.md` and
-  `concepts/rolling-currency.md` as inputs to `v1.alignment.docs`;
-  `concepts/elemental-runtime-layers.md`, gated on `v1.deployment`; go-web-sdk's `web`
-  bullet inventory. Debt on record: go-database's `go.mod` pins go-core v0.3.0 and sqlate
-  v0.1.0 and `postgres/go.mod` pins the base at v0.4.0, rolling-currency debt for a release
-  session; `experiments/sql-dsl/REVIEW.md` keeps the retired listener slug as an archive; the
-  plugin README changes ride the next tag of each plugin.
-- **Cross-repo:** the sqlate line in `public/profile/README.md` and
-  `private/profile/README.md`, one identical hunk; the docs-drift inventory appended to
-  `docs/context/concepts/dsl-docs-pass.md` for `v1.alignment.docs` (go-database's five pages,
-  go-web-sdk's four, the template's two, `architecture.md`'s Domain Service sentence,
-  tests-and-docs and release-and-ci, go-core's index, the Go Elemental index's `dotnet-minimal`,
-  and the absent sqlate, go-web-service, integration-tier, and four principle pages); the
-  roadmap: `goals.v1.alignment.tasks.review` deleted and `next` advanced.
+- **Integrated:** the architecture layer replaces the docs landing zone. The architect ruled
+  that the architecture repository holds only what generalizes past one repository (the
+  architecture, the principles, the standards' principles, the harness principles, and a
+  catalog of repositories) and that a repository documents its own implementation in its
+  README, its package documentation, its source, and an optional README-indexed `docs/`. The
+  `docs` repository is renamed `architecture` on GitHub and in the checkout; a README is every
+  directory's index; the four module directories under `standards/go-elemental/` are removed
+  after their principle content was promoted (peers compose in the application and a provider
+  is selected by construction into `dependencies.md`, the wiring rule into
+  `lifecycle-and-context.md`, no policy numbers in a library into `baseline-standards.md`, the
+  composition root as one file per layer into `topology-and-naming.md`); the standard's README
+  catalogs its members by repository link with sqlate adjacent and `dotnet-elemental`
+  anticipated; the root README carries the what-belongs-here rule and the schema without the
+  `module` and `page` types. The rule is codified in marathon (unreleased): the architecture
+  layer is conventional, `[workspace] architecture` names the repository, `init` scaffolds
+  `architecture/` in a standalone project, `review` checks promotion candidates, `close` lands
+  a generalized note in the architecture repository, the `docs` command is removed, and a
+  stage's unit follows what it produces. The coordinator's `design/workspace-docs.md` is
+  rewritten as `design/architecture-layer.md`; the architecture repository's
+  `concepts/architecture-layer.md` (the session's work list) and `concepts/dsl-docs-pass.md`
+  (the module-page inventory, moot once the pages went) are deleted.
+- **Integrated:** the principle pages the pass landed. In `principles/`: context architecture,
+  validation-first layering, rolling currency (from `concepts/rolling-currency.md`, deleted), a
+  standalone tool beside the library, and providers as adapters as a section of
+  `service-tiers.md`. In `standards/go-elemental/principles/`: DSL-driven services with the
+  authored-SQL conventions (the tier declaration as the port list, a statement named for its
+  operation, validation as the entity's and existence as the store's, a host function only for
+  a protocol SQL cannot guarantee, the three validation moments), and `tests-and-docs.md` and
+  `release-and-ci.md` amended with the integration tier, the toolkit convention, and the
+  green-integration-licenses-release rule. In `harness/`: tool-based skills, consolidating
+  tooling principles 1, 2, 3, 4, 6, 8, 9, 10, and 11; `concepts/tooling-principles.md` reduces
+  to the adoption map. `architecture.md`: a Domain Service serves a domain, a composition of
+  one or more Entities around a root Entity, and the Principles section lists all seven.
+- **Culled:** the module-page rewrites of stages 5 through 9 (six SQL pages, the go-database,
+  go-core, go-web-sdk, and template rewrites), reverted as restatements of package
+  documentation; the module directories themselves; `backlog.marathon-docs-extension` and
+  claude-plugins' `concepts/marathon-docs-extension.md`, whose premise dissolved with the
+  command; the grammar's-page open question in `design/dsl-driven-services.md`, resolved.
+- **Retained:** `design/testing-hierarchy.md` (the harness rules stay design content; the
+  toolkit packages' documentation states their APIs); the architecture repository's
+  `concepts/entrypoint-composition-split.md` (its own session); `concepts/sql-meta-language.md`
+  there, already reframed on 2026-09-03; the harness README's two conventions not yet paged.
+  Debt on record, unchanged: go-database's `go.mod` pins go-core v0.3.0 and sqlate v0.1.0 and
+  `postgres/go.mod` pins the base at v0.4.0; `experiments/sql-dsl/` keeps the retired slugs
+  and the landing-zone vocabulary as an archive.
+- **Cross-repo:** the six members' README Standard sections link the standard's README and
+  state that the README and the package documentation document the repository; their
+  `CLAUDE.md` and context READMEs say the same, and four notes (go-web-sdk's
+  `error-handling.md` and `middleware-sourcing.md`, go-web-service's `domain-architecture.md`
+  and `documented-layers.md`) drop the landing-zone claims. The coordinator: the order map and
+  `[workspace] architecture`, the references catalog and local map, the brief, the interview,
+  `CLAUDE.md`, and every context note adopt the architecture vocabulary and the README paths;
+  `design/context-architecture.md` records the principle page; the roadmap's `goals.v1`
+  criteria close a layer with its repository documentation, `goals.v1.tasks.repository-docs`
+  joins `next` last, and `goals.v1.alignment` is deleted with its docs task, its criteria
+  holding, so `next` opens at `v1.harness.hardening`; `v1.harness.sitrep` moves to the
+  backlog as `backlog.marathon-sitrep` at the architect's direction, held until called for, so
+  the web service's tasks follow hardening. claude-plugins: the marathon changes above and the
+  changelog's Unreleased entry.
 
 ## Next-focus
 
-`v1.alignment.docs`, a `docs` session in the landing zone (`docs`, with standards-lab for the
-catalog adjacents): the work list is `docs/context/concepts/dsl-docs-pass.md`, its inventory
-plus the drift inventory this review appended, and the task's summary in `roadmap.toml`. Then
-`v1.harness.hardening`.
+`v1.harness.hardening`, a `start` in claude-plugins. Begin by cutting marathon's next release
+from the Unreleased entry, so the architecture layer, the removed `docs` command, and the
+generalized stage rule reach the workspace's sessions; then the task's own work: the
+sufficiency question at the plan stage and the SQL conventions as `sqlint` called as a
+package. `harness/tool-based-skills.md` in the architecture repository is the principle the
+task applies. After hardening, `next` continues with `v1.auth.strategy` and the web service's
+layers.

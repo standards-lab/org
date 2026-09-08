@@ -20,7 +20,7 @@ implementation of the Elemental Architecture — not an inherited property of th
 
 ## Repositories
 
-Repository, module, package, and tag naming is documented in the docs landing zone:
-[topology and naming](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/principles/topology-and-naming.md),
+Repository, module, package, and tag naming is documented in the architecture repository:
+[topology and naming](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/topology-and-naming.md),
 under the Go Elemental standard. How focused reference architectures are named is not yet a
 convention; the first spin-off settles it.

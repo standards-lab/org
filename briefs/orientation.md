@@ -109,17 +109,17 @@ together well, and dialing it in takes time.
 
 ## Explore it yourself
 
-- [Documentation](https://github.com/standards-lab/docs) — the landing zone: the canonical home
+- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository: the canonical home
   for the Elemental Architecture, its standards, and its principles.
-  - [Elemental Architecture](https://github.com/standards-lab/docs/blob/main/architecture.md)
+  - [Elemental Architecture](https://github.com/standards-lab/architecture/blob/main/architecture.md)
     — the compositional elements a program is built from and the rules that bind them,
     independent of technology.
-  - [Principles](https://github.com/standards-lab/docs/blob/main/principles/index.md) — the
+  - [Principles](https://github.com/standards-lab/architecture/blob/main/principles/README.md) — the
     architecture's principles, which every standard enhances and never loosens.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace codifying the organization's development processes: the `marathon` workflow and
   its `marathon-roadmap` extension.
-- [Go Elemental](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/index.md)
+- [Go Elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md)
   — the Go implementation of the Elemental Architecture on the standard library, the
   organization's first standard.
   - [`go-core`](https://github.com/standards-lab/go-core) — the Core SDK: layered

@@ -270,8 +270,9 @@ The integration goal carried its tasks in dependency order: `sqlate`, `database`
 `template`, `service`. Each library released when its task closed, since it depends on nothing
 above it, and the tasks above pinned the release; the `service` task was a coordinated session
 that pinned them all. `suite`, `toolkit`, and `states` followed on 2026-09-07, and the goal closed
-with them. Each repository's CHANGELOG records what each release carried. What remains is the docs pass under `v1.alignment`, `hardening` under `v1.harness`, and
-the management listener as `v1.admin-listener`, sequenced behind auth and observability.
+with them. Each repository's CHANGELOG records what each release carried. What remains is
+`hardening` under `v1.harness`, and the management listener as `v1.admin-listener`, sequenced
+behind auth and observability.
 
 ## 9. Open questions
 
@@ -292,8 +293,8 @@ the management listener as `v1.admin-listener`, sequenced behind auth and observ
   positive appears.
 - **A generic seed helper.** The per-table loop is 70 lines for two domains; a generic
   `seed.Table[T]` waits for the template's second service, under §2.4.
-- **The grammar's page** in the docs landing zone: where it sits and what it is called, the docs
-  pass's call.
+- **The grammar's page.** Resolved 2026-09-08: the grammar is sqlate's guide, and the standard's
+  authored-SQL conventions are a section of the DSL-driven-services principle page.
 
 ## 10. History
 
