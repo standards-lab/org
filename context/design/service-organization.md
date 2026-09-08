@@ -1,11 +1,11 @@
 # Service organization
 
 How the organization builds out its infrastructure services and the reference architecture that
-composes them. The settled principles migrated to the docs landing zone — the
-[service tiers](https://github.com/standards-lab/docs/blob/main/principles/service-tiers.md) and
-[repository topology](https://github.com/standards-lab/docs/blob/main/principles/repository-topology.md)
-principles, and the Go Elemental pages — and this note keeps the planning direction the landing
-zone does not document: which providers each service is expected to gain, and how the tiers
+composes them. The settled principles migrated to the architecture repository — the
+[service tiers](https://github.com/standards-lab/architecture/blob/main/principles/service-tiers.md) and
+[repository topology](https://github.com/standards-lab/architecture/blob/main/principles/repository-topology.md)
+principles, and the Go Elemental pages — and this note keeps the planning direction the
+architecture repository does not document: which providers each service is expected to gain, and how the tiers
 co-evolve.
 
 ## Anticipated services and their providers

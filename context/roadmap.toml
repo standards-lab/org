@@ -75,7 +75,7 @@ context = [
 
 [goals.v1.alignment.tasks.docs]
 name = "The architecture layer"
-repos = ["docs", "standards-lab", "go-core", "sqlate", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
+repos = ["architecture", "standards-lab", "go-core", "sqlate", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
 summary = '''
 The architecture repository brought under the architecture-layer rule, continuing from the
 2026-09-08 session that settled the rule, landed the principle pages (context architecture,
@@ -91,7 +91,7 @@ coordinator's notes, profiles, and brief adopting the architecture vocabulary; a
 that name the old repository repointed.
 '''
 context = [
-  "docs/context/concepts/architecture-layer.md",
+  "architecture/context/concepts/architecture-layer.md",
   "standards-lab/context/design/architecture-layer.md",
 ]
 
@@ -396,7 +396,7 @@ summary = "An external web-platform-native client repository. Post-1.0 candidate
 [backlog.docs-site]
 name = "The organization docs site"
 summary = '''
-The documentation site serving the landing zone's content. The sitrep blog's GitHub Pages
+The documentation site serving the architecture repository's content. The sitrep blog's GitHub Pages
 blueprint (Jekyll, Actions deployment, the publish pipeline) is the starting point.
 '''
 context = ["standards-lab/context/concepts/docs-site.md"]

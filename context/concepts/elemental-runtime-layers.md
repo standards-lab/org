@@ -20,4 +20,4 @@ The app class's output has a follow-on elemental sequence:
 The architect stopped the projection deliberately ("my brain already hurts projecting this far
 ahead"). Revisit when the reference service's deployment work (`goals.v1.deployment`) or the
 runtime story makes the container layer concrete; until then the module classes and tier
-vocabulary in the docs landing zone are the settled extent of the hierarchy.
+vocabulary in the architecture repository are the settled extent of the hierarchy.

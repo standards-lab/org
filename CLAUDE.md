@@ -37,7 +37,7 @@ different problems.
 ## Visibility tiers (public / member / private)
 
 Material belongs to exactly one visibility tier (distinct from the service tiers defined in the
-docs landing zone). Place it where it goes and do not duplicate it upward:
+architecture repository). Place it where it goes and do not duplicate it upward:
 
 - **Public** — `context/`, the references catalog, and `public/profile/README.md`. The working
   context is public by design: the blueprint's lived context — roadmap, design notes, session

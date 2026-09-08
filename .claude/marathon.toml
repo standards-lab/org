@@ -25,9 +25,9 @@ order = [
   ],
   "go-web-sdk-template", # web service application template
   "go-web-service", # reference web service
-  "docs", # document landing zone
+  "architecture", # the architecture repository
 ]
-docs = "docs" # the workspace's docs landing zone
+architecture = "architecture" # the workspace's architecture repository
 
 # Remote platform and the command that publishes a finished branch.
 # All three repositories rooted in this directory (org here, .github under public/,

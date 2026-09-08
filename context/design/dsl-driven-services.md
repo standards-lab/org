@@ -292,8 +292,8 @@ the management listener as `v1.admin-listener`, sequenced behind auth and observ
   positive appears.
 - **A generic seed helper.** The per-table loop is 70 lines for two domains; a generic
   `seed.Table[T]` waits for the template's second service, under §2.4.
-- **The grammar's page** in the docs landing zone: where it sits and what it is called, the docs
-  pass's call.
+- **The grammar's page.** Resolved 2026-09-08: the grammar is sqlate's guide, and the standard's
+  authored-SQL conventions are a section of the DSL-driven-services principle page.
 
 ## 10. History
 

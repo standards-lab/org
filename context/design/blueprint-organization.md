@@ -5,7 +5,7 @@ itself is the worked example of a standards-based, agentic organizational strate
 already claims each repository as an example for others to follow. This note extends the claim
 one level up. How an organization defines architectures, standards, and principles; binds them
 with the narrowing rule; organizes their repositories by the topology principle; documents them
-in a landing zone; and develops them with the harness: that whole arrangement is the
+in an architecture repository; and develops them with the harness: that whole arrangement is the
 deliverable, demonstrated by being lived.
 
 The agentic dimension is part of the strategy rather than tooling beside it. The harness
@@ -31,7 +31,7 @@ Go Elemental rename was its first consequence.
   namespace (`go-elemental/core`) arrives as a consequence of the boundary, never as a refactor
   of the blueprint — which is why the blueprint's verbose repository names
   (`go-web-sdk-template`) are not a problem to solve.
-- **Catalog.** The docs landing zone documents the blueprint's one definitive architecture and
+- **Catalog.** The architecture repository documents the blueprint's one definitive architecture and
   its standards in depth, and references every other implementation — graduated organizations
   and external implementations built by others — rather than hosting their documentation. The
   catalog section is a placeholder until the Elemental Architecture completes and graduates to
@@ -44,7 +44,7 @@ Go Elemental rename was its first consequence.
   absorbs the burden of scaling many architectures, so the blueprint builds out exactly one —
   the Elemental Architecture — and the documented hierarchy is architecture → standard →
   module. The former organizational-principles tier dissolved into the architecture's
-  principles; the docs landing zone holds the architecture at its root (`architecture.md`,
+  principles; the architecture repository holds the architecture at its root (`architecture.md`,
   `principles/`), each standard under `standards/<key>/`, and each module's pages beneath its
   standard. The module level carries three classes — library, template, app — refined by the
   software tier vocabulary (core SDK, application SDKs, infrastructure libraries, templates,

@@ -2,10 +2,10 @@
 
 The workspace's testing strategy: the tiers, what each proves, and the cadence each runs at.
 Settled at the `v1.testing` session (2026-09-01) from the questions captured at the 2026-08-31
-retrospective. The docs landing zone's
-[tests-and-docs](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/principles/tests-and-docs.md)
+retrospective. The architecture repository's
+[tests-and-docs](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/tests-and-docs.md)
 and
-[release-and-ci](https://github.com/standards-lab/docs/blob/main/standards/go-elemental/principles/release-and-ci.md)
+[release-and-ci](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/release-and-ci.md)
 principles state the shipped posture; this note is the decision record for the hierarchy. Both
 tiers are built: the integration tier landed in go-web-service at `v1.data.sql.tasks.suite`
 (2026-09-07) as the root `integration` package. The strategy is deliberately no more complex
@@ -141,8 +141,4 @@ worked around at the integration tier.
 
 ## The docs rule
 
-The tier is live, so the docs amendments — tests-and-docs' "CI needs no database container"
-claim and release-and-ci's CI section, and the toolkit's pages (go-core's `processtest`,
-go-web-sdk's `webtest`, the template's tier and its task table, and this convention) — land
-in the docs pass (`v1.alignment.docs`): the landing zone states what exists, and until
-then this note is where the decision lives.
+The tier is live, and the standard's tests-and-docs and release-and-ci principles state the two tiers, the toolkit convention, and the green-integration-licenses-release rule (2026-09-08). The toolkit packages' documentation states their APIs; this note keeps the decision record and the harness rules.

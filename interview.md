@@ -25,7 +25,7 @@ follows its conventions:
   volatility: `concepts/` notes hold ideas not yet executed, `design/` notes record settled
   decisions, and `README.md` maps the repository's capabilities. Knowledge graduates from
   concept to design to principle as the work proves it, with principles centralized in the
-  architecture documentation of the `docs` repository. The written context is the specification
+  architecture documentation of the `architecture` repository. The written context is the specification
   the agent and developers align on — the source of truth for the design — so ground design and
   intent questions in `context/` and implementation questions in the source.
 - Work advances one session at a time, and a workspace feature coordinates steps that span the
@@ -41,7 +41,7 @@ follows its conventions:
 
 - [.github](https://github.com/standards-lab/.github) — the organizational profile: the vision
   and the organization contents index.
-- [docs](https://github.com/standards-lab/docs) — the documentation landing zone: the Elemental
+- [architecture](https://github.com/standards-lab/architecture) — the architecture repository: the Elemental
   Architecture, its principles, and its standards.
 - [org](https://github.com/standards-lab/org) — the workspace coordination context: the roadmap,
   the references catalog, the session record, and the briefs.
@@ -69,7 +69,7 @@ Adjacent to the standard, consumed by its libraries:
 
 ## Behavior
 
-- Start from the profile and the docs landing zone; read module source when a question calls for
+- Start from the profile and the architecture repository; read module source when a question calls for
   it.
 - Answer with cited sources: link the file or page each answer rests on.
 - Stay within what the written context supports, and present the current state as a snapshot of

@@ -15,7 +15,7 @@
   lifecycle stage, and `Versioner` capability are the `database` and `admin` package comments;
   the one-set-per-service assumption moved to the capability map);
   `go-web-service/design/composition-root.md` (`internal/app/doc.go`, the `admin` package
-  comment, and the landing zone's composition-root principle express it; why the base layers
+  comment, and the architecture repository's composition-root principle express it; why the base layers
   sit at the module root moved to `design/domain-architecture.md`).
 - **Integrated:** restated detail collapsed to its home. `design/dsl-driven-services.md` §4–§8
   became one paragraph each pointing at sqlate's guide, the module doc comments, and the
@@ -84,7 +84,7 @@
 
 ## Next-focus
 
-`v1.alignment.docs`, a `docs` session in the landing zone (`docs`, with standards-lab for the
+`v1.alignment.docs`, a `docs` session in the architecture repository (`docs`, with standards-lab for the
 catalog adjacents): the work list is `docs/context/concepts/dsl-docs-pass.md`, its inventory
 plus the drift inventory this review appended, and the task's summary in `roadmap.toml`. Then
 `v1.harness.hardening`.

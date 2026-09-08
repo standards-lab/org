@@ -13,19 +13,19 @@
 # [standards.<key>] entry declares one; a member repository's [repos.<key>] entry
 # declares standard = "<key>". A standard derived from another declares
 # derives = "<key>", and architecture names the architecture the standard
-# implements. The definition itself lives in the docs landing zone at the
+# implements. The definition itself lives in the architecture repository at the
 # definition URL; the declaration mechanics are context/design/standards.md.
 [standards.go-elemental]
 description = "The Go implementation of the Elemental Architecture: a complete reference architecture on the standard library"
 architecture = "elemental-architecture"
-definition = "https://github.com/standards-lab/docs/blob/main/standards/go-elemental/index.md"
+definition = "https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md"
 
 # Effort repositories — the standards-lab organization.
 [repos.claude-plugins]
 remote = "https://github.com/standards-lab/claude-plugins.git"
 
-[repos.docs]
-remote = "https://github.com/standards-lab/docs.git"
+[repos.architecture]
+remote = "https://github.com/standards-lab/architecture.git"
 
 [repos.org]
 remote = "https://github.com/standards-lab/org.git"

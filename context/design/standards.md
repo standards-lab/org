@@ -2,8 +2,8 @@
 
 How the organization's principles are scoped and how a set of repositories is grouped under a
 named standard. The hierarchy itself — architecture, standard, module — and
-its definitions are documented in the [docs landing zone](https://github.com/standards-lab/docs);
-this note records the declaration mechanics the landing zone does not.
+its definitions are documented in the [architecture repository](https://github.com/standards-lab/architecture);
+this note records the declaration mechanics the architecture repository does not.
 
 Vocabulary: an **architecture** is a technology-agnostic definition of a domain's elements and
 rules; a **standard** is a technology-specific implementation of an architecture; a
@@ -13,7 +13,7 @@ review are the mechanism throughout; there is no enforcement machinery.
 
 ## Where each level is declared
 
-- **Definitions** live in the landing zone: the architecture at `architecture.md` with its
+- **Definitions** live in the architecture repository: the architecture at `architecture.md` with its
   principles in `principles/`, and a standard in `standards/<key>/` with its principles and
   module pages beneath it.
 - **The catalog** (`references.toml`) is the machine-readable declaration: a `[standards.<key>]`
@@ -29,11 +29,11 @@ review are the mechanism throughout; there is no enforcement machinery.
 A repository belongs to exactly one standard — the one whose author answers for it. Another
 standard that finds a member's modules sufficient adopts them as ordinary dependencies at
 pinned releases, never as members. This is the downward-dependency principle applied across
-standards; no second membership mechanism exists. The rule is the landing zone's
-[downward-dependencies](https://github.com/standards-lab/docs/blob/main/principles/downward-dependencies.md)
+standards; no second membership mechanism exists. The rule is the architecture repository's
+[downward-dependencies](https://github.com/standards-lab/architecture/blob/main/principles/downward-dependencies.md)
 principle; the catalog is where a violation would first appear.
 
 ## Rollout
 
-`go-elemental` is the first standard, defined in the landing zone with its members declared in
+`go-elemental` is the first standard, defined in the architecture repository with its members declared in
 the catalog. `dotnet-elemental` is anticipated as its derived standard.

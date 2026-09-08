@@ -89,7 +89,7 @@ extension inherits the behavior when it is built.
 
 Each ledger entry, and each bundle entry, carries:
 
-- `kind`: `design` (a pattern for a module's design note or landing-zone page) or `convention`
+- `kind`: `design` (a pattern for a module's design note or architecture page) or `convention`
   (an org or standard principle with no single module).
 - `claim`: the pattern stated as a docs page would state it, general, with no domain nouns.
 - `evidence`: why it is the standard's and not the domain's. The DSL docs pass draws this line

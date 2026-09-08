@@ -13,7 +13,7 @@ should be able to understand the architecture from its own stable context alone.
 ## Awareness follows the dependency direction
 
 The tiers of the architecture form a dependency stack (the
-[repository topology](https://github.com/standards-lab/docs/blob/main/principles/repository-topology.md)
+[repository topology](https://github.com/standards-lab/architecture/blob/main/principles/repository-topology.md)
 principle), and awareness runs the way the dependencies do: downward. A higher tier may document its
 dependency on and integration with the lower tiers it builds on; a lower tier never names the tiers
 that consume it. This mirrors the code — a module imports its dependencies, never its consumers.
@@ -25,7 +25,7 @@ reference service's context may describe how it composes the SDK and the service
 infrastructure library's context may describe how it uses the Core SDK, and the Core SDK's
 context describes the Core SDK alone. Where a lower tier needs to mark where its responsibility
 ends, it does so in its own terms, as the boundary of what it provides; it does not name its
-consumers. The cross-tier view of the whole lives in the docs landing zone (the repository
+consumers. The cross-tier view of the whole lives in the architecture repository (the repository
 topology and service tiers principles) and this org context (`service-organization.md`), the
 places the organization is described together. The vocabulary those pages define — the standard
 and native tiers, the provider-swap classes — is shared vocabulary an architecture uses in its
