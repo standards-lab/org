@@ -50,4 +50,5 @@ The principle lands in phases:
   defined once in the skill.
 - `v1.alignment.review` is the alignment pass across the landing zone, profiles, catalogs,
   and project context, now that the harness half is in place.
-- A docs principle page states the rule for human contributors when the docs task runs.
+- The architecture's principle page, `docs/principles/context-architecture.md`, states the rule
+  for human contributors (2026-09-08).

@@ -66,8 +66,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   `design/standards.md`.
 - **Blueprint organization** — the blueprint / boundary / catalog roles, the graduation model,
   and the agentic thesis. See `design/blueprint-organization.md`.
-- **The workspace docs tier** — the centralized documentation convention. See
-  `design/workspace-docs.md`.
+- **The architecture layer** — the workspace's architecture repository, what it holds, and how
+  a page reaches it by promotion; each repository documents its own implementation. See
+  `design/architecture-layer.md`.
 - **Service organization** — the anticipated services and providers, and how the tiers
   co-evolve. See `design/service-organization.md`.
 - **DSL-driven services** — the strategy that distinguishes DSL-driven infrastructure (SQL

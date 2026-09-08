@@ -37,11 +37,11 @@ The plugin host for the organization, mirroring the structure of `tau-marketplac
 workflow plugin and its `marathon-roadmap` extension. The harness level of the reference architecture.
 
 ### docs
-The organization's documentation landing zone: the canonical home for its architectures,
-standards, principles, and the documented details of every repository, published as plain
-markdown with YAML front matter. The workspace's centralized docs tier
-(`context/design/workspace-docs.md`); anticipated host content for the organization
-documentation site.
+The organization's architecture layer: the canonical home for its architectures, standards,
+principles, and a catalog of the repositories that implement them, published as plain markdown
+with YAML front matter. The workspace's architecture repository
+(`context/design/architecture-layer.md`), named `docs` until `v1.alignment.docs` renames it
+`architecture`; anticipated host content for the organization documentation site.
 
 ### org
 This repository: the workspace context that coordinates the organization — `context/`, the

@@ -65,8 +65,8 @@ Go Elemental rename was its first consequence.
 
 - The narrowing rule and the definitions (architecture / standard / principle) are unchanged;
   this note adds the organizational lifecycle around them.
-- `design/workspace-docs.md` defines the docs tier within the workspace; the catalog role
-  extends its reach to implementations outside the workspace without changing the
+- `design/architecture-layer.md` defines the architecture layer within the workspace; the
+  catalog role extends its reach to implementations outside the workspace without changing the
   within-workspace convention.
 - The charter's governance objective ("which these organizational repositories can eventually
   serve themselves") is this strategy's endgame: the blueprint governing the organizations it
