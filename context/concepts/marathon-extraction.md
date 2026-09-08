@@ -151,7 +151,7 @@ data from a production consumer.
 ## Where the roadmap records it
 
 - `backlog.marathon-extraction` (repos: claude-plugins) carries the extension; its place
-  relative to `v1.harness.sitrep` and `v1.harness.hardening` is `roadmap.toml`'s to state. The
+  relative to `backlog.marathon-sitrep` and `v1.harness.hardening` is `roadmap.toml`'s to state. The
   taxonomy amendment to `references/extensions.md` that the hybrid facet needs lands with
   whichever hybrid extension ships first.
 - `v1.data.evaluation` rules from the extracted record if the extension has landed, and its

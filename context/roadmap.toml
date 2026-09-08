@@ -7,9 +7,7 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.alignment.docs",
   "v1.harness.hardening",
-  "v1.harness.sitrep",
   "v1.auth.strategy",
   "v1.web",
   "v1.observability",
@@ -54,55 +52,14 @@ changes it; sqlate's guide exists and is verified rather than written.
 '''
 context = ["standards-lab/context/design/architecture-layer.md"]
 
-[goals.v1.alignment]
-name = "The workspace context and architecture review"
-summary = '''
-The written context of the whole workspace brought into alignment with what now exists, after
-sqlate, go-database v0.5, the integration tier, and the rewritten reference service changed the
-architecture beneath the notes: every repository's context/ against its code, the coordinator's
-notes, the profiles and catalogs, and then the architecture layer. The alignment applies the
-context-architecture principle: every restated detail collapses to a link to its single home,
-and the architecture holds only what generalizes past one repository.
-'''
-criteria = [
-  "Each repository's context/ asserts only what its code expresses or intends; no stale slug, version, or claim remains.",
-  "The architecture repository holds the architecture, the principles, and the catalog and nothing a repository's source expresses: renamed architecture, GitHub-navigable with a README in every directory, the module directories removed, and every member README pointing at the standard's README and its principles.",
-]
-context = [
-  "standards-lab/context/design/context-architecture.md",
-  "standards-lab/context/design/architecture-layer.md",
-]
-
-[goals.v1.alignment.tasks.docs]
-name = "The architecture layer"
-repos = ["architecture", "standards-lab", "go-core", "sqlate", "go-database", "go-web-sdk", "go-web-sdk-template", "go-web-service"]
-summary = '''
-The architecture repository brought under the architecture-layer rule, continuing from the
-2026-09-08 session that settled the rule, landed the principle pages (context architecture,
-validation-first layering, rolling currency, a standalone tool beside the library, providers as
-adapters, DSL-driven services with the authored-SQL conventions, tool-based skills), amended
-the architecture's Domain Service definition and the test-tier principles, and codified the
-rule in marathon. What remains is the linked work list: the rename to architecture across
-GitHub, the checkout, the catalog, the order map, and the coordinator's [workspace]
-architecture key; every index.md a README; the module directories removed after a read for
-principle content to promote; the standard's README reduced to its member catalog; CLAUDE.md
-restated; every Go member's README Standard section repointed to the standard's README; the
-coordinator's notes, profiles, and brief adopting the architecture vocabulary; and the links
-that name the old repository repointed.
-'''
-context = [
-  "architecture/context/concepts/architecture-layer.md",
-  "standards-lab/context/design/architecture-layer.md",
-]
-
 [goals.v1.harness]
 name = "The harness at v1"
 summary = '''
 The claude-plugins harness carries what the v1 build has proven it needs: the plan-stage
-sufficiency question and the checkable SQL conventions from the DSL work, and the sitrep
-extension that gives the organization situational awareness of the effort. The harness
-follows the tooling principles: tools encode process, skills encode judgment, and an
-extension calls the tooling rather than re-encoding it.
+sufficiency question and the checkable SQL conventions from the DSL work. The harness follows
+the tooling principles: tools encode process, skills encode judgment, and an extension calls
+the tooling rather than re-encoding it. The sitrep extension waits in the backlog
+(`backlog.marathon-sitrep`) until the architect calls for it.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
 
@@ -117,27 +74,6 @@ the SDKs' toolkit (go-core's process/processtest, go-web-sdk's webtest) and the 
 `integration` package over it.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
-
-[goals.v1.harness.tasks.sitrep]
-name = "The marathon-sitrep extension"
-repos = ["claude-plugins", "standards-lab"]
-summary = '''
-The organization's situational-awareness tool: enterprise-wide awareness of progress on
-engineering efforts, published to a GitHub Pages dev blog. Two entry categories to start: the
-sitrep, an update at a set interval for a project or workspace, drafted from marathon's own
-record (the reset file, the roadmap deltas, the commit history, and the pull-request
-descriptions) and calibrated by a style profile; and the brief, orientation for leadership
-framed per audience, into which the coordinator's briefs/ and interview.md transition.
-Further categories wait for a need. The blog scaffold and publish mechanics belong to a
-dev-blog skill (the capture, draft, publish pipeline the TAU dev blog established) that the
-extension calls rather than re-encodes; the extension owns reading the workspace and
-drafting. First member of the enhancement facet of the extension taxonomy; the taxonomy
-amendment lands with it if it ships before marathon-extraction.
-'''
-context = [
-  "claude-plugins/context/concepts/marathon-sitrep.md",
-  "standards-lab/context/concepts/tooling-principles.md",
-]
 
 [goals.v1.auth]
 name = "Auth and authorization"
@@ -327,6 +263,27 @@ are settled in its own planning session once the service is worth deploying.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
+
+[backlog.marathon-sitrep]
+name = "The marathon-sitrep extension"
+repos = ["claude-plugins", "standards-lab"]
+summary = '''
+Held in the backlog until the architect calls for it. The organization's situational-awareness tool: enterprise-wide awareness of progress on
+engineering efforts, published to a GitHub Pages dev blog. Two entry categories to start: the
+sitrep, an update at a set interval for a project or workspace, drafted from marathon's own
+record (the reset file, the roadmap deltas, the commit history, and the pull-request
+descriptions) and calibrated by a style profile; and the brief, orientation for leadership
+framed per audience, into which the coordinator's briefs/ and interview.md transition.
+Further categories wait for a need. The blog scaffold and publish mechanics belong to a
+dev-blog skill (the capture, draft, publish pipeline the TAU dev blog established) that the
+extension calls rather than re-encodes; the extension owns reading the workspace and
+drafting. First member of the enhancement facet of the extension taxonomy; the taxonomy
+amendment lands with it if it ships before marathon-extraction.
+'''
+context = [
+  "claude-plugins/context/concepts/marathon-sitrep.md",
+  "standards-lab/context/concepts/tooling-principles.md",
+]
 
 [backlog.marathon-extraction]
 name = "The marathon-extraction extension"

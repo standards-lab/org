@@ -16,6 +16,6 @@ the workspace and adopted into the architecture at the `v1.alignment.docs` sessi
   with sqlate's `sqlint` as the exhibit.
 
 The harness tasks apply them: `v1.harness.hardening` calls `sqlint` as a package rather than
-re-implementing its checks (principles 1 and 8), `v1.harness.sitrep` calls a dev-blog skill's
+re-implementing its checks (principles 1 and 8), `backlog.marathon-sitrep` calls a dev-blog skill's
 pipeline rather than re-encoding it (principle 8), and `backlog.harness-tooling` is the
 tooling layer beneath the harness the principles ask for (principles 1, 2, and 3).
