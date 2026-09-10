@@ -280,9 +280,8 @@ The integration goal carried its tasks in dependency order: `sqlate`, `database`
 `template`, `service`. Each library released when its task closed, since it depends on nothing
 above it, and the tasks above pinned the release; the `service` task was a coordinated session
 that pinned them all. `suite`, `toolkit`, and `states` followed on 2026-09-07, and the goal closed
-with them. Each repository's CHANGELOG records what each release carried. What remains is
-`hardening` under `v1.harness`, and the management listener as `v1.admin-listener`, sequenced
-behind auth and observability.
+with them. Each repository's CHANGELOG records what each release carried. What remains is the
+management listener as `v1.admin-listener`, sequenced behind auth and observability.
 
 ## 9. Open questions
 
@@ -295,16 +294,10 @@ behind auth and observability.
 - **The confirmation token** for `down`, `force`, and `state`: its mechanism, with the
   listener's authentication. `v1.admin-listener` decides, after `goals.v1.auth` settles the
   authentication.
-- **Guarded-statement conventions in the lint.** The library no longer guarantees the guard's
-  SQL shape, so a consumer can write a guarded update that forgets the increment or the version
-  predicate. A check that a file named or annotated as guarded contains both clauses belongs to
-  `sqlint`; the hardening task carries it.
 - **The lint's stripper** does not yet strip PostgreSQL's dollar quoting. Added when a false
   positive appears.
 - **A generic seed helper.** The per-table loop is 70 lines for two domains; a generic
   `seed.Table[T]` waits for the template's second service, under §2.4.
-- **The grammar's page.** Resolved 2026-09-08: the grammar is sqlate's guide, and the standard's
-  authored-SQL conventions are a section of the DSL-driven-services principle page.
 
 ## 10. Record
 
