@@ -26,9 +26,12 @@ principle rather than a bug class:
 ## In practice
 
 - **One home per detail.** A mechanic, principle, pattern, or boundary is defined where its
-  authority lives: API behavior in the code and its `doc.go`; a repository's design reasoning in
-  its README and documentation; org-level principles in the architecture repository's `principles/`; workflow mechanics in the
-  marathon skill's single owning file; volatile direction in the owning repo's `context/`.
+  authority lives:
+  - API behavior in the code and its `doc.go`
+  - a repository's design reasoning in its README and documentation
+  - org-level principles in the architecture repository's `principles/`
+  - workflow mechanics in the marathon skill's single owning file
+  - volatile direction in the owning repo's `context/`
 - **Link, don't restate.** A layer that needs a detail defined elsewhere cites the home — a
   command playbook cites the reference, a `CLAUDE.md` links the skill, a profile links the
   architecture repository. A summary that adds no information beyond the link is a restatement; a

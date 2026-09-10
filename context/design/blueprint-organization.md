@@ -3,10 +3,15 @@
 Standards Lab's repositories are worked examples of a standard's tiers, and the organization
 itself is the worked example of a standards-based, agentic organizational strategy. The vision
 already claims each repository as an example for others to follow. This note extends the claim
-one level up. How an organization defines architectures, standards, and principles; binds them
-with the narrowing rule; organizes their repositories by the topology principle; documents them
-in an architecture repository; and develops them with the harness: that whole arrangement is the
-deliverable, demonstrated by being lived.
+one level up. How an organization:
+
+- defines architectures, standards, and principles
+- binds them with the narrowing rule
+- organizes their repositories by the topology principle
+- documents them in an architecture repository
+- develops them with the harness
+
+That whole arrangement is the deliverable, demonstrated by being lived.
 
 The agentic dimension is part of the strategy rather than tooling beside it. The harness
 level's programming standards and workflow integrations belong to the architecture, even though
@@ -23,13 +28,13 @@ Go Elemental rename was its first consequence.
 
 - **Blueprint.** Standards Lab incubates architectures and standards. Its repositories carry
   single-concern names with a language prefix inside the one organization, and they are not
-  renamed as the strategy matures — the blueprint's job is to stay legible as the reference for
+  renamed as the strategy matures: the blueprint's job is to stay legible as the reference for
   how such an effort is organized.
 - **Boundary.** An architecture or standard intended for production use is encapsulated at an
   organizational boundary: it graduates to its own organization, whose name carries the
   standard's identity and whose repositories keep short single-concern names. The module
   namespace (`go-elemental/core`) arrives as a consequence of the boundary, never as a refactor
-  of the blueprint — which is why the blueprint's verbose repository names
+  of the blueprint. That is why the blueprint's verbose repository names
   (`go-web-sdk-template`) are not a problem to solve.
 - **Catalog.** The architecture repository documents the blueprint's one definitive architecture and
   its standards in depth, and references every other implementation — graduated organizations
@@ -41,9 +46,8 @@ Go Elemental rename was its first consequence.
 ## Structural consequences, resolved
 
 - **One definitive architecture, three levels of resolution.** The organizational boundary
-  absorbs the burden of scaling many architectures, so the blueprint builds out exactly one —
-  the Elemental Architecture — and the documented hierarchy is architecture → standard →
-  module. The former organizational-principles tier dissolved into the architecture's
+  absorbs the burden of scaling many architectures, so the blueprint builds out exactly one, the
+  Elemental Architecture, and the documented hierarchy is architecture → standard → module. The former organizational-principles tier dissolved into the architecture's
   principles; the architecture repository holds the architecture at its root (`architecture.md`,
   `principles/`), each standard under `standards/<key>/`, and each module's pages beneath its
   standard. The module level carries three classes — library, template, app — refined by the
@@ -51,15 +55,15 @@ Go Elemental rename was its first consequence.
   references).
 - **Informative, not prescriptive.** The blueprint's arrangement may serve any discipline that
   benefits from an agentic development workflow, and it never prescribes how an external effort
-  structures its own architectures and standards — it is a worked example, not a schema.
+  structures its own architectures and standards: it is a worked example, not a schema.
 - **The minimal-dependency principle belongs to the architecture.** The Elemental
-  Architecture's purpose is optimizing supply-chain boundaries — mitigating what dependencies
+  Architecture's purpose is optimizing supply-chain boundaries: mitigating what dependencies
   bring into an architecture, and establishing the deliberate maintenance boundaries
   (`design/dependency-sourcing.md`) that make the pinned-and-current posture tractable. The
   organizational minimal-footprint principle derives from it; a standard's dependency line is
   its enhancement of an architectural principle, not a private posture. This is what the Go
-  Elemental rename asserts: a framework-heavy Go standard would not be a competing
-  implementation of Elemental — it would not implement Elemental at all.
+  Elemental rename asserts: a framework-heavy Go standard is not a competing implementation of
+  Elemental; it does not implement Elemental at all.
 
 ## Relations to standing context
 

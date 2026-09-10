@@ -7,11 +7,14 @@ settled on 2026-08-29 across two sessions that reviewed go-database v0.3.0 (`ast
 each adjustment by date. Every section below states the current position.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and
-the shape of the result. Implementation detail lives elsewhere: the sqlate repository's own
-guide (`github.com/standards-lab/sqlate`, its README and `docs/`) for the library's packages
-and grammar; each repository's `doc.go` comments, README, and CHANGELOG for what it ships and
-at which version; the prototype's review (`experiments/sql-dsl/REVIEW.md`) for the placement
-of every type; and the roadmap (`context/roadmap.toml`) for what remains.
+the shape of the result. Implementation detail lives elsewhere:
+
+- the sqlate repository's own guide (`github.com/standards-lab/sqlate`, its README and
+  `docs/`) for the library's packages and grammar
+- each repository's `doc.go` comments, README, and CHANGELOG for what it ships and at which
+  version
+- the prototype's review (`experiments/sql-dsl/REVIEW.md`) for the placement of every type
+- the roadmap (`context/roadmap.toml`) for what remains
 
 ## 1. The ambition
 
@@ -37,9 +40,16 @@ content in the host language. The consumer calls operations with typed arguments
 provider boundary is an interface over those operations. This is the pattern the standard
 already establishes for infrastructure services, and it stands for them.
 
-A DSL-driven service keeps its expressive content in a language the host cannot type-check:
-SQL, and equally Cypher or Gremlin, a search engine's query DSL, KQL, PromQL, or Rego and
-Cedar for policy. Its operations are trivial (execute, query) and all the meaning is in the
+A DSL-driven service keeps its expressive content in a language the host cannot type-check.
+SQL is one, and equally:
+
+- Cypher or Gremlin
+- a search engine's query DSL
+- KQL
+- PromQL
+- Rego and Cedar for policy
+
+Its operations are trivial (execute, query) and all the meaning is in the
 text. Forcing such a service into the protocol-driven pattern produces the v0.3.0 failure: a
 large host-language interface standing in for a language that was already the right interface.
 
@@ -121,8 +131,8 @@ Recorded so the reasoning does not have to be reconstructed.
 frameworks, and the expressive content moves into their vocabulary.
 
 **Runtime builders (goqu, squirrel, bob, jet).** Each is a framework-sized runtime dependency
-with its own dialect model. squirrel is in maintenance mode; goqu's breadth is its own
-liability; bob and jet generate against a live schema and still keep the builder at runtime.
+with its own dialect model. squirrel is in maintenance mode. goqu's breadth is its own
+liability. bob and jet generate against a live schema and still keep the builder at runtime.
 None has the standard-versus-native tier split. Adopting one would replace the `ast` layer
 with something larger, less aligned, and permanently on the dependency graph, the wrong side of
 §2.3.
@@ -296,73 +306,11 @@ behind auth and observability.
 - **The grammar's page.** Resolved 2026-09-08: the grammar is sqlate's guide, and the standard's
   authored-SQL conventions are a section of the DSL-driven-services principle page.
 
-## 10. History
+## 10. Record
 
-- **2026-08-29, settled.** Two sessions reviewing go-database v0.3.0 against the organization
-  domain produced §1 to §3 and the plan for `query` and `migrate` inside go-database, with the
-  organization domain, startup, and the management listener as the service-side tasks.
-- **2026-08-31, retrospective.** The layer evaluation widened the v0.4 breaking window: error
-  mapping moved inside the session, so constraint classification is never opt-in; one
-  transaction-runner shape across every runner, with panic recovery, joined rollback errors,
-  and `sql.TxOptions` reachable; the `postgres` sub-module recognized as provider-visible blast
-  radius, with per-module `GOWORK=off` builds entering CI first because the committed `go.work`
-  had masked a broken pin at tag v0.3.0; the salvage from `ast` sized at about 250 lines; the
-  field list given types; and the scripted driver promoted to a shared test package for a
-  prepare-capable verify. Runtime templating was considered and rejected (§3).
-- **2026-09-01, plan session.** The deferred design questions were worked through to a reviewed
-  API and then routed to evidence: the `v1.data.sql.prototype` experiment, building the whole
-  SQL-to-Go layer in one template-generated service before v0.4 broke the library, the provider,
-  and the service in lockstep. `seed` retired from a package to a documented pattern under
-  §2.4. Pattern templates were admitted under one split: a template carries protocol only, the
-  domain all expressive content. Named `:name` parameters replaced ordinal `?`.
-- **2026-09-03, prototype close.** The experiment (`experiments/sql-dsl` at the coordinator; its
-  record `NOTES.md`, its verdict `REVIEW.md`) settled what the plan had left to evidence: the
-  split into `sqlate` and go-database (§4, §5); the `{{name}}` parameter grammar with list
-  expansion and `--|` declarations, superseding `:name`; the pattern catalog as authored,
-  namespaced files with includes at compile time and composition at request time (§7); the
-  struct-tag mapper; the guard as two statements; PRQL ruled out; and the service-side shape
-  the template scaffolds (`internal/data`, the admin mount, the composition root as files, the
-  entity roles). The library's vocabulary is the Ontology section of `NOTES.md`.
-- **2026-09-04, go-database v0.4.0.** The `database` task released the infrastructure service
-  and the `admin` package (§5), with postgres/v0.3.0 and the standalone build step in CI. The
-  server-version read became a capability of `sqlate/postgres` (v0.1.1) rather than a member of
-  `sqlate.Dialect`. The sequence (§8) no longer holds a library release for the service change:
-  each library releases as its task closes, and the tasks above pin it.
-- **2026-09-05, go-web-sdk v0.6.0.** The `websdk` task promoted the If-Match parse and the strict
-  body decode (413 on overflow), gave the error writer its detail set, and, in place of a
-  respond helper, pulled the error-returning handler adapter forward from `v1.web.adapter` so
-  the service rewrite writes its handlers once. The operator-syntax question closed with the
-  bracket grammar, `field[op]=value`, the operator lexical for sqlate's `query` package to
-  validate, taken now because `Query.Filters` had no consumer past the service rewrite. The
-  SDK's own errors map themselves through a sealed interface; consumer policy stays the
-  matchers.
-- **2026-09-06, template/v0.6.0.** The `template` task settled at SETTLE that the template
-  stays engine-free: scaffolding the data layer means declaring an engine, and database
-  infrastructure setup and management are reference-architecture patterns the service proves
-  and the docs pass documents. The template shipped the composition root as one file per
-  layer, the empty admin layer with its mount, and the `reads` policy block. The service's
-  database home was settled as a root-level `data` package, since domain packages import it
-  and the topology-and-naming principle forbids a root-level package importing `internal/*`;
-  the directives lowering lives there too. The scaffolding items moved to the `service` task.
-- **2026-09-06, go-web-service.** The `service` task rewrote the reference service onto the
-  released libraries: the `data` package, the organization domain on seven authored statements,
-  the admin mount's HTTP half, the composition root as files, `sqlint` in lint and CI, and the
-  run-and-verify pass against a fresh compose stack (startup migration and seeding, the filter
-  grammar, the guarded commands, the admin verbs, idempotent seed, drain). Two placements moved
-  from §6.1 as drafted: the advisory-lock statement joined the lock-name registry in the `data`
-  package, and the guarded-command read joined the path parse in the service's `sdk` staging
-  package for go-web-sdk. Edit is `PUT`, full replacement; an action is its own `POST`. The
-  integration goal's remaining task is the listener; `next` is the integration tier.
-- **2026-09-07, the integration tier.** The `suite` task built go-web-service's root
-  `integration` package: a harness that runs the built service as a subprocess and drives it
-  through its production seams, and the tagged suite asserting the lifecycle, the organization
-  API, every admin verb, and the outage, on an isolated compose project, in CI on merge to main.
-  The 503 on an outage was half wired: sqlate wrapped `ErrConnectionFailed` only on `Conn` and
-  `Begin`, so a read against an unreachable engine surfaced the driver's raw error; sqlate
-  v0.1.1 classifies connectivity on every session call, and the service pins it. `next` is the
-  toolkit.
-- **2026-09-07, the listener deferred.** Named states landed (`v1.data.sql.tasks.states`), and
-  the session that opened on the management listener found that its token, its authentication,
-  and its audit record are choices the auth and observability layers make properly later. The
-  listener became the `v1.admin-listener` goal, sequenced behind both, with the exploration
-  recorded in `concepts/admin-listener.md`; the integration goal closed.
+This strategy was settled and built across sessions from 2026-08-29 through 2026-09-07. The
+session-by-session trace lives where it is authoritative and does not drift from here: each
+repository's own `CHANGELOG.md` for what each release carried (§8), this file's git history for
+how the principles and the sections above it changed, and `experiments/sql-dsl/NOTES.md` and
+`REVIEW.md` for the prototype's own record. What those sessions settled is stated as current
+fact in the sections above; nothing here restates it a second time.

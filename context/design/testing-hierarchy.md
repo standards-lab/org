@@ -81,20 +81,26 @@ through the API, not when their library lands.
 ## What the first integration suite asserts
 
 The go-web-service suite asserts, through the API, the behaviors the 2026-08-31 evaluation
-found proven only by hand: transfer cycle rejection; two concurrent transfers under the
-advisory lock; the guard's 404-versus-412 split on absent and stale rows; root-code
-uniqueness (`NULLS NOT DISTINCT`) as the conflict response; path recomposition after
-transfer; migration DDL via startup verify/apply; seed idempotency on a second run and across
-a second start; two concurrent composition-root starts against one empty schema; every admin
-verb; and the 503 on a database outage, which the suite proved was half wired (a read
-surfaced the driver's raw error) and sqlate v0.1.1 closed. The suite absorbs the manual
+found proven only by hand:
+
+- transfer cycle rejection
+- two concurrent transfers under the advisory lock
+- the guard's 404-versus-412 split on absent and stale rows
+- root-code uniqueness (`NULLS NOT DISTINCT`) as the conflict response
+- path recomposition after transfer
+- migration DDL via startup verify/apply
+- seed idempotency on a second run and across a second start
+- two concurrent composition-root starts against one empty schema
+- every admin verb
+- the 503 on a database outage, which the suite proved was half wired (a read surfaced the
+  driver's raw error) and sqlate v0.1.1 closed The suite absorbs the manual
 compose-stack ritual — there is no third tier: the compose stack remains dev tooling, and the
 serve-probes-drain check is a documented README step rather than a CI tier. A dirty migration
 history stays a session-time acceptance proof.
 
 ## The harness
 
-The harness runs the service as the binary and drives it only through production seams:
+The harness runs the service as the binary and drives it only through production surfaces:
 configuration by `APP_*` environment variables, the API and the admin mount for state control,
 the network through a loopback relay for fault injection, and signals and the exit code for
 lifecycle. Nothing in the runtime exists for the tests' sake. Its rules, each learned from a
@@ -124,7 +130,8 @@ reads from:
 A library whose infrastructure is exercised by integration testing ships its integration
 toolkit beside it, the way `sqltest` ships beside sqlate for the unit tier. Built at
 `v1.data.sql.tasks.toolkit` (2026-09-07): the reference service's harness was written with its
-promotion seams one file each, and each piece moved to the layer that owns what it exercises.
+promotion boundaries one file each, and each piece moved to the layer that owns what it
+exercises.
 go-core's `process/processtest` is the process half and go-web-sdk's `webtest` the HTTP half;
 the template ships the wiring engine-free (its `integration` package, task, and CI job), and a
 generated service adds its compose stack. Each package's `doc.go` states its API. What the
