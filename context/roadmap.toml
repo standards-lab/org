@@ -7,7 +7,6 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.harness.hardening",
   "v1.auth.strategy",
   "v1.web",
   "v1.observability",
@@ -55,33 +54,85 @@ context = ["standards-lab/context/design/architecture-layer.md"]
 [goals.v1.harness]
 name = "The harness at v1"
 summary = '''
-The claude-plugins harness carries what the v1 build has proven it needs: the plan-stage
-sufficiency question and the checkable SQL conventions from the DSL work. The harness follows
-the tooling principles: tools encode process, skills encode judgment, and an extension calls
-the tooling rather than re-encoding it. The sitrep extension waits in the backlog
-(`backlog.marathon-sitrep`) until the architect calls for it.
+The claude-plugins harness, kept current as the v1 build proves out what it needs. The
+hardening pass closed: marathon v0.11.0 carries the plan-stage sufficiency question,
+delegation to an agent a project declares, and a stage's check running the repository's own
+tooling — the mechanism sqlint's guarded-statement check (sqlint/v0.1.1) now runs through
+rather than the harness restating it (tooling principles 1 and 8). What remains is the
+situational-awareness, extraction, references, and deterministic-tooling work the backlog
+held, adopted here as this goal's own tasks; none is yet in `next`.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
 
-[goals.v1.harness.tasks.hardening]
-name = "Harness follow-through"
+[goals.v1.harness.tasks.sitrep]
+name = "The marathon-sitrep extension"
+repos = ["claude-plugins", "standards-lab"]
+summary = '''
+Waits until the architect calls for it. The organization's situational-awareness tool:
+enterprise-wide awareness of progress on engineering efforts, published to a GitHub Pages dev
+blog. Two entry categories to start: the sitrep, an update at a set interval for a project or
+workspace, drafted from marathon's own record (the reset file, the roadmap deltas, the commit
+history, and the pull-request descriptions) and calibrated by a style profile; and the brief,
+orientation for leadership framed per audience, into which the coordinator's briefs/ and
+interview.md transition. Further categories wait for a need. The blog scaffold and publish
+mechanics belong to a dev-blog skill (the capture, draft, publish pipeline the TAU dev blog
+established) that the extension calls rather than re-encodes; the extension owns reading the
+workspace and drafting. First member of the enhancement facet of the extension taxonomy; the
+taxonomy amendment lands with it if it ships before extraction.
+'''
+context = [
+  "claude-plugins/context/concepts/marathon-sitrep.md",
+  "standards-lab/context/concepts/tooling-principles.md",
+]
+
+[goals.v1.harness.tasks.extraction]
+name = "The marathon-extraction extension"
 repos = ["claude-plugins"]
 summary = '''
-The harness gains the sufficiency question at the plan stage, and the injection,
-declaration, and guarded-statement conventions as sqlint, called as a package rather than
-re-implemented as rules (tooling principles 1 and 8). The integration tier's scaffolding is
-the SDKs' toolkit (go-core's process/processtest, go-web-sdk's webtest) and the service's
-`integration` package over it.
+The architectural record extracted from a consumer as a hybrid marathon extension: a
+consumer-side ledger and prose bundle, a blueprint-side intake producing roadmap work and
+appending the bundle's sources to the references catalog; first member go-web-service's
+data-layer record at v1.data.evaluation, crossing mechanics when a private consumer earns
+them.
+'''
+context = [
+  "standards-lab/context/concepts/marathon-extraction.md",
+  "claude-plugins/context/concepts/marathon-sitrep.md",
+]
 
-The task also carries the institutional layer of the architect's personal model-routing
-convention (2026-09-10): a marathon-native way to delegate a stage's technical substance to a
-specialized model and route a high-stakes planning decision to the deepest-reasoning one,
-mirroring the `fable` and `opus` agents already running at the personal layer
-(`~/.claude/agents/`, `~/.claude/behavior/model-routing.md`). `harness/tool-based-skills.md`'s
-"What tooling buys when a model executes a skill" section is the settled principle this design
-builds on.
+[goals.v1.harness.tasks.references]
+name = "The references system as a marathon extension"
+repos = ["claude-plugins"]
+summary = '''
+Evaluate promoting the workspace's references catalog (references.toml/local/md, the
+repo-references design note) to a marathon extension owning the three-file artifact; the
+proposal and its open questions — facet, hooks, artifact location — are the linked note.
+extraction's references append is its first concrete consumer.
+'''
+context = ["claude-plugins/context/concepts/marathon-references-extension.md"]
+
+[goals.v1.harness.tasks.tooling]
+name = "The tooling layer beneath the harness"
+repos = ["claude-plugins"]
+summary = '''
+The deterministic half of the harness as tools the skills call rather than process the skills
+describe (tooling principles 1, 2, and 8): schemas for the roadmap manifest and the reset
+file, the validators over them, and the checks the extensions need (extraction's bundle
+schema, evidence gate, origin de-duplication, and want-list generation). First consumers:
+marathon-roadmap and extraction.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
+
+[goals.v1.harness.tasks.testing]
+name = "Harness testing and its CI fit"
+repos = ["claude-plugins"]
+summary = '''
+The deferred deep dive from v0.9.0: what behavioral testing of a living workflow skill is
+functionally helpful, and how it fits a CI pipeline whose job is tangible validation. Gated on
+observed failure modes and on claude plugin eval enablement; the position on record is the
+linked note.
+'''
+context = ["claude-plugins/context/concepts/harness-testing.md"]
 
 [goals.v1.auth]
 name = "Auth and authorization"
@@ -271,77 +322,6 @@ are settled in its own planning session once the service is worth deploying.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
-
-[backlog.marathon-sitrep]
-name = "The marathon-sitrep extension"
-repos = ["claude-plugins", "standards-lab"]
-summary = '''
-Held in the backlog until the architect calls for it. The organization's situational-awareness tool: enterprise-wide awareness of progress on
-engineering efforts, published to a GitHub Pages dev blog. Two entry categories to start: the
-sitrep, an update at a set interval for a project or workspace, drafted from marathon's own
-record (the reset file, the roadmap deltas, the commit history, and the pull-request
-descriptions) and calibrated by a style profile; and the brief, orientation for leadership
-framed per audience, into which the coordinator's briefs/ and interview.md transition.
-Further categories wait for a need. The blog scaffold and publish mechanics belong to a
-dev-blog skill (the capture, draft, publish pipeline the TAU dev blog established) that the
-extension calls rather than re-encodes; the extension owns reading the workspace and
-drafting. First member of the enhancement facet of the extension taxonomy; the taxonomy
-amendment lands with it if it ships before marathon-extraction.
-'''
-context = [
-  "claude-plugins/context/concepts/marathon-sitrep.md",
-  "standards-lab/context/concepts/tooling-principles.md",
-]
-
-[backlog.marathon-extraction]
-name = "The marathon-extraction extension"
-repos = ["claude-plugins"]
-summary = '''
-The architectural record extracted from a consumer as a hybrid marathon extension: a
-consumer-side ledger and prose bundle, a blueprint-side intake producing roadmap work and
-appending the bundle's sources to the references catalog; first member go-web-service's
-data-layer record at v1.data.evaluation, crossing mechanics when a private consumer earns
-them. Ahead of the harness tasks if the reassignment the linked note anticipates proceeds;
-behind them otherwise.
-'''
-context = [
-  "standards-lab/context/concepts/marathon-extraction.md",
-  "claude-plugins/context/concepts/marathon-sitrep.md",
-]
-
-[backlog.marathon-references]
-name = "The references system as a marathon extension"
-repos = ["claude-plugins"]
-summary = '''
-Evaluate promoting the workspace's references catalog (references.toml/local/md, the
-repo-references design note) to a marathon extension owning the three-file artifact; the
-proposal and its open questions — facet, hooks, artifact location — are the linked note.
-marathon-extraction's references append is its first concrete consumer.
-'''
-context = ["claude-plugins/context/concepts/marathon-references-extension.md"]
-
-[backlog.harness-tooling]
-name = "The tooling layer beneath the harness"
-repos = ["claude-plugins"]
-summary = '''
-The deterministic half of the harness as tools the skills call rather than process the skills
-describe (tooling principles 1, 2, and 8): schemas for the roadmap manifest and the reset
-file, the validators over them, and the checks the extensions need (marathon-extraction's
-bundle schema, evidence gate, origin de-duplication, and want-list generation). First
-consumers: marathon-roadmap and marathon-extraction.
-'''
-context = ["standards-lab/context/concepts/tooling-principles.md"]
-
-[backlog.harness-testing]
-name = "Harness testing and its CI fit"
-repos = ["claude-plugins"]
-summary = '''
-The deferred deep dive from v0.9.0: what behavioral testing of a living workflow skill is
-functionally helpful, and how it fits a CI pipeline whose job is tangible validation. Gated on
-observed failure modes and on claude plugin eval enablement; the position on record is the
-linked note.
-'''
-context = ["claude-plugins/context/concepts/harness-testing.md"]
 
 [backlog.second-providers]
 name = "Second providers"
