@@ -29,6 +29,26 @@ order = [
 ]
 architecture = "architecture" # the workspace's architecture repository
 
+# The agents every project in the workspace may delegate a unit of work to
+# (behavior/delegation.md), resolved key by key against a project's own [agents] table. fable
+# and opus are the architect's personal agents (~/.claude/agents/), engaged per the standing
+# model-routing convention; a session names one and why before engaging it.
+[workspace.agents.fable]
+delegation = '''
+Technical delegate for one stage's implementation or one design decision: a unit of work
+technically complex enough that working it out directly would cost more than briefing this
+agent to do it, handed over with full context. Not for documentation, commit messages, or
+context notes — the session drafts and finishes those itself.
+'''
+
+[workspace.agents.opus]
+delegation = '''
+Escalation delegate for a high-stakes, hard-to-reverse decision: wide blast radius across the
+project or workspace, or more context than the step itself needs held at once to reason
+through. Not for implementation or routine technical work — fable is for that. Reach for this
+only when getting the call right matters more than speed or cost.
+'''
+
 # Remote platform and the command that publishes a finished branch.
 # All three repositories rooted in this directory (org here, .github under public/,
 # .github-private under private/) are on GitHub and publish the same way; git routes
