@@ -7,11 +7,14 @@ settled on 2026-08-29 across two sessions that reviewed go-database v0.3.0 (`ast
 each adjustment by date. Every section below states the current position.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and
-the shape of the result. Implementation detail lives elsewhere: the sqlate repository's own
-guide (`github.com/standards-lab/sqlate`, its README and `docs/`) for the library's packages
-and grammar; each repository's `doc.go` comments, README, and CHANGELOG for what it ships and
-at which version; the prototype's review (`experiments/sql-dsl/REVIEW.md`) for the placement
-of every type; and the roadmap (`context/roadmap.toml`) for what remains.
+the shape of the result. Implementation detail lives elsewhere:
+
+- the sqlate repository's own guide (`github.com/standards-lab/sqlate`, its README and
+  `docs/`) for the library's packages and grammar
+- each repository's `doc.go` comments, README, and CHANGELOG for what it ships and at which
+  version
+- the prototype's review (`experiments/sql-dsl/REVIEW.md`) for the placement of every type
+- the roadmap (`context/roadmap.toml`) for what remains
 
 ## 1. The ambition
 
@@ -37,9 +40,16 @@ content in the host language. The consumer calls operations with typed arguments
 provider boundary is an interface over those operations. This is the pattern the standard
 already establishes for infrastructure services, and it stands for them.
 
-A DSL-driven service keeps its expressive content in a language the host cannot type-check:
-SQL, and equally Cypher or Gremlin, a search engine's query DSL, KQL, PromQL, or Rego and
-Cedar for policy. Its operations are trivial (execute, query) and all the meaning is in the
+A DSL-driven service keeps its expressive content in a language the host cannot type-check.
+SQL is one, and equally:
+
+- Cypher or Gremlin
+- a search engine's query DSL
+- KQL
+- PromQL
+- Rego and Cedar for policy
+
+Its operations are trivial (execute, query) and all the meaning is in the
 text. Forcing such a service into the protocol-driven pattern produces the v0.3.0 failure: a
 large host-language interface standing in for a language that was already the right interface.
 
@@ -121,8 +131,8 @@ Recorded so the reasoning does not have to be reconstructed.
 frameworks, and the expressive content moves into their vocabulary.
 
 **Runtime builders (goqu, squirrel, bob, jet).** Each is a framework-sized runtime dependency
-with its own dialect model. squirrel is in maintenance mode; goqu's breadth is its own
-liability; bob and jet generate against a live schema and still keep the builder at runtime.
+with its own dialect model. squirrel is in maintenance mode. goqu's breadth is its own
+liability. bob and jet generate against a live schema and still keep the builder at runtime.
 None has the standard-versus-native tier split. Adopting one would replace the `ast` layer
 with something larger, less aligned, and permanently on the dependency graph, the wrong side of
 §2.3.
@@ -355,7 +365,7 @@ behind auth and observability.
   integration goal's remaining task is the listener; `next` is the integration tier.
 - **2026-09-07, the integration tier.** The `suite` task built go-web-service's root
   `integration` package: a harness that runs the built service as a subprocess and drives it
-  through its production seams, and the tagged suite asserting the lifecycle, the organization
+  through its production surfaces, and the tagged suite asserting the lifecycle, the organization
   API, every admin verb, and the outage, on an isolated compose project, in CI on merge to main.
   The 503 on an outage was half wired: sqlate wrapped `ErrConnectionFailed` only on `Conn` and
   `Begin`, so a read against an unreachable engine surfaced the driver's raw error; sqlate

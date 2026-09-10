@@ -5,9 +5,13 @@ named standard. The hierarchy itself — architecture, standard, module — and
 its definitions are documented in the [architecture repository](https://github.com/standards-lab/architecture);
 this note records the declaration mechanics the architecture repository does not.
 
-Vocabulary: an **architecture** is a technology-agnostic definition of a domain's elements and
-rules; a **standard** is a technology-specific implementation of an architecture; a
-**principle** is a singular convention attached to any level. The narrowing rule binds the
+Vocabulary:
+
+- an **architecture** is a technology-agnostic definition of a domain's elements and rules
+- a **standard** is a technology-specific implementation of an architecture
+- a **principle** is a singular convention attached to any level
+
+The narrowing rule binds the
 levels: a lower level enhances a principle it derives from and never loosens it. Declaration and
 review are the mechanism throughout; there is no enforcement machinery.
 

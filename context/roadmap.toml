@@ -72,6 +72,14 @@ declaration, and guarded-statement conventions as sqlint, called as a package ra
 re-implemented as rules (tooling principles 1 and 8). The integration tier's scaffolding is
 the SDKs' toolkit (go-core's process/processtest, go-web-sdk's webtest) and the service's
 `integration` package over it.
+
+The task also carries the institutional layer of the architect's personal model-routing
+convention (2026-09-10): a marathon-native way to delegate a stage's technical substance to a
+specialized model and route a high-stakes planning decision to the deepest-reasoning one,
+mirroring the `fable` and `opus` agents already running at the personal layer
+(`~/.claude/agents/`, `~/.claude/behavior/model-routing.md`). `harness/tool-based-skills.md`'s
+"What tooling buys when a model executes a skill" section is the settled principle this design
+builds on.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
 
