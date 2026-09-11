@@ -11,8 +11,10 @@ kind = "context"
 [workspace]
 role = "coordinator"
 # Marathon extensions enabled for every project in the workspace. marathon-roadmap
-# maintains context/roadmap.toml here at the coordinator as the workspace's roadmap.
-extensions = ["marathon-roadmap"]
+# maintains context/roadmap.toml here at the coordinator as the workspace's roadmap;
+# marathon-architecture maintains the architecture layer, named in its own
+# .claude/marathon-architecture.toml beside this file.
+extensions = ["marathon-roadmap", "marathon-architecture"]
 order = [
   "claude-plugins", # harness
   [
@@ -27,8 +29,6 @@ order = [
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
-architecture = "architecture" # the workspace's architecture repository
-
 # The agents every project in the workspace may delegate a unit of work to
 # (behavior/delegation.md), resolved key by key against a project's own [agents] table. fable
 # and opus are the architect's personal agents (~/.claude/agents/), engaged per the standing

@@ -1,0 +1,4 @@
+# Configuration for the marathon-architecture extension, owned entirely by that extension —
+# never read or written by marathon core. Names, by order key (marathon.toml's [workspace]
+# order), the member repository that holds this workspace's architecture layer.
+repo = "architecture"
