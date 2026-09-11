@@ -1,18 +1,15 @@
 # The architecture layer
 
 How the workspace's written knowledge divides between the architecture and each repository.
-Settled 2026-09-08 at the `v1.alignment.docs` session, replacing the workspace docs tier, and
-codified in the marathon skill in the same session (`references/context-engineering.md`,
-released with the next marathon tag).
 
 ## One architecture repository per workspace
 
-The workspace keeps its architecture in one repository, named by the coordinator's
-`[workspace] architecture` key: the Elemental Architecture, its principles, each standard's
-definition and principles, the harness principles, and a catalog of the repositories that
-implement them, with a description and a link for each and nothing deeper. The repository is
-a `context` project, its tree is the architecture, and a README in every directory is the
-index GitHub renders.
+The workspace keeps its architecture in one repository, named by the `repo` key in the
+`marathon-architecture` extension's own configuration: the Elemental Architecture, its
+principles, each standard's definition and principles, the harness principles, and a catalog of
+the repositories that implement them, with a description and a link for each and nothing
+deeper. The repository is a `context` project, its tree is the architecture, and a README in
+every directory is the index GitHub renders.
 
 The architecture holds only what has generalized past one repository. Anything a reader can
 infer from a repository's source does not belong in it; anything that serves as a general

@@ -1,48 +1,42 @@
-# reset · auth-strategy
+# reset · marathon-updates
 
 - **Status:** closeout
-- **Session:** plan
-- **Project:** standards-lab, go-web-service, claude-plugins
-- **Branch:** auth-strategy
+- **Session:** start
+- **Project:** claude-plugins, standards-lab
+- **Branch:** marathon-updates
 
 ## Disposition
 
-- **Integrated:** `context/design/auth-strategy.md` authored — the counterpart of
-  `design/dsl-driven-services.md`: authentication, the relationship-derived authorization model
-  (rejecting ABAC and every externalized relationship store, including a bespoke centralized one,
-  with the technical reasoning recorded), the subject anchor and identity carrier, the sqlate
-  requirement, organization lineage, composition-root seams, cross-service authorization and staged
-  resolution, and object storage. Every later layer and domain in go-web-service builds to it; the
-  build of go-auth itself is `goals.v1.auth`'s remainder.
-- **Integrated:** `design/service-organization.md` gains the runtime cross-service composition rule
-  (API-only access; compose predicates, never pages), stated as workspace-scoped planning direction
-  pending a second deployed service to confirm it — not yet promoted to the architecture repository.
-- **Cross-repo:** go-web-service's `concepts/identity-linking.md` and `concepts/organization-lineage.md`
-  rewritten as current fact against the settled strategy, reasoning kept once in `auth-strategy.md`
-  rather than restated; `context/README.md`'s Auth capability-map entry updated to match.
-- **Integrated:** go-web-service's `concepts/retrospective-findings.md` decayed — its only remaining
-  content (the auth layer's five gaps) is fully consumed by the new record.
-- **Cross-repo:** a dangling reference to the decayed `retrospective-findings.md` fixed in
-  `concepts/admin-listener.md`, redirected to `auth-strategy.md` §6.
-- **Culled:** `goals.v1.auth.tasks.strategy` deleted (done); `goals.v1.auth`'s summary and context
-  rewritten to point at the settled record instead of the task and the decayed findings note.
-- **Cross-repo:** a new concept, `standards-lab/context/concepts/staged-query-aggregation.md`, captures
-  a live-orchestration alternative to the materialized-view answer for cross-service reporting, raised
-  by the architect and deliberately not designed — gated on the bounded query strategy being built and
-  proven in practice.
-- **Cross-repo:** claude-plugins' `context/concepts/marathon-updates.md` gains a fourth finding, found
-  live during this session's staged execution: `references/staged-execution.md`'s delegation call is
-  silently skippable, with a proposed stage-loop checkpoint to make it a stated decision. Not yet
-  committed in claude-plugins — the file was already untracked when this session found it, and the
-  addition rides whatever session next touches it.
-- **Integrated:** `context/roadmap.toml` — `v1.harness.tasks.marathon-updates` added, covering all four
-  `marathon-updates.md` findings; `next` advances to it, ahead of `v1.web`.
+- **Integrated:** added the `marathon-architecture` extension (claude-plugins) — the architecture
+  layer's artifact, hooks, and reference doc, mirroring `marathon-roadmap`'s shape; registered
+  with the plugin host; removed the layer from marathon core entirely
+  (`context-engineering.md`, `init.md`, `close.md`, `review.md`, `configuration.md`) — no
+  residual mention. The workspace case resolves its target repository from the extension's own
+  config file, never a core `marathon.toml` key.
+- **Integrated:** `references/extensions.md` gains the rule that an extension never adds a key to
+  core's `marathon.toml` schema. `context-engineering.md` gains the pre-write curation check, the
+  rule against promoting a note or authoring a skill in the same session that designed the shape
+  it documents, and the rule that `design/`/`concepts/` notes state current truth only, never a
+  changelog. `staged-execution.md`'s stage loop now states the delegation call as a visible line
+  before each stage. marathon core released as 0.12.0; `marathon-roadmap` patched to 0.1.6
+  targeting it.
+- **Culled:** `claude-plugins/context/concepts/marathon-updates.md` — all four findings landed,
+  fully expressed by the skill files now.
+- **Integrated:** `claude-plugins/context/README.md`'s capability map gains a
+  `marathon-architecture` entry.
+- **Cross-repo:** `standards-lab/.claude/marathon.toml` — `marathon-architecture` added to
+  `[workspace] extensions`; the old `architecture` key deleted outright. New
+  `.claude/marathon-architecture.toml` (`repo = "architecture"`) holds the extension's own
+  config.
+- **Cross-repo:** `standards-lab/context/design/architecture-layer.md` brought to
+  current-truth-only form — dropped its dated session-provenance sentence, repointed its
+  repository citation at the extension's own config.
+- **Cross-repo:** `standards-lab/context/roadmap.toml` — `goals.v1.harness.tasks.marathon-updates`
+  deleted (done); `next` advances to `v1.web`.
 
 ## Next-focus
 
-`v1.harness.marathon-updates` is next: a session in claude-plugins assessing and applying, where they
-hold, the four findings `context/concepts/marathon-updates.md` carries — extracting the architecture
-layer into an optional `marathon-architecture` extension; a pre-write check for context curation before
-anything lands in `context/`; whether authoritative context should wait for a session past the one that
-designed the shape it documents; and the stage-loop delegation checkpoint. `v1.web` (the web SDK's
-handler contract) follows once this closes.
+`v1.web` is next — the web SDK's handler contract (`goals.v1.web`, in `go-web-sdk`): the
+adapter's remaining whole-response problem story (`goals.v1.web.tasks.adapter`) and the
+middleware set (`goals.v1.web.tasks.middleware`), which `goals.v1.auth` depends on. The roadmap
+carries each task's detail; settle which one leads at that session's SETTLE.
