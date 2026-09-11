@@ -67,7 +67,8 @@ The findings are grouped by repository, lowest dependency first. Line references
 
 - The composition root is singular by shape: `App` holds one server, `routes()` feeds one router,
   `middleware()` is one stack, `RegisterHealth` is called once. The second listener reshapes
-  `internal/app` (`context/concepts/retrospective-findings.md` records this).
+  `internal/app`, which already gains an `auth.go` layer file for the API module's authentication
+  middleware (`context/design/auth-strategy.md` §6).
 - `admin/database.Routes` has no gate on the three destructive verbs. The route group is unsealed
   until `NewModule`, so a per-route middleware on `down`, `force`, and `state` is the seam; the
   handler's error vocabulary already maps refusals to 400, 403, and 409.

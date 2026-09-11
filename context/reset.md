@@ -1,38 +1,48 @@
-# reset · harness-hardening
+# reset · auth-strategy
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** claude-plugins, sqlate, standards-lab
-- **Branch:** harness-hardening
+- **Session:** plan
+- **Project:** standards-lab, go-web-service, claude-plugins
+- **Branch:** auth-strategy
 
 ## Disposition
 
-- **Cross-repo:** sqlate's `sqlint` gained the guarded-statement check (`sqlint/v0.1.1`,
-  released) — closes the lint gap `dsl-driven-services.md` §9 flagged.
-- **Cross-repo:** claude-plugins released `marathon v0.11.0` (delegation to a project-declared
-  agent, the sufficiency question at SETTLE, a stage's check running the repository's own
-  tooling) and `marathon-roadmap v0.1.5` (retargeted at marathon 0.11 in the same pass, so this
-  workspace's next session resolves both without a version mismatch).
-- **Promoted:** the architect's personal model-routing convention
-  (`~/.claude/behavior/model-routing.md`, the `fable`/`opus` agents) into a marathon-native
-  mechanism — `[agents]` in `marathon.toml`, a `delegation` field per agent, no fixed roles —
-  and declared for this workspace under `[workspace.agents]` here.
-- **Integrated:** `context/design/dsl-driven-services.md` §9 — the guarded-statement and
-  grammar's-page open questions removed, now that the code expresses both; §8's "what remains"
-  updated now that hardening is closed.
-- **Integrated:** `context/roadmap.toml` — `v1.harness.tasks.hardening` deleted; the backlog
-  items associated with harness programming (`marathon-sitrep`, `marathon-extraction`,
-  `marathon-references`, `harness-tooling`, `harness-testing`) adopted as `v1.harness`'s own
-  tasks, none yet in `next`; `next` advances to `v1.auth.strategy`.
-- **Retained:** `v1.harness`'s five adopted tasks — still open, none scheduled.
+- **Integrated:** `context/design/auth-strategy.md` authored — the counterpart of
+  `design/dsl-driven-services.md`: authentication, the relationship-derived authorization model
+  (rejecting ABAC and every externalized relationship store, including a bespoke centralized one,
+  with the technical reasoning recorded), the subject anchor and identity carrier, the sqlate
+  requirement, organization lineage, composition-root seams, cross-service authorization and staged
+  resolution, and object storage. Every later layer and domain in go-web-service builds to it; the
+  build of go-auth itself is `goals.v1.auth`'s remainder.
+- **Integrated:** `design/service-organization.md` gains the runtime cross-service composition rule
+  (API-only access; compose predicates, never pages), stated as workspace-scoped planning direction
+  pending a second deployed service to confirm it — not yet promoted to the architecture repository.
+- **Cross-repo:** go-web-service's `concepts/identity-linking.md` and `concepts/organization-lineage.md`
+  rewritten as current fact against the settled strategy, reasoning kept once in `auth-strategy.md`
+  rather than restated; `context/README.md`'s Auth capability-map entry updated to match.
+- **Integrated:** go-web-service's `concepts/retrospective-findings.md` decayed — its only remaining
+  content (the auth layer's five gaps) is fully consumed by the new record.
+- **Cross-repo:** a dangling reference to the decayed `retrospective-findings.md` fixed in
+  `concepts/admin-listener.md`, redirected to `auth-strategy.md` §6.
+- **Culled:** `goals.v1.auth.tasks.strategy` deleted (done); `goals.v1.auth`'s summary and context
+  rewritten to point at the settled record instead of the task and the decayed findings note.
+- **Cross-repo:** a new concept, `standards-lab/context/concepts/staged-query-aggregation.md`, captures
+  a live-orchestration alternative to the materialized-view answer for cross-service reporting, raised
+  by the architect and deliberately not designed — gated on the bounded query strategy being built and
+  proven in practice.
+- **Cross-repo:** claude-plugins' `context/concepts/marathon-updates.md` gains a fourth finding, found
+  live during this session's staged execution: `references/staged-execution.md`'s delegation call is
+  silently skippable, with a proposed stage-loop checkpoint to make it a stated decision. Not yet
+  committed in claude-plugins — the file was already untracked when this session found it, and the
+  addition rides whatever session next touches it.
+- **Integrated:** `context/roadmap.toml` — `v1.harness.tasks.marathon-updates` added, covering all four
+  `marathon-updates.md` findings; `next` advances to it, ahead of `v1.web`.
 
 ## Next-focus
 
-`v1.auth.strategy` is next: a `plan` session in standards-lab producing the auth strategy
-record, the counterpart of `design/dsl-driven-services.md` — authentication over OAuth 2.0 and
-OIDC with Keycloak as the declared provider; the authorization model analyzed across RBAC,
-ReBAC, and ABAC and one chosen with its reasoning; the request-identity carrier; the
-authorization predicate on sqlate's one-row read path; the organization-lineage decision; and
-the composition-root seams (the infrastructure-backed middleware home, the per-domain deps
-constructor). The domains and every later layer build to its contract; the build of go-auth is
-the goal's remainder.
+`v1.harness.marathon-updates` is next: a session in claude-plugins assessing and applying, where they
+hold, the four findings `context/concepts/marathon-updates.md` carries — extracting the architecture
+layer into an optional `marathon-architecture` extension; a pre-write check for context curation before
+anything lands in `context/`; whether authoritative context should wait for a session past the one that
+designed the shape it documents; and the stage-loop delegation checkpoint. `v1.web` (the web SDK's
+handler contract) follows once this closes.

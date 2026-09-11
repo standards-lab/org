@@ -7,7 +7,7 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.auth.strategy",
+  "v1.harness.marathon-updates",
   "v1.web",
   "v1.observability",
   "v1.storage",
@@ -134,42 +134,34 @@ linked note.
 '''
 context = ["claude-plugins/context/concepts/harness-testing.md"]
 
+[goals.v1.harness.tasks.marathon-updates]
+name = "marathon core updates from real usage"
+repos = ["claude-plugins"]
+summary = '''
+Four findings against marathon core, assessed and applied where they hold: whether to extract the
+architecture layer into an optional marathon-architecture extension; a pre-write check for context
+curation (does a fact already have exactly one home outside context/, cited rather than restated);
+whether authoritative context (a design note, a skill) should wait for a session past the one that
+designed the shape it documents; and a stage-loop checkpoint requiring the delegation call
+(behavior/delegation.md) be stated as a visible line in the stage report, not silently skippable. The
+linked note carries each finding's problem, proposed addition, and open questions.
+'''
+context = ["claude-plugins/context/concepts/marathon-updates.md"]
+
 [goals.v1.auth]
 name = "Auth and authorization"
 summary = '''
 The go-auth infrastructure library with Keycloak as the declared provider (standard tier:
-OAuth 2.0, OIDC, JWT); identity linking on the person anchor; and an authorization model
-over the composed model, chosen by analysis across RBAC, ReBAC, and ABAC rather than assumed.
-Unit-scoped grants trigger the organization-lineage materialization decision. The admin
-listener (v1.admin-listener) is a consumer of the authentication this goal settles. On record
-from the retrospective: the seams the service lacks — an infrastructure-backed middleware
-home, a request-identity carrier, an authorization predicate on the single-row query path,
-and additive DI — detailed in the linked findings note; the strategy task settles them
-before the domains multiply.
+OAuth 2.0, OIDC, JWT); the subject anchor, the relationship-derived authorization model, and
+the composition-root seams every domain builds against are settled in the linked strategy
+record. The admin listener (v1.admin-listener) is a consumer of the authentication this goal
+settles. What remains is the build: go-auth itself, the schema it introduces, and the
+composition-root reshape in go-web-service.
 '''
 context = [
+  "standards-lab/context/design/auth-strategy.md",
   "go-web-service/context/concepts/identity-linking.md",
   "go-web-service/context/concepts/organization-lineage.md",
-  "go-web-service/context/concepts/retrospective-findings.md",
-]
-
-[goals.v1.auth.tasks.strategy]
-name = "The auth strategy"
-repos = ["standards-lab"]
-summary = '''
-A plan session producing the auth strategy record, the counterpart of
-design/dsl-driven-services.md: authentication over OAuth 2.0 and OIDC with Keycloak as the
-declared provider; the authorization model analyzed across RBAC, ReBAC, and ABAC and one
-chosen with its reasoning; the request-identity carrier; the authorization predicate on
-sqlate's one-row read path; the organization-lineage decision; and the composition-root seams
-(the infrastructure-backed middleware home, the per-domain deps constructor). The domains and
-every later layer build to its contract; the build of go-auth is the goal's remainder.
-'''
-context = [
-  "go-web-service/context/concepts/retrospective-findings.md",
-  "go-web-service/context/concepts/identity-linking.md",
-  "go-web-service/context/concepts/organization-lineage.md",
-  "standards-lab/context/design/service-organization.md",
 ]
 
 [goals.v1.web]
@@ -243,7 +235,7 @@ repository are the linked concept.
 context = [
   "standards-lab/context/concepts/admin-listener.md",
   "standards-lab/context/design/dsl-driven-services.md",
-  "go-web-service/context/concepts/retrospective-findings.md",
+  "standards-lab/context/design/auth-strategy.md",
   "go-web-sdk/context/concepts/error-handling.md",
 ]
 
