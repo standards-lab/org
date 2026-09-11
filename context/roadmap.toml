@@ -7,7 +7,6 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.harness.marathon-updates",
   "v1.web",
   "v1.observability",
   "v1.storage",
@@ -133,20 +132,6 @@ observed failure modes and on claude plugin eval enablement; the position on rec
 linked note.
 '''
 context = ["claude-plugins/context/concepts/harness-testing.md"]
-
-[goals.v1.harness.tasks.marathon-updates]
-name = "marathon core updates from real usage"
-repos = ["claude-plugins"]
-summary = '''
-Four findings against marathon core, assessed and applied where they hold: whether to extract the
-architecture layer into an optional marathon-architecture extension; a pre-write check for context
-curation (does a fact already have exactly one home outside context/, cited rather than restated);
-whether authoritative context (a design note, a skill) should wait for a session past the one that
-designed the shape it documents; and a stage-loop checkpoint requiring the delegation call
-(behavior/delegation.md) be stated as a visible line in the stage report, not silently skippable. The
-linked note carries each finding's problem, proposed addition, and open questions.
-'''
-context = ["claude-plugins/context/concepts/marathon-updates.md"]
 
 [goals.v1.auth]
 name = "Auth and authorization"
