@@ -41,6 +41,33 @@ the SDK, never the reverse. The cost is a small adapter per service; the return 
 releases and SDKs that accumulate no infrastructure vocabulary. Settled at the service's
 first write layer.
 
+## Runtime composition across services
+
+Distinct from the tier topology above, which governs how a library composes with an application at
+build time: how a *deployed* service reaches another service's data at request time, once the
+reference architecture grows past one deployed service. Stated now, while there is one, as planning
+direction rather than a promoted principle — it promotes to the architecture repository once a second
+deployed service exists to confirm the shape.
+
+A service reaches another service's data only through that service's own API. It does not connect to
+another service's database, does not replicate its tables to read them, and does not re-derive its
+rules. A consuming service declares the question it needs answered; the owning service answers it from
+its own data, under its own rules — the cross-domain rule `go-web-service/context/concepts/data-layer.md`
+states for domains inside one service, applied at the process boundary: configuration stands in for the
+composition root, an HTTP contract for the injected interface. A client to another service is a
+capability-named translation file, the same shape as any other infrastructure integration.
+
+Composing data across that boundary follows one further rule: what crosses a service boundary is an
+input to the next query — a key or a predicate — never rows to be merged, filtered, or re-sorted after
+the fact. A stage is one call, answered entirely from one service's own database; nothing about how a
+service authorizes or joins within its own database changes because of this rule, which concerns only
+what happens when the next fact a caller needs lives in a different service's database. A composer that
+fetches a page from one service and discards rows against a fact from another holds a page whose total
+is already wrong — the failure this rule exists to prevent by construction. A remote sort key, or a
+filter on a record-cardinality attribute another service owns per record, cannot compose as a predicate
+at any scale; that is reporting and search, served off the live path by a materialized, event-driven
+read model, never by a query spanning two databases.
+
 ## Co-evolution
 
 The abstractions live in the infrastructure libraries and the reference service consumes them;
