@@ -58,11 +58,13 @@ The base module builds five things:
 5. **The request-ID source function** the web SDK's middleware takes (§3): a
    `func(*http.Request) string` returning the request's current trace id.
 
-## 2. Standard versus native: the LGTM stack is neither
+## 2. Standard versus native: currently no native tier at all
 
-`goals.v1.observability` posed this as open; it resolves to a plain answer. Standard-versus-native
-is a property of an artifact the service authors — a SQL statement, a request handler — and the
-service authors nothing against Loki, Tempo, or Mimir. The collector is the only boundary the
+`goals.v1.observability` posed this as open; the resolution is that this layer is projected to
+stay pure standard tier, with nothing on `stack.md`'s port list for it. Standard-versus-native is
+a property of a deviation from the standard within an artifact the service authors — Postgres
+syntax inside an authored SQL statement is the model — and nothing about how the service reaches
+Loki, Tempo, and Mimir departs from OpenTelemetry. The collector is the only boundary the
 service's code ever crosses, in both topologies:
 
 ```
@@ -75,17 +77,19 @@ in both, which is what makes a backend swap a configuration change rather than a
 `go-web-service/context/design/stack.md`'s own shape for a provider, applied to a capability whose
 provider is the exporter rather than a driver.
 
-What is genuinely native-tier is real, and it is not Go: the collector's exporter and pipeline
-configuration (which backend, in which dialect — `otlp` to Tempo, `prometheusremotewrite` to
-Mimir, `otlphttp` to Loki, plus the `filelog` receiver that ingests the service's stdout logs, §4);
-Grafana's datasource provisioning, including the Loki derived field and the Tempo
-trace-to-logs and trace-to-metrics links; and the dashboards and alert rules built against those
-datasources. All three live in `go-web-service`'s compose project, and none of them carries a
-`--| tier: native` header the way a SQL statement does, because none of them is a SQL statement.
-`stack.md`'s port list gains this as a named artifact class alongside its existing SQL files.
+The collector's exporter configuration (which backend, in which dialect — `otlp` to Tempo,
+`prometheusremotewrite` to Mimir, `otlphttp` to Loki, plus the `filelog` receiver that ingests the
+service's stdout logs, §4) and Grafana's datasource provisioning both name Loki, Tempo, and Mimir
+by product, but naming a product is not the same thing as deviating from the standard: every one
+of those exporters and every one of Grafana's OpenTelemetry-aware datasource types speaks OTLP or
+its adjacent standard wire formats (remote-write) without a proprietary extension the service
+depends on. This is operational configuration for the chosen tools, the same status a Postgres
+connection string has, not a native-tier artifact — so it earns no port-list entry, and none is
+projected for this layer as things stand. A native deviation, should the target integrations ever
+need one, would be the first entry `stack.md`'s OpenTelemetry section gets.
 
-Using the LGTM stack's correlation features in full turns out to add none of these as Go
-obligations, because each is produced by standard OpenTelemetry behavior and only consumed by
+Using the LGTM stack's correlation features in full turns out to need nothing product-specific
+from the service, because each is produced by standard OpenTelemetry behavior and only consumed by
 backend configuration:
 
 - **Log-to-trace correlation** needs `trace_id` on the log record, which the correlating handler

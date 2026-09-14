@@ -210,10 +210,10 @@ and SDK, and an `otlp` sub-module pinning the exporters and the gRPC/protobuf we
 carry — the shape and the standard-versus-native split are settled in the linked strategy
 record. Logs stay on stdout as structured JSON with trace and span ids stamped in, ingested by
 the collector's filelog receiver; the OTLP logs pipeline waits for that signal's SDK to reach a
-stable release. The LGTM stack (Loki, Grafana, Tempo, Mimir) and its correlation features are
-native-tier configuration in the compose project, never a Go dependency, since the collector is
-the only boundary the service's code ever crosses. Sequenced before the layers that follow so
-each instruments as it lands.
+stable release. The LGTM stack (Loki, Grafana, Tempo, Mimir) is reached entirely through the
+OpenTelemetry standard — OTLP to the collector, standard exporters onward — with no native
+deviation projected and never a Go dependency of its own. Sequenced before the layers that
+follow so each instruments as it lands.
 '''
 context = ["standards-lab/context/design/observability-strategy.md"]
 
@@ -242,8 +242,8 @@ the integration tier's docker compose up --wait does not gate on Grafana. The co
 receivers, processors, and exporters; the filelog receiver that parses the service's JSON log
 records and promotes trace_id onto the record; Grafana provisioning for the Loki, Tempo, and
 Mimir datasources with the derived field and the trace-to-logs and trace-to-metrics links; and
-the first dashboard. Every file here is native tier and enters the port list as the analysis
-surface, the artifact class stack.md gains for it.
+the first dashboard. Every file here configures a chosen tool rather than declaring a deviation
+from OpenTelemetry, so none of it lands on stack.md's port list.
 '''
 context = [
   "standards-lab/context/design/observability-strategy.md",
