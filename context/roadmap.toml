@@ -8,8 +8,8 @@
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
   "v1.web",
-  "v1.middleware",
   "v1.observability",
+  "v1.middleware",
   "v1.storage",
   "v1.auth",
   "v1.admin-listener",
