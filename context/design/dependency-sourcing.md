@@ -8,10 +8,12 @@ dependency stays compatible with the dependency-line principle.
 ## The rule
 
 Hand-roll any capability that is generic to its layer and has no specification or security
-surface: the failure mode is visible in a unit test you would think to write. Source from an
-industry-standard library (or copy its implementation in with attribution) any capability
-whose correctness depends on a specification with known corner cases, a threat model, or
-cryptography. Never carry a dependency for something the standard library already provides.
+surface: the failure mode is visible in a unit test you would think to write. Source an
+industry-standard library — adopted as a declared dependency, not reimplemented and not copied
+into the tree — for any capability whose correctness depends on a specification with known
+corner cases, a threat model, or cryptography, or whose importance to the architecture is high
+enough that an in-house reimplementation is the greater risk. Never carry a dependency for
+something the standard library already provides.
 
 The test for "trivial" is not line count. A request-ID middleware fails loudly; a CORS
 middleware fails by letting the wrong origin through with right-looking headers. More
@@ -40,11 +42,11 @@ Markers, in rough order of weight:
    accumulated corner cases are the product. When its job is convenience (binding, rendering,
    validation DSLs), it is a preference, and preferences belong in-house.
 
-**Copy with attribution** is a first-class option when the module line is the only objection
-and the upstream change rate is low: the reviewed corner cases land in-house without a
-`go.mod` entry, at the cost of tracking upstream fixes by hand. Prefer importing when upstream
-moves with a spec. Copied code carries the license header and upstream commit in the file, and
-a CHANGELOG line at each sync.
+A dependency that clears these markers is added as a dependency: a `go.mod` entry, pinned and
+re-evaluated like any other (Obligations, below), never reimplemented and never copied into the
+tree under a license header. Vendoring a library's source by hand trades that entry for tracking
+every future upstream fix manually — the correctness risk this rule exists to avoid, not a
+cheaper way around it.
 
 ## Compatibility with the dependency line
 
