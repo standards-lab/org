@@ -162,12 +162,12 @@ name = "The adapter's remaining work"
 repos = ["go-web-sdk"]
 summary = '''
 The adapter core landed in go-web-sdk v0.6.0 (HandleErr, the error-returning HandlerFunc
-over a group-scoped ErrorWriter, IfMatch and DecodeJSON). What remains is the whole-response
-problem story: the recorder exported as the shared wrapped writer and the request logger
-rewritten onto it, the ErrorWriter problem vocabulary, router 404/405 hooks, the ErrorLog
-bridge with MaxHeaderBytes and the swallowed encoder error, writer inheritance if a consumer
-asks. The item list is the linked note; the reference service's handlers convert at
-integration.service.
+over a group-scoped ErrorWriter, IfMatch and DecodeJSON); the recorder exported as the shared
+wrapped writer, the request logger rewritten onto it, and the Recoverer followed. What remains
+is the whole-response problem story: the ErrorWriter problem vocabulary, router 404/405 hooks,
+the ErrorLog bridge with MaxHeaderBytes and the swallowed encoder error, writer inheritance if
+a consumer asks. The item list is the linked note. The reference service's handlers already
+use HandleErr (domain/organization, admin/database).
 '''
 context = ["go-web-sdk/context/concepts/error-handling.md"]
 
@@ -175,10 +175,11 @@ context = ["go-web-sdk/context/concepts/error-handling.md"]
 name = "The middleware set"
 repos = ["go-web-sdk"]
 summary = '''
-The hand-rolled set on the shared writer and the sourced spec-surface set, per the
-middleware catalog in the linked note; the recoverer/logger ordering resolved and the request
-ID surfaced in the log record, shaped to OpenTelemetry's conventions so the observability
-layer builds on it. Required before goals.v1.auth.
+The recoverer landed on the shared writer, its ordering with the request logger resolved.
+What remains is the rest of the hand-rolled set and the sourced spec-surface set, per the
+middleware catalog in the linked note, plus the request ID surfaced in the log record, shaped
+to OpenTelemetry's conventions so the observability layer builds on it. Required before
+goals.v1.auth.
 '''
 context = [
   "go-web-sdk/context/concepts/middleware-sourcing.md",
