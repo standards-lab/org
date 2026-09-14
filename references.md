@@ -120,8 +120,10 @@ finalize; the CLI-as-primitive philosophy; Go conventions and naming discipline.
 Tailored-Agentic-Units: appropriately layered Go libraries establishing reusable infrastructure for
 agentic functionality; the original multi-module release proving ground.
 Draw from: the layered dependency hierarchy; interface-in-root + vendor-in-submodule with explicit
-registration (no `init()` side effects); constructor DI; the OTel-aligned observability conventions; the
-`taiki-e/create-gh-release-action` + CHANGELOG release pattern inherited everywhere.
+registration (no `init()` side effects); constructor DI; the hand-rolled Observer/Event bus, whose
+severity levels and event shape are mapped onto OpenTelemetry's model without taking an
+OpenTelemetry dependency; the `taiki-e/create-gh-release-action` + CHANGELOG release pattern
+inherited everywhere.
 
 ### tau-marketplace
 The Claude Code plugin marketplace (dev-workflow, iterative-dev, github-cli, go-patterns,

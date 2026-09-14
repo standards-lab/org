@@ -180,25 +180,93 @@ repos = ["go-web-sdk"]
 summary = '''
 The recoverer landed on the shared writer, its ordering with the request logger resolved.
 What remains is the rest of the hand-rolled set and the sourced spec-surface set, per the
-middleware catalog in the linked note, plus the request ID surfaced in the log record, shaped
-to OpenTelemetry's conventions so the observability layer builds on it. Required before
-goals.v1.auth.
+middleware catalog in the linked note, plus the request ID — minted over stdlib with a
+pluggable source the composition root supplies — and the request logger's attribute names
+moved to OpenTelemetry's semantic conventions, so the observability layer reads them without a
+rename. Required before goals.v1.auth.
 '''
 context = [
   "go-web-sdk/context/concepts/middleware-sourcing.md",
   "standards-lab/context/design/dependency-sourcing.md",
+  "standards-lab/context/design/observability-strategy.md",
 ]
+
+[goals.v1.web.tasks.migration]
+name = "The reference service's migration onto the new problem vocabulary"
+repos = ["go-web-service", "go-web-sdk-template"]
+summary = '''
+The reference service's own matchers and the readiness call sites still take the shapes
+ProblemMatcher and Readiness replaced (problem-vocabulary, 2026-09-14): the ProblemMatcher
+signature and the notReady Problem parameter. Waits on go-web-sdk cutting a release past
+v0.7.0 that carries those changes; not startable until then.
+'''
+context = ["go-web-sdk/context/concepts/error-handling.md"]
 
 [goals.v1.observability]
 name = "Observability"
 summary = '''
-The go-observability infrastructure library: logs, metrics, and traces through OpenTelemetry,
-the collector in the compose stack; the request logger's open questions in web answered
-against OpenTelemetry's conventions. The development-side stack is the LGTM stack (Loki,
-Grafana, Tempo, Mimir), run natively as a container stack in the compose project; where it
-falls in the standard-versus-native split is this goal's decision. Sequenced before the
-layers that follow so each instruments as it lands.
+The go-observability infrastructure library: a base module over the stable OpenTelemetry API
+and SDK, and an `otlp` sub-module pinning the exporters and the gRPC/protobuf weight they
+carry — the shape and the standard-versus-native split are settled in the linked strategy
+record. Logs stay on stdout as structured JSON with trace and span ids stamped in, ingested by
+the collector's filelog receiver; the OTLP logs pipeline waits for that signal's SDK to reach a
+stable release. The LGTM stack (Loki, Grafana, Tempo, Mimir) and its correlation features are
+native-tier configuration in the compose project, never a Go dependency, since the collector is
+the only boundary the service's code ever crosses. Sequenced before the layers that follow so
+each instruments as it lands.
 '''
+context = ["standards-lab/context/design/observability-strategy.md"]
+
+[goals.v1.observability.tasks.library]
+name = "The go-observability library"
+repos = ["go-observability"]
+summary = '''
+The infrastructure library itself: the base module over the OpenTelemetry API and SDK, and the
+`otlp` sub-module pinning the exporters and the gRPC and protobuf weight they carry. The base
+module builds the configuration block on go-core's Merge and Finalize contract, the resource,
+the tracer and meter providers as one lifecycle service at stage 0 with no readiness check, the
+W3C trace-context propagator, the HTTP server middleware over otelhttp as a plain
+func(http.Handler) http.Handler, the slog handler that appends trace_id and span_id from the
+span context, and the request-id source function the web SDK's middleware takes. Repository
+creation, the README's dependency-line statement admitting the v0 otelhttp exception, and the
+first release.
+'''
+context = ["standards-lab/context/design/observability-strategy.md"]
+
+[goals.v1.observability.tasks.stack]
+name = "The collector and the development stack"
+repos = ["go-web-service"]
+summary = '''
+The OpenTelemetry collector and the LGTM stack in the compose project, as a compose profile so
+the integration tier's docker compose up --wait does not gate on Grafana. The collector's
+receivers, processors, and exporters; the filelog receiver that parses the service's JSON log
+records and promotes trace_id onto the record; Grafana provisioning for the Loki, Tempo, and
+Mimir datasources with the derived field and the trace-to-logs and trace-to-metrics links; and
+the first dashboard. Every file here is native tier and enters the port list as the analysis
+surface, the artifact class stack.md gains for it.
+'''
+context = [
+  "standards-lab/context/design/observability-strategy.md",
+  "go-web-service/context/design/stack.md",
+]
+
+[goals.v1.observability.tasks.instrumentation]
+name = "The service instrumented"
+repos = ["go-web-service", "go-web-sdk-template"]
+summary = '''
+The reference service wired to the library and proving it end to end: the observability
+configuration block, the composition root's telemetry layer file with the lifecycle stages
+shifted so telemetry starts before the database, the middleware chain with the tracing
+middleware outermost and the request-id source supplied there, the correlating log handler over
+go-core's, and the resource attributes — which needs a service name and version the service does
+not carry today. The integration tier asserts a trace id reaches both the log record and the
+problem document. The template takes the same composition-root reshape while staying
+provider-free.
+'''
+context = [
+  "standards-lab/context/design/observability-strategy.md",
+  "go-web-sdk/context/concepts/middleware-sourcing.md",
+]
 
 [goals.v1.storage]
 name = "Object storage"

@@ -24,6 +24,11 @@ Each infrastructure library declares its swap class when it is built; the antici
   go-database as the infrastructure service over it (`design/dsl-driven-services.md`). The
   service is schema-bound: a second engine is a second provider, and for an application a
   port, never a switch.
+- **Observability** — no provider pair the way the others have one. OpenTelemetry's OTLP
+  exporter is already the boundary a backend sits behind, so `go-observability` is one base
+  module, split from its `otlp` sub-module by dependency weight rather than by a swap axis; the
+  LGTM stack (or a managed backend in its place) never enters the Go dependency graph at all.
+  Swap-cost class: interchangeable with review. See `design/observability-strategy.md`.
 
 ## Tier topology
 
