@@ -1,53 +1,49 @@
-# reset · problem-vocabulary
+# reset · observability-strategy
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** go-web-sdk, standards-lab
-- **Branch:** problem-vocabulary
+- **Session:** plan
+- **Project:** standards-lab, go-web-sdk, go-web-service
+- **Branch:** observability-strategy
 
 ## Disposition
 
-- **Integrated:** unified `Problem`'s two serializers. `Problem` gained `Extras map[string]any`
-  and a `MarshalJSON`/`UnmarshalJSON` pair (a `problemMembers` twin type avoids `MarshalJSON`
-  recursing into itself); `WriteFor` replaces the split between `Problem.Write` and the deleted
-  `WriteProblemWith`, defaulting `Instance` from the request path.
-- **Integrated:** widened the matcher. `StatusMatcher func(error) (int, bool)` is replaced
-  outright by `ProblemMatcher func(error) (Problem, bool)` — settled via an `opus` escalation as
-  a breaking change rather than a parallel type, since the one real consumer composes two
-  matchers with a deliberate precedence a parallel type couldn't express, and no workspace
-  repository links against this SDK's working tree (each pins a released version), so nothing
-  breaks until a consumer bumps the pin. `ErrorWriter.Problem` centralizes the mapping; a
-  matcher's own `Detail` now always ships, rather than being gated by the writer's detail set.
-  `statusError` stays sealed: most of what it maps today are third-party sentinel errors a
-  consumer can never teach to carry a problem regardless of the interface's visibility.
-- **Integrated:** gave `Readiness`/`RegisterHealth` a `notReady Problem` parameter — a consumer's
-  type, title, and detail reach the wire; `Status` and the `checks` extension member stay the
-  probe's own regardless of what the consumer sets, via a fresh extras map built per request
-  rather than mutating the caller's.
-- **Integrated:** validation findings from a `fable` peer review, fixed before closeout:
-  `Problem.UnmarshalJSON`'s key-stripping pass now matches field names case-insensitively, like
-  the typed pass it has to stay in sync with; added a concurrent-requests test for `Readiness`'s
-  fresh-map logic, previously correct only by inspection; the `CHANGELOG` now flags all three of
-  this step's breaking changes explicitly, and three stale doc-comment attributions were fixed.
-- **Integrated:** struck the resolved item from `go-web-sdk/context/concepts/error-handling.md`,
-  renumbered what remains, and recorded the deliberate choice not to let a matcher override
-  `statusError`'s precedence as a new "wait for a consumer to ask" item beside writer
-  inheritance. Brought `doc.go`'s Error mapping, Problem responses, and Health sections, and
-  `context/README.md`'s capability map, current.
-- **Cross-repo:** `standards-lab/context/roadmap.toml` — `goals.v1.web.tasks.adapter`'s summary
-  updated: the problem-vocabulary item marked done, the remaining five items named, and a note
-  that the reference service's own matchers and readiness call sites still take the old shapes
-  pending their own migration step. The task is not finished — five items remain — so it is not
-  deleted, and `v1.web` stays open.
+- **Integrated:** authored `standards-lab/context/design/observability-strategy.md` —
+  go-observability's shape (a base module over the stable OpenTelemetry API and SDK, an `otlp`
+  sub-module isolating the exporters' dependency weight), the standard-versus-native resolution
+  (this layer stays pure standard tier; nothing is projected for `stack.md`'s port list), the
+  request id as the OpenTelemetry trace id surfaced through `Problem.Extras`, logs on stdout JSON
+  with the OTLP logs pipeline deferred, the posture rules, and the swap-cost class. Escalated to
+  an `opus` agent given the goal's position ahead of every remaining v1 layer; the architect
+  settled the `otlp` sub-module split and the stdout-over-OTLP-logs call directly.
+- **Integrated:** seeded `goals.v1.observability.tasks.library/stack/instrumentation` in
+  `roadmap.toml`, and corrected `goals.v1.observability`'s and `goals.v1.web.tasks.middleware`'s
+  summaries (the latter had claimed OpenTelemetry-shaping work the SDK cannot do on its own).
+- **Integrated:** added `goals.v1.web.tasks.migration`, tracking the
+  `go-web-service`/`go-web-sdk-template` migration onto `go-web-sdk`'s new
+  `ProblemMatcher`/`Readiness` shapes, gated on the SDK's next release past v0.7.0.
+- **Integrated:** corrected `dependency-sourcing.md`'s rule — a library that clears the standard
+  markers is imported as a declared dependency, never copied into the tree — and split the
+  sourced middleware set (CORS, real client IP, compression, rate limiting) out of
+  `v1.web.tasks.middleware` into its own goal, `v1.middleware`, inserted into `next` after
+  `v1.web`.
+- **Integrated:** added an Observability row to `service-organization.md`'s anticipated-services
+  table.
+- **Retained:** `concepts/admin-listener.md`'s assignment of the admin mount's audit record to
+  `goals.v1.observability` — examined, found wrong (nothing in this settled scope supplies an
+  audit record), left as `v1.admin-listener`'s own decision rather than fixed here.
+- **Cross-repo:** `go-web-sdk/context/concepts/middleware-sourcing.md` — corrected the
+  correlation id's home (`Problem.Extras`, not `Problem.Instance`), corrected CORS and real-IP to
+  imported rather than copied, and noted the split to `v1.middleware`.
+- **Cross-repo:** `go-web-service/context/design/stack.md` — restructured the port list into
+  per-layer subsections (SQL, OpenTelemetry), stating the OpenTelemetry layer's own entry: pure
+  standard tier, nothing projected.
 
 ## Next-focus
 
-Both `v1.web` tasks now have real remaining work but nothing urgent enough to lead the next
-session on its own (adapter: router hooks, the `ErrorLog` bridge, writer inheritance,
-`statusError` precedence, the config env segment — all "wait for a consumer to ask" or
-independently small; middleware: the rest of the hand-rolled set, request ID). Per the
-architect, the next session turns to **planning** `v1.observability`'s tasks instead — a `plan`
-session in `standards-lab`, not a `start`. That planning session should also settle whether the
-`go-web-service`/`go-web-sdk-template` migration onto this SDK's new `ProblemMatcher`/`Readiness`
-shapes (deferred from this step, tracked nowhere yet as a task) belongs in the roadmap now or
-waits until this SDK actually releases past v0.7.0.
+`go-web-sdk`: finish `v1.web.tasks.adapter`'s remaining items (router 404/405 hooks, the
+`ErrorLog` bridge with `MaxHeaderBytes` and the swallowed-encoder-error decision, the per-block
+config env segment) together with `v1.web.tasks.middleware`'s hand-rolled remainder (the
+request-id source seam `WithIDSource` takes, the semconv field renames, and the rest of the
+hand-rolled catalog: timeout, content-type gate, body limit, fixed headers, conditional wrap,
+path hygiene). This is what `goals.v1.observability.tasks.library` needs before it can start.
+`v1.middleware` (the sourced set) and the rest of `v1.observability` wait behind it in `next`.
