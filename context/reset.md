@@ -1,55 +1,53 @@
-# reset · shared-writer-panic-path
+# reset · problem-vocabulary
 
 - **Status:** closeout
 - **Session:** start
 - **Project:** go-web-sdk, standards-lab
-- **Branch:** shared-writer-panic-path
+- **Branch:** problem-vocabulary
 
 ## Disposition
 
-- **Integrated:** exported `handler.go`'s private wrapped-response-writer type as `web.Recorder`,
-  with an idempotent `WrapWriter` constructor, so `Handle` and the middleware package's
-  `RequestLogger` and `Recoverer` share one instance per request instead of each carrying its own.
-- **Integrated:** rewrote `middleware.RequestLogger` onto the shared `Recorder`, deleting the
-  private `statusRecorder` it carried, which was missing the `Write` intercept `Recorder` has — a
-  live bug where a handler that wrote a body and only then called `WriteHeader(500)` was logged as
-  500 when the client actually got the already-committed 200.
-- **Integrated:** added `middleware.Recoverer` as the chain's sole recovery point.
-  `RequestLogger` no longer recovers panics itself; before this step, a handler panic was logged
-  and re-panicked into `net/http`'s own recovery, which writes nothing — no RFC 9457 problem
-  document existed on the panic path anywhere in the architecture. `Recoverer` now answers an
-  unrecovered panic with a 500 problem document when nothing was committed yet.
-- **Integrated:** validation findings from a `fable` code review, fixed before closeout since they
-  were correctness gaps in this step's own new code: `Recoverer` re-raises `http.ErrAbortHandler`
-  after logging when the response was already committed, so a panic mid-stream drops the
-  connection again instead of completing a truncated body as a clean 200; `Recorder` gained
-  `FlushError` so a `Flush` through `http.ResponseController` commits the same way a `Write` does;
-  `Recorder.WriteHeader` no longer commits on a 1xx status other than 101, matching `net/http`'s
-  own treatment of informational responses; `RequestLogger(nil)` and `Recoverer(nil)` now panic
-  clearly at construction instead of obscurely (and, for `Recoverer`, destructively) on first use.
-- **Integrated:** struck the resolved items from `go-web-sdk/context/concepts/error-handling.md`
-  (the recorder export, renumbering what remains) and `middleware-sourcing.md` (the
-  dropped-connection and ordering-trap build findings, the Recoverer row moved from remaining work
-  to built); brought `doc.go`, `middleware/doc.go`, and `context/README.md`'s capability map
-  current; added the `CHANGELOG.md` `Unreleased` entry.
+- **Integrated:** unified `Problem`'s two serializers. `Problem` gained `Extras map[string]any`
+  and a `MarshalJSON`/`UnmarshalJSON` pair (a `problemMembers` twin type avoids `MarshalJSON`
+  recursing into itself); `WriteFor` replaces the split between `Problem.Write` and the deleted
+  `WriteProblemWith`, defaulting `Instance` from the request path.
+- **Integrated:** widened the matcher. `StatusMatcher func(error) (int, bool)` is replaced
+  outright by `ProblemMatcher func(error) (Problem, bool)` — settled via an `opus` escalation as
+  a breaking change rather than a parallel type, since the one real consumer composes two
+  matchers with a deliberate precedence a parallel type couldn't express, and no workspace
+  repository links against this SDK's working tree (each pins a released version), so nothing
+  breaks until a consumer bumps the pin. `ErrorWriter.Problem` centralizes the mapping; a
+  matcher's own `Detail` now always ships, rather than being gated by the writer's detail set.
+  `statusError` stays sealed: most of what it maps today are third-party sentinel errors a
+  consumer can never teach to carry a problem regardless of the interface's visibility.
+- **Integrated:** gave `Readiness`/`RegisterHealth` a `notReady Problem` parameter — a consumer's
+  type, title, and detail reach the wire; `Status` and the `checks` extension member stay the
+  probe's own regardless of what the consumer sets, via a fresh extras map built per request
+  rather than mutating the caller's.
+- **Integrated:** validation findings from a `fable` peer review, fixed before closeout:
+  `Problem.UnmarshalJSON`'s key-stripping pass now matches field names case-insensitively, like
+  the typed pass it has to stay in sync with; added a concurrent-requests test for `Readiness`'s
+  fresh-map logic, previously correct only by inspection; the `CHANGELOG` now flags all three of
+  this step's breaking changes explicitly, and three stale doc-comment attributions were fixed.
+- **Integrated:** struck the resolved item from `go-web-sdk/context/concepts/error-handling.md`,
+  renumbered what remains, and recorded the deliberate choice not to let a matcher override
+  `statusError`'s precedence as a new "wait for a consumer to ask" item beside writer
+  inheritance. Brought `doc.go`'s Error mapping, Problem responses, and Health sections, and
+  `context/README.md`'s capability map, current.
 - **Cross-repo:** `standards-lab/context/roadmap.toml` — `goals.v1.web.tasks.adapter`'s summary
-  updated to mark the recorder/logger/recoverer items done, and its dangling `integration.service`
-  citation (pointing at a since-deleted task) removed: the reference service's handlers already
-  use `HandleErr` (`domain/organization`, `admin/database`). `goals.v1.web.tasks.middleware`'s
-  summary updated to mark the recoverer/logger ordering resolved. Neither task's remaining items
-  are finished, so neither is deleted and `next` is unchanged.
+  updated: the problem-vocabulary item marked done, the remaining five items named, and a note
+  that the reference service's own matchers and readiness call sites still take the old shapes
+  pending their own migration step. The task is not finished — five items remain — so it is not
+  deleted, and `v1.web` stays open.
 
 ## Next-focus
 
-`goals.v1.web.tasks.adapter`'s remaining item — the `ErrorWriter` problem vocabulary, in
-`go-web-sdk`: widen `StatusMatcher` (or add a problem-returning matcher alongside it) so a
-consumer's matcher can carry a type URI, title, and extension members, not just a status; decide
-whether the sealed `statusError` interface in `errors.go` opens so a consumer's own error type can
-carry its problem the way the SDK's built-in errors do; unify `Problem.Write`'s struct marshal
-with `WriteProblemWith`'s independent `map[string]any` construction into one serializer; once the
-vocabulary exists, give `/readyz` a type hook on `Readiness` instead of its `checks` extension
-member riding a bare `about:blank` problem. Three coupled, independently breaking API decisions —
-flagged at this step's own SETTLE as needing a session of its own. The architect asked for this to
-be handled immediately rather than deferred; it follows in this same session, on its own branch,
-closing out separately. After it lands, the next session turns to planning `v1.observability`'s
-tasks.
+Both `v1.web` tasks now have real remaining work but nothing urgent enough to lead the next
+session on its own (adapter: router hooks, the `ErrorLog` bridge, writer inheritance,
+`statusError` precedence, the config env segment — all "wait for a consumer to ask" or
+independently small; middleware: the rest of the hand-rolled set, request ID). Per the
+architect, the next session turns to **planning** `v1.observability`'s tasks instead — a `plan`
+session in `standards-lab`, not a `start`. That planning session should also settle whether the
+`go-web-service`/`go-web-sdk-template` migration onto this SDK's new `ProblemMatcher`/`Readiness`
+shapes (deferred from this step, tracked nowhere yet as a task) belongs in the roadmap now or
+waits until this SDK actually releases past v0.7.0.

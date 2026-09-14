@@ -163,11 +163,14 @@ repos = ["go-web-sdk"]
 summary = '''
 The adapter core landed in go-web-sdk v0.6.0 (HandleErr, the error-returning HandlerFunc
 over a group-scoped ErrorWriter, IfMatch and DecodeJSON); the recorder exported as the shared
-wrapped writer, the request logger rewritten onto it, and the Recoverer followed. What remains
-is the whole-response problem story: the ErrorWriter problem vocabulary, router 404/405 hooks,
-the ErrorLog bridge with MaxHeaderBytes and the swallowed encoder error, writer inheritance if
-a consumer asks. The item list is the linked note. The reference service's handlers already
-use HandleErr (domain/organization, admin/database).
+wrapped writer, the request logger rewritten onto it, the Recoverer, and the ErrorWriter
+problem vocabulary (ProblemMatcher, Problem.Extras, the readiness type hook) followed. What
+remains is router 404/405 hooks, the ErrorLog bridge with MaxHeaderBytes and the swallowed
+encoder error, writer inheritance if a consumer asks, statusError's precedence over the
+matchers if a consumer asks, and the per-block config env segment. The item list is the linked
+note. The reference service's handlers already use HandleErr (domain/organization,
+admin/database); its own matchers and the readiness call sites still take the old shapes and
+migrate in a step of their own once this SDK releases.
 '''
 context = ["go-web-sdk/context/concepts/error-handling.md"]
 
