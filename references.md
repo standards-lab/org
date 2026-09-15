@@ -26,9 +26,10 @@ repository's entry declares `standard = "<key>"`.
 The Go implementation of the Elemental Architecture, the organization's first standard, built
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
-Members: `go-core`, `go-database`, `go-web-sdk`, and `go-web-sdk-template` (released), and
-`go-web-service`, the reference web service (versionless until its 1.0). `dotnet-elemental` is
-anticipated as its derived standard (`derives = "go-elemental"`).
+Members: `go-core`, `go-database`, `go-web-sdk`, and `go-web-sdk-template` (released);
+`go-observability` (in progress); and `go-web-service`, the reference web service (versionless
+until its 1.0). `dotnet-elemental` is anticipated as its derived standard
+(`derives = "go-elemental"`).
 
 ## Effort repositories — Standards Lab
 
@@ -66,6 +67,13 @@ The SQL infrastructure library of the `go-elemental` standard: the infrastructur
 a pool and the database admin service over `sqlate`, with the PostgreSQL provider as the
 `postgres` sub-module. Its README lists the packages. Released, base and provider tagged
 independently; the base depends on the standard library, `go-core`, and `sqlate`.
+
+### go-observability
+The observability infrastructure library of the `go-elemental` standard: the OpenTelemetry
+configuration and process lifecycle, the trace-correlating log handler, the HTTP server
+middleware, and the request-ID source function, with the OTLP exporters as the `otlp`
+sub-module. Its README lists the packages. In progress; the base depends on the standard
+library and `go-core` alone.
 
 ### go-web-sdk
 The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service
