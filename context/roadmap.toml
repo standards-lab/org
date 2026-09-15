@@ -5,11 +5,13 @@
 # The v1 execution sequence, settled 2026-09-07: the workspace context brought into
 # alignment first, then the harness, then the integration standards in dependency order
 # (the auth strategy before any layer that builds to it), and the domains once the layers
-# they enhance exist. A goal cited late reads as what remains of it. service-showcase jumps
-# the sequence, set 2026-09-15: the architect needs a way to brief colleagues and leadership
-# on the effort's progress, ahead of the next v1 layer.
+# they enhance exist. A goal cited late reads as what remains of it. slab jumps the sequence,
+# set 2026-09-15: the architect needs a way to brief colleagues and leadership on the effort's
+# progress, ahead of the next v1 layer — not itself a v1 layer, so its goal sits outside the
+# v1 tree and never gates v1.0.
 next = [
-  "backlog.service-showcase",
+  "slab.mechanism",
+  "slab.surface",
   "v1.middleware",
   "v1.storage",
   "v1.auth",
@@ -21,6 +23,47 @@ next = [
   "v1.deployment",
   "v1.repository-docs",
 ]
+
+# ── slab ───────────────────────────────────────────────────────────────────────────────────
+
+[goals.slab]
+name = "The showcase CLI"
+summary = '''
+`slab`, a cobra-based CLI in its own `go-web-service/tools/slab` module: individually runnable
+scenarios that drive the real running composition (sqlate's compile pipeline in-process, the
+service's API and admin mount over HTTP, a long-running traffic generator for the observability
+stack) rather than one fixed tour. Not a v1 layer; the architect's own instrument for briefing
+colleagues and leadership on the workspace's progress, and a self-serve path in for anyone
+exploring it themselves.
+'''
+context = ["go-web-service/context/concepts/service-showcase.md"]
+
+[goals.slab.tasks.mechanism]
+name = "Prove the mechanism"
+repos = ["go-web-service"]
+summary = '''
+Stand up tools/slab as its own cobra-based module and prove the step/observation-channel
+mechanism on one scenario per novel shape: sqlate's compile pipeline (a library import, no
+database), one go-web-service request paired with its trace (the observability side-channel),
+and the traffic generator (a long-running background action). Settles, as part of the build,
+whether sqlate needs a small exported inspection hook for the compile demo's most interesting
+intermediate artifact, or whether slab narrates from its already-public surface instead.
+'''
+proof = '''
+slab list shows the three scenarios; each runs against the real running stack and produces the
+signal it claims — compiled SQL, a Grafana-linked trace, sustained Tempo/Loki/Mimir traffic.
+'''
+context = ["go-web-service/context/concepts/service-showcase.md"]
+
+[goals.slab.tasks.surface]
+name = "Extend to the full surface"
+repos = ["go-web-service"]
+summary = '''
+Extend the proven mechanism to the remaining go-web-service surface: full organization-domain
+CRUD and the admin /admin/database migrate/verify/seed/state walk.
+'''
+proof = "slab run covers organization's full CRUD and the admin mount's four state operations."
+context = ["go-web-service/context/concepts/service-showcase.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -292,20 +335,6 @@ changes it; sqlate's guide exists and is verified rather than written.
 context = ["standards-lab/context/design/architecture-layer.md"]
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
-
-[backlog.service-showcase]
-name = "Showing the running service off"
-repos = ["go-web-service"]
-summary = '''
-A way to hand someone a running composition and let them see what it does, scaling as more
-capability layers land: observability now, messaging and its reactor services later. Two
-directions weighed and not yet chosen between — a narrated demo script over curl/jq, or an
-OpenAPI spec with a mounted explorer UI — plus what showing off a signal with no API-request
-shape (a trace, a reactor picking up an event) even means. Its own planning session decides;
-not a v1 layer dependency, but the architect needs it soon to brief colleagues and leadership
-on the effort's progress.
-'''
-context = ["go-web-service/context/concepts/service-showcase.md"]
 
 [backlog.second-providers]
 name = "Second providers"
