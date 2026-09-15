@@ -1,61 +1,41 @@
-# reset · observability-instrumentation
+# reset · service-showcase
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** go-web-service, go-web-sdk-template
-- **Branch:** observability-instrumentation
+- **Session:** plan
+- **Project:** go-web-service, standards-lab
+- **Branch:** service-showcase
 
 ## Disposition
 
-- **Cross-repo:** `standards-lab/context/roadmap.toml` — deleted the closed
-  `goals.v1.observability.tasks.instrumentation` and dropped it from `next`; `goals.v1.observability`
-  stays open, empty of tasks, since its layer-goal closing criteria — the extraction record, the
-  promoted library and template elements, and the repository documentation — are separate, later,
-  unstarted goals, not implied by this one task closing. Added `backlog.service-showcase`,
-  sequenced ahead of `v1.middleware` at the architect's request: a way to demonstrate the running
-  system to colleagues and leadership, citing the new concept note below.
-- **Cross-repo:** `standards-lab/context/design/observability-strategy.md` §1 and §5 corrected —
-  `Telemetry` registers through `OnStartup`/`OnShutdown` hooks, not a numbered stage. The record's
-  stage-0 claim didn't survive contact with the code: `go-database/admin.Stage = 1` leaves no
-  stage number free for telemetry ahead of the pool at 0 without a cross-repository renumbering
-  this goal doesn't own, and `lifecycle.Add` panics on a negative stage regardless. The hook
-  mechanism satisfies the record's actual invariant — nothing instruments a startup sequence it
-  started after — without needing a stage number at all; the full reasoning is in the record now,
-  not restated here.
-- **Retained:** `go-web-service/context/design/stack.md`'s OpenTelemetry section — unchanged; this
-  layer still projects no native-tier deviation, per `observability-strategy.md` §2. The
-  service-owned log destination `service-log-destination.md` raised was decided against, on the
-  same reasoning one level down, and the concept is deleted; the decision is recorded in
-  `go-web-service/compose/README.md`.
+- **Cross-repo:** `standards-lab/context/roadmap.toml` — restructured the flat
+  `backlog.service-showcase` entry into a root goal, `goals.slab`, sibling to `v1` rather than
+  nested under it: nesting under `v1` would bind it into `v1.0`'s own closing criteria,
+  contradicting its standing claim of not being a v1 layer dependency. Two tasks match the two
+  `start` sessions settled here — `tasks.mechanism` and `tasks.surface`. `next` updated to
+  `slab.mechanism`, `slab.surface` ahead of `v1.middleware`, same priority and reasoning as the
+  entry it replaces.
 
-`go-web-sdk-template` took the narrow slice the strategy record's §3 described: `RequestID()` wired
-ahead of `RequestLogger`, generated rather than trace-derived, since the template stays
-provider-free — released as `template/v0.9.0`. `go-web-service` got the rest: the observability
-configuration block (a hard requirement, matching how the database block already works); the
-telemetry layer, bracketing the lifecycle via hooks rather than a stage, with the shutdown hook
-bounded to a short timeout so a flush against an unreachable collector — the integration tier's
-normal state — can't hold the drain or fail the process; the middleware chain with tracing
-outermost and `RequestID` sourcing the trace id between it and `RequestLogger`; an integration test
-proving a trace id reaches both the log record and the problem document, matched rather than
-independently checked; and `log.format` defaulting to `json`. Verified against the real compose
-stack, not just the hermetic suites: a live request's trace landed in Tempo under
-`service.name = go-web-service`, and the matching Loki line carried the same id as both
-`request_id` and `trace_id`.
-
-A new concept, `go-web-service/context/concepts/service-showcase.md`, captures a gap the
-architect raised while reviewing this step: no way today to hand someone a running composition
-and let them see what it does, a gap that widens as messaging and its reactor services land later.
-Two directions are weighed there, not chosen between — a narrated demo script, or an OpenAPI spec
-with a mounted explorer UI (the architect's read on Go's OpenAPI tooling is dated and worth
-revisiting) — and observability itself now belongs in whatever this settles on, alongside
-messaging's very different, non-request-shaped signal once it exists.
+Sharpened `go-web-service/context/concepts/service-showcase.md`: settled `slab`, a `cobra`-based
+CLI in its own module at `go-web-service/tools/slab` — the `sqlate/sqlint` shape, kept out of
+`cmd/server`'s own `go.mod` rather than a dependency of it — against the two directions the note
+had left open (a narrated `mise run demo` script, an OpenAPI-plus-explorer-UI). Rejected along
+the way: a `demo:<capability>:<scenario>` `mise` task per repo (no singular engagement point, and
+`mise` isn't shaped for a process that doesn't return); a standalone new repository (unneeded
+release/CI surface, when `go-web-service` already converges everything worth demoing). The
+settled mechanism — a scenario as an ordered sequence of intent/action/observation steps — covers
+all three signal shapes the note flagged (request/response, the observability side-channel, a
+long-running background action for live Grafana traffic) without a redesign once `v1.messaging`
+lands, since a reactor signal is only a fourth observation channel. `cobra` is adopted for the
+command tree, evaluated against `dependency-sourcing.md`'s markers rather than hand-rolled.
 
 ## Next-focus
 
-`backlog.service-showcase`: a `plan` session, not a `start` — nothing in the concept note is
-settled yet. Work out the demo-script-versus-OpenAPI question (and whether it's a choice or a
-sequence — a cheap script now, a spec-driven explorer later), how observability's own signals
-(a live trace, a correlated log) join the showcase alongside API responses, and how the strategy
-holds up against messaging's reactor-driven signals once `v1.messaging` lands, even though that
-goal is further out. The architect wants this soon, to brief colleagues and leadership on the
-effort's progress.
+A `start` session in `go-web-service`, advancing `slab.mechanism`: stand up `tools/slab` as its
+own `cobra`-based module and build one scenario per novel shape — `sqlate:compile` (a library
+import, no database), one `go-web-service` request paired with its trace (the observability
+side-channel), and the traffic generator (a long-running background action). Settle, as part of
+that build, whether `sqlate` needs a small exported inspection hook for the compile demo's most
+interesting intermediate artifact (the post-splice, pre-placeholder-rewrite SQL body behind the
+unexported `Catalog.expand`, `sqlate/query/patterns.go:346`), or whether `slab` narrates from the
+already-public surface instead. `goals.slab.tasks.surface` (full organization CRUD, the admin
+migrate/verify/seed/state walk) follows once this proves out.
