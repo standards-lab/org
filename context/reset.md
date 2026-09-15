@@ -1,41 +1,37 @@
-# reset · problem-vocabulary-migration
+# reset · observability-library
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** go-web-service, go-web-sdk-template
-- **Branch:** problem-vocabulary-migration
+- **Project:** go-observability
+- **Branch:** observability-library
 
 ## Disposition
 
-- **Integrated:** closed `goals.v1.web.tasks.migration` — both consumers moved onto go-web-sdk
-  v0.8.0. `go-web-service`: `data.Status`, `admin/database`'s matcher, and
-  `domain/organization`'s matcher now return `web.Problem` as `web.ProblemMatcher`s, each
-  carrying only the status the domain already decided; `RegisterHealth` is called with the zero
-  `Problem` in both `go-web-service` and `go-web-sdk-template`, since neither names a problem
-  type of its own yet and no type-URI namespace exists anywhere in the workspace (RFC 9457
-  treats `about:blank` as no semantics beyond the status code, so a title without a type would be
-  non-conforming). `go-web-sdk-template`'s readiness-log test fixed to assert the renamed
-  `url.path` attribute instead of matching the old `path` name by coincidence.
-- **Retained:** nothing new deferred this session — the matchers stay status-only by design
-  (typing the domain vocabulary is gated on `go-web-sdk`'s own deferred `statusError`-precedence
-  item, a consumer-driven decision, not this task's).
-- **Cross-repo:** `standards-lab/context/roadmap.toml` — deleted `goals.v1.web.tasks.migration`
-  (closed) and, with it, the now-emptied `goals.v1.web` goal in full. At the architect's
-  direction, `next`'s single `v1.observability` entry is replaced with its three tasks in
-  sequence — `v1.observability.tasks.library`, `.tasks.stack`, `.tasks.instrumentation` — since
-  the goal's design is already settled (`design/observability-strategy.md`) and what remains is
-  executing its tasks in order.
+- **Retained:** `standards-lab/context/design/observability-strategy.md` — stays intact, not
+  decayed. Its §1 (the base module's shape) is now built and expressed in `go-observability`'s
+  own README and package `doc.go`, but the note still grounds two unbuilt tasks —
+  `v1.observability.tasks.stack` and `.tasks.instrumentation` — so trimming it now would cut a
+  reference those sessions still need; a `review` session is the better place to reassess it
+  once the whole `v1.observability` goal closes.
+- **Cross-repo:** `standards-lab/context/roadmap.toml` — deleted the closed
+  `goals.v1.observability.tasks.library` and dropped it from `next`; the parent goal
+  `goals.v1.observability` stays open (`.tasks.stack` and `.tasks.instrumentation` remain).
+  `standards-lab/.claude/marathon.toml`'s `order` list and `references.toml`/`references.md`
+  gained a `go-observability` entry, grouped with `go-database`/`go-web-sdk` at the same
+  dependency depth (built on `go-core` alone) — done at the step's start, carried here for
+  completeness.
+
+`go-observability` v0.1.0 built per `observability-strategy.md`: `Config`, `Telemetry`,
+`NewTraceHandler`, `NewMiddleware`, and `RequestIDSource` in the base module; `NewTraceExporter`
+and `NewMetricExporter` in the `otlp` sub-module, connecting in plain text unconditionally
+(`Config` has no TLS field yet — deferred until a deployed or managed backend needs it). No
+`Protocol` field on `Config`: the `otlp` sub-module ships gRPC exporters alone for this release.
 
 ## Next-focus
 
-`go-observability`: `v1.observability.tasks.library` — the infrastructure library: the base
-module over the OpenTelemetry API and SDK, the `otlp` sub-module, repository creation, the
-README's dependency-line statement admitting the v0 otelhttp exception, and the first release.
-Design is settled in `standards-lab/context/design/observability-strategy.md`; this is execution,
-not a fresh planning concept. The repository doesn't exist in the workspace yet and isn't in the
-coordinator's `.claude/marathon.toml` `order` list — creating it and adding it to `order` is part
-of this task's own scope, not a separate `init` step to settle first.
-
-Beyond this: `v1.observability.tasks.stack` (the collector and LGTM compose stack, in
-`go-web-service`) and `v1.observability.tasks.instrumentation` (wiring both `go-web-service` and
-`go-web-sdk-template` to the library) follow in that order once the library exists.
+`v1.observability.tasks.stack`: the OpenTelemetry collector and the LGTM stack (Loki, Grafana,
+Tempo, Mimir) in `go-web-service`'s compose project, as a compose profile so
+`docker compose up --wait` doesn't gate on Grafana. Design is settled in
+`standards-lab/context/design/observability-strategy.md` §2 and §4; `v1.observability.tasks.instrumentation`
+(wiring `go-observability` into `go-web-service` and `go-web-sdk-template`) follows once the
+stack exists.

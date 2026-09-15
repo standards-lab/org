@@ -7,7 +7,6 @@
 # (the auth strategy before any layer that builds to it), and the domains once the layers
 # they enhance exist. A goal cited late reads as what remains of it.
 next = [
-  "v1.observability.tasks.library",
   "v1.observability.tasks.stack",
   "v1.observability.tasks.instrumentation",
   "v1.middleware",
@@ -52,22 +51,6 @@ stable release. The LGTM stack (Loki, Grafana, Tempo, Mimir) is reached entirely
 OpenTelemetry standard — OTLP to the collector, standard exporters onward — with no native
 deviation projected and never a Go dependency of its own. Sequenced before the layers that
 follow so each instruments as it lands.
-'''
-context = ["standards-lab/context/design/observability-strategy.md"]
-
-[goals.v1.observability.tasks.library]
-name = "The go-observability library"
-repos = ["go-observability"]
-summary = '''
-The infrastructure library itself: the base module over the OpenTelemetry API and SDK, and the
-`otlp` sub-module pinning the exporters and the gRPC and protobuf weight they carry. The base
-module builds the configuration block on go-core's Merge and Finalize contract, the resource,
-the tracer and meter providers as one lifecycle service at stage 0 with no readiness check, the
-W3C trace-context propagator, the HTTP server middleware over otelhttp as a plain
-func(http.Handler) http.Handler, the slog handler that appends trace_id and span_id from the
-span context, and the request-id source function the web SDK's middleware takes. Repository
-creation, the README's dependency-line statement admitting the v0 otelhttp exception, and the
-first release.
 '''
 context = ["standards-lab/context/design/observability-strategy.md"]
 
