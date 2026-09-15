@@ -47,9 +47,10 @@ The base module builds five things:
 
 1. **`Config`**, on `go-core`'s Merge-and-Finalize contract: the collector endpoint and protocol,
    headers, the trace sampling ratio, and the resource attributes.
-2. **`Telemetry`**, a `lifecycle.Service`: it builds the `resource.Resource`, constructs the
-   `TracerProvider` and `MeterProvider`, installs them and the W3C `TraceContext` propagator as
-   process globals, and flushes them on shutdown.
+2. **`Telemetry`**, carrying the lifecycle hook signature (`Start`/`Shutdown func(context.Context)
+   error`): it builds the `resource.Resource`, constructs the `TracerProvider` and
+   `MeterProvider`, installs them and the W3C `TraceContext` propagator as process globals, and
+   flushes them on shutdown.
 3. **A trace-correlating `slog.Handler`** wrapping the handler `go-core`'s `logging.New` produces,
    appending `trace_id` and `span_id` from the request's span context when one is valid.
 4. **The HTTP server middleware**, `otelhttp.NewMiddleware` behind a constructor over `Config` —
@@ -189,8 +190,14 @@ still serve traffic; a readiness probe that fails because the collector is unrea
 observability outage into a service outage, which is the one failure this design exists to
 prevent.
 
-**`Telemetry` starts first.** It takes lifecycle stage 0, ahead of the database at stage 1 and
-statement verification at stage 2. Nothing should instrument a startup sequence it started after.
+**`Telemetry` starts first.** It brackets the lifecycle's numbered stages rather than holding one
+of its own: a startup hook installs the providers before any stage starts, and a shutdown hook
+flushes them after every stage has drained. A numbered stage was the first shape considered, and
+turned out not to fit — the consuming service's own infrastructure library pins its schema-repair
+stage at 1, which leaves no stage number free for telemetry ahead of the pool at 0 without a
+cross-repository renumbering this goal does not own, and the lifecycle coordinator panics on a
+negative stage regardless. A startup/shutdown hook satisfies the actual requirement without
+needing a stage number at all: nothing should instrument a startup sequence it started after.
 
 ## 6. Swap-cost class: interchangeable with review
 
