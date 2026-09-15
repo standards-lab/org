@@ -1,49 +1,53 @@
-# reset · observability-strategy
+# reset · adapter-and-middleware
 
 - **Status:** closeout
-- **Session:** plan
-- **Project:** standards-lab, go-web-sdk, go-web-service
-- **Branch:** observability-strategy
+- **Session:** start
+- **Project:** go-web-sdk
+- **Branch:** adapter-and-middleware
 
 ## Disposition
 
-- **Integrated:** authored `standards-lab/context/design/observability-strategy.md` —
-  go-observability's shape (a base module over the stable OpenTelemetry API and SDK, an `otlp`
-  sub-module isolating the exporters' dependency weight), the standard-versus-native resolution
-  (this layer stays pure standard tier; nothing is projected for `stack.md`'s port list), the
-  request id as the OpenTelemetry trace id surfaced through `Problem.Extras`, logs on stdout JSON
-  with the OTLP logs pipeline deferred, the posture rules, and the swap-cost class. Escalated to
-  an `opus` agent given the goal's position ahead of every remaining v1 layer; the architect
-  settled the `otlp` sub-module split and the stdout-over-OTLP-logs call directly.
-- **Integrated:** seeded `goals.v1.observability.tasks.library/stack/instrumentation` in
-  `roadmap.toml`, and corrected `goals.v1.observability`'s and `goals.v1.web.tasks.middleware`'s
-  summaries (the latter had claimed OpenTelemetry-shaping work the SDK cannot do on its own).
-- **Integrated:** added `goals.v1.web.tasks.migration`, tracking the
-  `go-web-service`/`go-web-sdk-template` migration onto `go-web-sdk`'s new
-  `ProblemMatcher`/`Readiness` shapes, gated on the SDK's next release past v0.7.0.
-- **Integrated:** corrected `dependency-sourcing.md`'s rule — a library that clears the standard
-  markers is imported as a declared dependency, never copied into the tree — and split the
-  sourced middleware set (CORS, real client IP, compression, rate limiting) out of
-  `v1.web.tasks.middleware` into its own goal, `v1.middleware`, inserted into `next` after
-  `v1.web`.
-- **Integrated:** added an Observability row to `service-organization.md`'s anticipated-services
-  table.
-- **Retained:** `concepts/admin-listener.md`'s assignment of the admin mount's audit record to
-  `goals.v1.observability` — examined, found wrong (nothing in this settled scope supplies an
-  audit record), left as `v1.admin-listener`'s own decision rather than fixed here.
-- **Cross-repo:** `go-web-sdk/context/concepts/middleware-sourcing.md` — corrected the
-  correlation id's home (`Problem.Extras`, not `Problem.Instance`), corrected CORS and real-IP to
-  imported rather than copied, and noted the split to `v1.middleware`.
-- **Cross-repo:** `go-web-service/context/design/stack.md` — restructured the port list into
-  per-layer subsections (SQL, OpenTelemetry), stating the OpenTelemetry layer's own entry: pure
-  standard tier, nothing projected.
+- **Integrated:** closed `goals.v1.web.tasks.adapter` — router and module misses write RFC 9457
+  problem documents instead of `ServeMux`'s plain text (`Allow` preserved on a 405), overridable
+  via `Router.SetNotFound`/`SetMethodNotAllowed` and the same pair on `Group`; `Server.Log`
+  bridges `http.Server.ErrorLog` to slog; `Config.MaxHeaderBytes` (no SDK default — `net/http`'s
+  own applies when unset); `Handle` and `Recoverer` log a problem-write encoder failure instead
+  of swallowing it; `Config.FinalizeBlock` finalizes under a caller-named block, so a second
+  `Config` composes under the same prefix without colliding.
+- **Integrated:** closed `goals.v1.web.tasks.middleware` — `WithRequestID`/`RequestIDFrom` carry
+  a correlation id on the request's context, surfaced through `Problem.Extras`;
+  `middleware.RequestID` mints one (a source-function seam for a tracer, an explicit opt-in to
+  trust an inbound header, generation by default); `RequestLogger`, `Recoverer`, and `Handle`'s
+  failure logs renamed to OpenTelemetry's semantic conventions, with `http.route` and
+  `request_id` added; `Timeout`, `Headers`, `Maybe`, `ContentType`, and `BodyLimit` complete the
+  hand-rolled catalog except path hygiene, deferred (see Retained).
+- **Integrated:** two regressions found and fixed within the same session, before release: a
+  miss-handling stage's fast path bypassed `ServeMux.ServeHTTP`, so a matched request's
+  `r.Pattern`/`r.PathValue` were silently never populated; `bodyError`'s reported byte limit
+  named `DecodeJSON`'s own limit rather than whichever `*http.MaxBytesError` actually fired.
+- **Integrated:** `doc.go`, `middleware/doc.go`, and `CHANGELOG.md` updated for the full session;
+  cut as `v0.8.0` (four breaking changes: the pre-existing matcher reshape,
+  `Readiness`/`RegisterHealth`'s parameter, and `WriteProblemWith`'s removal, plus this session's
+  `NewEnv` block parameter).
+- **Integrated:** `context/concepts/error-handling.md` decayed to its two remaining deferred
+  items; `context/concepts/middleware-sourcing.md` decayed to path hygiene plus the
+  still-relevant sourced-set catalog; `context/README.md`'s capability map updated.
+- **Retained:** `error-handling.md`'s writer inheritance and `statusError` precedence over the
+  matchers — unchanged, still waiting on a consumer to ask. `middleware-sourcing.md`'s path
+  hygiene — newly recorded deferred this session: `ServeMux` already redirects unclean paths and
+  handles trailing slashes, and the catalog's own condition for building it has not fired.
+- **Cross-repo:** `standards-lab/context/roadmap.toml` — deleted `goals.v1.web.tasks.adapter` and
+  `goals.v1.web.tasks.middleware`, both closed; `goals.v1.web` stays open, `migration` its only
+  remaining task.
+- **Cross-repo:** `standards-lab/context/design/observability-strategy.md` §3 — recorded that the
+  semantic-convention rename's scope widened past `RequestLogger` alone to `Recoverer` and
+  `Handle`, an architect decision made at this closeout.
 
 ## Next-focus
 
-`go-web-sdk`: finish `v1.web.tasks.adapter`'s remaining items (router 404/405 hooks, the
-`ErrorLog` bridge with `MaxHeaderBytes` and the swallowed-encoder-error decision, the per-block
-config env segment) together with `v1.web.tasks.middleware`'s hand-rolled remainder (the
-request-id source seam `WithIDSource` takes, the semconv field renames, and the rest of the
-hand-rolled catalog: timeout, content-type gate, body limit, fixed headers, conditional wrap,
-path hygiene). This is what `goals.v1.observability.tasks.library` needs before it can start.
-`v1.middleware` (the sourced set) and the rest of `v1.observability` wait behind it in `next`.
+`go-web-service`, `go-web-sdk-template`: `v1.web.tasks.migration` — the reference service's and
+the template's own matchers and readiness call sites still take the shapes `ProblemMatcher` and
+`Readiness` replaced; migrate them onto `go-web-sdk` v0.8.0. This closes `v1.web` in full. The
+architect chose this over starting `goals.v1.observability.tasks.library` (now unblocked as
+well) so the workspace's attention shifts fully to `v1.observability` once `v1.web` closes,
+rather than splitting it across two open goals.

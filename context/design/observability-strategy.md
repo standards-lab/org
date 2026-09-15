@@ -146,7 +146,10 @@ members and merges at the document's top level.
 `http.route` in place of the SDK's current `method`, `path`, `status`, `remote_addr` — so the
 observability layer reads them without a collector-side rename. `duration` has no semantic-convention
 log attribute (`http.server.request.duration` names a metric, not a log field) and stays the SDK's
-own.
+own. At `v1.web.tasks.middleware`'s close (2026-09-14) the architect widened this past
+`RequestLogger` alone: `middleware.Recoverer`'s panic record and `web.Handle`'s own failure
+records take the same rename, since otherwise a panic produced two records under two
+vocabularies for the one request.
 
 None of this needs `go-observability` to exist first: the source-function seam, the `Extras`
 placement, and the semconv field names are stdlib-only changes to `go-web-sdk`. `v1.web.tasks.middleware`
