@@ -158,42 +158,6 @@ problem story, and the middleware set — the stdlib handler signature staying t
 contract throughout.
 '''
 
-[goals.v1.web.tasks.adapter]
-name = "The adapter's remaining work"
-repos = ["go-web-sdk"]
-summary = '''
-The adapter core landed in go-web-sdk v0.6.0 (HandleErr, the error-returning HandlerFunc
-over a group-scoped ErrorWriter, IfMatch and DecodeJSON); the recorder exported as the shared
-wrapped writer, the request logger rewritten onto it, the Recoverer, and the ErrorWriter
-problem vocabulary (ProblemMatcher, Problem.Extras, the readiness type hook) followed. What
-remains is router 404/405 hooks, the ErrorLog bridge with MaxHeaderBytes and the swallowed
-encoder error, writer inheritance if a consumer asks, statusError's precedence over the
-matchers if a consumer asks, and the per-block config env segment. The item list is the linked
-note. The reference service's handlers already use HandleErr (domain/organization,
-admin/database); its own matchers and the readiness call sites still take the old shapes and
-migrate in a step of their own once this SDK releases.
-'''
-context = ["go-web-sdk/context/concepts/error-handling.md"]
-
-[goals.v1.web.tasks.middleware]
-name = "The hand-rolled middleware set"
-repos = ["go-web-sdk"]
-summary = '''
-The recoverer landed on the shared writer, its ordering with the request logger resolved. What
-remains is the rest of the hand-rolled set per the middleware catalog in the linked note
-(timeout, content-type gate, body limit, fixed headers, conditional wrap, path hygiene), plus
-the request ID — minted over stdlib with a pluggable source the composition root supplies — and
-the request logger's attribute names moved to OpenTelemetry's semantic conventions, so the
-observability layer reads them without a rename. The sourced set (CORS, real client IP,
-compression, rate limiting) is goals.v1.middleware, not this task. Required before
-goals.v1.auth.
-'''
-context = [
-  "go-web-sdk/context/concepts/middleware-sourcing.md",
-  "standards-lab/context/design/dependency-sourcing.md",
-  "standards-lab/context/design/observability-strategy.md",
-]
-
 [goals.v1.web.tasks.migration]
 name = "The reference service's migration onto the new problem vocabulary"
 repos = ["go-web-service", "go-web-sdk-template"]
