@@ -5,9 +5,11 @@
 # The v1 execution sequence, settled 2026-09-07: the workspace context brought into
 # alignment first, then the harness, then the integration standards in dependency order
 # (the auth strategy before any layer that builds to it), and the domains once the layers
-# they enhance exist. A goal cited late reads as what remains of it.
+# they enhance exist. A goal cited late reads as what remains of it. service-showcase jumps
+# the sequence, set 2026-09-15: the architect needs a way to brief colleagues and leadership
+# on the effort's progress, ahead of the next v1 layer.
 next = [
-  "v1.observability.tasks.instrumentation",
+  "backlog.service-showcase",
   "v1.middleware",
   "v1.storage",
   "v1.auth",
@@ -52,25 +54,6 @@ deviation projected and never a Go dependency of its own. Sequenced before the l
 follow so each instruments as it lands.
 '''
 context = ["standards-lab/context/design/observability-strategy.md"]
-
-[goals.v1.observability.tasks.instrumentation]
-name = "The service instrumented"
-repos = ["go-web-service", "go-web-sdk-template"]
-summary = '''
-The reference service wired to the library and proving it end to end: the observability
-configuration block, the composition root's telemetry layer file with the lifecycle stages
-shifted so telemetry starts before the database, the middleware chain with the tracing
-middleware outermost and the request-id source supplied there, the correlating log handler over
-go-core's, and the resource attributes — which needs a service name and version the service does
-not carry today. The integration tier asserts a trace id reaches both the log record and the
-problem document. The template takes the same composition-root reshape while staying
-provider-free.
-'''
-context = [
-  "standards-lab/context/design/observability-strategy.md",
-  "go-web-sdk/context/concepts/middleware-sourcing.md",
-  "go-web-service/context/concepts/service-log-destination.md",
-]
 
 [goals.v1.middleware]
 name = "The sourced middleware set"
@@ -309,6 +292,20 @@ changes it; sqlate's guide exists and is verified rather than written.
 context = ["standards-lab/context/design/architecture-layer.md"]
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
+
+[backlog.service-showcase]
+name = "Showing the running service off"
+repos = ["go-web-service"]
+summary = '''
+A way to hand someone a running composition and let them see what it does, scaling as more
+capability layers land: observability now, messaging and its reactor services later. Two
+directions weighed and not yet chosen between — a narrated demo script over curl/jq, or an
+OpenAPI spec with a mounted explorer UI — plus what showing off a signal with no API-request
+shape (a trace, a reactor picking up an event) even means. Its own planning session decides;
+not a v1 layer dependency, but the architect needs it soon to brief colleagues and leadership
+on the effort's progress.
+'''
+context = ["go-web-service/context/concepts/service-showcase.md"]
 
 [backlog.second-providers]
 name = "Second providers"
