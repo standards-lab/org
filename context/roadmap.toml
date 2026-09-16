@@ -10,7 +10,6 @@
 # progress, ahead of the next v1 layer — not itself a v1 layer, so its goal sits outside the
 # v1 tree and never gates v1.0.
 next = [
-  "slab.mechanism",
   "slab.surface",
   "v1.middleware",
   "v1.storage",
@@ -29,43 +28,31 @@ next = [
 [goals.slab]
 name = "The showcase CLI"
 summary = '''
-`slab`, a cobra-based CLI in its own `go-web-service/tools/slab` module: individually runnable
-scenarios that drive the real running composition (sqlate's compile pipeline in-process, the
-service's API and admin mount over HTTP, a long-running traffic generator for the observability
-stack) rather than one fixed tour. Not a v1 layer; the architect's own instrument for briefing
-colleagues and leadership on the workspace's progress, and a self-serve path in for anyone
-exploring it themselves.
+`slab`, a cobra-based CLI in its own `go-web-service/tools/slab` module: narrated scenarios that
+drive the real running composition for briefing and exploration (sqlate's compile pipeline
+in-process, the organization domain's full CRUD, the service's RFC 9457 problem-response
+contract), and direct subcommands mapping the service's own domains (`admin`, `org`) for
+scripting against the running service without curl. Not a v1 layer; the architect's own
+instrument for briefing colleagues and leadership on the workspace's progress, and a self-serve
+path in for anyone exploring it themselves.
 '''
-context = ["go-web-service/context/concepts/service-showcase.md"]
-
-[goals.slab.tasks.mechanism]
-name = "Prove the mechanism"
-repos = ["go-web-service"]
-summary = '''
-Stand up tools/slab as its own cobra-based module and prove the step/observation-channel
-mechanism across all three novel shapes: sqlate's compile pipeline (demo sqlate, a library
-import, no database), the organization domain's full CRUD reseeded from a known fixture each run
-(demo domain, the observability side-channel on create), and the traffic generator (a
-long-running background action, remaining). Settled, as part of the build: no sqlate export —
-slab narrates from its already-public surface. demo domain folds what task surface split off for
-organization CRUD, so surface narrows to the admin walk alone.
-'''
-proof = '''
-slab list shows the registered scenarios; each runs against the real running stack and produces
-the signal it claims — compiled SQL, the organization domain's full CRUD reseeded each run with
-a trace pointer on create, sustained Tempo/Loki/Mimir traffic.
-'''
-context = ["go-web-service/context/concepts/service-showcase.md"]
+context = ["go-web-service/context/design/slab-conventions.md"]
 
 [goals.slab.tasks.surface]
-name = "Extend to the admin walk"
+name = "Scriptable domain subcommands"
 repos = ["go-web-service"]
 summary = '''
-Extend slab to the admin /admin/database migrate/verify/seed/state walk — the one piece of the
-original full-surface scope task mechanism's demo domain scenario does not already cover.
+Map the service's public domains to direct slab subcommands (admin, org) that invoke the real
+running service's endpoints scriptably, replacing ad-hoc curl for interacting with it by hand.
+Distinct from the narrated demo scenarios: a subcommand runs one real call and returns its
+result, not a tour. Worth considering as the domain surface grows: a codegen helper that
+scaffolds a new command subcommand.
 '''
-proof = "slab covers the admin mount's four state operations."
-context = ["go-web-service/context/concepts/service-showcase.md"]
+proof = '''
+slab has an admin subcommand covering the admin mount and an org subcommand covering the
+organization domain's API, each callable against the running service in place of curl.
+'''
+context = ["go-web-service/context/design/slab-conventions.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
