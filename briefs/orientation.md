@@ -86,25 +86,22 @@ production service reasonably encounters complete in one running composition. Ea
 proven end to end, and what it teaches feeds the SDKs, the infrastructure libraries, the
 template that future services start from, and the underlying principles that shape the
 architecture and standard. Solve a layer holistically once and it becomes a repeatable blueprint
-that does not need to be solved again. The layers on the way there, in the roadmap's current
-order: the web handler contract, observability, object storage, auth and access control, the
-management listener, messaging, data composition and CQRS, AI, an embedded client, and
-deployment.
+that does not need to be solved again.
 
-The first boundary settled was the data layer's: SQL and the Go that executes it. SQL alone
-lacks developer-ergonomic expressiveness for dynamic composition — a template block, or a
-condition rendered only when its filter is provided. That layer adds the expressiveness through
-thin mechanisms in a Go library while keeping the SQL itself as native as possible. Authored SQL
-files are the source of truth: accessible to DBAs, and retaining the language's full flexibility
-for composing reusable query infrastructure. No strings buried in Go code; no SQL hobbled by an
-ORM. It ships as `sqlate`, with the reference service rewritten onto it. My current focus is
-bringing the workspace's written context into line with what that work produced before the
-next layers build on it.
+The remaining layers, in the roadmap's current order:
+- external middleware integrations
+- object storage
+- messaging / events
+- AI / agentic workflow integration
+- data composition and CQRS
+- auth and access control
+- private administrator listener
+- client architecture
+- deployment
 
-That is one layer of many, and it sets the honest framing for the whole: this is a
-comprehensive review of how we can optimize the way we build production software, worked out in
-running code toward the vision laid out above. It does not have all the answers yet. The point
-is taking the time to find enough of the right conventions to build effectively; it is coming
+This is a comprehensive review of how we can optimize the way we build production software, worked
+out in running code toward the vision laid out above. It does not have all the answers yet. The
+point is taking the time to find enough of the right conventions to build effectively; it is coming
 together well, and dialing it in takes time.
 
 ## Explore it yourself
@@ -118,7 +115,7 @@ together well, and dialing it in takes time.
     architecture's principles, which every standard enhances and never loosens.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace codifying the organization's development processes: the `marathon` workflow and
-  its `marathon-roadmap` extension.
+  its `marathon-roadmap` and `marathon-architecture` extensions.
 - [Go Elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md)
   — the Go implementation of the Elemental Architecture on the standard library, the
   organization's first standard.
@@ -126,12 +123,19 @@ together well, and dialing it in takes time.
     configuration, the process lifecycle, and the logger.
   - [`go-database`](https://github.com/standards-lab/go-database) — the SQL infrastructure
     library, with the PostgreSQL provider as a sub-module.
+  - [`go-observability`](https://github.com/standards-lab/go-observability) — the observability
+    infrastructure library: process telemetry, a trace-correlating log handler, and HTTP
+    instrumentation, with the OTLP exporters as a sub-module.
   - [`go-web-sdk`](https://github.com/standards-lab/go-web-sdk) — the Application SDK for web
     services.
   - [`go-web-sdk-template`](https://github.com/standards-lab/go-web-sdk-template) — scaffolds
     an initial Go Elemental web service with `gonew`.
   - [`go-web-service`](https://github.com/standards-lab/go-web-service) — the holistic
     reference web service, grown in documented layers; versionless until its 1.0.
+    - [`slab`](https://github.com/standards-lab/go-web-service/tree/main/tools/slab) — the
+      service's own demonstration and briefing tool: narrated scenarios and direct commands over
+      its routes. Its `demo sqlate` scenario runs standalone; everything else needs the full
+      compose stack running.
 - [`sqlate`](https://github.com/standards-lab/sqlate) — the SQL templating library: authored
   `.sql` files made dynamic and composable, with its own guide. A standalone library adjacent
   to Go Elemental, which its libraries consume.

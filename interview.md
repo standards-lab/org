@@ -35,7 +35,9 @@ follows its conventions:
 - The workflow is itself a product of this organization:
   [marathon](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon) and its
   [marathon-roadmap](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon-roadmap)
-  extension.
+  and
+  [marathon-architecture](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon-architecture)
+  extensions.
 
 ## Organization
 
@@ -55,6 +57,9 @@ standard:
   process lifecycle, and the logger.
 - [go-database](https://github.com/standards-lab/go-database) — the SQL infrastructure library,
   with the PostgreSQL provider as a sub-module.
+- [go-observability](https://github.com/standards-lab/go-observability) — the observability
+  infrastructure library: process telemetry, a trace-correlating log handler, and HTTP
+  instrumentation, with the OTLP exporters as a sub-module.
 - [go-web-sdk](https://github.com/standards-lab/go-web-sdk) — the Application SDK for web
   services.
 - [go-web-sdk-template](https://github.com/standards-lab/go-web-sdk-template) — scaffolds an
