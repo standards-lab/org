@@ -4,9 +4,10 @@ The strategy for authentication and authorization across the reference architect
 OpenID Connect with Keycloak as the declared provider, a relationship-derived authorization model
 evaluated as SQL inside each service's own database, the subject and identity carrier every domain
 method builds against, and the rule that lets services compose across a runtime boundary without a
-shared authorization store. It is the counterpart of `design/dsl-driven-services.md`: every capability
-goal beneath `goals.v1.auth` and every domain past this point builds to the contract this record states;
-the build of go-auth itself is `goals.v1.auth`'s remainder.
+shared authorization store. It is the counterpart of `design/dsl-driven-services.md`: every domain built
+after go-auth lands builds to the contract this record states directly; a domain built ahead of it in
+the roadmap sequence (`standards-lab/context/roadmap.toml`) adopts the contract in a sweep task of its
+own once go-auth ships. The build of go-auth itself is `goals.v1.auth`'s remainder.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and the shape
 of the result. Implementation detail lives elsewhere: go-auth's own `doc.go`, README, and CHANGELOG for
