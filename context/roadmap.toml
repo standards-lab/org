@@ -2,22 +2,26 @@
 # Maintained by the marathon-roadmap extension; the format is the plugin's
 # references/manifest.md.
 
-# The v1 execution sequence, settled 2026-09-07: the workspace context brought into
-# alignment first, then the harness, then the integration standards in dependency order
-# (the auth strategy before any layer that builds to it), and the domains once the layers
-# they enhance exist. A goal cited late reads as what remains of it. slab jumps the sequence,
-# set 2026-09-15: the architect needs a way to brief colleagues and leadership on the effort's
-# progress, ahead of the next v1 layer — not itself a v1 layer, so its goal sits outside the
-# v1 tree and never gates v1.0.
+# The v1 execution sequence, settled 2026-09-07, resequenced 2026-09-16: the workspace context
+# brought into alignment first, then the harness, then the infrastructure libraries — storage,
+# messaging (the event/reactor infrastructure the domains and the admin listener build against),
+# and AI — proven out before auth complicates the composition root. The data layer follows,
+# ahead of auth by design: the architect wants to see how the domain layer scales before auth
+# constrains it, and each domain adopts the auth contract in a sweep task of its own once
+# go-auth lands (`design/auth-strategy.md`). Auth and its consumer, the admin listener, close
+# the integration standards; the client and deployment layers finish v1. A goal cited late reads
+# as what remains of it. slab jumps the sequence, set 2026-09-15: the architect needs a way to
+# brief colleagues and leadership on the effort's progress, ahead of the next v1 layer — not
+# itself a v1 layer, so its goal sits outside the v1 tree and never gates v1.0.
 next = [
   "slab.surface",
   "v1.middleware",
   "v1.storage",
+  "v1.messaging",
+  "v1.ai",
+  "v1.data",
   "v1.auth",
   "v1.admin-listener",
-  "v1.messaging",
-  "v1.data",
-  "v1.ai",
   "v1.client",
   "v1.deployment",
   "v1.repository-docs",
@@ -160,10 +164,12 @@ name = "Data composition and CQRS"
 summary = '''
 A composed data model over plain SQL and a CQRS-oriented interface, spanning go-database,
 go-web-sdk, and the service's domain packages. The organization domain runs on authored SQL;
-the remaining domains build once the integration standards they enhance exist: the auth
-strategy's contract, the web SDK's handler contract, observability, and messaging's event and
-reactor infrastructure. The domain design direction — the four domains, their invariants, and
-the CQRS contract — lives in the linked note.
+the remaining domains build once the integration standards they enhance exist: the web SDK's
+handler contract, observability, and messaging's event and reactor infrastructure. Sequenced
+ahead of auth by design, to prove out how the domain layer scales before auth constrains it;
+each domain adopts the auth contract (`design/auth-strategy.md`) in a sweep task of its own once
+go-auth lands. The domain design direction — the four domains, their invariants, and the CQRS
+contract — lives in the linked note.
 '''
 context = ["go-web-service/context/concepts/data-layer.md"]
 
