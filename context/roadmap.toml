@@ -10,14 +10,10 @@
 # constrains it, and each domain adopts the auth contract in a sweep task of its own once
 # go-auth lands (`design/auth-strategy.md`). Auth and its consumer, the admin listener, close
 # the integration standards; the client and deployment layers finish v1. A goal cited late reads
-# as what remains of it. slab jumps the sequence, set 2026-09-15: the architect needs a way to
-# brief colleagues and leadership on the effort's progress, ahead of the next v1 layer — not
-# itself a v1 layer, so its goal sits outside the v1 tree and never gates v1.0. slab.styling
-# continues the jump, set 2026-09-17 at slab.surface's close: a styling system for the CLI's
-# output surfaced real design work the surface task didn't anticipate, so it's next rather than
-# backlog.
+# as what remains of it. slab jumped the sequence twice, 2026-09-15 and 2026-09-17 (a way to
+# brief colleagues and leadership on the effort's progress, then a styling system its surface
+# task surfaced but didn't anticipate); both tasks are closed, so v1 resumes at the head.
 next = [
-  "slab.styling",
   "v1.middleware",
   "v1.storage",
   "v1.messaging",
@@ -42,26 +38,6 @@ contract), and direct subcommands mapping the service's own domains (`admin`, `o
 scripting against the running service without curl. Not a v1 layer; the architect's own
 instrument for briefing colleagues and leadership on the workspace's progress, and a self-serve
 path in for anyone exploring it themselves.
-'''
-context = ["go-web-service/context/design/slab-conventions.md"]
-
-[goals.slab.tasks.styling]
-name = "A styling system for slab's output"
-repos = ["go-web-service", "go-web-sdk"]
-summary = '''
-A style-system API that scales slab's output styling holistically, discovered while closing the
-surface task: org and admin's direct commands print plain, uncolored JSON, while demo's narrated
-scenarios already color theirs through scenario/style.go's ColorEnabled and jsonColor. Extract
-those into a shared root-level package both scenario and output draw on, rather than duplicating
-the mechanism, so every command reads the same way whether narrated or direct; meant to stand as
-a conventional reference for how a Go Elemental CLI styles its output, not just slab's own fix.
-Bundled with a go-web-sdk change the same work surfaced: web.Problem does not implement error, so
-slab's output package wraps it in its own ProblemError; implementing error on web.Problem
-directly lets that wrapper be removed.
-'''
-proof = '''
-slab's direct commands and its narrated scenarios share one styling mechanism, colored JSON
-included; web.Problem implements error; output.ProblemError is gone from the slab module.
 '''
 context = ["go-web-service/context/design/slab-conventions.md"]
 
