@@ -48,6 +48,10 @@ standard = "go-elemental"
 remote = "https://github.com/standards-lab/go-observability.git"
 standard = "go-elemental"
 
+[repos.go-storage]
+remote = "https://github.com/standards-lab/go-storage.git"
+standard = "go-elemental"
+
 [repos.go-web-sdk]
 remote = "https://github.com/standards-lab/go-web-sdk.git"
 standard = "go-elemental"

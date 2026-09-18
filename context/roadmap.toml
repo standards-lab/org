@@ -19,10 +19,9 @@
 # needs a virtual-directory metadata library, blobfs, significant and reusable enough to build
 # as its own repository rather than a task under this goal — not a v1 layer, the same standing
 # slab and sqlate have, so its tasks interleave directly in `next` rather than sitting under
-# `goals.v1`: library and azureblob don't depend on it and run first; blobfs's own three tasks
-# follow in full; service and suite close v1.storage once blobfs is built.
+# `goals.v1`: azureblob doesn't depend on it and runs first (the library task closed 2026-09-18);
+# blobfs's own three tasks follow in full; service and suite close v1.storage once blobfs is built.
 next = [
-  "v1.storage.library",
   "v1.storage.azureblob",
   "blobfs.design",
   "blobfs.experiment",
@@ -159,18 +158,6 @@ on blobfs's virtual-directory metadata layer once that goal lands.
 '''
 context = ["standards-lab/context/design/storage-strategy.md"]
 
-[goals.v1.storage.tasks.library]
-name = "The go-storage base module"
-repos = ["go-storage"]
-summary = '''
-The repository and its base module: the Config block on go-core's Merge-and-Finalize contract,
-the Store lifecycle wrapper with its readiness probe and size bound, the standard-tier Client
-interface over the five common operations, the Capabilities provider-constraints type, and the
-error sentinels a provider classifies into. Standard library and go-core alone; the unit tier
-proves it over an in-memory fake.
-'''
-context = ["standards-lab/context/design/storage-strategy.md"]
-
 [goals.v1.storage.tasks.azureblob]
 name = "The Azure Blob provider and the admin half"
 repos = ["go-storage"]
@@ -178,8 +165,17 @@ summary = '''
 The azureblob sub-module over the Azure SDK's azblob package: the adapter beneath the standard
 interface, the error classification normalizing absence and delete idempotency, Capabilities'
 key-constraint values, and shared-key credentials with managed identity deferred to the
-deployment goal. The admin package beside it carries EnsureContainer and Diagnostics.
-Coordinated base and provider releases close the task.
+deployment goal. The admin package beside it carries EnsureContainer and Diagnostics; whether
+admin is a base package over an interface the provider implements, as go-database's admin is, or
+a nested module is open, because EnsureContainer is provider-specific and the base module never
+imports a provider's SDK. The base module is unreleased: it releases first, the provider pins it,
+and the coordinated releases close the task, after which the architecture repository's member
+table gains a go-storage row and references.md's go-storage entry moves from in progress to
+released. The go-storage base is built and validated (go-storage/context/README.md carries two
+cautions for the adapter: a provider that trusts PutOptions.Size truncates a longer body
+silently, and a bounded Put body arrives non-seekable). This task also publishes the in-memory
+fake as a storagetest package with a conformance suite for Client implementations, since the
+provider's tests are the second test package that needs it.
 '''
 context = ["standards-lab/context/design/storage-strategy.md"]
 
