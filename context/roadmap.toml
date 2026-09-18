@@ -81,14 +81,35 @@ CORS, real client IP, compression, and rate limiting, split out of v1.web.tasks.
 (2026-09-14) so their adoption gets its own planning session rather than riding the hand-rolled
 work. The convention is settled — each is imported as a declared dependency, not copied into
 the tree (dependency-sourcing.md) — but the concrete adoption for each is not: versions, real-IP's trusted-proxy configuration, and each library's own entry in
-go-web-sdk's dependency-line statement. CORS's one recorded trigger is goals.v1.client; the
-other three have none recorded, so this goal's own planning session decides what, if anything,
-starts before then.
+go-web-sdk's dependency-line statement. CORS's one recorded trigger is goals.v1.client; real
+client IP and compression have none recorded and wait for one — neither has a live consumer yet
+(2026-09-18: real-IP's only other use, keying rate limiting, is covered for now by
+httprate's RemoteAddr default; compression has no large-response case until more of the data
+layer lands). Rate limiting had neither a trigger nor that dependency, so its planning session
+(2026-09-18) started it now, as this goal's first task.
 '''
 context = [
   "go-web-sdk/context/concepts/middleware-sourcing.md",
   "standards-lab/context/design/dependency-sourcing.md",
 ]
+
+[goals.v1.middleware.tasks.rate-limiting]
+name = "Rate limiting"
+repos = ["go-web-sdk", "go-web-service"]
+summary = '''
+Adopt `golang.org/x/time/rate` for the bucket and `github.com/go-chi/httprate` for per-key HTTP
+wrapping, as a `web.Middleware` in `go-web-sdk/middleware` — transport-generic, no infrastructure
+import, the same placement as the SDK's existing middleware. Key by `RemoteAddr`, httprate's
+default, since real client IP is not landing yet and keying on a forwarded header now would trust
+an attacker-controlled value; the key source moves to that middleware's output once it lands
+(the decision and its reasoning are in middleware-sourcing.md, not built here). Limit, window,
+and burst are configurable through go-web-sdk's per-block Config pattern; go-web-service wires the
+middleware in internal/app/middleware.go. Rate limiting is the first sourced middleware to land,
+so the build also states go-web-sdk's admitted sourcing categories beside its dependency-line
+principle in the README.
+'''
+proof = "Rate limiting live in go-web-service: a client over the configured limit gets 429 with Retry-After, pinned versions in both go.mod files."
+context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
 
 [goals.v1.storage]
 name = "Object storage"
@@ -348,3 +369,38 @@ a dialect rather than declared by tier); the concept is reframed in the docs pas
 v1 dependency.
 '''
 context = ["docs/context/concepts/sql-meta-language.md"]
+
+[backlog.real-client-ip]
+name = "Real client IP"
+summary = '''
+Already part of v1.middleware's recorded sourced set (chi/v5/middleware.RealIP's shape,
+reimplemented against a configured trusted-proxy list — middleware-sourcing.md), parked here
+rather than scheduled because nothing needs it yet: RemoteAddr already serves its only two live
+consumers, RequestLogger/Recoverer's client.address field and rate limiting's key. Becomes a task
+under goals.v1.middleware.tasks once a reverse proxy sits in front of the service (the deployment
+goal) or a consumer other than logging needs a trustworthy client identity — geo-blocking,
+per-client abuse detection, an IP-keyed audit trail.
+'''
+context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
+
+[backlog.compression]
+name = "Compression"
+summary = '''
+Already part of v1.middleware's recorded sourced set (github.com/klauspost/compress/gzhttp —
+middleware-sourcing.md), parked here because no response is large enough yet to pay for the
+wrapping and content negotiation. Becomes a task under goals.v1.middleware.tasks once a
+large-payload endpoint lands — the data layer's paginated lists once domains beyond organization
+exist, or a bulk admin export.
+'''
+context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
+
+[backlog.response-caching]
+name = "Response caching"
+summary = '''
+HTTP response caching, raised alongside rate limiting but not part of the recorded sourced
+middleware set (middleware-sourcing.md) or the declared stack (go-web-service's stack.md). Redis
+was the candidate provider; adopting it would be a new stack decision and most likely its own
+infrastructure library, the way storage, messaging, and AI are, rather than an SDK-level
+middleware. Split out of v1.middleware (2026-09-18) so caching gets its own planning session —
+including whether it belongs in v1 at all — before any adoption.
+'''
