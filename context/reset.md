@@ -1,54 +1,60 @@
-# reset · v1-storage-library
+# reset · v1-storage-azureblob
 
 - **Status:** closeout
 - **Session:** start
-- **Project:** go-storage, standards-lab
-- **Branch:** v1-storage-library
+- **Project:** go-storage, architecture, standards-lab
+- **Branch:** v1-storage-azureblob
 
 ## Disposition
 
-- **Authored:** the `go-storage` repository, created public under `standards-lab` and founded
-  with the scaffold on `main` (`e0010b8`), then its base module on `v1-storage-library`: the
-  error sentinels and the `Client` interface with `Capabilities` and `GetOptions`; `Config` on
-  go-core's Merge-and-Finalize contract, pinned to go-core v0.4.1; the in-memory fake, kept in
-  `fake_test.go`; `Store`; `doc.go`; and the README, changelog, and `context/README.md`.
-  Validated: the mise build, vet, test, lint, and tidy tasks pass, coverage is 97.7%, and a
-  scratch program drove `Store` through its full lifecycle over the fake.
-- **Integrated:** `design/storage-strategy.md` §2 and §7 now record what the code settled.
-  `Client` carries `Capabilities()`, `GetOptions` is defined and empty, `Ready` is a live probe,
-  `Shutdown` closes the provider once, and the size bound reads every `Put` body through a reader
-  that fails past the bound. `MaxObjectSize` and `ListPageSize` are plain values where 0 is unset,
-  `RequestTimeout` is the one default and bounds only the probes, and §7 records the four
-  rejected alternatives. The record stays, because `azureblob` still builds to it.
-- **Promoted:** nothing. No note generalized past this workspace; the no-policy-numbers and
-  readiness rules are already in the architecture repository.
-- **Retained:** the record's `go-storage/admin` entry, which names the package without saying
-  whether it is a base package or a nested module. The next session settles it.
-- **Cross-repo:** `.claude/marathon.toml` gained `go-storage` in the order map, and
-  `references.toml` and `references.md` gained its entry, marked in progress. `roadmap.toml`
-  lost `goals.v1.storage.tasks.library` and its `next` entry, and the `azureblob` summary gained
-  the deferred items. `references.local.toml` and the workspace container's `README.md` were
-  edited in place and are not versioned; the README also gained the stale `go-observability`
-  entry. On GitHub, `go-storage` was created with `delete_branch_on_merge` on and merge commits
-  only, matching its siblings, and `go-observability`'s `delete_branch_on_merge` was set to
-  `true` after it was found `false`.
-- **Corrected:** the prior reset file guessed that a `[workspace.paths]` entry might be needed.
-  The order key resolves to the sibling checkout, so none was.
+- **Authored:** the `azureblob` sub-module, the `storagetest` package, and an all-or-nothing `Put`
+  contract in `go-storage`, then both first releases. PR #2 merged as `a44c55e`. `go-storage`
+  `v0.1.0` and `azureblob/v0.1.0` were tagged from `main` at `78363ac` and `b506432`, and both
+  release workflows succeeded. `Client` gained `EnsureContainer`, and `Store.Start` now ensures
+  the container before it probes. `Store` also gained `EnsureContainer` and `Container`, and
+  enforces a declared `PutOptions.Size` on the body. `Object.ETag` is an HTTP entity tag on every
+  call. `azureblob` uses `azblob` v1.8.1. Validated: build, vet, test, tidy, and lint pass across
+  both modules; the conformance suite passes against Azurite started with
+  `--skipApiVersionCheck`, including the mid-body failure and `Size` mismatch cases; and a
+  scratch module outside the workspace pulled both tags from the proxy and drove a `Store` over
+  `azureblob` through the full lifecycle.
+- **Integrated:** `design/storage-strategy.md` now records what the build settled. §2 carries
+  `EnsureContainer`, the `Start` behavior, the atomic `Put` contract, and the entity-tag form. §4
+  drops the `go-storage/admin` package and states that the admin domain is
+  `go-web-service/admin/storage`. §6 states the object write is atomic. §7 reverses the rejection
+  of `Start` creating the container and adds two rejected alternatives, a base `admin` package
+  and a `Provisioner` interface. A new Assumptions section names three unverified claims. The
+  record stays, because `blobfs` and the storage service build to it. In `go-storage`,
+  `context/README.md` lost the two adapter cautions and the "waits for `azureblob`" sentence,
+  which the contract, the suite, and the package now express.
+- **Promoted:** nothing. The all-or-nothing `Put` contract and the provider conformance suite were
+  designed this session, and a contract waits for a second exerciser before it leaves its
+  repository.
+- **Culled:** nothing.
+- **Retained:** the atomic-write contract and the conformance-suite convention, in
+  `design/storage-strategy.md` §2 and `go-storage`'s package documentation, until an S3 provider
+  or another library's providers exercise them.
+- **Corrected:** three claims in the notes and the plan proved wrong. The strategy record's
+  short-graph claim for `azblob` was wrong for v1.8.1, which brings the Arrow packages; the record
+  now leaves the SDK's indirect dependencies to the SDK. The plan's note that Azurite leaves ETags
+  unquoted was wrong: the service quotes them in headers and leaves them unquoted only in a
+  listing's XML, as Azure does. The plan's premise that `release.yml` handled only `v*` tags was
+  wrong, since it already handles `**/v*`.
+- **Cross-repo:** in `architecture`, the `go-storage` row joined the Go Elemental member table
+  and the paragraph of libraries still to be created dropped storage (branch
+  `v1-storage-azureblob`). In `standards-lab`, `references.md` moved `go-storage` from in progress
+  to released, `concepts/blobfs.md` now says `go-storage` and `azureblob` are built, and
+  `concepts/admin-listener.md` gained a posture question on provisioning in the serving role.
+  `roadmap.toml` lost `goals.v1.storage.tasks.azureblob` and its `next` entry. The `v1.storage`
+  summary now states what remains, and `v1.storage.service` gained the
+  `go-web-service/admin/storage` domain and the `--skipApiVersionCheck` requirement for its
+  Azurite compose service.
 
 ## Next-focus
 
-`v1.storage.azureblob`, in `go-storage`: the `azureblob` sub-module over the Azure SDK's `azblob`
-package, and the `admin` half. Its SETTLE has three things to resolve before the stage list:
-
-- Whether `admin` is a base package over an interface the provider implements, as
-  `go-database`'s `admin` is, or a nested module. `EnsureContainer` is provider-specific and the
-  base module never imports a provider's SDK.
-- Release ordering. The base is unreleased, so it tags `v0.1.0` first, the provider pins it, and
-  the coordinated releases close the task.
-- The two adapter cautions in `go-storage/context/README.md`: a provider that trusts
-  `PutOptions.Size` truncates a longer body silently, and a bounded `Put` body arrives
-  non-seekable.
-
-The task also publishes the fake as a `storagetest` package with a conformance suite, adds the
-`architecture` repository's member-table row, and moves `references.md`'s `go-storage` entry
-from in progress to released.
+`blobfs.design`, in `standards-lab`: a `plan` session that settles what
+`context/concepts/blobfs.md` left open. It weighs how a consuming service's read models join
+against library-owned schema, how `blobfs` ships its schema and migrations for a consumer to
+adopt, whether it needs its own engine sub-module or authors portable SQL through the consumer's
+`sqlate` instance, and its final module path and taxonomy placement. It changes no code.
+`blobfs.experiment` and `blobfs.build` follow, then `v1.storage.service` and `v1.storage.suite`.
