@@ -95,21 +95,25 @@ context = [
 
 [goals.v1.middleware.tasks.rate-limiting]
 name = "Rate limiting"
-repos = ["go-web-sdk", "go-web-service"]
+repos = ["architecture", "standards-lab", "go-web-sdk", "go-web-service"]
 summary = '''
-Adopt `golang.org/x/time/rate` for the bucket and `github.com/go-chi/httprate` for per-key HTTP
-wrapping, as a `web.Middleware` in `go-web-sdk/middleware` — transport-generic, no infrastructure
-import, the same placement as the SDK's existing middleware. Key by `RemoteAddr`, httprate's
-default, since real client IP is not landing yet and keying on a forwarded header now would trust
-an attacker-controlled value; the key source moves to that middleware's output once it lands
-(the decision and its reasoning are in middleware-sourcing.md, not built here). Limit, window,
-and burst are configurable through go-web-sdk's per-block Config pattern; go-web-service wires the
-middleware in internal/app/middleware.go. Rate limiting is the first sourced middleware to land,
-so the build also states go-web-sdk's admitted sourcing categories beside its dependency-line
-principle in the README.
+Adopt `github.com/go-chi/httprate` for per-key HTTP rate limiting, in its own capability
+sub-module at `go-web-sdk/middleware/rate-limit` — isolated so its dependency graph is compiled
+only by a consumer that takes the capability. Key by the request's `RemoteAddr` through a key
+function the middleware supplies; the key source moves to real client IP's output once that
+middleware lands (the decision and its reasoning are in middleware-sourcing.md, not built here).
+Requests and window are configurable through go-web-sdk's per-block Config pattern.
+go-web-service takes the sub-module as an explicit dependency and wires it in
+internal/app/middleware.go. Rate limiting is the first sourced middleware to land, so the build
+also states go-web-sdk's admitted sourcing category beside its dependency-line principle in the
+README, and extends the Go Elemental standard's topology and dependency-line principles to admit
+a capability sub-module for an application SDK.
 '''
-proof = "Rate limiting live in go-web-service: a client over the configured limit gets 429 with Retry-After, pinned versions in both go.mod files."
-context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
+proof = "Rate limiting live in go-web-service: a client over the configured limit gets 429 with Retry-After; go-web-sdk/middleware/rate-limit and go-web-service pinned at tagged releases."
+context = [
+  "go-web-sdk/context/concepts/middleware-sourcing.md",
+  "standards-lab/context/design/dependency-sourcing.md",
+]
 
 [goals.v1.storage]
 name = "Object storage"
