@@ -27,7 +27,8 @@ The Go implementation of the Elemental Architecture, the organization's first st
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-observability`, `go-web-sdk`, and `go-web-sdk-template`
-(released); and `go-web-service`, the reference web service (versionless until its 1.0).
+(released); `go-storage`, the object storage infrastructure library (in progress); and
+`go-web-service`, the reference web service (versionless until its 1.0).
 `dotnet-elemental` is anticipated as its derived standard
 (`derives = "go-elemental"`).
 
@@ -75,6 +76,13 @@ middleware, and the request-ID source function, with the OTLP exporters as the `
 sub-module. Its README lists the packages. Released, base and `otlp` sub-module tagged
 independently; the base depends on the standard library, `go-core`, and the stable v1
 OpenTelemetry API and SDK, plus `otelhttp` as a stated v0 exception.
+
+### go-storage
+The object storage infrastructure library of the `go-elemental` standard: the standard-tier
+`Client` interface over the operations Azure Blob and S3 share, the `Store` lifecycle wrapper,
+the provider key constraints, and the error sentinels, with each provider a sub-module of its
+own. Its README lists the packages. In progress; the base depends on the standard library and
+`go-core` alone.
 
 ### go-web-sdk
 The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service

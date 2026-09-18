@@ -25,6 +25,7 @@ order = [
     "go-database",      # infrastructure service SDK
     "go-web-sdk",       # web service application SDK
     "go-observability", # observability infrastructure library
+    "go-storage",       # object storage infrastructure library
   ],
   "go-web-sdk-template", # web service application template
   "go-web-service", # reference web service
