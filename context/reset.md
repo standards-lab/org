@@ -1,32 +1,44 @@
-# reset · v1-middleware-rate-limiting
+# reset · v1-storage
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** architecture, standards-lab, go-web-sdk, go-web-service
-- **Branch:** v1-middleware-rate-limiting
+- **Session:** plan
+- **Project:** standards-lab
+- **Branch:** v1-storage
 
 ## Disposition
 
-- **Promoted:** `go-web-sdk/context/concepts/middleware-sourcing.md`'s placement reasoning →
-  `architecture/standards/go-elemental/principles/topology-and-naming.md` and `dependencies.md`:
-  an application SDK may isolate a sourced dependency in a capability sub-module under
-  `middleware/<concern>`, the same mechanism infrastructure libraries use for a provider, on a
-  different axis (dependency weight, not a swap). `standards-lab/context/design/dependency-sourcing.md`
-  gains the matching obligation, since it already owns the placement rule this generalizes.
-- **Integrated:** `go-web-sdk/context/concepts/middleware-sourcing.md` — the flat-package-only
-  placement rule and the dependency-line restatement are gone; `middleware/rate-limit` and
-  `README.md` now express them. The note keeps the sourced-set table, the keying rationale, and
-  the unfired triggers for real client IP and compression.
-- **Retained:** `standards-lab/context/roadmap.toml` — `backlog.real-client-ip`,
-  `backlog.compression`, and `backlog.response-caching`, still unbuilt, still waiting on a
-  trigger none of them has yet.
+- **Authored:** `standards-lab/context/design/storage-strategy.md` — the go-storage strategy
+  record: the standard-tier `Client` interface (five operations plus `Probe`, no conditional
+  writes, no object metadata beyond `ContentType`), `Capabilities` for provider key constraints,
+  the base-plus-`azureblob`-plus-`admin` module layout, the interchangeable-with-review swap
+  class with its three named review items, and the two-phase write (no transaction spans
+  Postgres and an object store). Settled through an `opus` escalation, then substantially
+  revised with the architect: the escalation's literal virtual-path key was rejected in favor of
+  an opaque UUID-prefixed key, for the same reason `auth-strategy.md` §10 already rejected a
+  materialized path for organization lineage — object stores have no atomic rename.
+- **Authored:** `standards-lab/context/concepts/blobfs.md` — the virtual-directory metadata
+  library the demonstration layer surfaced as needing, structured like `sqlate` rather than
+  staged inside `go-storage` or `go-web-service`. Concept tier: its SQL-consumption mechanism,
+  the cross-schema-join question, and its sub-module shape are explicitly left open for
+  `blobfs.design`.
+- **Integrated:** `standards-lab/context/design/testing-hierarchy.md` — corrected a claim that a
+  blob write and its database row sync "atomically"; no transaction spans Postgres and an object
+  store, and the text now names the two-phase write instead.
+- **Promoted:** `standards-lab/context/roadmap.toml` — `goals.v1.storage` gained four tasks
+  (`library`, `azureblob`, `service`, `suite`); a new `goals.blobfs` goal (tasks `design`,
+  `experiment`, `build`) was added outside the `v1` tree, the same standing `goals.slab` has;
+  `next` now interleaves both goals' tasks in dependency order in place of the two goal-level
+  entries: `v1.storage.library`, `.azureblob`, `blobfs.design`, `.experiment`, `.build`,
+  `v1.storage.service`, `.suite`.
+- **Retained:** `backlog.second-providers` — the storage counterpart (S3/minio) stays post-1.0,
+  unchanged this session.
 
 ## Next-focus
 
-A `plan` session for `v1.storage`: no task is scoped yet, and none of the goal's decisions are
-made — the standard tier (the minimal operation set common to Azure Blob and S3), the declared
-provider, and the service's demonstration layer. Start there.
+`v1.storage.library`: build go-storage's base module — `Config`, `Store`, the `Client`
+interface, `Capabilities`, and the error sentinels — proven on the unit tier over an in-memory
+fake. Depends on none of `blobfs`'s still-open questions, so it runs before that goal.
 
-`v1.middleware` moved to the end of the roadmap's `next` sequence: rate limiting is the only task
-it had, and it is closed; CORS, real client IP, and compression stay in the goal's summary,
-backlogged behind triggers that have not fired.
+The `go-storage` repository doesn't exist yet; the next session creates it (`marathon init`, a
+`code` project) before building, and the coordinator's `.claude/marathon.toml` `[workspace]
+order`/`paths` may need a new entry once it's checked out alongside its siblings.
