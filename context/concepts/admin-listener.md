@@ -96,6 +96,11 @@ Open in `design/dsl-driven-services.md` §9 and reassigned to this goal:
 - **DDL in the serving role.** Whether a process that serves traffic should hold DDL privileges,
   and whether the standard should mandate a separate migration role and a one-shot invocation of
   the same binary. The reference applies migrations at startup today.
+- **Provisioning in the serving role.** Whether a process that serves traffic should hold
+  permission to create its storage container. `go-storage`'s `Store.Start` ensures the container
+  exists, so today it does. An opt-out `Config` field is the additive answer if a least-privilege
+  deployment needs one, and `Store.EnsureContainer` is the operator-facing path if provisioning
+  moves out of `Start`.
 - **The listener's default.** Whether network isolation is sufficient, or the standard requires
   the listener to be off by default and enabled per environment. The exploration leans to the
   explicit switch, because isolation is a deployment property the service cannot verify.

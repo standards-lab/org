@@ -45,7 +45,7 @@ type Object struct {
     Key         string
     Size        int64
     ContentType string
-    ETag        string
+    ETag        string // an HTTP entity tag, the same string on every call
     ModifiedAt  time.Time
 }
 
@@ -57,7 +57,7 @@ type Blob struct {
 
 type PutOptions struct {
     ContentType string
-    Size        int64 // the body's length when known; 0 means unknown
+    Size        int64 // the body's length when known; 0 means unknown; when set it must match the body
 }
 
 // GetOptions is reserved for options on Get. It is empty on purpose: a byte
@@ -84,6 +84,7 @@ type Client interface {
     Stat(ctx context.Context, key string) (Object, error)
     Delete(ctx context.Context, key string) error
     List(ctx context.Context, opts ListOptions) (Page, error)
+    EnsureContainer(ctx context.Context) error
     Probe(ctx context.Context) error
     Capabilities() Capabilities
 }
@@ -104,9 +105,14 @@ already needs a SQL row regardless of authorization (`auth-strategy.md` §8), an
 metadata authority. Only `ContentType` stays, carried as an HTTP header with identical semantics
 on both target APIs.
 
-**`Probe` is not an object operation.** It answers whether the configured credential and
-container are reachable — Azure's `GetProperties` on the container, S3's `HeadBucket` — and
-exists for `Store`'s lifecycle wiring below, not for anything a consumer calls directly.
+**`Probe` and `EnsureContainer` are not object operations.** `Probe` answers whether the
+configured credential and container are reachable — Azure's `GetProperties` on the container,
+S3's `HeadBucket`. `EnsureContainer` creates the configured container and succeeds when it
+already exists — Azure's container `Create`, S3's `CreateBucket`, both of which report an
+existing container distinguishably. Both exist for `Store`'s lifecycle wiring below and for the
+admin domain, not for anything else a consumer calls. `EnsureContainer` is standard tier because
+provisioning is the first operation an empty backing store needs, and widening `Client` after a
+provider exists breaks that provider.
 
 `PutOptions.Size` is explicit because the two SDKs disagree about needing it: Azure's upload
 chunks an unknown-length reader without help, while the AWS SDK needs either a seekable body or a
@@ -114,21 +120,36 @@ known length to sign the request. Passing the request's `Content-Length` straigh
 it's known, and leaving it zero otherwise, keeps the common path free of buffering while letting
 a provider buffer only when it must.
 
+`Put` is all or nothing. On any error nothing is written at the key and an existing object is
+unchanged, and on success the object holds exactly the bytes the body yielded through EOF. A
+declared `Size` greater than 0 must equal the body's length, and a mismatch is an error that
+stores nothing. Azure's `Put Block List` and S3's `CompleteMultipartUpload` make an upload
+visible only at commit, so a provider over either can keep the contract, and the `storagetest`
+conformance suite proves that each does. `ETag` is an HTTP entity tag, so a service can send it
+as an `ETag` header, and `Put`, `Get`, `Stat`, and `List` report one string for one version of an
+object; Azure leaves the tag unquoted in a listing's XML, so the adapter quotes it.
+
 ### `Store`, the lifecycle wrapper
 
 ```go
 func New(c Client, cfg Config) *Store
-func (s *Store) Start(ctx context.Context) error   // Probe, then mark started
+func (s *Store) Start(ctx context.Context) error   // EnsureContainer, Probe, then mark started
 func (s *Store) Shutdown(ctx context.Context) error
 func (s *Store) Ready() bool
+func (s *Store) EnsureContainer(ctx context.Context) error
+func (s *Store) Container() string
 ```
 
 `Store` implements `Client` itself, delegating to the provider after a not-ready check and after
 enforcing `Config.MaxObjectSize` on a `Put` body. This differs from `database.DB`, which wraps
 the pool but runs no statements, because `sqlate` is `go-database`'s call surface and object
 storage has no equivalent above it — `Store` is the only call surface `go-storage` has. `Start`
-probes and fails startup on an unreachable container, matching `DB.Start`. `Ready` is a live
-probe bounded by `Config.RequestTimeout`, so readiness recovers after an outage; it satisfies
+ensures the container exists and then probes, both bounded by `Config.RequestTimeout`, and fails
+startup when the store is unreachable, matching `DB.Start`. The container is required
+configuration, so an empty store starts cleanly. `Store.EnsureContainer` repeats the step on
+demand, without a readiness check, so a container deleted while the process runs can be
+recovered; `Store.Container` names the configured container. `Ready` is a live probe bounded by
+`Config.RequestTimeout`, so readiness recovers after an outage; it satisfies
 `lifecycle.ReadinessChecker` structurally and registers at stage 0 beside the database.
 `Shutdown` closes the provider once when it implements `io.Closer`.
 
@@ -136,7 +157,12 @@ The size bound applies to every `Put` body. A declared `PutOptions.Size` over th
 rejected before the provider is called, and any other body is read through a reader that fails on
 the first byte past the bound, because a declared size is the caller's claim and the bound exists
 for untrusted bodies. `io.LimitedReader` cannot do this: it reports `io.EOF` at the limit, which
-makes an oversize body look like a complete short one.
+makes an oversize body look like a complete short one. A declared `Size` is enforced through a
+second reader that ends a short body in `io.ErrUnexpectedEOF` and fails a long one on the first
+byte past `Size`, so a mismatch reaches the provider as a read failure before it can commit. The
+bound is the inner reader, so a body past a `Size` equal to the bound still reports
+`ErrTooLarge`. `Store` cannot undo a commit, so beyond that check it relies on the provider's
+atomicity.
 
 ### `Capabilities`
 
@@ -200,16 +226,16 @@ type Config struct {
 provider's product vocabulary; the eventual S3 provider maps it to the bucket name and states so
 in its own `doc.go`. `Key` rides the secrets layer of `config.Load`, as the database password
 does. Credentials are shared-key at v1, which azurite supports directly; `azidentity` and managed
-identity are deferred to the deployment goal, keeping `azureblob`'s transitive graph to `azcore`
-and the `golang.org/x` modules it needs rather than pulling MSAL in for a capability nothing uses
-yet.
+identity are deferred to the deployment goal, keeping MSAL out of `azureblob`'s graph for a
+capability nothing uses yet.
 
-`MaxObjectSize` and `ListPageSize` have no default. `baseline-standards.md` says a library ships
-no policy numbers, so the application supplies both, and each is 0 when unset: unbounded for
+`MaxObjectSize` and `ListPageSize` have no default. `baseline-standards.md` says a library ships no
+policy numbers, so the application supplies both, and each is 0 when unset: unbounded for
 `MaxObjectSize`, the provider's own page size for `ListPageSize`. `RequestTimeout` is the one
-default, 10 seconds, because it bounds only the probes `Store` makes on its own behalf in `Start`
-and `Ready`. The object operations take their timeouts from the caller's context and the
-provider's transport. `Container` is the one required field.
+default, 10 seconds, because it bounds only the calls `Store` makes on its own behalf in `Start` and
+`Ready`; in `Start` it covers the container check and the probe together. The object operations take
+their timeouts from the caller's context and the provider's transport. `Container` is the one
+required field.
 
 ## 3. Standard versus native, and the port list
 
@@ -227,11 +253,10 @@ operational configuration for a chosen tool, not a native-tier artifact.
 ## 4. Module layout and the dependency line
 
 ```
-github.com/standards-lab/go-storage            base module, package storage
+github.com/standards-lab/go-storage            base module, packages storage and storagetest
     standard library + go-core
 github.com/standards-lab/go-storage/azureblob   provider sub-module, package azureblob
     + Azure SDK for Go's storage/azblob
-github.com/standards-lab/go-storage/admin       container provisioning and diagnostics
 ```
 
 `topology-and-naming.md` states the shape for every infrastructure library — one base module
@@ -242,25 +267,26 @@ target API, never the driver it wraps (`azblob`) or the platform alone (`azure`,
 the wrong name the day a second Azure storage API entered this repository).
 
 The Azure SDK clears `dependency-sourcing.md`'s markers: stdlib types at most of its boundary
-(`context.Context`, `io.Reader`/`io.ReadCloser`, with its own response structs the adapter
-absorbs), a short transitive graph on shared-key credentials (`azcore` and three `golang.org/x`
-modules, with `azidentity` excluded), maintenance by Microsoft as the API's own vendor, a stable
-major version since 2022 with a changelog that is mostly fixes, and correctness against an
-external specification — shared-key HMAC canonicalization and retry against server-side
-throttling — that a hand-rolled implementation would get wrong in the CORS-shaped way
+(`context.Context`, `io.Reader`/`io.ReadCloser`, with its own response structs the adapter absorbs),
+a transitive graph that stays inside the provider sub-module (shared-key credentials exclude
+`azidentity`, and the rest of the graph is the SDK's own to choose), maintenance by Microsoft as the
+API's own vendor, a stable major version since 2022 with a changelog that is mostly fixes, and
+correctness against an external specification — shared-key HMAC canonicalization and retry against
+server-side throttling — that a hand-rolled implementation would get wrong in the CORS-shaped way
 `dependency-sourcing.md` warns about.
 
-### `go-storage/admin`
+### Container provisioning and diagnostics
 
-Azurite starts with no container, and creating one is not an object operation, so it has no home
-on `Client`. `go-storage/admin` carries `EnsureContainer` and `Diagnostics`, with the consuming
-service mounting an `/admin/storage` HTTP half over them — the same split `go-database` already
-uses, where the library holds the admin service and "the HTTP half — the route group and
-handler — is application code." This keeps provisioning out of `Store.Start` (which only probes,
-never creates) and off the posture question `admin-listener.md` is still holding open about
-whether the serving role should hold provisioning authority, and it gives the harness the state
-control path `testing-hierarchy.md` already requires: "State control goes through the operator's
-surface; a case starts from a state it made."
+Azurite starts with no container, and creating one is not an object operation, so it lives on
+`Client` as `EnsureContainer` (§2). `Store.Start` calls it, so the required container exists
+before the store reports ready, and `Store.EnsureContainer` recovers one deleted while the
+process runs. There is no `go-storage/admin` package: the operations hold no policy, only a
+forwarded call and reads of `Ready`, `Capabilities`, and `Container`. The admin domain is
+`go-web-service/admin/storage`, a route group and its request and response types over `Store`,
+mounted into the `/admin` mount the way `admin/database` is. It gives the harness the state
+control path `testing-hierarchy.md` already requires: "State control goes through the
+operator's surface; a case starts from a state it made." Whether the serving role should hold
+permission to create the container is a posture question `admin-listener.md` holds.
 
 ## 5. Swap-cost class: interchangeable with review
 
@@ -292,8 +318,9 @@ No transaction spans Postgres and an object store, so nothing here can claim ato
 SQL write and an object write — `testing-hierarchy.md` previously described a worked example in
 those terms, and that phrasing is corrected alongside this record landing (§8).
 
-The owning SQL row is written first, in a `pending` status; the object is written second; a
-second transaction moves the row to `available`. Delete mirrors it: the row moves to `deleting`
+The owning SQL row is written first, in a `pending` status; the object is written second, and
+that write is atomic, so a failed write leaves no partial object; a second transaction moves the
+row to `available`. Delete mirrors it: the row moves to `deleting`
 and commits, the object is deleted, the row is removed. Writing the object first and inserting
 the row after was considered and rejected — a failed insert then leaves an object nothing
 references and nothing records, findable only by listing the entire container. A row written
@@ -328,12 +355,22 @@ needs, each verified present with matching semantics on both target APIs.
 `service-organization.md`'s co-evolution rule bounds the reference service at one provider per
 service.
 
-**`Store.Start` creating the azurite container**, or a one-shot compose init service doing it.
-Both considered against the admin-package approach in §4 and set aside — the former reopens the
-provisioning-authority question `admin-listener.md` is deliberately still holding open; the
-latter keeps provisioning out of both the library and the serving role at the cost of one more
-compose service with no operator-facing path, which `testing-hierarchy.md`'s harness rules
-already ask for.
+**A one-shot compose init service creating the azurite container**, in place of
+`Store.Start` doing it. Rejected: it keeps provisioning out of both the library and the serving
+role at the cost of one more compose service with no operator-facing path. The container is
+required configuration, and a process that exits before anything can create it is the worse
+failure, so `Start` ensures it (§2). The cost is that the serving credential needs permission to
+create the container. A least-privilege deployment would need an opt-out, which is an additive
+`Config` field and waits for a consumer that needs it.
+
+**A `go-storage/admin` package mirroring `go-database/admin`.** Rejected: `go-database`'s admin
+service owns policy and state (a seeder, a startup set, a lifecycle stage, a migration lock),
+while a storage admin service would forward one call and compose three reads, and
+`topology-and-naming.md` forbids splitting a package by topic alone.
+
+**A `Provisioner` optional interface for container creation.** Rejected on the reasoning above
+for `Capabilities`: a provider could skip it silently, and adding a method after a provider
+exists breaks that provider while adding it now breaks none.
 
 **Object-first writes.** Rejected in §6: the failure mode is an unreferenced object discoverable
 only by listing the whole container, worse than a queryable `pending` row.
@@ -357,7 +394,8 @@ breaking change for every provider, and with no provider built yet the change is
 
 **A `ProbeTimeout` field, or one client timeout covering every operation.** Rejected: one timeout
 over a streaming upload of tens of megabytes would be wrong, and the transport timeouts belong to
-the provider adapter. `RequestTimeout` keeps its name and bounds the probes only.
+the provider adapter. `RequestTimeout` keeps its name and bounds only the calls `Store` makes on its
+own behalf.
 
 ## 8. Record
 
@@ -373,3 +411,15 @@ storm. That reasoning produced the opaque-key convention `blobfs.md` now carries
 that the virtual-directory layer the demonstration needs is significant and reusable enough to
 become its own library rather than a task under this goal — recorded there, not here. The full
 reasoning trace lives in this session's own record; nothing here restates it a second time.
+
+## Assumptions
+
+Each claim below is unverified, and a build that falsifies one invalidates the text that names it.
+
+- Azure's blob-name rules in `azureblob`'s `ValidateKey` come from Azure's documentation, and
+  Azurite accepts every violation, so no real service has corroborated them.
+- Azure leaves a blob's ETag unquoted in a listing's XML and quotes it in headers. That is
+  verified against Azurite and matches Azure's documented listing sample, not a live service.
+- S3's `CreateBucket` reports an existing bucket distinguishably, and S3 keeps an upload invisible
+  until it commits. Both are the basis of the standard tier's `EnsureContainer` and all-or-nothing
+  `Put`, and neither has been exercised, because no S3 provider exists.

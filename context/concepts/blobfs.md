@@ -66,8 +66,8 @@ relationship `devices` already has to `inventory`.
 
 ## Sequencing
 
-`go-storage`'s base library, then `azureblob` (`v1.storage.library`, `.azureblob`) — neither
-depends on `blobfs`. Then `blobfs`'s own goal in full: `blobfs.design` (the dedicated `plan`
+`go-storage`'s base library and `azureblob` are built and released, and neither depends on
+`blobfs`. `blobfs`'s own goal follows in full: `blobfs.design` (the dedicated `plan`
 session settling the open questions below), `.experiment` (the spike, at
 `standards-lab/experiments/blobfs` — coordinator-level, per
 `references/workspace-coordination.md`, never inside a member repository), and `.build`
