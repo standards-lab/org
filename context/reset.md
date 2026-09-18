@@ -1,28 +1,32 @@
-# reset · v1-middleware
+# reset · v1-middleware-rate-limiting
 
 - **Status:** closeout
-- **Session:** plan
-- **Project:** go-web-sdk, standards-lab
-- **Branch:** v1-middleware
+- **Session:** start
+- **Project:** architecture, standards-lab, go-web-sdk, go-web-service
+- **Branch:** v1-middleware-rate-limiting
 
 ## Disposition
 
-- **Retained:** `standards-lab/context/roadmap.toml` — `goals.v1.middleware.tasks.rate-limiting`
-  added: rate limiting's concrete design (`golang.org/x/time/rate` + `github.com/go-chi/httprate`,
-  keyed on `RemoteAddr` until real client IP lands, `go-web-sdk/middleware` placement, the
-  dependency-line statement as part of its own build). The goal summary sharpened to say why real
-  client IP, compression, and CORS wait. `backlog.real-client-ip` and `backlog.compression`
-  added — parked members of `v1.middleware`'s already-recorded sourced set, pending their trigger.
-  `backlog.response-caching` added — raised alongside rate limiting but never part of that
-  recorded set; split out entirely, no stack decision made.
-- **Retained:** `go-web-sdk/context/concepts/middleware-sourcing.md` — sharpened with the rate
-  limiting keying decision (`RemoteAddr` now, real client IP's output once it lands) and the
-  trigger conditions for real client IP and compression. Still the concept note of record for the
-  sourced middleware set.
+- **Promoted:** `go-web-sdk/context/concepts/middleware-sourcing.md`'s placement reasoning →
+  `architecture/standards/go-elemental/principles/topology-and-naming.md` and `dependencies.md`:
+  an application SDK may isolate a sourced dependency in a capability sub-module under
+  `middleware/<concern>`, the same mechanism infrastructure libraries use for a provider, on a
+  different axis (dependency weight, not a swap). `standards-lab/context/design/dependency-sourcing.md`
+  gains the matching obligation, since it already owns the placement rule this generalizes.
+- **Integrated:** `go-web-sdk/context/concepts/middleware-sourcing.md` — the flat-package-only
+  placement rule and the dependency-line restatement are gone; `middleware/rate-limit` and
+  `README.md` now express them. The note keeps the sourced-set table, the keying rationale, and
+  the unfired triggers for real client IP and compression.
+- **Retained:** `standards-lab/context/roadmap.toml` — `backlog.real-client-ip`,
+  `backlog.compression`, and `backlog.response-caching`, still unbuilt, still waiting on a
+  trigger none of them has yet.
 
 ## Next-focus
 
-A `start` session for `v1.middleware.rate-limiting`: build the rate limiting middleware in
-go-web-sdk (`x/time/rate` + `httprate`, `RemoteAddr` keying, go-web-sdk's per-block `Config`
-pattern, and the README's dependency-line statement since this is the first sourced middleware to
-land), then wire it into go-web-service's `internal/app/middleware.go`.
+A `plan` session for `v1.storage`: no task is scoped yet, and none of the goal's decisions are
+made — the standard tier (the minimal operation set common to Azure Blob and S3), the declared
+provider, and the service's demonstration layer. Start there.
+
+`v1.middleware` moved to the end of the roadmap's `next` sequence: rate limiting is the only task
+it had, and it is closed; CORS, real client IP, and compression stay in the goal's summary,
+backlogged behind triggers that have not fired.
