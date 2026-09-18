@@ -42,9 +42,10 @@ automatically; there is nothing separate to keep in sync.
 
 The suite tests the way a developer tested manually: operations against the running
 composition through the API surface. A cross-service domain behavior — a command that writes
-a blob and synchronizes its URL in the database atomically — therefore has the same home as a
-single-service one, because the tier is keyed to the composed service, not to any backing
-service's identity. Black-box through the API is also the durable shape: the suite asserts
+a blob object and moves its owning row from pending to available, the two-phase write
+`design/storage-strategy.md` §6 states rather than a transaction spanning Postgres and an
+object store — therefore has the same home as a single-service one, because the tier is keyed
+to the composed service, not to any backing service's identity. Black-box through the API is also the durable shape: the suite asserts
 behavior, so it survives the internal rewrites (`v1.data.sql` first) that would invalidate
 package-level tests written against the plumbing.
 

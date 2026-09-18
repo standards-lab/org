@@ -14,9 +14,21 @@
 # brief colleagues and leadership on the effort's progress, then a styling system its surface
 # task surfaced but didn't anticipate); both tasks are closed, so v1 resumed at the head. Moved
 # to the end 2026-09-18: rate limiting closed, and CORS, real client IP, and compression stay
-# backlogged until their own triggers fire, leaving no task in front to run next.
+# backlogged until their own triggers fire, leaving no task in front to run next. v1.storage's
+# design settled 2026-09-18 (`design/storage-strategy.md`) and found its demonstration layer
+# needs a virtual-directory metadata library, blobfs, significant and reusable enough to build
+# as its own repository rather than a task under this goal — not a v1 layer, the same standing
+# slab and sqlate have, so its tasks interleave directly in `next` rather than sitting under
+# `goals.v1`: library and azureblob don't depend on it and run first; blobfs's own three tasks
+# follow in full; service and suite close v1.storage once blobfs is built.
 next = [
-  "v1.storage",
+  "v1.storage.library",
+  "v1.storage.azureblob",
+  "blobfs.design",
+  "blobfs.experiment",
+  "blobfs.build",
+  "v1.storage.service",
+  "v1.storage.suite",
   "v1.messaging",
   "v1.ai",
   "v1.data",
@@ -42,6 +54,48 @@ instrument for briefing colleagues and leadership on the workspace's progress, a
 path in for anyone exploring it themselves.
 '''
 context = ["go-web-service/context/design/slab-conventions.md"]
+
+# ── blobfs ─────────────────────────────────────────────────────────────────────────────────
+
+[goals.blobfs]
+name = "The virtual-directory metadata library"
+summary = '''
+A standalone library, adjacent to the standard the way sqlate is, owning a SQL-backed
+virtual-directory and file metadata layer over any object store. Surfaced by v1.storage's
+demonstration layer needing more than one attachment; not a v1 layer itself, the same standing
+sqlate and slab have. go-storage's own keys stay opaque and unaware of blobfs; a consuming
+domain composes ownership over blob_file through its own join table.
+'''
+context = ["standards-lab/context/concepts/blobfs.md"]
+
+[goals.blobfs.tasks.design]
+name = "The blobfs plan session"
+repos = ["standards-lab"]
+summary = '''
+Settles what blobfs.md left open: how a consuming service's domain read models join against
+library-owned schema, how blobfs ships its schema and migrations for a consumer to adopt (no
+existing library here ships migrations), whether it needs its own engine sub-module structure
+or authors portable-tier SQL through the consumer's sqlate instance, and the final module path
+and taxonomy placement against repository-topology.md.
+'''
+context = ["standards-lab/context/concepts/blobfs.md"]
+
+[goals.blobfs.tasks.experiment]
+name = "The blobfs spike"
+repos = ["standards-lab"]
+summary = '''
+Proves the design task's answers out at standards-lab/experiments/blobfs, the same path sqlate
+took at experiments/sql-dsl before it existed as a repository. Coordinator-level, never inside a
+member repository, per references/workspace-coordination.md.
+'''
+
+[goals.blobfs.tasks.build]
+name = "Promotion to its own repository"
+repos = ["blobfs"]
+summary = '''
+What the experiment proved out lands as blobfs's own repository and first release, unblocking
+v1.storage.tasks.service.
+'''
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -97,11 +151,63 @@ context = [
 [goals.v1.storage]
 name = "Object storage"
 summary = '''
-The go-storage infrastructure library. No formal standard exists, so the organization
-establishes the standard tier as the minimal operation set common to the Azure Blob and S3
-APIs; the declared stack picks one provider (azurite locally); the service demonstrates it in
-a documented layer.
+The go-storage infrastructure library: a five-operation standard tier derived from what Azure
+Blob and S3 share, the azureblob provider (azurite locally, S3/minio held in
+backlog.second-providers), and a two-phase write since no transaction spans Postgres and an
+object store. The service demonstrates it as an organization logo and document hierarchy, built
+on blobfs's virtual-directory metadata layer once that goal lands.
 '''
+context = ["standards-lab/context/design/storage-strategy.md"]
+
+[goals.v1.storage.tasks.library]
+name = "The go-storage base module"
+repos = ["go-storage"]
+summary = '''
+The repository and its base module: the Config block on go-core's Merge-and-Finalize contract,
+the Store lifecycle wrapper with its readiness probe and size bound, the standard-tier Client
+interface over the five common operations, the Capabilities provider-constraints type, and the
+error sentinels a provider classifies into. Standard library and go-core alone; the unit tier
+proves it over an in-memory fake.
+'''
+context = ["standards-lab/context/design/storage-strategy.md"]
+
+[goals.v1.storage.tasks.azureblob]
+name = "The Azure Blob provider and the admin half"
+repos = ["go-storage"]
+summary = '''
+The azureblob sub-module over the Azure SDK's azblob package: the adapter beneath the standard
+interface, the error classification normalizing absence and delete idempotency, Capabilities'
+key-constraint values, and shared-key credentials with managed identity deferred to the
+deployment goal. The admin package beside it carries EnsureContainer and Diagnostics.
+Coordinated base and provider releases close the task.
+'''
+context = ["standards-lab/context/design/storage-strategy.md"]
+
+[goals.v1.storage.tasks.service]
+name = "The organization storage layer"
+repos = ["go-web-service"]
+summary = '''
+The demonstration layer, built on the real blobfs library once goals.blobfs closes: an
+organization logo composed through a guarded single-active-record pattern (org_image mapping
+organization to blob_file) and a browsable document hierarchy beneath it, both proxied through
+the service per auth-strategy.md §8 and never a presigned-URL redirect. Schema and routes are
+blobfs-shaped decisions this goal does not make ahead of that goal's own plan session.
+'''
+context = [
+  "standards-lab/context/concepts/blobfs.md",
+  "standards-lab/context/design/auth-strategy.md",
+]
+
+[goals.v1.storage.tasks.suite]
+name = "The integration cases and the close"
+repos = ["go-web-service", "go-storage"]
+summary = '''
+The integration tier's storage cases through the API — upload and read back, the proxied content
+read, the paged list, delete, the pending row a failed put leaves, and the 503 on an azurite
+outage through the existing loopback relay — then the promotion evaluation and the coordinated
+release snapshot.
+'''
+context = ["standards-lab/context/design/testing-hierarchy.md"]
 
 [goals.v1.auth]
 name = "Auth and authorization"
