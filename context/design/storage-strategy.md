@@ -60,6 +60,11 @@ type PutOptions struct {
     Size        int64 // the body's length when known; 0 means unknown
 }
 
+// GetOptions is reserved for options on Get. It is empty on purpose: a byte
+// range is the anticipated first field, and the parameter exists now so
+// adding it later changes no signature.
+type GetOptions struct{}
+
 type ListOptions struct {
     Prefix string
     Token  string // an opaque continuation token
@@ -80,6 +85,7 @@ type Client interface {
     Delete(ctx context.Context, key string) error
     List(ctx context.Context, opts ListOptions) (Page, error)
     Probe(ctx context.Context) error
+    Capabilities() Capabilities
 }
 ```
 
@@ -121,8 +127,16 @@ func (s *Store) Ready() bool
 enforcing `Config.MaxObjectSize` on a `Put` body. This differs from `database.DB`, which wraps
 the pool but runs no statements, because `sqlate` is `go-database`'s call surface and object
 storage has no equivalent above it — `Store` is the only call surface `go-storage` has. `Start`
-probes and fails startup on an unreachable container, matching `DB.Start`; `Ready` satisfies
+probes and fails startup on an unreachable container, matching `DB.Start`. `Ready` is a live
+probe bounded by `Config.RequestTimeout`, so readiness recovers after an outage; it satisfies
 `lifecycle.ReadinessChecker` structurally and registers at stage 0 beside the database.
+`Shutdown` closes the provider once when it implements `io.Closer`.
+
+The size bound applies to every `Put` body. A declared `PutOptions.Size` over the bound is
+rejected before the provider is called, and any other body is read through a reader that fails on
+the first byte past the bound, because a declared size is the caller's claim and the bound exists
+for untrusted bodies. `io.LimitedReader` cannot do this: it reports `io.EOF` at the limit, which
+makes an oversize body look like a complete short one.
 
 ### `Capabilities`
 
@@ -143,10 +157,12 @@ type Capabilities struct {
 }
 ```
 
-A consumer that constructs keys from a variable, human-supplied segment — `blobfs`'s filename
-suffix is the worked case — calls `ValidateKey` against the active provider's `Capabilities`
-before ever reaching `Put`, so a key a future S3 provider would reject fails at construction, not
-at the object store.
+Every provider declares its `Capabilities` as a `Client` method, and a consumer reaches them
+through `Store.Capabilities()`. A consumer that constructs keys from a variable, human-supplied
+segment — `blobfs`'s filename suffix is the worked case — calls `ValidateKey` against the active
+provider's `Capabilities` before ever reaching `Put`, so a key a future S3 provider would reject
+fails at construction, not at the object store. `MaxKeyLength` states no unit, because the target
+APIs may measure a key differently; each provider's `doc.go` states its own.
 
 ### Errors
 
@@ -174,8 +190,8 @@ type Config struct {
     Account        string
     Key            string
     Options        map[string]string
-    MaxObjectSize  *int64
-    ListPageSize   *int
+    MaxObjectSize  int64
+    ListPageSize   int
     RequestTimeout *config.Duration
 }
 ```
@@ -187,6 +203,13 @@ does. Credentials are shared-key at v1, which azurite supports directly; `aziden
 identity are deferred to the deployment goal, keeping `azureblob`'s transitive graph to `azcore`
 and the `golang.org/x` modules it needs rather than pulling MSAL in for a capability nothing uses
 yet.
+
+`MaxObjectSize` and `ListPageSize` have no default. `baseline-standards.md` says a library ships
+no policy numbers, so the application supplies both, and each is 0 when unset: unbounded for
+`MaxObjectSize`, the provider's own page size for `ListPageSize`. `RequestTimeout` is the one
+default, 10 seconds, because it bounds only the probes `Store` makes on its own behalf in `Start`
+and `Ready`. The object operations take their timeouts from the caller's context and the
+provider's transport. `Container` is the one required field.
 
 ## 3. Standard versus native, and the port list
 
@@ -319,6 +342,22 @@ only by listing the whole container, worse than a queryable `pending` row.
 consistency and idempotency differences across providers; the latter overstates the cost — none
 of the review items touch application Go code, which is what keeps the class at "with review"
 rather than sliding toward a port.
+
+**Default caps, or a required `MaxObjectSize`.** Rejected: `baseline-standards.md` names a default
+page size and a maximum request size as policy the application owns. A required bound would force
+a number on every consumer, including ones that have no reason to set one.
+
+**Pointer fields for the two sizes.** Rejected: an explicit zero has no meaning distinct from
+unset, so the plain values with 0 as unset suffice. The cost is that an overlay file cannot lift a
+bound back to unbounded, and the environment override still can.
+
+**`Capabilities` outside `Client`, through an optional interface.** Rejected: a provider could
+silently skip key validation, which is the case `blobfs` exists for. Adding a method later is a
+breaking change for every provider, and with no provider built yet the change is free now.
+
+**A `ProbeTimeout` field, or one client timeout covering every operation.** Rejected: one timeout
+over a streaming upload of tens of megabytes would be wrong, and the transport timeouts belong to
+the provider adapter. `RequestTimeout` keeps its name and bounds the probes only.
 
 ## 8. Record
 
