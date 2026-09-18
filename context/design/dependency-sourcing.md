@@ -71,3 +71,9 @@ no stated line covers is a defect.
 - **Placement follows the layer topology** (`service-organization.md`): a capability that
   collaborates with an infrastructure service lives in that service's library over stdlib
   types, never in an application SDK.
+- **Sourced weight is isolated by module.** A sourced dependency enters a repository through the
+  module of the capability that needs it, never through a base module other consumers compile.
+  In an infrastructure library that module is the provider; in an application SDK it is a
+  capability sub-module named for the concern. The base module never imports it, and the
+  sub-module releases on its own tag, so taking the capability is a second, deliberate `require`
+  line in the consumer's `go.mod` rather than weight that arrives with the base module.
