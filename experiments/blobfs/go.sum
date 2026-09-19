@@ -1,0 +1,6 @@
+github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
+github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/standards-lab/sqlate v0.1.1 h1:P/q0GUHfLVeLsM215LvKDpaGH1JSjU41XY28wqjzcQw=
+github.com/standards-lab/sqlate v0.1.1/go.mod h1:pikNmGf/z3x46SBWFXgt/xKIDZuquSgCoXy5OWBFFR4=
+github.com/standards-lab/sqlate/sqlint v0.1.1 h1:7pVWTJ0GbbyN9IoGIpyytEK+CB4xHq9wjA6UatCRVyQ=
+github.com/standards-lab/sqlate/sqlint v0.1.1/go.mod h1:eIDkUhNUHVSjbsY4QACRJEfUdMKxrRWsZMd/mFeYLj0=

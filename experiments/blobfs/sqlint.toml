@@ -1,0 +1,8 @@
+# sqlint configuration for the experiment. The sources name the pattern catalogs the linter
+# resolves includes against. The stage that first imports github.com/standards-lab/sqlate/postgres
+# adds `engine = "github.com/standards-lab/sqlate/postgres"`, which names the native forms a
+# standard-tier file may not use, and the stages that create statement, pattern, and migration
+# directories add their role tables and the blobfs pattern source.
+
+[sources]
+sql = "github.com/standards-lab/sqlate"

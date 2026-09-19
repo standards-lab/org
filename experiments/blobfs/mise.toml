@@ -1,0 +1,100 @@
+# The experiment carries its own toolchain: standards-lab is not a
+# development repository and pins nothing.
+[tools]
+go = "1.27"
+golangci-lint = "2.13.2"
+
+[env]
+# The compose stack's defaults. The Azurite account and key are the emulator's published
+# development credentials, not secrets.
+BLOBFS_DSN = "postgres://app:app@127.0.0.1:5434/app?sslmode=disable"
+BLOBFS_STORAGE_ENDPOINT = "http://127.0.0.1:10000/devstoreaccount1"
+BLOBFS_STORAGE_ACCOUNT = "devstoreaccount1"
+BLOBFS_STORAGE_KEY = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+BLOBFS_STORAGE_CONTAINER = "blobfs"
+
+[tasks.build]
+description = "Build every package"
+run = "go build ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.test]
+description = "Run the hermetic tests"
+run = "go test -race ./..."
+
+[tasks.test-compose]
+description = "Run the compose-backed tests against the live stack (BLOBFS_DSN, BLOBFS_STORAGE_*)"
+run = "go test -race -tags compose -count=1 ./..."
+
+[tasks.fmt]
+description = "Format all Go source"
+run = "gofmt -w ."
+
+[tasks.tidy]
+description = "Run go mod tidy"
+run = "go mod tidy"
+
+[tasks.lint]
+description = "Run golangci-lint and the SQL conventions lint"
+run = "golangci-lint run ./... && go tool sqlint"
+
+[tasks.split-check]
+description = "Fail if a package imports what its layer may not (the import boundaries of the three blobfs layers)"
+run = '''
+set -e
+fail=0
+
+# deps <package> <extended-regex>: report the package's dependencies that match, and skip a
+# package the current stage has not created yet.
+deps() {
+  [ -d "$1" ] || return 0
+  bad=$(go list -deps "./$1" 2>/dev/null | grep -E "$2" || true)
+  if [ -n "$bad" ]; then
+    echo "split-check: $1 depends on what its layer may not:"; echo "$bad"; fail=1
+  fi
+}
+
+sqlate='github.com/standards-lab/sqlate'
+storage='github.com/standards-lab/go-storage'
+module='github.com/standards-lab/org/experiments/blobfs'
+
+# The root package is Go only: no sqlate, no go-storage.
+deps lib/blobfs "^($sqlate|$storage)"
+# The persistence package takes sqlate but never go-storage, and never the native variant.
+deps lib/blobfs/data "^($storage|$module/lib/blobfs/data/pgnative)"
+# The native variant takes the persistence package and sqlate only.
+deps lib/blobfs/data/pgnative "^($storage|$module/(cmd|consumer|lib/migrator))"
+# The migrator shim takes sqlate and the standard library only.
+deps lib/migrator "^($storage|$module)"
+
+# No driver outside the native variant.
+if [ -d lib ]; then
+  named=$(grep -rl jackc lib/ --include='*.go' | grep -v -E '_test.go|^lib/blobfs/data/pgnative/' || true)
+  if [ -n "$named" ]; then
+    echo "split-check: lib/ names the driver outside pgnative:"; echo "$named"; fail=1
+  fi
+fi
+
+[ "$fail" -eq 0 ] && echo "split-check: ok"
+exit "$fail"
+'''
+
+# services
+[tasks.up]
+description = "Start the local postgres and azurite and wait for health"
+run = "docker compose up -d --wait"
+
+[tasks.down]
+description = "Stop the local services (keep data)"
+run = "docker compose down"
+
+[tasks.reset]
+description = "Stop the local services and drop their data"
+run = "docker compose down -v"
+
+[tasks.cli]
+description = "Run the blobfs command-line consumer (arguments follow --)"
+run = "go run ./cmd/blobfs"
