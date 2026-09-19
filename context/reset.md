@@ -1,60 +1,62 @@
-# reset · v1-storage-azureblob
+# reset · blobfs-design
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** go-storage, architecture, standards-lab
-- **Branch:** v1-storage-azureblob
+- **Session:** plan
+- **Project:** standards-lab
+- **Branch:** blobfs-design
 
 ## Disposition
 
-- **Authored:** the `azureblob` sub-module, the `storagetest` package, and an all-or-nothing `Put`
-  contract in `go-storage`, then both first releases. PR #2 merged as `a44c55e`. `go-storage`
-  `v0.1.0` and `azureblob/v0.1.0` were tagged from `main` at `78363ac` and `b506432`, and both
-  release workflows succeeded. `Client` gained `EnsureContainer`, and `Store.Start` now ensures
-  the container before it probes. `Store` also gained `EnsureContainer` and `Container`, and
-  enforces a declared `PutOptions.Size` on the body. `Object.ETag` is an HTTP entity tag on every
-  call. `azureblob` uses `azblob` v1.8.1. Validated: build, vet, test, tidy, and lint pass across
-  both modules; the conformance suite passes against Azurite started with
-  `--skipApiVersionCheck`, including the mid-body failure and `Size` mismatch cases; and a
-  scratch module outside the workspace pulled both tags from the proxy and drove a `Store` over
-  `azureblob` through the full lifecycle.
-- **Integrated:** `design/storage-strategy.md` now records what the build settled. §2 carries
-  `EnsureContainer`, the `Start` behavior, the atomic `Put` contract, and the entity-tag form. §4
-  drops the `go-storage/admin` package and states that the admin domain is
-  `go-web-service/admin/storage`. §6 states the object write is atomic. §7 reverses the rejection
-  of `Start` creating the container and adds two rejected alternatives, a base `admin` package
-  and a `Provisioner` interface. A new Assumptions section names three unverified claims. The
-  record stays, because `blobfs` and the storage service build to it. In `go-storage`,
-  `context/README.md` lost the two adapter cautions and the "waits for `azureblob`" sentence,
-  which the contract, the suite, and the package now express.
-- **Promoted:** nothing. The all-or-nothing `Put` contract and the provider conformance suite were
-  designed this session, and a contract waits for a second exerciser before it leaves its
-  repository.
-- **Culled:** nothing.
-- **Retained:** the atomic-write contract and the conformance-suite convention, in
-  `design/storage-strategy.md` §2 and `go-storage`'s package documentation, until an S3 provider
-  or another library's providers exercise them.
-- **Corrected:** three claims in the notes and the plan proved wrong. The strategy record's
-  short-graph claim for `azblob` was wrong for v1.8.1, which brings the Arrow packages; the record
-  now leaves the SDK's indirect dependencies to the SDK. The plan's note that Azurite leaves ETags
-  unquoted was wrong: the service quotes them in headers and leaves them unquoted only in a
-  listing's XML, as Azure does. The plan's premise that `release.yml` handled only `v*` tags was
-  wrong, since it already handles `**/v*`.
-- **Cross-repo:** in `architecture`, the `go-storage` row joined the Go Elemental member table
-  and the paragraph of libraries still to be created dropped storage (branch
-  `v1-storage-azureblob`). In `standards-lab`, `references.md` moved `go-storage` from in progress
-  to released, `concepts/blobfs.md` now says `go-storage` and `azureblob` are built, and
-  `concepts/admin-listener.md` gained a posture question on provisioning in the serving role.
-  `roadmap.toml` lost `goals.v1.storage.tasks.azureblob` and its `next` entry. The `v1.storage`
-  summary now states what remains, and `v1.storage.service` gained the
-  `go-web-service/admin/storage` domain and the `--skipApiVersionCheck` requirement for its
-  Azurite compose service.
+- **Settled:** the `blobfs` design, in `concepts/blobfs.md` (`blobfs.design`), as a provisional
+  concept. `blobfs` is one module in three layers a consumer adopts by what it accepts: a Go-only
+  root package, a persistence package over `sqlate`, and a migrations package. It ships its DDL as
+  a migration source with its own version line and history table, and every object it owns starts
+  with the source name (`blobfs_directory`, `blobfs_file`, `blobfs_schema_version`). Deletes have
+  no cascade: a directory delete is refused by the foreign key while children exist, a file
+  delete is two steps around the object delete, and a consumer layers recursive delete itself.
+  Writes are steps the consumer sequences, and `blobfs` never calls the object store. It publishes
+  a `sqlate` pattern namespace, and the consumer's join table anchors every authorized listing.
+  The experiment is a command-line file system over blob storage with a multi-source migrator
+  shim, and its proofs are ordered by risk in the concept.
+- **Integrated:** nothing decayed.
+- **Promoted:** nothing. The shape was designed this session, so it waits for the experiment to
+  exercise it before the note moves to `design/`.
+- **Culled:** the concept's open-questions section, and the claims the reviews found wrong: the
+  `sqlate` precedent (its spike redesigned a capability `go-database` had already built), the
+  placement rationale (the `go-<technology>` naming rule, not the list alone), the `inventory`
+  custody ledger cited as existing precedent, the `org_image` content-type check that a `CHECK`
+  constraint cannot express across tables, and the `List` aside that implied a sweeper nothing
+  owns.
+- **Retained:** `concepts/blobfs.md`, provisional, with its assumptions named: pattern publication
+  carries a hierarchy query at standard tier, the migrator shim moves into `sqlate` almost
+  unchanged, the key-validation wiring stays small, the directive filter is acceptable until the
+  projection-base lift, the file delete steps are idempotent as stated, and the three-layer split
+  earns its exception to the split rule.
+- **Corrected:** `design/auth-strategy.md` §8 no longer sketches an `owner_kind`, `owner_id`
+  attachment table; the consumer's join table carries `unit_id` and drives the listing.
+  `design/storage-strategy.md` §6 assigns the row and schema to `blobfs` as a migration source and
+  ownership to the consumer's join table. The `context` path on `backlog.sql-meta-language`
+  pointed at a `docs` repository that no longer exists and now points at
+  `architecture/context/concepts/sql-meta-language.md`.
+- **Roadmap:** `blobfs.sources` (the `sqlate` v0.2.0 promotion of the migrator) and `blobfs.admin`
+  (the `go-database` admin release over several sets) were added, and `next` now runs
+  `blobfs.experiment`, `blobfs.sources`, `blobfs.build`, `blobfs.admin`, then
+  `v1.storage.service`. The `blobfs`, `blobfs.experiment`, `blobfs.build`, `v1.storage.service`,
+  and `v1.auth` summaries state what each now proves or waits on. `blobfs.design` is deleted with
+  its `next` entry.
+- **Cross-repo:** none written. Two architecture-layer promotions wait on later triggers: the
+  adjacent-repository position, when `blobfs.build` closes, and a library shipping its own object
+  namespace as a migration source, when `go-auth` is the second shipper. The `google/uuid` example
+  in `architecture`'s `go-elemental/principles/dependencies.md` is still true; Go 1.27's standard
+  library now also has `uuid`.
 
 ## Next-focus
 
-`blobfs.design`, in `standards-lab`: a `plan` session that settles what
-`context/concepts/blobfs.md` left open. It weighs how a consuming service's read models join
-against library-owned schema, how `blobfs` ships its schema and migrations for a consumer to
-adopt, whether it needs its own engine sub-module or authors portable SQL through the consumer's
-`sqlate` instance, and its final module path and taxonomy placement. It changes no code.
-`blobfs.experiment` and `blobfs.build` follow, then `v1.storage.service` and `v1.storage.suite`.
+`blobfs.experiment`, an `experiment` session in `standards-lab`, at
+`standards-lab/experiments/blobfs`: the command-line file system that `concepts/blobfs.md`
+defines, built against published `sqlate` v0.1.1 and `go-storage` v0.1.0 with `azureblob`, and
+never a `replace` to a sibling checkout. Start with the consumer-shaped read model (a paged,
+filtered, sorted listing anchored on the `volume` table through the published patterns), because
+it can invalidate composition-based ownership. The multi-source migrator shim follows. The session
+settles its own stage list at SETTLE. It changes no member repository, and `blobfs.sources`
+promotes the shim into `sqlate` afterward.
