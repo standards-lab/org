@@ -25,7 +25,6 @@
 # migration source, which needs a multi-source migrator in sqlate and a matching go-database admin
 # release, so blobfs.sources follows the experiment and blobfs.admin follows the build.
 next = [
-  "blobfs.design",
   "blobfs.experiment",
   "blobfs.sources",
   "blobfs.build",
@@ -71,18 +70,6 @@ three layers a consumer adopts by what it accepts: a Go-only root package, a per
 over sqlate, and a migrations package shipping its DDL as a migration source. go-storage's own
 keys stay opaque and unaware of blobfs; a consuming domain composes ownership over blobfs_file
 through its own join table.
-'''
-context = ["standards-lab/context/concepts/blobfs.md"]
-
-[goals.blobfs.tasks.design]
-name = "The blobfs plan session"
-repos = ["standards-lab"]
-summary = '''
-Settles what blobfs.md left open: how a consuming service's domain read models join against
-library-owned schema, how blobfs ships its schema and migrations for a consumer to adopt (no
-existing library here ships migrations), whether it needs its own engine sub-module structure
-or authors portable-tier SQL through the consumer's sqlate instance, and the final module path
-and taxonomy placement against repository-topology.md.
 '''
 context = ["standards-lab/context/concepts/blobfs.md"]
 
