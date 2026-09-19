@@ -4,3 +4,5 @@ github.com/standards-lab/sqlate v0.1.1 h1:P/q0GUHfLVeLsM215LvKDpaGH1JSjU41XY28wq
 github.com/standards-lab/sqlate v0.1.1/go.mod h1:pikNmGf/z3x46SBWFXgt/xKIDZuquSgCoXy5OWBFFR4=
 github.com/standards-lab/sqlate/sqlint v0.1.1 h1:7pVWTJ0GbbyN9IoGIpyytEK+CB4xHq9wjA6UatCRVyQ=
 github.com/standards-lab/sqlate/sqlint v0.1.1/go.mod h1:eIDkUhNUHVSjbsY4QACRJEfUdMKxrRWsZMd/mFeYLj0=
+golang.org/x/text v0.39.0 h1:UbZz4pLOvn600D6Oh6GGEI6VAmndrEBLv8/6BEXzyus=
+golang.org/x/text v0.39.0/go.mod h1:3UwRclnC2g0TU9x8PZiyfOajCd1zaUNHF9cvqcQZ+ZM=
