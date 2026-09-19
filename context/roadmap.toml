@@ -20,11 +20,16 @@
 # as its own repository rather than a task under this goal — not a v1 layer, the same standing
 # slab and sqlate have, so its tasks interleave directly in `next` rather than sitting under
 # `goals.v1`: the go-storage library and azureblob tasks closed 2026-09-18 without it, so
-# blobfs's own three tasks follow in full; service and suite close v1.storage once blobfs is built.
+# blobfs's own tasks follow in full; service and suite close v1.storage once blobfs is built.
+# blobfs's design settled 2026-09-19 (`concepts/blobfs.md`) and found it ships its schema as a
+# migration source, which needs a multi-source migrator in sqlate and a matching go-database admin
+# release, so blobfs.sources follows the experiment and blobfs.admin follows the build.
 next = [
   "blobfs.design",
   "blobfs.experiment",
+  "blobfs.sources",
   "blobfs.build",
+  "blobfs.admin",
   "v1.storage.service",
   "v1.storage.suite",
   "v1.messaging",
@@ -59,10 +64,13 @@ context = ["go-web-service/context/design/slab-conventions.md"]
 name = "The virtual-directory metadata library"
 summary = '''
 A standalone library, adjacent to the standard the way sqlate is, owning a SQL-backed
-virtual-directory and file metadata layer over any object store. Surfaced by v1.storage's
-demonstration layer needing more than one attachment; not a v1 layer itself, the same standing
-sqlate and slab have. go-storage's own keys stay opaque and unaware of blobfs; a consuming
-domain composes ownership over blob_file through its own join table.
+virtual-directory and file metadata layer over any object store, for any Go project on an engine
+it ships DDL for (Postgres at v1). Surfaced by v1.storage's demonstration layer needing more than
+one attachment; not a v1 layer itself, the same standing sqlate and slab have. One module in
+three layers a consumer adopts by what it accepts: a Go-only root package, a persistence package
+over sqlate, and a migrations package shipping its DDL as a migration source. go-storage's own
+keys stay opaque and unaware of blobfs; a consuming domain composes ownership over blobfs_file
+through its own join table.
 '''
 context = ["standards-lab/context/concepts/blobfs.md"]
 
@@ -82,18 +90,49 @@ context = ["standards-lab/context/concepts/blobfs.md"]
 name = "The blobfs spike"
 repos = ["standards-lab"]
 summary = '''
-Proves the design task's answers out at standards-lab/experiments/blobfs, the same path sqlate
-took at experiments/sql-dsl before it existed as a repository. Coordinator-level, never inside a
-member repository, per references/workspace-coordination.md.
+A simple command-line file system over blob storage at standards-lab/experiments/blobfs, built
+to validate the ergonomics of the design and expose what is painful, incorrect, or awkward before
+promotion. Coordinator-level, never inside a member repository, per
+references/workspace-coordination.md, and depending on published sqlate and go-storage versions.
+It builds the three blobfs layers and a multi-source migrator shim as promotion candidates, and
+tests whether shipping the Go and SQL layers integrated beats documenting the SQL. Authorization
+waits for go-auth and the admin-surface migration path for v1.storage.service.
 '''
+proof = "Each risk in the concept's proof list is answered with evidence, and the design adjustments the spike forced are recorded."
+context = ["standards-lab/context/concepts/blobfs.md"]
+
+[goals.blobfs.tasks.sources]
+name = "The multi-source migrator in sqlate"
+repos = ["sqlate"]
+summary = '''
+The experiment's multi-source migrator promoted into sqlate v0.2.0: one Migrator runs several
+migration sets, each with a source name and its own history table, under one lock, in the order
+the consumer declares them with its own set last. A v0.1.1 database needs no history migration.
+'''
+proof = "sqlate v0.2.0 is released, and go-web-service's existing migrations still apply unchanged."
+context = ["standards-lab/context/concepts/blobfs.md"]
 
 [goals.blobfs.tasks.build]
 name = "Promotion to its own repository"
 repos = ["blobfs"]
 summary = '''
-What the experiment proved out lands as blobfs's own repository and first release, unblocking
-v1.storage.tasks.service.
+What the experiment proved out lands as blobfs's own repository and first release against sqlate
+v0.2.0, with the final module path checked against repository-topology.md and a references entry
+that carries no standard key. Recording the adjacent-repository position for the architecture
+layer waits on this task. Unblocks blobfs.admin and v1.storage.tasks.service.
 '''
+context = ["standards-lab/context/concepts/blobfs.md"]
+
+[goals.blobfs.tasks.admin]
+name = "The admin service over several migration sets"
+repos = ["go-database"]
+summary = '''
+go-database's admin service takes a migrator running several sets: Reset reverts across all sets,
+Status reports each source's head, and Start logs the pending migrations by source. A minor
+release, and the last piece the service needs before it can run blobfs's migration source.
+'''
+proof = "Reset and Status cover every set in a migrator built with a source, and the existing single-set behavior is unchanged."
+context = ["standards-lab/context/concepts/blobfs.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -165,9 +204,11 @@ repos = ["go-web-service"]
 summary = '''
 The demonstration layer, built on the real blobfs library once goals.blobfs closes: an
 organization logo composed through a guarded single-active-record pattern (org_image mapping
-organization to blob_file) and a browsable document hierarchy beneath it, both proxied through
-the service per auth-strategy.md §8 and never a presigned-URL redirect. Schema and routes are
-blobfs-shaped decisions this goal does not make ahead of that goal's own plan session. The task
+organization to blobfs_file) and a browsable document hierarchy beneath it, both proxied through
+the service per auth-strategy.md §8 and never a presigned-URL redirect. The service registers
+blobfs's migration source in its one migrator and proves it through the admin surface, including
+Reset. Schema and routes are blobfs-shaped decisions this goal does not make ahead of that
+goal's own plan session. The task
 also owns the go-web-service/admin/storage domain: a route group over the go-storage Store,
 mounted into the admin mount as admin/database is, with an endpoint for EnsureContainer and a
 diagnostics read composed from Ready, Capabilities, and Container. Its compose file gains the
@@ -197,8 +238,10 @@ The go-auth infrastructure library with Keycloak as the declared provider (stand
 OAuth 2.0, OIDC, JWT); the subject anchor, the relationship-derived authorization model, and
 the composition-root seams every domain builds against are settled in the linked strategy
 record. The admin listener (v1.admin-listener) is a consumer of the authentication this goal
-settles. What remains is the build: go-auth itself, the schema it introduces, and the
-composition-root reshape in go-web-service.
+settles. What remains is the build: go-auth itself, the schema it introduces as a migration
+source of its own, and the composition-root reshape in go-web-service. The storage domain's auth
+sweep proves the composed authorized listing that the blobfs experiment cannot: the consumer's
+join table driving a blobfs listing under the scope predicate.
 '''
 context = [
   "standards-lab/context/design/auth-strategy.md",
@@ -438,7 +481,7 @@ from the migration set rather than declared) and portability by construction (co
 a dialect rather than declared by tier); the concept is reframed in the docs pass. Not a
 v1 dependency.
 '''
-context = ["docs/context/concepts/sql-meta-language.md"]
+context = ["architecture/context/concepts/sql-meta-language.md"]
 
 [backlog.real-client-ip]
 name = "Real client IP"
