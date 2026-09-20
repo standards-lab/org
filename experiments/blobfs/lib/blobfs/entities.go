@@ -5,15 +5,35 @@ import (
 	"uuid"
 )
 
-// Directory is one node of the directory hierarchy, a row of
-// blobfs_directory. ParentID is nil at a root; a root is anchored by the
-// consumer's own table and needs no constraint of its own. Version is the
+// Volume is one directory tree's name, a row of blobfs_volume. Its Name is
+// the tree's one unique name: paths start at / inside a volume, and the
+// volume's root directory carries no name of its own. Name is normalized
+// with NormalizeName and checked with ValidateName, as a directory or file
+// name is. The volume holds no owner and no unit; a consumer's own table
+// binds it to whatever the consumer authorizes by. Version is the
 // concurrency token the guarded commands check. The json tags are the scan
 // and binding contract: the columns carry the same names.
+type Volume struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Version   int64     `json:"version"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Directory is one node of the directory hierarchy, a row of
+// blobfs_directory. A root has a nil ParentID, a nil Name, and a VolumeID
+// naming the volume it is the root of; every other directory has a
+// ParentID and a Name and a nil VolumeID. The volume's name is what names
+// the tree, so a root needs none. Version is the concurrency token the
+// guarded commands check. The json tags are the scan and binding contract:
+// the columns carry the same names, and a nil pointer binds or scans as
+// NULL.
 type Directory struct {
 	ID        string    `json:"id"`
 	ParentID  *string   `json:"parent_id"`
-	Name      string    `json:"name"`
+	VolumeID  *string   `json:"volume_id"`
+	Name      *string   `json:"name"`
 	Version   int64     `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

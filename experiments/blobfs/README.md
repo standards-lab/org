@@ -19,10 +19,10 @@ them. Directories marked planned do not exist yet; each stage of the experiment 
 | `lib/blobfs/` | The root package: entity types, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. (planned) |
 | `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, and the methods that take a `sqlate.Session`. It holds the standard-tier baseline. (planned) |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's variation points. (planned) |
-| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source. (planned) |
-| `lib/migrator/` | A migrator that runs several migration sets, each with its own history table, under one lock. It imports only `sqlate` and the standard library. (planned) |
-| `consumer/` | The consumer's own tables (`volume`, `volume_bookmark`), statements, and lock registry. (planned) |
-| `cmd/blobfs/` | The command-line file system. (planned) |
+| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source. |
+| `lib/migrator/` | A migrator that runs several migration sets, each with its own history table, under one lock. It imports only `sqlate` and the standard library. |
+| `consumer/` | The consumer's own tables (`volume_owner`, `volume_bookmark`), statements, and lock registry. |
+| `cmd/blobfs/` | The command-line file system. |
 | `compose/` | The Postgres and Azurite services the experiment runs against. |
 
 ## Running it

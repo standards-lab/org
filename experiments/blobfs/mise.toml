@@ -48,10 +48,11 @@ set -e
 fail=0
 
 # deps <package> <extended-regex>: report the package's dependencies that match, and skip a
-# package the current stage has not created yet.
+# package the current stage has not created yet. go list -deps lists the package itself, which
+# is never a violation of its own rule.
 deps() {
   [ -d "$1" ] || return 0
-  bad=$(go list -deps "./$1" 2>/dev/null | grep -E "$2" || true)
+  bad=$(go list -deps "./$1" 2>/dev/null | grep -v "^$module/$1\$" | grep -E "$2" || true)
   if [ -n "$bad" ]; then
     echo "split-check: $1 depends on what its layer may not:"; echo "$bad"; fail=1
   fi
@@ -69,6 +70,10 @@ deps lib/blobfs/data "^($storage|$module/lib/blobfs/data/pgnative)"
 deps lib/blobfs/data/pgnative "^($storage|$module/(cmd|consumer|lib/migrator))"
 # The migrator shim takes sqlate and the standard library only.
 deps lib/migrator "^($storage|$module)"
+# The two migration sources take sqlate/migrate only: neither go-storage nor any package of
+# this experiment other than their own.
+deps lib/blobfs/migrations "^($storage|$module/(cmd|consumer|internal|lib/blobfs\$|lib/blobfs/data|lib/migrator))"
+deps consumer/migrations "^($storage|$module/(cmd|internal|lib))"
 
 # No driver outside the native variant.
 if [ -d lib ]; then

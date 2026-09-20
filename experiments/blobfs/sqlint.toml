@@ -1,8 +1,14 @@
-# sqlint configuration for the experiment. The sources name the pattern catalogs the linter
-# resolves includes against. The stage that first imports github.com/standards-lab/sqlate/postgres
-# adds `engine = "github.com/standards-lab/sqlate/postgres"`, which names the native forms a
-# standard-tier file may not use, and the stages that create statement, pattern, and migration
-# directories add their role tables and the blobfs pattern source.
+# sqlint configuration for the experiment. The engine names the native forms a standard-tier
+# file may not use, and the sources name the pattern catalogs the linter resolves includes
+# against. The stages that create statement and pattern directories add their role tables and
+# the blobfs pattern source.
+engine = "github.com/standards-lab/sqlate/postgres"
 
 [sources]
 sql = "github.com/standards-lab/sqlate"
+
+# The two migration sets: blobfs's own DDL and the consumer's. The migrations role has no
+# native-forms check; the DDL is Postgres at v1 by design.
+[migrations]
+dirs = ["lib/blobfs/migrations/postgres", "consumer/migrations/postgres"]
+single_statement = true
