@@ -64,17 +64,28 @@ const (
 const NoTotal = -1
 
 // Listing is one page request of ls, as the command line states it: the
-// 1-based page and its size, the sort terms in order, the total mode, and
-// the unit whose scope the listing is checked against when Unit is not
-// empty. It is the consumer's own shape of a read request; database.go
-// lowers it to the library's listing and to the query library's
-// directives, since no other file of the package names those.
+// 1-based page and its size, the sort terms in order, the total mode, the
+// cursors to continue each half from, and the unit whose scope the
+// listing is checked against when Unit is not empty. It is the consumer's
+// own shape of a read request; database.go lowers it to the library's
+// listing and to the query library's directives, since no other file of
+// the package names those.
 type Listing struct {
 	Page  int
 	Size  int
 	Sort  []Sort
 	Total TotalMode
+	After After
 	Unit  string
+}
+
+// After holds the cursors a listing continues from, one per half, each
+// the Next of an earlier page of that half under the same sort. A half
+// whose cursor is empty is read by page number. A half read by cursor
+// ignores Page and carries no total, whatever Total says.
+type After struct {
+	Directories string
+	Files       string
 }
 
 // Sort is one sort term of a Listing: a declared field of a listing and
@@ -84,11 +95,14 @@ type Sort struct {
 	Descending bool
 }
 
-// Page is one page of one half of a listing: its rows and its total, which
-// is NoTotal when the page carries none.
+// Page is one page of one half of a listing: its rows, its total, which
+// is NoTotal when the page carries none, and Next, the cursor that
+// continues the half after this page, empty on the last page and when the
+// half cannot be continued by cursor.
 type Page[T any] struct {
 	Rows  []T
 	Total int
+	Next  string
 }
 
 // Contents is what ls returns for one directory: the path it listed, the

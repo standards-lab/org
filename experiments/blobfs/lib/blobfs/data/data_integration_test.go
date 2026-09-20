@@ -362,7 +362,7 @@ func TestListingMatchesForest(t *testing.T) {
 		{"name", "f.name", nil},
 		{"name desc", "f.name DESC", []query.Sort{{Field: "name", Descending: true}}},
 		{"size then name", "f.size, f.name", []query.Sort{{Field: "size"}}},
-		{"created_at desc then name", "f.created_at DESC, f.name", []query.Sort{{Field: "created_at", Descending: true}}},
+		{"created_at desc then name desc", "f.created_at DESC, f.name DESC", []query.Sort{{Field: "created_at", Descending: true}}},
 	}
 	for path, dir := range f.paths {
 		for _, like := range []string{"%", "a%"} {
@@ -495,5 +495,153 @@ func TestListingEngineRefusal(t *testing.T) {
 	var invalid *query.InvalidValueError
 	if !errors.As(err, &invalid) || !errors.Is(err, query.ErrDirectives) {
 		t.Errorf("filter on a malformed uuid = %v, want InvalidValueError under ErrDirectives", err)
+	}
+}
+
+// insertFilesTogether inserts files into dir in one transaction, so they
+// share one created_at and a sort by created_at has ties the key must
+// break.
+func insertFilesTogether(t *testing.T, e env, dir string, names ...string) {
+	t.Helper()
+	_, err := e.db.Transact(e.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+		for _, name := range names {
+			insertFile(e.ctx, t, tx, dir, name)
+		}
+		return struct{}{}, nil
+	})
+	if err != nil {
+		t.Fatalf("insert files together: %v", err)
+	}
+}
+
+// cursorPages runs ListFiles from page 1 by number and then by cursor
+// until Next is empty, checking every cursor page carries NoTotal and no
+// more rows than the size, and returns the ids concatenated and the
+// number of requests made.
+func cursorPages(t *testing.T, e env, dir string, size int, l data.Listing) ([]string, int) {
+	t.Helper()
+	var ids []string
+	l.Page, l.Size = 1, size
+	requests := 0
+	for {
+		requests++
+		p, err := e.store.ListFiles(e.ctx, e.db, dir, l)
+		if err != nil {
+			t.Fatalf("cursor page %d of size %d: %v", requests, size, err)
+		}
+		if len(p.Rows) > size {
+			t.Fatalf("cursor page %d of size %d holds %d rows", requests, size, len(p.Rows))
+		}
+		if l.After != "" && p.Total != data.NoTotal {
+			t.Errorf("cursor page %d reports total %d, want NoTotal", requests, p.Total)
+		}
+		for _, f := range p.Rows {
+			ids = append(ids, f.ID)
+		}
+		if p.Next == "" {
+			return ids, requests
+		}
+		l.After = p.Next
+		if requests > 100 {
+			t.Fatalf("the cursor walk of size %d never ended", size)
+		}
+	}
+}
+
+// TestCursorWalkMatchesOffsetWalk is the stage gate's engine proof: for
+// every directory of the fixture, with files inserted together so
+// created_at ties, under a name sort in both directions, a two-term sort
+// (created_at then the key, in both directions), a sort by version, and
+// one where the caller names the key, with and without a filter, at four
+// page sizes, the rows read page by page by number equal the rows read
+// page 1 by number and then by cursor, and the cursor walk makes exactly
+// as many requests as there are pages: the last page issues no cursor.
+// The timestamps round-trip exactly, or a walk over the ties would skip
+// or repeat rows. Children walks the same way.
+func TestCursorWalkMatchesOffsetWalk(t *testing.T) {
+	e := open(t)
+	f := seed(t, e)
+	for _, dir := range f.paths {
+		insertFilesTogether(t, e, dir, "t1", "a9", "t2", "a8", "t3")
+	}
+	sorts := []struct {
+		label string
+		sort  []query.Sort
+	}{
+		{"name", nil},
+		{"name desc", []query.Sort{{Field: "name", Descending: true}}},
+		{"created_at", []query.Sort{{Field: "created_at"}}},
+		{"created_at desc", []query.Sort{{Field: "created_at", Descending: true}}},
+		{"version desc", []query.Sort{{Field: "version", Descending: true}}},
+		{"created_at then name", []query.Sort{{Field: "created_at"}, {Field: "name"}}},
+	}
+	for path, dir := range f.paths {
+		for _, like := range []string{"", "a%"} {
+			var filters []query.Filter
+			if like != "" {
+				filters = []query.Filter{{Field: "name", Op: query.OpLike, Value: like}}
+			}
+			for _, s := range sorts {
+				for _, size := range []int{1, 2, 3, 10} {
+					l := data.Listing{Sort: s.sort, Filters: filters, Total: data.TotalNone}
+					byOffset, _ := pages(t, e, dir, size, l)
+					byCursor, requests := cursorPages(t, e, dir, size, l)
+					if !slices.Equal(byOffset, byCursor) {
+						t.Errorf("%s like %q by %s, size %d: offset %v, cursor %v", path, like, s.label, size, byOffset, byCursor)
+					}
+					if want := max((len(byOffset)+size-1)/size, 1); requests != want {
+						t.Errorf("%s like %q by %s, size %d: the cursor walk made %d requests for %d rows, want %d", path, like, s.label, size, requests, len(byOffset), want)
+					}
+				}
+			}
+		}
+	}
+
+	var byOffset, byCursor []string
+	for page := 1; ; page++ {
+		p, err := e.store.Children(e.ctx, e.db, blobfs.RootID, data.Listing{Page: page, Size: 1, Sort: []query.Sort{{Field: "name", Descending: true}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(p.Rows) == 0 {
+			break
+		}
+		byOffset = append(byOffset, p.Rows[0].ID)
+	}
+	l := data.Listing{Page: 1, Size: 1, Sort: []query.Sort{{Field: "name", Descending: true}}}
+	for {
+		p, err := e.store.Children(e.ctx, e.db, blobfs.RootID, l)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range p.Rows {
+			byCursor = append(byCursor, d.ID)
+		}
+		if p.Next == "" {
+			break
+		}
+		l.After = p.Next
+	}
+	if len(byOffset) != 2 || !slices.Equal(byOffset, byCursor) {
+		t.Errorf("Children of the root by name desc: offset %v, cursor %v", byOffset, byCursor)
+	}
+
+	// A cursor from one directory positions in another: it is a position
+	// in the sort order, so the same cursor continues the sibling's listing.
+	first, err := e.store.ListFiles(e.ctx, e.db, f.paths["/d1"], data.Listing{Page: 1, Size: 2})
+	if err != nil || first.Next == "" {
+		t.Fatalf("page 1 of /d1 = %+v, %v", first, err)
+	}
+	other, err := e.store.ListFiles(e.ctx, e.db, f.paths["/d2"], data.Listing{Size: 10, After: first.Next})
+	if err != nil {
+		t.Fatalf("the /d1 cursor on /d2: %v", err)
+	}
+	want := e.strings1(t, "SELECT CAST(id AS text) FROM blobfs_file WHERE directory_id = $1 AND name > $2 ORDER BY name", f.paths["/d2"], first.Rows[1].Name)
+	var got []string
+	for _, r := range other.Rows {
+		got = append(got, r.ID)
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("the /d1 cursor on /d2 = %v, want %v", got, want)
 	}
 }

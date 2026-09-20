@@ -201,3 +201,81 @@ func TestParseSort(t *testing.T) {
 		}
 	}
 }
+
+// TestCommands_RenderTheCursor proves ls prints a next-files: line when
+// the file half has a next page, that the cursor it prints is accepted
+// back as --after-files, that the half read after it says so and carries
+// no total while the other half is still read by number with its total,
+// and that --after-dirs continues the directory half the same way.
+func TestCommands_RenderTheCursor(t *testing.T) {
+	scripted := func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, true, 1, "docs"), listing(fileColumns, true, 3, "a.txt", "b.txt", "c.txt"))
+		return s, nil
+	}
+	out, err := run(t, scripted, "ls", "/", "--size", "2")
+	if err != nil {
+		t.Fatalf("ls: %v", err)
+	}
+	if strings.Contains(out, "next-dirs:") || !strings.Contains(out, "file  b.txt") || strings.Contains(out, "file  c.txt") {
+		t.Errorf("page 1 rendered:\n%s", out)
+	}
+	var cursor string
+	for _, line := range strings.Split(out, "\n") {
+		if rest, ok := strings.CutPrefix(line, "next-files: "); ok {
+			cursor = rest
+		}
+	}
+	if cursor == "" {
+		t.Fatalf("page 1 printed no next-files line:\n%s", out)
+	}
+
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, true, 1, "docs"), listing(fileColumns, false, 0, "c.txt"))
+		return s, nil
+	}
+	out, err = run(t, scripted, "ls", "/", "--size", "2", "--after-files", cursor)
+	if err != nil {
+		t.Fatalf("ls --after-files: %v", err)
+	}
+	if !strings.Contains(out, "directories: 1 on page 1 of size 2, total 1\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\n") || strings.Contains(out, "next-") {
+		t.Errorf("the cursor page rendered:\n%s", out)
+	}
+
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, true, 0, "a", "b", "c"), listing(fileColumns, true, 0))
+		return s, nil
+	}
+	out, err = run(t, scripted, "ls", "/", "--size", "2")
+	if err != nil {
+		t.Fatalf("ls: %v", err)
+	}
+	if !strings.Contains(out, "next-dirs: ") || strings.Contains(out, "next-files:") {
+		t.Errorf("a directory half with a next page rendered:\n%s", out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if rest, ok := strings.CutPrefix(line, "next-dirs: "); ok {
+			cursor = rest
+		}
+	}
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, false, 0, "c"), listing(fileColumns, true, 0))
+		return s, nil
+	}
+	out, err = run(t, scripted, "ls", "/", "--size", "2", "--after-dirs", cursor)
+	if err != nil {
+		t.Fatalf("ls --after-dirs: %v", err)
+	}
+	if !strings.Contains(out, "directories: 1 after the cursor, size 2, total not counted\n") || !strings.Contains(out, "files: 0 on page 1 of size 2, total 0\n") {
+		t.Errorf("the directory cursor page rendered:\n%s", out)
+	}
+
+	// A cursor the listing did not issue is refused with its reason.
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, true, 0))
+		return s, nil
+	}
+	_, err = run(t, scripted, "ls", "/", "--after-files", "nonsense")
+	if err == nil || !strings.Contains(err.Error(), "not one this listing issued") {
+		t.Errorf("ls --after-files nonsense = %v, want the cursor refusal", err)
+	}
+}

@@ -30,11 +30,11 @@ description = "Run the integration tier against the compose stack (BLOBFS_DSN, B
 run = "go test -race -tags integration -count=1 ./..."
 
 [tasks.evidence]
-description = "Run the read-model cost measurement (proof V1) against the compose stack and write its transcript to evidence/v1-read-model.txt"
+description = "Run the listing cost measurement (proof V3) against the compose stack and write its transcript to evidence/read-model.txt"
 run = '''
 set -e
 mkdir -p evidence
-BLOBFS_EVIDENCE=1 go test -tags integration -count=1 -timeout 30m -run '^TestReadModelCost$' -v ./domain/volume | tee evidence/v1-read-model.txt
+BLOBFS_EVIDENCE=1 go test -tags integration -count=1 -timeout 30m -run '^TestListingCost$' -v ./lib/blobfs/data | tee evidence/read-model.txt
 '''
 
 [tasks.fmt]

@@ -20,4 +20,10 @@ var (
 	// depth one. An owner row binds a top-level directory only; every
 	// directory below it is in the top-level directory's scope.
 	ErrUnitDepth = errors.New("files: --unit applies to a top-level directory only")
+
+	// ErrNoCursorAtRoot reports a listing of / under a unit that was asked
+	// to continue from a cursor. That listing reads the consumer's owner
+	// read model through the query library's projection, which pages by
+	// number only, and lists no files.
+	ErrNoCursorAtRoot = errors.New("files: ls / --unit pages by number only; the owner read model takes no cursor")
 )

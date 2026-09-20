@@ -122,11 +122,15 @@ func TestNewWithoutPatterns(t *testing.T) {
 	}
 }
 
-// TestVerify proves Verify prepares every statement as authored and one
-// canonical rendering per listing statement: twelve prepares against the
-// scripted driver, none of which consumes a response. The four renderings
-// carry every declared field as a predicate and a sort term, and the
-// paging clause; the two counted ones carry the window count.
+// TestVerify proves Verify prepares every statement as authored and the
+// canonical renderings per listing: fourteen prepares against the
+// scripted driver, none of which consumes a response. Four offset
+// renderings carry every declared field as a predicate and a sort term
+// and the paging clause, the two counted ones the window count; and two
+// cursor renderings, one per listing, carry the keyset predicate in its
+// expanded form over the fields a cursor can continue (id, directory_id
+// or parent_id excluded as nullable, and name), with one row beyond the
+// page fetched.
 func TestVerify(t *testing.T) {
 	s := newStore(t)
 	pool, rec := sqltest.Open(t)
@@ -135,24 +139,42 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("Verify: %v", err)
 	}
 	prepared := rec.SQL(sqltest.OpPrepare)
-	if len(prepared) != 12 {
-		t.Fatalf("Verify prepared %d statements, want 12 (8 statements and 4 listing renderings)", len(prepared))
+	if len(prepared) != 14 {
+		t.Fatalf("Verify prepared %d statements, want 14 (8 statements, 4 offset renderings, 2 cursor renderings)", len(prepared))
 	}
-	renderings, counted := 0, 0
+	renderings, counted, cursors := 0, 0, 0
 	for _, text := range prepared {
 		if !strings.Contains(text, " ROWS FETCH NEXT ") {
 			continue
 		}
 		renderings++
-		if !strings.Contains(text, " AND q.name IS NOT NULL") || !strings.Contains(text, " ORDER BY q.id, ") {
-			t.Errorf("rendering lacks the field probes:\n%s", text)
-		}
 		if strings.Contains(text, "COUNT(*) OVER ()") {
 			counted++
 		}
+		if strings.Contains(text, " OR (") {
+			cursors++
+			if strings.Contains(text, "COUNT(*) OVER ()") || strings.Contains(text, " IS NOT NULL") {
+				t.Errorf("the cursor rendering carries the total or the filter probes:\n%s", text)
+			}
+			continue
+		}
+		if !strings.Contains(text, " AND q.name IS NOT NULL") || !strings.Contains(text, " ORDER BY q.id, ") {
+			t.Errorf("rendering lacks the field probes:\n%s", text)
+		}
 	}
-	if renderings != 4 || counted != 2 {
-		t.Errorf("Verify prepared %d listing renderings of which %d counted, want 4 and 2", renderings, counted)
+	if renderings != 6 || counted != 2 || cursors != 2 {
+		t.Errorf("Verify prepared %d listing renderings of which %d counted and %d cursor, want 6, 2, and 2", renderings, counted, cursors)
+	}
+	wantFiles := "WHERE q.directory_id = CAST($1 AS uuid) AND (q.id > CAST($2 AS uuid) OR (q.id = CAST($3 AS uuid) AND q.directory_id > CAST($4 AS uuid)) OR (q.id = CAST($5 AS uuid) AND q.directory_id = CAST($6 AS uuid) AND q.name > CAST($7 AS text))) ORDER BY q.id, q.directory_id, q.name, q.status, q.content_type, q.version, q.created_at, q.updated_at OFFSET $8 ROWS FETCH NEXT $9 ROWS ONLY"
+	wantChildren := "WHERE q.parent_id = CAST($1 AS uuid) AND (q.id > CAST($2 AS uuid) OR (q.id = CAST($3 AS uuid) AND q.name > CAST($4 AS text))) ORDER BY q.id, q.name, q.version, q.created_at, q.updated_at OFFSET $5 ROWS FETCH NEXT $6 ROWS ONLY"
+	found := 0
+	for _, text := range prepared {
+		if strings.HasSuffix(text, wantFiles) || strings.HasSuffix(text, wantChildren) {
+			found++
+		}
+	}
+	if found != 2 {
+		t.Errorf("the cursor renderings do not end with the expected predicates:\n%s", strings.Join(prepared, "\n"))
 	}
 }
 
@@ -215,8 +237,8 @@ func TestListingCarriesItsTotal(t *testing.T) {
 		}
 	}
 	calls := rec.Calls()
-	if got := calls[0].Args; len(got) != 3 || got[0] != dir || got[1] != 2 || got[2] != 2 {
-		t.Errorf("page 2 of size 2 bound %v, want the directory, offset 2, fetch 2", got)
+	if got := calls[0].Args; len(got) != 3 || got[0] != dir || got[1] != 2 || got[2] != 3 {
+		t.Errorf("page 2 of size 2 bound %v, want the directory, offset 2, fetch 3 (one row beyond the page tells whether a next page exists)", got)
 	}
 	if n := rec.RowsLeaked(); n != 0 {
 		t.Errorf("%d row sets leaked", n)
@@ -299,8 +321,8 @@ func TestChildrenSQL(t *testing.T) {
 // the driver, with the query library's own error types, each unwrapping to
 // query.ErrDirectives: an unknown filter or sort field
 // (UnknownFieldError, naming the use), an unknown operator, an in filter
-// without a list, a page or size below one, and a cursor, which a later
-// stage implements.
+// without a list, a page or size below one, and a cursor the listing did
+// not issue (the cursor's own refusals are in cursor_test.go).
 func TestListingRefusals(t *testing.T) {
 	s := newStore(t)
 	ctx := context.Background()

@@ -105,15 +105,15 @@ func TestNew(t *testing.T) {
 
 // TestVerify proves Verify prepares the whole inventory, the consumer's
 // three statements and one projection and blobfs's eight statements and
-// four listing renderings, sixteen prepares, and wraps a failure in
-// ErrVerify with the failing statement named.
+// six listing renderings (four offset, two cursor), eighteen prepares,
+// and wraps a failure in ErrVerify with the failing statement named.
 func TestVerify(t *testing.T) {
 	s, rec := newStore(t)
 	if err := s.Verify(context.Background()); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if n := len(rec.SQL(sqltest.OpPrepare)); n != 16 {
-		t.Errorf("Verify prepared %d statements, want 16", n)
+	if n := len(rec.SQL(sqltest.OpPrepare)); n != 18 {
+		t.Errorf("Verify prepared %d statements, want 18", n)
 	}
 
 	s, rec = newStore(t)
@@ -214,8 +214,8 @@ func TestListLowersTheSort(t *testing.T) {
 	if c.Directories.Total != files.NoTotal || c.Files.Total != files.NoTotal {
 		t.Errorf("totals = %d, %d; want NoTotal on both halves", c.Directories.Total, c.Files.Total)
 	}
-	if args := rec.Calls()[2].Args; len(args) != 3 || args[1] != 5 || args[2] != 5 {
-		t.Errorf("page 2 of size 5 bound %v, want the directory, offset 5, fetch 5", args)
+	if args := rec.Calls()[2].Args; len(args) != 3 || args[1] != 5 || args[2] != 6 {
+		t.Errorf("page 2 of size 5 bound %v, want the directory, offset 5, fetch 6 (one row beyond the page)", args)
 	}
 
 	// An unknown field is refused by the file half before any SQL and
@@ -438,5 +438,58 @@ func TestMkdirWithUnitIsOneTransaction(t *testing.T) {
 	}
 	if got := ops(rec); got != "query query exec query" {
 		t.Errorf("ops without a unit = %q, want no transaction", got)
+	}
+}
+
+// TestListContinuesEachHalfFromItsCursor proves database.go lowers each
+// half's cursor on its own: the file half read after a cursor runs the
+// plain statement with the keyset predicate and reports NoTotal and its
+// own Next, while the directory half, with no cursor, is read by number
+// under TotalExact with its total; and that ls / --unit with a cursor is
+// ErrNoCursorAtRoot before any I/O.
+func TestListContinuesEachHalfFromItsCursor(t *testing.T) {
+	s, _ := newStore(t,
+		root(),
+		listing(directoryColumns, true, 1, "docs"),
+		listing(fileColumns, true, 3, "a.txt", "b.txt", "c.txt"),
+	)
+	first, err := s.List(context.Background(), "/", files.Listing{Page: 1, Size: 2})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if first.Files.Next == "" || first.Directories.Next != "" || len(first.Files.Rows) != 2 || first.Files.Total != 3 {
+		t.Fatalf("page 1 = files next %q, directories next %q, %d files, total %d; want a file cursor only, 2 files, total 3", first.Files.Next, first.Directories.Next, len(first.Files.Rows), first.Files.Total)
+	}
+
+	s, rec := newStore(t,
+		root(),
+		listing(directoryColumns, true, 1, "docs"),
+		listing(fileColumns, false, 0, "c.txt"),
+	)
+	second, err := s.List(context.Background(), "/", files.Listing{Page: 1, Size: 2, After: files.After{Files: first.Files.Next}})
+	if err != nil {
+		t.Fatalf("List after the file cursor: %v", err)
+	}
+	queries := rec.SQL(sqltest.OpQuery)
+	if !strings.Contains(queries[1], "COUNT(*) OVER ()") || strings.Contains(queries[1], " AND q.name > ") {
+		t.Errorf("the directory half was not read by number with its total:\n%s", queries[1])
+	}
+	if strings.Contains(queries[2], "COUNT(*) OVER ()") || !strings.HasSuffix(queries[2], " AND q.name > CAST($2 AS text) ORDER BY q.name OFFSET $3 ROWS FETCH NEXT $4 ROWS ONLY") {
+		t.Errorf("the file half was not read after the cursor:\n%s", queries[2])
+	}
+	if args := rec.Calls()[3].Args; len(args) != 4 || args[1] != "b.txt" || args[2] != 0 {
+		t.Errorf("the file half bound %v, want the last name and offset 0", args)
+	}
+	if second.Files.Total != files.NoTotal || second.Directories.Total != 1 || second.Files.Next != "" || len(second.Files.Rows) != 1 {
+		t.Errorf("contents = %+v", second)
+	}
+
+	s, rec = newStore(t)
+	_, err = s.List(context.Background(), "/", files.Listing{Page: 1, Size: 2, Unit: blobfs.NewID(), After: files.After{Directories: first.Files.Next}})
+	if !errors.Is(err, files.ErrNoCursorAtRoot) {
+		t.Errorf("ls / --unit with a cursor = %v, want ErrNoCursorAtRoot", err)
+	}
+	if n := len(rec.Calls()); n != 0 {
+		t.Errorf("the refusal reached the driver with %d calls", n)
 	}
 }

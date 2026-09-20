@@ -23,9 +23,10 @@
 // authored statement anchored on one directory, with the caller's filters,
 // sort, and page composed onto it in Go from the query library's clause
 // patterns, and with the total computed in the same statement by
-// COUNT(*) OVER () when the Listing asks for one. No operation walks the
-// whole tree; a path is resolved one segment per round trip and computed
-// by one upward walk.
+// COUNT(*) OVER () when the Listing asks for one. A page is reached by its
+// number or continued from the keyset cursor of an earlier page, and both
+// walk the same order. No operation walks the whole tree; a path is
+// resolved one segment per round trip and computed by one upward walk.
 //
 // Every method takes the session as an argument and passes it through
 // unwrapped, so a call runs against the pool or inside the caller's

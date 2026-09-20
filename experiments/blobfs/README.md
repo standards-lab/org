@@ -27,7 +27,7 @@ several isolated trees runs several configurations, each with its own database a
 | `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver. |
 | `internal/livetest/` | The throwaway-database helper the integration-tagged tests share. |
 | `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its owner read model (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`), `database.go` as the sole importer of `sqlate/query`, `blobfs.go` as the translation over the library, and the `mkdir` and `ls` commands. In later stages it gains the storage adapter, the file commands, and the bookmark commands. |
-| `evidence/` | The transcripts the measurements write: `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage. Stage 8 regenerates it against the shipped listing. |
+| `evidence/` | The transcripts the measurements write: `read-model.txt` is proof V3, the cost of the shipped listing (`mise run evidence` regenerates it); `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
@@ -52,8 +52,9 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   imports what its layer may not.
 - `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
   its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given.
-- `mise run evidence` is the read-model cost measurement of an earlier stage and still points at
-  the deleted volume package. Stage 8 rewrites it against the shipped listing.
+- `mise run evidence` runs the listing cost measurement (`TestListingCost` in `lib/blobfs/data`,
+  skipped unless `BLOBFS_EVIDENCE=1`) against the compose stack in a throwaway database and
+  writes the transcript to `evidence/read-model.txt`.
 
 The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
 and key are the emulator's published development credentials.
@@ -74,9 +75,19 @@ id is a UUID and stands in for the auth strategy's unit.
   it, and `--total none` skips the total, which the page statement otherwise computes in the
   same query as the rows. A sort term applies to both halves when both declare its field
   (`name`, `created_at`, `updated_at`, `version`, `id`); a field only files have, such as
-  `size`, sorts the files and leaves the directories in name order. An empty page after the
-  first carries no total and says so. The resolution of the path and both halves run in one
-  read-only repeatable-read transaction.
+  `size`, sorts the files and leaves the directories in name order. A descending sort is the
+  exact reverse of the ascending one: the `name` tie-breaker takes the sort's direction. An
+  empty page after the first carries no total and says so. The resolution of the path and both
+  halves run in one read-only repeatable-read transaction.
+- A half that has a next page prints a line `next-dirs: <cursor>` or `next-files: <cursor>`.
+  `ls <path> --after-dirs <cursor>` and `ls <path> --after-files <cursor>` continue that half
+  from the cursor: the half then lists the rows after the last row of the earlier page, ignores
+  `--page`, and reports `total not counted`, because a total computed under the cursor would
+  count the rows after it and not the listing. The other half is still read by page number. A
+  cursor is opaque; it is refused when it was edited, was issued by the other half, or was
+  issued under a different `--sort`, and a sort by a field that can be NULL (`size`, `etag`)
+  pages by number only. `ls / --unit` reads the owner read model, which pages by number only,
+  so it refuses a cursor.
 - `ls <path> --unit <uuid>` is the directory-grain ownership rehearsal: the unit must own the
   path's top-level directory, checked once at that ancestor, and is refused otherwise. At `/`
   the listing is the unit's own top-level directories, read through the consumer's owner

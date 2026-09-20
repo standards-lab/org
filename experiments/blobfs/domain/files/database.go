@@ -142,22 +142,23 @@ func sortTerms(terms []Sort, allowed map[string]bool) []query.Sort {
 }
 
 // lower lowers a Listing to the library's listing for one half of ls: the
-// page, the total mode, and the sort terms, all of them for the file half
-// and those naming a directory field for the directory half.
-func lower(l Listing, allowed map[string]bool) data.Listing {
-	out := data.Listing{Page: l.Page, Size: l.Size, Sort: sortTerms(l.Sort, allowed)}
+// page, the total mode, the half's cursor, and the sort terms, all of
+// them for the file half and those naming a directory field for the
+// directory half.
+func lower(l Listing, allowed map[string]bool, after string) data.Listing {
+	out := data.Listing{Page: l.Page, Size: l.Size, Sort: sortTerms(l.Sort, allowed), After: after}
 	if l.Total == TotalNone {
 		out.Total = data.TotalNone
 	}
 	return out
 }
 
-// page translates a library page to the consumer's: the rows as they are
-// and the total, NoTotal when the library reports none.
+// page translates a library page to the consumer's: the rows as they are,
+// the total, NoTotal when the library reports none, and the next cursor.
 func page[T any](p data.Page[T]) Page[T] {
 	total := p.Total
 	if total == data.NoTotal {
 		total = NoTotal
 	}
-	return Page[T]{Rows: p.Rows, Total: total}
+	return Page[T]{Rows: p.Rows, Total: total, Next: p.Next}
 }

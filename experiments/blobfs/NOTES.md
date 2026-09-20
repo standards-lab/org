@@ -16,11 +16,13 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 7 are committed: the single-root schema, the consumer's `directory_owner` and
-`bookmark` tables, the persistence package with the listing composer, and `domain/files`, which
-replaces the deleted volume consumer. The binary serves `schema up|down`, `mkdir <path>
-[--unit]`, and `ls <path>` with `--page`, `--size`, `--sort`, `--total none`, and `--unit`. The keyset cursor (`--after`), the write path, the file commands, and the
-bookmark commands are later stages.
+Stages 1 to 8 are committed: the single-root schema, the
+consumer's `directory_owner` and `bookmark` tables, the persistence package with the listing
+composer and its keyset cursor, `domain/files`, and the listing evidence. The binary serves
+`schema up|down`, `mkdir <path> [--unit]`, and `ls <path>` with `--page`, `--size`, `--sort`,
+`--total none`, `--after-dirs`, `--after-files`, and `--unit`. `mise run evidence` writes
+`evidence/read-model.txt`, the cost of the shipped listing. The write path, the file commands,
+and the bookmark commands are later stages.
 
 ## Running it
 
@@ -32,6 +34,68 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 8 decisions the plan did not spell out
+
+- **The cursor's encoding.** A cursor is base64url over an eight-byte SHA-256 prefix and a JSON
+  body holding the encoding version, the name of the statement that issued it, the sort terms
+  (field and direction) it was issued under, and the sort values of the last row of the page as
+  text: a uuid in canonical form, a bigint in decimal, a timestamp in RFC 3339 at nanosecond
+  precision in UTC, text as it is. The checksum is an integrity check and not authentication:
+  an edited or truncated cursor is refused before any SQL, and so is one whose values do not
+  parse as their field's declared type. A cursor carries no secret because a forged well-formed
+  cursor positions the listing where a filter could, and nothing more. Every refusal is a
+  `data.CursorError` that unwraps to `query.ErrDirectives`.
+- **What a cursor binds.** The listing and the sort, not the directory. A cursor issued for one
+  directory continues the same listing of another directory: it is a position in a sort order.
+  A cursor from the other listing, or one issued under other terms or directions, is refused
+  with a message naming both.
+- **The total under a cursor.** A cursor page carries `NoTotal` whatever `Total` says, and it
+  runs the plain statement. The keyset predicate is a WHERE predicate, so a window count under it
+  would count the rows after the cursor, which is a different quantity and must not be called
+  the total. A caller that wants the total reads an offset page under `TotalExact`; `Next` is
+  filled on offset pages too, so page one with its total and then a cursor walk is the intended
+  shape. Refusing `TotalExact` with `After` was rejected because `TotalExact` is the zero value
+  of `Total`, so every cursor call would have had to say `TotalNone`.
+- **The page number under a cursor.** Ignored; it may be zero. The consumer's `--page` applies
+  to a half read by number and is ignored by a half read after a cursor.
+- **The extra row.** Whenever the sort can be continued by a cursor, the composer fetches one row
+  beyond the page and drops it; its presence fills `Next`. This holds under `TotalExact` too,
+  where the total would have told, so one rule serves both modes. The bound fetch count is
+  therefore the size plus one, and the hermetic tests pin it.
+- **The tie-breaker's direction.** The appended `name` takes the direction of the caller's terms
+  when they share one, so `created_at:desc` orders by `created_at DESC, name DESC` and a
+  descending sort is the exact reverse of the ascending one. Stage 6 appended `name` ascending;
+  under that rule every descending sort would have mixed directions and no descending sort but
+  `name` could take a cursor. Mixed caller terms still get `name` ascending. The stage 6 and 7
+  engine baselines were updated for the new order.
+- **Mixed directions are refused, by choice.** The expanded `OR` form handles a term-by-term
+  direction, so the refusal is not a limit of the form; it keeps the cursor's contract one
+  sentence long, and the query library's `Projection`, which has no cursor, sets no precedent.
+- **Nullable fields come from the entity type.** A field whose Go field is a pointer (`size`,
+  `etag`, `parent_id`) is nullable; the key is exempt. A sort whose terms up to the key name one
+  cannot be continued: `After` is refused and `Next` is empty, and the page fetches exactly its
+  size. The pointer fields are the entity's documented NULL contract, so no second declaration
+  was added.
+- **Terms after the key.** The cursor terms are the ORDER BY terms up to and including the key,
+  because a term after a unique key orders nothing. `--sort name --sort size` continues by name
+  alone, and `size` being nullable does not matter there.
+- **`Verify` prepares a cursor rendering.** One per listing, over every field a cursor can
+  continue, so the keyset predicate prepares against each declared type at startup: fourteen
+  prepares in the library, eighteen in the consumer.
+- **Two flags for two halves.** `ls` has `--after-dirs` and `--after-files`, and prints
+  `next-dirs:` and `next-files:` lines, one per half that has a next page. A half without a
+  cursor is read by number. A single `--after` was rejected because a cursor is a position in one
+  half's order and `ls` prints two halves; a single flag with `--only dirs|files` would have
+  added a listing mode to carry one flag.
+- **The owner read model takes no cursor.** `ls / --unit` reads the consumer's projection, and
+  `query.Projection` pages by number only, so a cursor there is `files.ErrNoCursorAtRoot`, refused
+  before any I/O. Recorded in the `sqlate` ledger.
+- **The evidence moved into the library's test tier.** `TestListingCost` lives in
+  `lib/blobfs/data` under the `integration` tag and `BLOBFS_EVIDENCE=1`, because the shipped
+  listing is the library's and the measurement needs no consumer table. `mise run integration`
+  skips it. The fixture is seeded through `unnest` and vacuumed after seeding, and section 0
+  measures the biggest directory's count before and after `VACUUM`.
 
 ### 2026-09-20: stage 7 decisions the plan did not spell out
 
@@ -234,6 +298,31 @@ owner and no unit.
   every column of `blobfs.Directory` beside `unit_id`, `parent_id` included though the read model
   never uses it, and converts back to the library type for the result. An instance of the
   embedded-struct finding above.
+- **`Projection` has no keyset paging (stage 8).** `Directives` carries a page number only, so
+  the consumer-anchored read model cannot continue by cursor, and `ls / --unit` refuses
+  `--after-dirs`. A cursor on `Directives`, with the composer's rules (the key as the
+  tie-breaker in the sort's direction, one direction, no nullable term), would let a projection
+  page the way the library's listings do.
+- **The wrap over a recursive base loses the index order (stage 8, confirmed).** Section e3 of
+  the evidence: the same base, the upward walk joined to the files of one directory, pages in
+  0.07 ms and 21 buffers flat (an index scan in name order under a `Limit`) and in 5.2 ms and
+  2443 buffers wrapped (a bitmap scan of the whole directory and a top-N sort above the join).
+  PostgreSQL 18 shows no `Subquery Scan` node, because a trivial one is elided, but a subquery
+  that contains a CTE is not pulled up and is planned as its own unit, so the outer `ORDER BY`
+  and `FETCH` cannot reach the index. The ledger's earlier wording named the node; the mechanism
+  is the missing pull-up.
+- **The wrap over a flat base costs nothing (stage 8).** Sections e1 and e2: a base over one
+  table with no window function is pulled up, with the anchor outside as a directive or inside
+  as a bound parameter, and the plan equals the flat statement's (12 buffers, 0.02 ms). A window
+  count inside the base blocks the pull-up, and the plan equals the flat exact statement's,
+  which reads the whole directory anyway. So composing at the base's level is required for a
+  base that contains `WITH RECURSIVE`, and the wrap suffices for a flat base.
+- **The window total costs the directory's heap read (stage 8).** `COUNT(*) OVER ()` in the page
+  statement makes the engine read every row of the directory with its columns: 5.5 ms and 2434
+  buffers for 10,008 files, against 0.02 ms and 12 buffers without the total and 0.77 ms and
+  109 buffers for an index-only count twin after `VACUUM`. The total in the page statement
+  agrees with its page, and it costs a heap read that a separate count avoids once the table is
+  vacuumed. A library that offers both should say so.
 
 ### The library
 
@@ -327,15 +416,83 @@ owner and no unit.
 - `org_image` is hypothetical. No partial unique index existed in the workspace before this
   experiment.
 
-## Evidence: read-model cost (measured 2026-09-20, PostgreSQL 18.4)
+## Evidence: the cost of the shipped listing (proof V3, measured 2026-09-20, PostgreSQL 18.4)
 
-The measurement is `evidence/v1-read-model.txt`, produced by
-`domain/volume/evidence_integration_test.go` against the volume-based schema, a test that was
-deleted with the volume package. The `evidence` task in `mise.toml` still points at
-`./domain/volume` and is stale until stage 8 regenerates the transcript against the shipped
-listing. The numbers below are medians of five runs, in milliseconds, with
-100,000 file rows and about 10,000 directories in three trees. Plan shapes and buffer counts are
-the durable facts, and the milliseconds depend on the machine.
+The measurement is `evidence/read-model.txt`, written by `mise run evidence` from
+`lib/blobfs/data/evidence_integration_test.go` (`TestListingCost`, gated by `BLOBFS_EVIDENCE=1`
+and the `integration` tag) against the shipped schema and the shipped listing statements as the
+store composes them. The fixture is 100,000 file rows and 10,003 directories in three trees under
+the root, a tenth of the files in one depth-two directory (10,008 files, the biggest), and a
+10-file directory at depth six (the small one). Both tables were `VACUUM ANALYZE`d after seeding,
+except in section 0. The numbers are medians of five `EXPLAIN (ANALYZE, BUFFERS)` runs in
+milliseconds; plan shapes and buffer counts are the durable facts, and the milliseconds depend
+on the machine (a laptop, everything in shared buffers). `EXPLAIN` ran over pgx's simple protocol,
+so every run was planned with its literal values, as a custom plan is.
+
+| Section | Query | Small (10 files) | Biggest (10,008 files) |
+|---------|-------|------------------|------------------------|
+| 0 | Count twin before `VACUUM` | | 1.98 ms, 2434 buffers, bitmap heap scan |
+| 0 | Count twin after `VACUUM` | | 0.77 ms, 109 buffers, index-only scan |
+| 0 | Shipped exact-total page, before and after `VACUUM` | | 5.9 and 5.7 ms, 2434 buffers both |
+| a | Whole-forest baseline, count and page | 11.2 and 11.1 ms, 29,700 buffers | 13.5 and 18.0 ms, 29,800 and 32,100 buffers |
+| b | Shipped listing, exact total, page 1 | 0.12 ms, 13 buffers | 5.5 ms, 2434 buffers |
+| c | Shipped listing, no total, page 1 | 0.04 ms, 13 buffers | 0.02 ms, 12 buffers |
+| d | Last page by offset, no total | | 7.9 ms, 2434 buffers |
+| d | Last page by offset, exact total | | 11.2 ms, 2434 buffers |
+| d | Last page by cursor | | 0.02 ms, 6 buffers |
+| e1 | Wrap, unanchored base, count twin and page | | 0.76 ms, 109 buffers; 0.05 ms, 12 buffers |
+| e2 | Wrap, anchored base; the same with the window count inside | | 0.04 ms, 12 buffers; 5.7 ms, 2434 buffers |
+| e3 | Recursive base, flat and wrapped | | 0.07 ms, 21 buffers; 5.2 ms, 2443 buffers |
+
+What the measurement shows, and the answers to the V3 questions as far as it supports them:
+
+- **The whole-forest baseline costs far more than the shipped listing.** It reads about 30,000 buffers for any
+  directory, because the recursion walks every directory and the join touches every file; the
+  shipped listing reads 12 or 13 buffers for a page without a total. The v1 numbers (815 buffers
+  for the same shape) were measured on the same fixture size but before `VACUUM` and with a
+  different plan; the new fixture's plan joins through `blobfs_uq_directory_parent_name` and
+  the file index, and the two are not comparable beyond their order of magnitude.
+- **Does the exact total stay the default?** Yes for the default page size and ordinary
+  directories: for the small directory the total is free (13 buffers either way). For a big
+  directory the window count costs the whole directory's heap read (2434 buffers, 5.5 ms for
+  10,008 files) on every page, because the page statement must read every row's columns to
+  count them, and `VACUUM` does not help it. The default holds because a consumer that lists a
+  directory expects its size, and the cost is bounded by the directory, never by the tree.
+- **Is a capped total needed?** The measurement does not decide it. A capped total (count at
+  most N and report "more than N") would bound the heap read a big directory pays; `TotalNone`
+  already bounds it to zero, and the cursor pages the directory without it. The experiment
+  shipped no cap, and the numbers say a consumer with directories of tens of thousands of files
+  should ask for the total once, on page one, and walk by cursor.
+- **Does the cursor earn its place?** Yes. The last page of the biggest directory costs 0.02 ms
+  and 6 buffers by cursor (an index scan from the cursor's name under a `Limit`) against 7.9 ms
+  and 2434 buffers by offset (a bitmap scan of the directory and a top-N sort). Offset paging
+  costs the pages skipped; the cursor costs the page.
+- **Does any sort earn an index?** Not on this evidence. Every measured query sorts by `name`,
+  which `blobfs_uq_file_directory_name` orders in either direction. A sort by another field is
+  an in-memory sort of the directory (the same shape as the exact-total page, a bitmap scan and
+  a top-N sort), so its cost is the directory's size, as stage 6 said. The measurement did not
+  time one; the stage 14 rehearsal migration adds `(directory_id, created_at)` and can measure
+  the difference then.
+- **Is composing at the base's level required, or does the wrap suffice?** Both, by base. A flat
+  base (one table, no window function) is pulled up by the planner, and the wrap's plan equals
+  the flat statement's, with the anchor outside as a directive or inside as a bound parameter.
+  A base that contains `WITH RECURSIVE` is not pulled up: the wrapped e3 form scans and sorts the
+  whole directory above the join (5.2 ms, 2443 buffers) where the flat form pages through the
+  index (0.07 ms, 21 buffers). So the composer's choice to append the clauses at the statement's
+  own level is required for the recursive shape the consumer-anchored read models take (the
+  bookmark projection of stage 11, and any per-row path), and the wrap suffices for the plain
+  listings. A window count inside a wrapped base also blocks the pull-up, but the plan is then
+  the flat exact statement's anyway.
+- **The `VACUUM` caveat, settled.** The v1 caveat that the count "reads the heap through a
+  bitmap scan because the fixture was never vacuumed" applies to a separate count statement: the
+  count twin goes from 2434 buffers to an index-only 109 after `VACUUM`. The shipped window total
+  is unaffected, because it travels in the page statement, which reads the rows.
+
+### Earlier evidence: read-model cost by form (proof V1, 2026-09-20, volume-era schema)
+
+The record is `evidence/v1-read-model.txt`, produced by a test deleted with the volume package
+and kept untouched. Medians of five runs, in milliseconds, 100,000 file rows and about 10,000
+directories in three trees, analyzed and never vacuumed.
 
 | Form | What it is | Listed directory (10 files) | Biggest directory (10,008 files) |
 |------|------------|-----------------------------|----------------------------------|
@@ -344,24 +501,15 @@ the durable facts, and the milliseconds depend on the machine.
 | 2 | Plain statement anchored on the directory, path from an upward walk | 0.1 ms, 35 buffers | 2.5 ms count, 0.1 ms page |
 | 3 | `volume_id` stored on file rows, flat listing, no path | 0.08 ms, 5 buffers | 1.1 ms count, 0.05 ms page |
 
-What the measurement shows:
-
-- Form 1 walks every directory for the count and again for the page, so its cost is linear in the
-  number of directories: 26, 99, and 815 buffers as the forest grows from 100 to 1,000 to 10,000
-  directories. The file count barely matters.
-- The owner join costs nothing measurable. The recursion is the whole cost.
-- Form 2 costs in proportion to the directory's depth plus the page, and it pages a very large
-  directory in name order through `blobfs_uq_file_directory_name` in 19 buffers.
-- Form 3 is the cheapest and returns no path. The architect deferred it, because a listing that
-  goes volume to path to file already has the relationship boundary in the hierarchy.
-- The 2.5 ms count of the biggest directory reads the heap through a bitmap scan, because the
-  fixture was analyzed and never vacuumed. Stage 8 records the count before and after `VACUUM`.
-
-Caveats: the timings come from a laptop with everything in shared buffers. `EXPLAIN` ran over
-pgx's simple protocol, so each run was planned with its literal values.
+Form 1 walked every directory for the count and again for the page, so its cost was linear in
+the number of directories. The owner join cost nothing measurable. Form 2 cost the directory's
+depth plus the page. Form 3 was the cheapest and returned no path, and the architect deferred it.
+The 2.5 ms count of the biggest directory read the heap through a bitmap scan because the fixture
+was never vacuumed; section 0 of the V3 measurement settles that caveat.
 
 ## Not proven yet
 
 Authorization, which needs `go-auth` and is proven under `v1.auth`. The migration path through
 `go-web-service`'s admin surface, which `v1.storage.service` proves. The remaining stages answer
-proofs 2 to 7, the variant seam, and the cost of the shipped listing.
+proofs 2 to 7 and the variant seam, and stage 11 adds the bookmark read model's cost to the
+evidence.

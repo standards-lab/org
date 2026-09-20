@@ -94,8 +94,10 @@ func (d deps) list() *cobra.Command {
 		Long: "ls lists the directory at an absolute path such as /reports: the directories\n" +
 			"under it, then the files in it, one page of each. --sort applies to both halves;\n" +
 			"a field only files have sorts the files and leaves the directories in name order.\n" +
-			"With --unit, the unit must own the path's top-level directory, and at / the\n" +
-			"listing is the unit's own top-level directories.",
+			"A half with a next page prints next-dirs: or next-files: with a cursor; pass it\n" +
+			"back as --after-dirs or --after-files to continue that half, which then ignores\n" +
+			"--page and carries no total. With --unit, the unit must own the path's top-level\n" +
+			"directory, and at / the listing is the unit's own top-level directories.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			l, err := f.listing()
@@ -121,7 +123,7 @@ func (d deps) list() *cobra.Command {
 			for _, file := range c.Files.Rows {
 				entries = append(entries, output.Entry{Kind: "file", Name: file.Name, Size: file.Size, Status: string(file.Status), Updated: file.UpdatedAt})
 			}
-			d.out.Listing(entries, pageOf(l, len(c.Directories.Rows), c.Directories.Total), pageOf(l, len(c.Files.Rows), c.Files.Total))
+			d.out.Listing(entries, pageOf(l, l.After.Directories, c.Directories), pageOf(l, l.After.Files, c.Files))
 			return nil
 		},
 	}
@@ -130,25 +132,29 @@ func (d deps) list() *cobra.Command {
 }
 
 // pageOf describes one half's page for the output: the request's page and
-// size, the rows listed, and the total as the half reported it, marked
-// counted when the listing asked for one.
-func pageOf(l Listing, listed, total int) output.Page {
-	p := output.Page{Number: l.Page, Size: l.Size, Listed: listed, Counted: l.Total == TotalExact}
-	if total == NoTotal {
-		p.Total = output.NoTotal
+// size, whether the half was read after a cursor (after not empty), the
+// rows listed, the total as the half reported it, marked counted when the
+// listing asked for one and the half was read by number, and the cursor
+// of the next page.
+func pageOf[T any](l Listing, after string, p Page[T]) output.Page {
+	out := output.Page{Number: l.Page, Size: l.Size, Listed: len(p.Rows), Counted: l.Total == TotalExact && after == "", Cursor: after != "", Next: p.Next}
+	if p.Total == NoTotal {
+		out.Total = output.NoTotal
 	} else {
-		p.Total = total
+		out.Total = p.Total
 	}
-	return p
+	return out
 }
 
 // listingFlags is the flag set ls takes: the page and its size, the
-// repeatable sort term, the total mode, and the unit.
+// repeatable sort term, the total mode, the cursor of each half, and the
+// unit.
 type listingFlags struct {
-	page, size int
-	sort       []string
-	total      string
-	unit       string
+	page, size            int
+	sort                  []string
+	total                 string
+	afterDirs, afterFiles string
+	unit                  string
 }
 
 // bind registers the listing flags on cmd.
@@ -157,6 +163,8 @@ func (f *listingFlags) bind(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&f.size, "size", 20, "the number of rows per page, for each half")
 	cmd.Flags().StringArrayVar(&f.sort, "sort", nil, "a sort term, <field> or <field>:desc; repeatable, applied in order")
 	cmd.Flags().StringVar(&f.total, "total", "exact", "exact to count every page's total in the page statement, none to omit it")
+	cmd.Flags().StringVar(&f.afterDirs, "after-dirs", "", "continue the directory half after this cursor, from an earlier next-dirs: line")
+	cmd.Flags().StringVar(&f.afterFiles, "after-files", "", "continue the file half after this cursor, from an earlier next-files: line")
 	cmd.Flags().StringVar(&f.unit, "unit", "", "list as the unit with this id, a UUID; it must own the path's top-level directory")
 }
 
@@ -167,7 +175,7 @@ func (f *listingFlags) listing() (Listing, error) {
 	if err != nil {
 		return Listing{}, err
 	}
-	l := Listing{Page: f.page, Size: f.size, Unit: unit}
+	l := Listing{Page: f.page, Size: f.size, Unit: unit, After: After{Directories: f.afterDirs, Files: f.afterFiles}}
 	switch f.total {
 	case "exact":
 		l.Total = TotalExact

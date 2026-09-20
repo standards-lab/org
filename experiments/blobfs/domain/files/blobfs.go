@@ -78,14 +78,22 @@ func (s *Store) Mkdir(ctx context.Context, path, unit string) (blobfs.Directory,
 // read-only repeatable-read transaction, so the two halves see the same
 // snapshot and agree with each other.
 //
+// Each half continues from its own cursor in l.After when one is given,
+// and each page carries the cursor of the next page in Next.
+//
 // A unit in l is the directory-grain ownership rehearsal: the scope is
 // checked once, at the depth-one ancestor of path, before the path is
 // resolved further, and a unit that does not own that ancestor is refused
 // with ErrNotOwned. At the root the unit's scope is the set of top-level
 // directories it owns, so the directory half comes from the owner read
 // model filtered by the unit, and the file half is empty: a file in the
-// root has no depth-one ancestor and belongs to no unit.
+// root has no depth-one ancestor and belongs to no unit. That read model
+// pages by number only, so a cursor there is ErrNoCursorAtRoot, before
+// any I/O.
 func (s *Store) List(ctx context.Context, path string, l Listing) (Contents, error) {
+	if path == "/" && l.Unit != "" && l.After != (After{}) {
+		return Contents{}, fmt.Errorf("ls / as unit %s: %w", l.Unit, ErrNoCursorAtRoot)
+	}
 	return s.db.Transact(ctx, func(tx *sqlate.Tx) (Contents, error) {
 		if l.Unit == "" {
 			dir, err := s.blobfs.ResolveDirectory(ctx, tx, path)
@@ -125,13 +133,13 @@ func (s *Store) List(ctx context.Context, path string, l Listing) (Contents, err
 
 // contents reads the two halves of dir through sess: the directory half
 // under the sort terms naming a directory field, the file half under every
-// term.
+// term, each from its own cursor when l carries one.
 func (s *Store) contents(ctx context.Context, sess sqlate.Session, path string, dir blobfs.Directory, l Listing) (Contents, error) {
-	dirs, err := s.blobfs.Children(ctx, sess, dir.ID, lower(l, directoryFields))
+	dirs, err := s.blobfs.Children(ctx, sess, dir.ID, lower(l, directoryFields, l.After.Directories))
 	if err != nil {
 		return Contents{}, err
 	}
-	files, err := s.blobfs.ListFiles(ctx, sess, dir.ID, lower(l, nil))
+	files, err := s.blobfs.ListFiles(ctx, sess, dir.ID, lower(l, nil, l.After.Files))
 	if err != nil {
 		return Contents{}, err
 	}

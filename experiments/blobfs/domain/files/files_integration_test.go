@@ -257,7 +257,7 @@ func TestList(t *testing.T) {
 			if desc {
 				dir = "DESC"
 			}
-			want := e.strings1(t, fmt.Sprintf("SELECT name FROM blobfs_file WHERE directory_id = $1 ORDER BY %s %s, name", field, dir), a.ID)
+			want := e.strings1(t, fmt.Sprintf("SELECT name FROM blobfs_file WHERE directory_id = $1 ORDER BY %s %s, name %s", field, dir, dir), a.ID)
 			var got []string
 			for page := 1; page <= 3; page++ {
 				c := e.list(t, "/a", files.Listing{Page: page, Size: 3, Sort: []files.Sort{{Field: field, Descending: desc}}})
@@ -310,6 +310,60 @@ func TestList(t *testing.T) {
 	}
 	if _, err := e.store.List(e.ctx, "/a", files.Listing{Page: 1, Size: 10, Sort: []files.Sort{{Field: "owner"}}}); !errors.Is(err, query.ErrDirectives) {
 		t.Errorf("List sorted by an undeclared field = %v, want ErrDirectives", err)
+	}
+}
+
+// TestListByCursor proves the consumer's cursor walk on the engine: each
+// half is continued from its own cursor, the halves walked by cursor
+// return the rows the halves paged by number return, a half read after a
+// cursor carries no total while the other half keeps its total, and a
+// cursor at / under a unit is refused before any I/O.
+func TestListByCursor(t *testing.T) {
+	e := open(t)
+	unit := blobfs.NewID()
+	a := e.mkdir(t, "/a", unit)
+	for _, name := range []string{"z", "m", "b", "q", "c"} {
+		e.mkdir(t, "/a/"+name, "")
+	}
+	for _, name := range []string{"r.txt", "b.txt", "a.txt", "m.txt", "z.txt", "k.txt", "q.txt"} {
+		insertFile(e.ctx, t, e.db, a.ID, name)
+	}
+	l := files.Listing{Page: 1, Size: 2, Sort: []files.Sort{{Field: "name", Descending: true}}}
+	var dirs, fileNames []string
+	for {
+		c := e.list(t, "/a", l)
+		dirs = append(dirs, names(c.Directories.Rows)...)
+		for _, f := range c.Files.Rows {
+			fileNames = append(fileNames, f.Name)
+		}
+		if l.After.Directories != "" && c.Directories.Total != files.NoTotal {
+			t.Errorf("a directory half after a cursor reports total %d", c.Directories.Total)
+		}
+		if l.After.Files == "" && c.Files.Total != 7 {
+			t.Errorf("the file half by number reports total %d, want 7", c.Files.Total)
+		}
+		if c.Directories.Next == "" && c.Files.Next == "" {
+			break
+		}
+		if c.Directories.Next != "" {
+			l.After.Directories = c.Directories.Next
+		} else {
+			// The directory half is exhausted; keep reading its last page by
+			// cursor so it lists nothing more, as a client would.
+			l.After.Directories = ""
+			l.Page = 100
+		}
+		l.After.Files = c.Files.Next
+	}
+	if !slices.Equal(dirs, []string{"z", "q", "m", "c", "b"}) {
+		t.Errorf("directories by cursor = %v", dirs)
+	}
+	if !slices.Equal(fileNames, []string{"z.txt", "r.txt", "q.txt", "m.txt", "k.txt", "b.txt", "a.txt"}) {
+		t.Errorf("files by cursor = %v", fileNames)
+	}
+	_, err := e.store.List(e.ctx, "/", files.Listing{Page: 1, Size: 2, Unit: unit, After: files.After{Directories: "x"}})
+	if !errors.Is(err, files.ErrNoCursorAtRoot) {
+		t.Errorf("ls / --unit with a cursor = %v, want ErrNoCursorAtRoot", err)
 	}
 }
 

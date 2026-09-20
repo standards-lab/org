@@ -45,17 +45,24 @@ const NoTotal = -1
 // size the listing asked for, how many rows the page holds, and the total
 // of all pages, which is NoTotal when the page carries none and is not
 // reported at all when the listing did not ask for one (Counted false).
+// Cursor says the half was read after a cursor rather than by number, so
+// the number is not shown, and Next is the cursor of the following page,
+// written on its own line when it is not empty.
 type Page struct {
 	Number  int
 	Size    int
 	Listed  int
 	Total   int
 	Counted bool
+	Cursor  bool
+	Next    string
 }
 
 // Listing writes a directory listing to stdout: the entries as aligned
-// columns, directories then files as the caller ordered them, and one line
-// per half saying what the page holds and the total or its absence.
+// columns, directories then files as the caller ordered them, one line per
+// half saying what the page holds and the total or its absence, and after
+// a half that has a next page, the line next-dirs: or next-files: with the
+// cursor that continues it.
 func (o *Output) Listing(entries []Entry, directories, files Page) {
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
@@ -69,13 +76,14 @@ func (o *Output) Listing(entries []Entry, directories, files Page) {
 		rows = append(rows, []string{e.Kind, e.Name, size, status, e.Updated.UTC().Format("2006-01-02 15:04:05")})
 	}
 	o.Rows([]string{"KIND", "NAME", "SIZE", "STATUS", "UPDATED"}, rows)
-	o.page("directories", directories)
-	o.page("files", files)
+	o.page("directories", "next-dirs", directories)
+	o.page("files", "next-files", files)
 }
 
 // page writes one half's line: the rows on the page, the page number and
-// size, and the total as counted, not counted, or unknown.
-func (o *Output) page(half string, p Page) {
+// size (or the cursor and the size), and the total as counted, not
+// counted, or unknown; then the next cursor under label when there is one.
+func (o *Output) page(half, label string, p Page) {
 	total := "not counted"
 	switch {
 	case p.Counted && p.Total == NoTotal:
@@ -83,5 +91,12 @@ func (o *Output) page(half string, p Page) {
 	case p.Counted:
 		total = strconv.Itoa(p.Total)
 	}
-	_, _ = fmt.Fprintf(o.stdout, "%s: %d on page %d of size %d, total %s\n", half, p.Listed, p.Number, p.Size, total)
+	if p.Cursor {
+		_, _ = fmt.Fprintf(o.stdout, "%s: %d after the cursor, size %d, total %s\n", half, p.Listed, p.Size, total)
+	} else {
+		_, _ = fmt.Fprintf(o.stdout, "%s: %d on page %d of size %d, total %s\n", half, p.Listed, p.Number, p.Size, total)
+	}
+	if p.Next != "" {
+		_, _ = fmt.Fprintf(o.stdout, "%s: %s\n", label, p.Next)
+	}
 }

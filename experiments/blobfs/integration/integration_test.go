@@ -243,6 +243,35 @@ func TestFileCommands(t *testing.T) {
 	refused(t, bin, dsn, "not found", "ls", "/reports/missing")
 	refused(t, bin, dsn, "unknown sort field", "ls", "/reports", "--sort", "owner")
 
+	// The cursor: a half with a next page prints it, and the flag continues
+	// that half alone, without a total.
+	out = ok(t, bin, dsn, "ls", "/reports", "--size", "2")
+	if got := column(out); strings.Join(got, " ") != "2025 2026 a.txt b.txt" {
+		t.Errorf("ls --size 2 names = %v", got)
+	}
+	cursor := ""
+	for _, line := range lines(out) {
+		if rest, found := strings.CutPrefix(line, "next-files: "); found {
+			cursor = rest
+		}
+		if strings.HasPrefix(line, "next-dirs:") {
+			t.Errorf("the directory half printed a cursor with no next page:\n%s", out)
+		}
+	}
+	if cursor == "" {
+		t.Fatalf("ls --size 2 printed no next-files line:\n%s", out)
+	}
+	out = ok(t, bin, dsn, "ls", "/reports", "--size", "2", "--after-files", cursor)
+	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt" {
+		t.Errorf("ls --after-files names = %v", got)
+	}
+	if !strings.Contains(out, "directories: 2 on page 1 of size 2, total 2\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\n") || strings.Contains(out, "next-") {
+		t.Errorf("ls --after-files stdout:\n%s", out)
+	}
+	refused(t, bin, dsn, "not one this listing issued", "ls", "/reports", "--after-files", "nonsense")
+	refused(t, bin, dsn, "issued by files_in_directory", "ls", "/reports", "--after-dirs", cursor)
+	refused(t, bin, dsn, "size can be NULL", "ls", "/reports", "--sort", "size", "--after-files", cursor)
+
 	// --unit at a top-level directory and below it.
 	out = ok(t, bin, dsn, "ls", "/archive", "--unit", unit)
 	if got := column(out); strings.Join(got, " ") != "old old.txt" {
@@ -265,6 +294,7 @@ func TestFileCommands(t *testing.T) {
 	if got := column(out); strings.Join(got, " ") != "theirs" {
 		t.Errorf("ls / as the other unit names = %v", got)
 	}
+	refused(t, bin, dsn, "owner read model takes no cursor", "ls", "/", "--unit", unit, "--after-dirs", cursor)
 	out = ok(t, bin, dsn, "ls", "/")
 	if got := column(out); strings.Join(got, " ") != "archive reports theirs" {
 		t.Errorf("ls / names = %v", got)

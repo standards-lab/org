@@ -82,3 +82,23 @@ func TestListing_SaysWhenATotalIsAbsent(t *testing.T) {
 		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
 	}
 }
+
+// A half read after a cursor says so instead of naming a page, and a half
+// with a next page writes its cursor on a line of its own under the label
+// its flag takes, next-dirs or next-files.
+func TestListing_WritesTheCursorLines(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	out := output.New(&stdout, &stderr)
+	out.Listing(nil,
+		output.Page{Number: 1, Size: 2, Listed: 2, Total: 5, Counted: true, Next: "DIRS"},
+		output.Page{Size: 2, Listed: 2, Total: output.NoTotal, Cursor: true, Next: "FILES"},
+	)
+	want := "KIND  NAME  SIZE  STATUS  UPDATED\n" +
+		"directories: 2 on page 1 of size 2, total 5\n" +
+		"next-dirs: DIRS\n" +
+		"files: 2 after the cursor, size 2, total not counted\n" +
+		"next-files: FILES\n"
+	if stdout.String() != want {
+		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
+	}
+}
