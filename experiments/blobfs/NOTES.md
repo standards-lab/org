@@ -1,0 +1,203 @@
+# blobfs experiment notes
+
+The running record of `blobfs.experiment`. Each stage appends its findings and decisions here, and
+the final stage turns this file and the evidence into `REVIEW.md`. The design under test is
+`context/concepts/blobfs.md`. The stage list and the run protocol are in the reset file
+(`context/reset.md`).
+
+## What the experiment answers
+
+The experiment produces three findings, and the review is organized by them:
+
+1. **The library.** How `blobfs` should be written: the layers, the standard-tier baseline with
+   native variants, the listing and error-mapping design, and what a consumer composes.
+2. **`sqlate`.** The adjustments `blobfs` needs from `sqlate`, each with its evidence.
+3. **`v1.storage`.** How `blobfs` is incorporated into the `go-web-service` storage layer.
+
+## Position at the time of writing (2026-09-20)
+
+Stages 1 to 5a are committed, and stage 5b is committed as work in progress. The architect has
+removed `volume` from `blobfs`, so stage 6 unwinds the volume design. The tree today still holds
+the volume-based schema, the volume commands, and the Form 1 file listing, all of which stage 6
+and stage 7 replace.
+
+## Running it
+
+`mise run up` starts Postgres on port 5434 and Azurite on port 10000. `mise run test` runs the
+hermetic tests, and `mise run integration` runs the tests that need the services. `mise run lint`
+runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the import boundaries.
+`mise run evidence` regenerates the read-model measurement. `README.md` has the layout.
+
+## Decisions log
+
+Newest first.
+
+### 2026-09-20: volume leaves blobfs, one root per install
+
+The architect reversed the decision to make `volume` a core table. A volume is an opinionated way
+to segregate directories inside one container, and an application owner can build that on top of
+the baseline. `blobfs` provides the container-based directory and file infrastructure. A
+configuration points at one container, which is the root of the tree, and a consumer that wants
+several isolated trees runs several configurations, each with its own container and database.
+
+The schema returns to two tables with one seeded root row (`RootID`, the nil UUID), enforced by a
+partial unique index. An `EnsureRoot` operation is the alternative to seeding. The migration seed
+was chosen because it needs no lifecycle step and gives every consumer a known id, and the review
+should confirm it.
+
+Making volume a core table had real benefits: unique roots, a clean anchor for path resolution,
+and a declarative rule that a root belongs to exactly one volume. The costs were an opinionated
+segregation in the library and a listing anchor that the consumer's ownership join could not
+compose with. The application owner can build the same segregation on the baseline, and the
+consumer side of this experiment rehearses two ways to do that.
+
+### 2026-09-20: the listing is anchored on a directory and returns its own total
+
+The V1 measurement showed the file listing built from a whole-forest recursion costs in proportion
+to the number of directories, whatever the size of the listed directory. The architect ruled that
+a listing must be built around the most performant execution and that its total must agree
+exactly with its page. The listing is therefore a statement anchored on one directory, with the
+total computed in the same statement by `COUNT(*) OVER ()`, composed in Go over authored
+statements. A keyset cursor ships beside offset paging. The path stays a read-time computation, and
+no `volume_id` or stored path is added.
+
+### 2026-09-20: the consumer keeps two tables of its own
+
+`directory_owner(directory_id, unit_id)` rehearses the document hierarchy per organization: the
+scope is checked once at the depth-one ancestor. `bookmark(unit_id, file_id, active)` with a
+partial unique index rehearses the `org_image` case. Both are consumer tables. The library holds no
+owner and no unit.
+
+### 2026-09-19 and 2026-09-20: earlier decisions still in force
+
+- One `blobfs` install per database, with fixed `blobfs_` object names.
+- Native-tier statements are allowed as variants behind a narrow Go interface. The standard-tier
+  baseline is complete on any engine, and published patterns stay standard tier.
+- The documentation-only variant is estimated and not built. The migrator shim is a drop-in for
+  the multi-set API that `blobfs.sources` describes. Ids are minted in Go.
+- The consumer follows the `slab` elemental layout, and cobra is adopted for the consumer only.
+
+## Ledger: what the experiment has found
+
+### Adjustments `sqlate` needs
+
+- **A parameterized projection base.** A projection base cannot bind a parameter, so a listing
+  anchored on one directory cannot be a projection. The parameterized base the auth strategy names
+  as the arity-one lift is the fix, and this experiment gives it a second motivating case besides
+  the scope predicate.
+- **The total in the page statement.** A total computed by a separate count statement can disagree
+  with its page. The total belongs in the select list of the page statement.
+- **Clause composition at the base's level.** The derived-table wrap forces a `SubqueryScan` for a
+  base that contains `WITH RECURSIVE`. Stage 8 measures whether composing the clauses inside the
+  statement is required or the wrap suffices.
+- **`UnknownFieldError` unwraps to `ErrDirectives`.** That is the sentinel a generic handler maps
+  to a client error, so a forgotten scope filter fails as a client error unless the consumer
+  matches the type. The error carries `Use: filter`, which lets a consumer tell them apart.
+- **`postgres.Dialect.MapError` does not map SQLSTATE `2BP01`.** Dropping a table that another
+  object depends on fails with `dependent objects still exist`, and the error reaches the caller
+  unclassified.
+- **`migrate` exports no default table name and no accessor, and cannot take a connection or a
+  lock from the caller.** A multi-set migrator with one outer lock therefore repeats the default
+  table name and pins its own connection.
+- **`Steps` tolerates a count larger than the applied prefix.** The shim relies on it to revert a
+  whole set. It should be a documented guarantee.
+- **`StandardCatalog.HistoryExists` does not qualify by schema.** A same-named table in any schema
+  satisfies the check.
+- **`query.Guard` reports only a version mismatch.** A mutation refused for a `deleting` status
+  needs its own check, because the guard's check statement returns only a version.
+- **`--| field:` timestamp types.** In standard tier the type must be spelled `timestamp with time
+  zone`, because `timestamptz` is a native form. `Verify` never checks field types, so a wrong
+  spelling surfaces only when someone filters on the field.
+- **A library that ships statements hard-codes the `sql.` namespace.** A consumer that aliases
+  `sqlate`'s source with `As` breaks the library's compile.
+- **The scanner does not flatten embedded structs.** A consumer read model restates every column
+  of a library entity, including columns it does not use.
+- **`sqlate.Session` cannot begin a transaction.** A library cannot give an operation that reads
+  twice a consistent snapshot, so the caller must open a read-only repeatable-read transaction.
+- **Path resolution takes one round trip per segment.** Standard SQL has no ordered array
+  parameter, and `{{name...}}` renders an `IN` list.
+- **Multi-statement transactional migrations work on pgx.** pgx uses the simple protocol when a
+  statement has no arguments. The concept's claim that v0.1.1 cannot host a source holds only for
+  one merged `Migrator`: a `Migrator` per set with its own `Options.Table` runs on v0.1.1.
+
+### The library
+
+- **Constraint-to-sentinel mapping is per operation.** `blobfs_fk_directory_parent` means a
+  missing parent on a write and a non-empty directory on a delete, so each kind of operation
+  carries its own table.
+- **Constraint names live in the root package.** The persistence layer cannot import the
+  migrations layer, so the constants are in `lib/blobfs`.
+- **`Directory.Name` is a pointer.** A root has no name, so every non-root call site nil-checks or
+  dereferences.
+- **A second engine no longer adds only a directory.** Once native variants exist, a second engine
+  adds a migrations directory and a variant for each native operation, and the native files' port
+  notes are that work list.
+- **The root layer is thin.** It holds validation helpers and vocabulary, and it stands alone as a
+  compilable package but not as a capability.
+- **`MaxKeyLength` on the key-validation interface is nearly redundant.** `azureblob`'s own key
+  check also enforces the length. Proof 7 measures it.
+- **Fail-write has no representation.** The status table cannot express a failed write without a
+  fourth status or a delete of the pending row. Stage 10 decides.
+- **`tests-and-docs.md` says production source has no doc comments,** and no repository in the
+  workspace follows that sentence. The experiment follows the practice: godoc on every exported
+  identifier, and the package comment in `doc.go` for a multi-file package.
+- **History tables survive a full `Down`.** Stage 14 decides whether `Reset` drops them.
+
+### `go-storage` and `azureblob`
+
+- `Put` returns the caller's content type, while `Stat` and `Get` return the server's.
+- `Delete` on a missing container returns `ErrNotFound`, which contradicts its own doc comment.
+- `MaxKeyLength` counts runes, and Azurite accepts keys that `azureblob`'s rules reject, so key
+  validation is proved by unit tests only.
+- `Store.Start` wraps every failure as `ErrUnavailable`, including rejected credentials.
+- No Azurite compose file existed in the workspace, and the image defines no health check. The
+  experiment's file uses `nc -z` on the blob port.
+
+### `v1.storage` incorporation (to develop through the remaining stages)
+
+- One install per configuration and per database. The fixed table names make a second isolated
+  tree a second database.
+- Directory-grain ownership: a consumer table keyed on a depth-one directory, checked once at the
+  ancestor, rehearses the document hierarchy per organization.
+- File-grain ownership: a consumer join table with a partial unique index rehearses the logo.
+- The migration source is added to the service's one migrator, ahead of the service's own set.
+  Reverting runs the service's set first.
+- `org_image` is hypothetical. No partial unique index existed in the workspace before this
+  experiment.
+
+## Evidence: read-model cost (measured 2026-09-20, PostgreSQL 18.4)
+
+The measurement is `evidence/v1-read-model.txt`, produced by
+`domain/volume/evidence_integration_test.go` against the volume-based schema. Stage 8 regenerates
+it against the shipped listing. The numbers below are medians of five runs, in milliseconds, with
+100,000 file rows and about 10,000 directories in three trees. Plan shapes and buffer counts are
+the durable facts, and the milliseconds depend on the machine.
+
+| Form | What it is | Listed directory (10 files) | Biggest directory (10,008 files) |
+|------|------------|-----------------------------|----------------------------------|
+| 1 | Projection over a whole-forest recursion, filter applied after | 11 ms per query, 815 buffers | 14 ms count, 17 ms page |
+| 1b | Form 1 without the owner join | 11 ms, no measurable difference | 15 ms count, 18 ms page |
+| 2 | Plain statement anchored on the directory, path from an upward walk | 0.1 ms, 35 buffers | 2.5 ms count, 0.1 ms page |
+| 3 | `volume_id` stored on file rows, flat listing, no path | 0.08 ms, 5 buffers | 1.1 ms count, 0.05 ms page |
+
+What the measurement shows:
+
+- Form 1 walks every directory for the count and again for the page, so its cost is linear in the
+  number of directories: 26, 99, and 815 buffers as the forest grows from 100 to 1,000 to 10,000
+  directories. The file count barely matters.
+- The owner join costs nothing measurable. The recursion is the whole cost.
+- Form 2 costs in proportion to the directory's depth plus the page, and it pages a very large
+  directory in name order through `blobfs_uq_file_directory_name` in 19 buffers.
+- Form 3 is the cheapest and returns no path. The architect deferred it, because a listing that
+  goes volume to path to file already has the relationship boundary in the hierarchy.
+- The 2.5 ms count of the biggest directory reads the heap through a bitmap scan, because the
+  fixture was analyzed and never vacuumed. Stage 8 records the count before and after `VACUUM`.
+
+Caveats: the timings come from a laptop with everything in shared buffers. `EXPLAIN` ran over
+pgx's simple protocol, so each run was planned with its literal values.
+
+## Not proven yet
+
+Authorization, which needs `go-auth` and is proven under `v1.auth`. The migration path through
+`go-web-service`'s admin surface, which `v1.storage.service` proves. The remaining stages answer
+proofs 2 to 7, the variant seam, and the cost of the shipped listing.
