@@ -1,9 +1,11 @@
-// Package migrations is the consumer's own migration set: the volume_owner
-// table, which binds a blobfs volume to the unit that owns it and stands in
-// for the join table an application's scope predicate filters, and the
-// volume_bookmark table, which joins a volume to one of its files. The
-// consumer's migrations reference the blobfs tables freely, so the set runs
-// after blobfs's set and under sqlate's default history table.
+// Package migrations is the consumer's own migration set: the
+// directory_owner table, which binds a blobfs directory to the unit that
+// owns it and stands in for the join table an application's scope
+// predicate filters at the directory grain, and the bookmark table, which
+// joins a unit to one of the files it may reach, with one active bookmark
+// per unit. The consumer's migrations reference the blobfs tables freely,
+// so the set runs after blobfs's set and under sqlate's default history
+// table.
 //
 // Table, constraint, and index names carry the workspace's prefixes (pk_,
 // fk_, uq_, cc_, ix_) and never blobfs_, so a consumer's object is

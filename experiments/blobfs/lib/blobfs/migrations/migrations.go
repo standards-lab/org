@@ -1,26 +1,27 @@
-// Package migrations is the third layer of blobfs: the DDL of the three
+// Package migrations is the third layer of blobfs: the DDL of the two
 // tables, embedded and exported as a migration source. A consumer adds the
 // source to its migrator ahead of its own set, under the history table
 // Table, and blobfs's schema is at its head before the consumer's
 // migrations reference it.
 //
-// The set runs in the order volume, directory, file. A volume names one
-// directory tree; its root directory has no name, carries the volume's id,
-// and is the only root in that volume, and every other directory has a
-// name and no volume id. Two check constraints on the directory table state
-// that rule, so a root with no volume, a root with a name, or a non-root
-// with either is refused.
+// The set runs in the order directory, file. The directory migration seeds
+// the one root directory, the row with no parent and no name and the id
+// blobfs.RootID, and a partial unique index allows no second row without a
+// parent. A check constraint states that a directory has no name exactly
+// when it has no parent, so a root with a name or a non-root without one
+// is refused.
 //
 // The source owns every object it creates, and every object's name starts
-// with the source name and an underscore: the tables blobfs_volume,
-// blobfs_directory, and blobfs_file, their constraints, and the history
-// table blobfs_schema_version. Constraint names are public API, because a
-// violation reaches a consumer as sqlate.ConstraintError.Constraint, and
-// the persistence layer maps blobfs's own constraints to its sentinel
-// errors. The scheme is blobfs_<kind>_<table>_<detail>, where kind is pk,
-// fk, uq, or cc, table is the table name without its blobfs_ prefix, and
-// detail names the referenced relation, the unique columns, or the checked
-// rule: blobfs_fk_directory_volume, blobfs_uq_directory_parent_name,
+// with the source name and an underscore: the tables blobfs_directory and
+// blobfs_file, their constraints and indexes, and the history table
+// blobfs_schema_version. Constraint and index names are public API,
+// because a violation reaches a consumer as
+// sqlate.ConstraintError.Constraint, and the persistence layer maps
+// blobfs's own constraints to its sentinel errors. The scheme is
+// blobfs_<kind>_<table>_<detail>, where kind is pk, fk, uq, or cc, table
+// is the table name without its blobfs_ prefix, and detail names the
+// referenced relation, the unique columns, or the checked rule:
+// blobfs_fk_directory_parent, blobfs_uq_directory_parent_name,
 // blobfs_cc_directory_root_name.
 //
 // The DDL is Postgres at v1 and lives in the postgres directory. A second

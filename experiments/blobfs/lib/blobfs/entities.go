@@ -5,38 +5,30 @@ import (
 	"uuid"
 )
 
-// Volume is one directory tree's name, a row of blobfs_volume. Its Name is
-// the tree's one unique name: paths start at / inside a volume, and the
-// volume's root directory carries no name of its own. Name is normalized
-// with NormalizeName and checked with ValidateName, as a directory or file
-// name is. The volume holds no owner and no unit; a consumer's own table
-// binds it to whatever the consumer authorizes by. Version is the
-// concurrency token the guarded commands check. The json tags are the scan
-// and binding contract: the columns carry the same names.
-type Volume struct {
+// RootID is the id of the one root directory of an install: the nil UUID,
+// seeded by the directory migration. Every path starts at the root, and a
+// consumer that needs the root reads it by this id instead of searching
+// for the row with no parent.
+const RootID = "00000000-0000-0000-0000-000000000000"
+
+// Directory is one node of the directory hierarchy, a row of
+// blobfs_directory. The root has a nil ParentID and a nil Name, and it is
+// the only row with either; every other directory has a ParentID and a
+// Name. Version is the concurrency token the guarded commands check. The
+// json tags are the scan and binding contract: the columns carry the same
+// names, and a nil pointer binds or scans as NULL.
+type Directory struct {
 	ID        string    `json:"id"`
-	Name      string    `json:"name"`
+	ParentID  *string   `json:"parent_id"`
+	Name      *string   `json:"name"`
 	Version   int64     `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Directory is one node of the directory hierarchy, a row of
-// blobfs_directory. A root has a nil ParentID, a nil Name, and a VolumeID
-// naming the volume it is the root of; every other directory has a
-// ParentID and a Name and a nil VolumeID. The volume's name is what names
-// the tree, so a root needs none. Version is the concurrency token the
-// guarded commands check. The json tags are the scan and binding contract:
-// the columns carry the same names, and a nil pointer binds or scans as
-// NULL.
-type Directory struct {
-	ID        string    `json:"id"`
-	ParentID  *string   `json:"parent_id"`
-	VolumeID  *string   `json:"volume_id"`
-	Name      *string   `json:"name"`
-	Version   int64     `json:"version"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+// IsRoot reports whether d is the root directory: the row with no parent.
+func (d Directory) IsRoot() bool {
+	return d.ParentID == nil
 }
 
 // File is one file's metadata, a row of blobfs_file. DirectoryID is never

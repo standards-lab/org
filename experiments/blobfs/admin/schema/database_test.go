@@ -55,14 +55,14 @@ func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
 	if first.Name != blobfsmigrations.Source || first.Table != blobfsmigrations.Table {
 		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, blobfsmigrations.Source, blobfsmigrations.Table)
 	}
-	if len(first.Migrations) != 3 || first.Migrations[0].Name != "volume" {
-		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 3 starting with volume", len(first.Migrations), first.Migrations[0].Name)
+	if len(first.Migrations) != 2 || first.Migrations[0].Name != "directory" {
+		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 2 starting with directory", len(first.Migrations), first.Migrations[0].Name)
 	}
 	if last.Name != schema.ConsumerSet || last.Table != "" {
 		t.Errorf("last set = %q under %q, want %q under the default table", last.Name, last.Table, schema.ConsumerSet)
 	}
-	if len(last.Migrations) != 2 || last.Migrations[0].Name != "volume_owner" {
-		t.Errorf("last set holds %d migrations starting with %q, want the consumer's 2 starting with volume_owner", len(last.Migrations), last.Migrations[0].Name)
+	if len(last.Migrations) != 2 || last.Migrations[0].Name != "directory_owner" {
+		t.Errorf("last set holds %d migrations starting with %q, want the consumer's 2 starting with directory_owner", len(last.Migrations), last.Migrations[0].Name)
 	}
 }
 
@@ -98,7 +98,7 @@ func setRun(steps int) []sqltest.Response {
 // the migrator in canonical order: on a fresh database, blobfs's history
 // table and DDL run before the consumer's.
 func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
-	responses := append(setRun(3), setRun(2)...)
+	responses := append(setRun(2), setRun(2)...)
 	pool, rec := sqltest.Open(t, responses...)
 	c, err := schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
 	if err != nil {
@@ -116,11 +116,11 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 	}
 	order := []string{
 		"CREATE TABLE IF NOT EXISTS " + blobfsmigrations.Table,
-		"CREATE TABLE blobfs_volume",
+		"CREATE TABLE blobfs_directory",
 		"CREATE TABLE blobfs_file",
 		"CREATE TABLE IF NOT EXISTS schema_version",
-		"CREATE TABLE volume_owner",
-		"CREATE TABLE volume_bookmark",
+		"CREATE TABLE directory_owner",
+		"CREATE TABLE bookmark",
 	}
 	last := -1
 	for _, text := range order {

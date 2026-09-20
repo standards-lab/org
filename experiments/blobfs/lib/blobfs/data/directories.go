@@ -10,12 +10,31 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 )
 
+// Root returns the root directory, the row seeded with blobfs.RootID. A
+// database whose schema is not applied, or whose seed row is gone, is
+// blobfs.ErrNotFound.
+func (s *Store) Root(ctx context.Context, sess sqlate.Session) (blobfs.Directory, error) {
+	return s.Directory(ctx, sess, blobfs.RootID)
+}
+
+// Directory returns the directory with id, or blobfs.ErrNotFound.
+func (s *Store) Directory(ctx context.Context, sess sqlate.Session, id string) (blobfs.Directory, error) {
+	d, err := s.directoryByID.One(ctx, sess, query.Args{"id": id})
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: directory %s: %w", id, notFound(err))
+	}
+	return d, nil
+}
+
 // Mkdir creates a directory named name under the directory with parentID
 // and returns the row as the database holds it. The name is normalized and
-// validated first; a refusal is a blobfs.NameError. A name already held by
-// a directory under the same parent is blobfs.ErrNameTaken, and a parent
-// that does not exist is blobfs.ErrNotFound. One row is written, so the
-// session may be the pool or a transaction.
+// validated first; a refusal is a blobfs.NameError, and an empty name is
+// one, so no call creates a row without a name. Every row Mkdir writes has
+// a parent, so no call creates a root either: the one root is seeded by
+// the schema. A name already held by a directory under the same parent is
+// blobfs.ErrNameTaken, and a parent that does not exist is
+// blobfs.ErrNotFound. One row is written, so the session may be the pool
+// or a transaction.
 func (s *Store) Mkdir(ctx context.Context, sess sqlate.Session, parentID, name string) (blobfs.Directory, error) {
 	name, err := validName(name)
 	if err != nil {
@@ -32,22 +51,33 @@ func (s *Store) Mkdir(ctx context.Context, sess sqlate.Session, parentID, name s
 	return d, nil
 }
 
-// Directory returns the directory with id, or blobfs.ErrNotFound.
-func (s *Store) Directory(ctx context.Context, sess sqlate.Session, id string) (blobfs.Directory, error) {
-	d, err := s.directoryByID.One(ctx, sess, query.Args{"id": id})
+// Children lists the directories whose parent is parentID: one page under
+// l, sorted and filtered by the declared fields id, parent_id, name,
+// version, created_at, and updated_at, with the total under the same
+// filters when l asks for one. The default sort is by name, and name is
+// the key, so every sort is total. The root has no parent and never
+// appears in a listing; Children of blobfs.RootID lists the depth-one
+// directories. A parent that does not exist lists no rows and, on the
+// first page, a total of zero.
+func (s *Store) Children(ctx context.Context, sess sqlate.Session, parentID string, l Listing) (Page[blobfs.Directory], error) {
+	page, err := s.children.run(ctx, sess, query.Args{"parent_id": parentID}, l)
 	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: directory %s: %w", id, notFound(err))
+		return Page[blobfs.Directory]{}, fmt.Errorf("data: children of %s: %w", parentID, err)
 	}
-	return d, nil
+	return page, nil
 }
 
-// Children lists the directories whose parent is parentID under d: one
-// page, sorted and filtered by the declared fields id, parent_id, name,
-// version, created_at, and updated_at, and the total under the same
-// filters. The parent filter is appended to the caller's directives
-// through ListIn, so the listing is always scoped to one parent. A parent
-// that does not exist lists no rows and a total of zero, since the base is
-// the directory table alone.
-func (s *Store) Children(ctx context.Context, sess sqlate.Session, parentID string, d query.Directives) ([]blobfs.Directory, int, error) {
-	return ListIn(ctx, sess, s.directories, "parent_id", parentID, d)
+// ListFiles lists the files in the directory with directoryID: one page
+// under l, sorted and filtered by the declared fields id, directory_id,
+// name, status, size, content_type, etag, version, created_at, and
+// updated_at, with the total under the same filters when l asks for one.
+// The default sort is by name, and name is the key, so every sort is
+// total. A directory that does not exist lists no rows and, on the first
+// page, a total of zero.
+func (s *Store) ListFiles(ctx context.Context, sess sqlate.Session, directoryID string, l Listing) (Page[blobfs.File], error) {
+	page, err := s.files.run(ctx, sess, query.Args{"directory_id": directoryID}, l)
+	if err != nil {
+		return Page[blobfs.File]{}, fmt.Errorf("data: files in %s: %w", directoryID, err)
+	}
+	return page, nil
 }

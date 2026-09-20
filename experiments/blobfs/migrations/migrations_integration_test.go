@@ -44,73 +44,70 @@ func applied(t *testing.T) (context.Context, *sqlate.DB) {
 	return ctx, db
 }
 
-// TestBookmarkOneActivePerVolume proves the partial unique index: a second
-// active bookmark for one volume is refused under the index's name, while a
-// second inactive one is accepted.
-func TestBookmarkOneActivePerVolume(t *testing.T) {
+// TestBookmarkOneActivePerUnit proves the partial unique index: a second
+// active bookmark for one unit is refused under the index's name, while a
+// second inactive one is accepted, and the same file may be another unit's
+// active bookmark.
+func TestBookmarkOneActivePerUnit(t *testing.T) {
 	ctx, db := applied(t)
-	volume, dir := seedBookmark(ctx, t, db)
-
-	second := insertFile(ctx, t, db, dir, "second.txt")
-	_, err := db.ExecContext(ctx, "INSERT INTO volume_bookmark (volume_id, file_id) VALUES ($1, $2)", volume, second)
+	unit := blobfs.NewID()
+	first := insertFile(ctx, t, db, blobfs.RootID, "first.txt")
+	second := insertFile(ctx, t, db, blobfs.RootID, "second.txt")
+	if _, err := db.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id) VALUES ($1, $2)", unit, first); err != nil {
+		t.Fatalf("first bookmark: %v", err)
+	}
+	_, err := db.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id) VALUES ($1, $2)", unit, second)
 	if !errors.Is(err, sqlate.ErrUniqueViolation) {
 		t.Fatalf("second active bookmark = %v, want ErrUniqueViolation", err)
 	}
-	if name := livetest.Constraint(t, err, sqlate.ErrUniqueViolation); name != "uq_volume_bookmark_active" {
-		t.Errorf("violated constraint = %q, want uq_volume_bookmark_active", name)
+	if name := livetest.Constraint(t, err, sqlate.ErrUniqueViolation); name != "uq_bookmark_active" {
+		t.Errorf("violated constraint = %q, want uq_bookmark_active", name)
 	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO volume_bookmark (volume_id, file_id, active) VALUES ($1, $2, false)", volume, second); err != nil {
+	if _, err := db.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id, active) VALUES ($1, $2, false)", unit, second); err != nil {
 		t.Fatalf("second inactive bookmark: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id) VALUES ($1, $2)", blobfs.NewID(), first); err != nil {
+		t.Fatalf("another unit's active bookmark on the same file: %v", err)
+	}
 }
 
-// TestVolumeOwnerReferencesVolume proves the consumer's ownership row is
-// bound to a real volume: a volume_id that names no volume is refused under
-// the foreign key's name, and the same row is accepted once the volume
-// exists.
-func TestVolumeOwnerReferencesVolume(t *testing.T) {
+// TestBookmarkReferencesFile proves a bookmark is bound to a real file: a
+// file_id that names no file is refused under the foreign key's name.
+func TestBookmarkReferencesFile(t *testing.T) {
 	ctx, db := applied(t)
-	volume, unit := blobfs.NewID(), blobfs.NewID()
-	_, err := db.ExecContext(ctx, "INSERT INTO volume_owner (volume_id, unit_id) VALUES ($1, $2)", volume, unit)
+	_, err := db.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id) VALUES ($1, $2)", blobfs.NewID(), blobfs.NewID())
 	if !errors.Is(err, sqlate.ErrForeignKeyViolation) {
-		t.Fatalf("owner of a missing volume = %v, want ErrForeignKeyViolation", err)
+		t.Fatalf("bookmark of a missing file = %v, want ErrForeignKeyViolation", err)
 	}
-	if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != "fk_volume_owner_volume" {
-		t.Errorf("violated constraint = %q, want fk_volume_owner_volume", name)
-	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO blobfs_volume (id, name) VALUES ($1, 'vol')", volume); err != nil {
-		t.Fatalf("insert volume: %v", err)
-	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO volume_owner (volume_id, unit_id) VALUES ($1, $2)", volume, unit); err != nil {
-		t.Fatalf("owner of an existing volume: %v", err)
+	if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != "fk_bookmark_file" {
+		t.Errorf("violated constraint = %q, want fk_bookmark_file", name)
 	}
 }
 
-// seedBookmark inserts a volume and its root directory in one transaction,
-// then one available file in the root and an active bookmark on the file;
-// it returns the volume and root directory ids.
-func seedBookmark(ctx context.Context, t *testing.T, db *sqlate.DB) (volume, dir string) {
-	t.Helper()
-	volume, dir = blobfs.NewID(), blobfs.NewID()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
+// TestDirectoryOwnerReferencesDirectory proves the consumer's ownership
+// row is bound to a real directory: a directory_id that names no directory
+// is refused under the foreign key's name, the same row is accepted once
+// the directory exists, and a directory has at most one owner.
+func TestDirectoryOwnerReferencesDirectory(t *testing.T) {
+	ctx, db := applied(t)
+	dir, unit := blobfs.NewID(), blobfs.NewID()
+	_, err := db.ExecContext(ctx, "INSERT INTO directory_owner (directory_id, unit_id) VALUES ($1, $2)", dir, unit)
+	if !errors.Is(err, sqlate.ErrForeignKeyViolation) {
+		t.Fatalf("owner of a missing directory = %v, want ErrForeignKeyViolation", err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, "INSERT INTO blobfs_volume (id, name) VALUES ($1, 'vol')", volume); err != nil {
-		t.Fatalf("insert volume: %v", err)
+	if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != "fk_directory_owner_directory" {
+		t.Errorf("violated constraint = %q, want fk_directory_owner_directory", name)
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO blobfs_directory (id, volume_id) VALUES ($1, $2)", dir, volume); err != nil {
-		t.Fatalf("insert root: %v", err)
+	if _, err := db.ExecContext(ctx, "INSERT INTO blobfs_directory (id, parent_id, name) VALUES ($1, $2, 'docs')", dir, blobfs.RootID); err != nil {
+		t.Fatalf("insert directory: %v", err)
 	}
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("commit: %v", err)
+	if _, err := db.ExecContext(ctx, "INSERT INTO directory_owner (directory_id, unit_id) VALUES ($1, $2)", dir, unit); err != nil {
+		t.Fatalf("owner of an existing directory: %v", err)
 	}
-	file := insertFile(ctx, t, db, dir, "first.txt")
-	if _, err := db.ExecContext(ctx, "INSERT INTO volume_bookmark (volume_id, file_id) VALUES ($1, $2)", volume, file); err != nil {
-		t.Fatalf("insert bookmark: %v", err)
+	_, err = db.ExecContext(ctx, "INSERT INTO directory_owner (directory_id, unit_id) VALUES ($1, $2)", dir, blobfs.NewID())
+	if name := livetest.Constraint(t, err, sqlate.ErrUniqueViolation); name != "pk_directory_owner" {
+		t.Errorf("second owner: violated constraint = %q, want pk_directory_owner", name)
 	}
-	return volume, dir
 }
 
 // insertFile inserts an available file named name in directory dir and

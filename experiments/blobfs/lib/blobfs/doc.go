@@ -3,10 +3,17 @@
 // library never calls.
 //
 // The package is Go only. It holds the entity types the persistence layer
-// scans into, the status vocabulary and the table of allowed status
-// transitions, key construction and filename sanitizing, name normalization
-// and validation, the key-validation interface an object store satisfies,
-// and the error types the persistence layer maps database violations onto.
+// scans into, the id of the one root directory (RootID), the status
+// vocabulary and the table of allowed status transitions, key construction
+// and filename sanitizing, name normalization and validation, the
+// key-validation interface an object store satisfies, and the error types
+// the persistence layer maps database violations onto.
+//
+// An install is one directory tree in one database: the schema seeds a
+// single root directory, with no name and the well-known id RootID, and a
+// partial unique index allows no second root. A consumer that wants several
+// isolated trees runs several installs, each with its own database and its
+// own container.
 // It imports neither sqlate nor go-storage; its one dependency outside the
 // standard library is golang.org/x/text/unicode/norm, because the standard
 // library has no Unicode normalizer.

@@ -46,7 +46,7 @@ func TestCommands_ConstructsTheClientWhenALeafRuns(t *testing.T) {
 	calls := 0
 	newClient := func() (*schema.Client, error) {
 		calls++
-		pool, _ := sqltest.Open(t, append(setRun(3), setRun(2)...)...)
+		pool, _ := sqltest.Open(t, append(setRun(2), setRun(2)...)...)
 		return schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
 	}
 	schema.Commands(newClient, output.New(&bytes.Buffer{}, &bytes.Buffer{}))

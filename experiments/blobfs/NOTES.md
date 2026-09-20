@@ -17,9 +17,10 @@ The experiment produces three findings, and the review is organized by them:
 ## Position at the time of writing (2026-09-20)
 
 Stages 1 to 5a are committed, and stage 5b is committed as work in progress. The architect has
-removed `volume` from `blobfs`, so stage 6 unwinds the volume design. The tree today still holds
-the volume-based schema, the volume commands, and the Form 1 file listing, all of which stage 6
-and stage 7 replace.
+removed `volume` from `blobfs`, and stage 6 is committed: the single-root schema, the
+consumer's `directory_owner` and `bookmark` tables, and the persistence package with the listing
+composer. The volume consumer package (`domain/volume`) is deleted, and stage 7 writes
+`domain/files` in its place; until then the binary serves only `schema up|down`.
 
 ## Running it
 
@@ -31,6 +32,42 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 6 decisions the plan did not spell out
+
+- **The page and total convention.** `Page[T]` carries `Rows`, `Total`, and `Next`. `Total` is
+  the window count the rows carried, or `NoTotal` (-1) when the listing asked for `TotalNone`. An
+  empty first page has the exact total 0, because no row matched. An empty page after the first
+  also reports `NoTotal`: the window count travels on rows, and a page past the end has none. The
+  composer runs no count statement in that case, so the "one statement" rule holds everywhere.
+- **The cursor field.** `Listing.After` and `Page.Next` are declared now with the shape stage 8
+  fills. A non-empty `After` is refused with `query.ErrDirectives` until then, and `Next` is empty.
+- **The root sentinel.** `blobfs.ErrRootDirectory` names a refusal that targets the root: a
+  second row with no parent, and the delete, move, and rename of the root in later stages. The
+  write mapping maps `blobfs_uq_directory_root` to it. No library statement can violate that
+  index, because `create_directory` always binds a parent and a validated name, so the mapping is
+  proved by a table test on the classifier and the constraint by the migrations test.
+- **The root in listings.** `Children` never lists the root: the root has no parent, so no
+  `parent_id` equals its parent. `Children(RootID)` lists the depth-one directories. `Root` is a
+  read of `RootID` through `directory_by_id`, and it fails with `ErrNotFound` on a database whose
+  schema is not applied.
+- **`Mkdir` and the root.** `Mkdir` refuses an empty name through `ValidateName`, and every row
+  it writes has a parent, so no call of it creates a root. The schema's seed is the only way a
+  root row exists.
+- **Statement names.** The listing statements are `files_in_directory`,
+  `files_in_directory_with_total`, `children_of_directory`, and `children_of_directory_with_total`:
+  two authored files per listing, so the window count is authored SQL and the composer inserts
+  nothing into a select list. `directory_ancestors` is the upward walk behind `DirectoryPath`.
+- **The correlation name `q`.** The listing statements alias their table as `q`, because the query
+  library's clause patterns qualify every field as `q.<field>` (see the ledger). The published
+  column-list patterns keep `d` and `f`, so the listing statements spell their columns out.
+- **The consumer in the meantime.** `domain/volume` is deleted whole (every file was volume-based),
+  `internal/app/domain.go` mounts nothing, the integration script checks `schema up|down` and the
+  seeded root, and `sqlint.toml` lists only the library's statements. `README.md`, the
+  `split-check` renames, and the `evidence` task wait for stages 7 and 8.
+- **Unique index, not `NULLS NOT DISTINCT`.** `blobfs_uq_directory_root` is a partial unique
+  index over the expression `(parent_id IS NULL)`, so it needs no Postgres 15 feature and reads
+  the same on any engine with partial indexes.
 
 ### 2026-09-20: volume leaves blobfs, one root per install
 
@@ -119,6 +156,32 @@ owner and no unit.
 - **Multi-statement transactional migrations work on pgx.** pgx uses the simple protocol when a
   statement has no arguments. The concept's claim that v0.1.1 cannot host a source holds only for
   one merged `Migrator`: a `Migrator` per set with its own `Options.Table` runs on v0.1.1.
+- **The catalog exposes its inventory and not its renderer (stage 6).** `Catalog.render` is
+  unexported, so a composer outside the projection reads the clause patterns' text through
+  `Catalog.Patterns()` and fills the slots with its own copy of the slot regex. The composer in
+  `lib/blobfs/data/listing.go` is that copy. A `Catalog.Render(name, fill)` method, or an
+  exported clause composer, removes the duplication.
+- **The clause patterns fix the correlation name `q` (stage 6).** `filter_*`, `order_term`, and
+  `order_term_desc` spell every field as `q.<field>`, the derived table's alias. A statement that
+  composes the clauses at its own level must therefore alias its table as `q`, which is why the
+  listing statements read `FROM blobfs_file q`. Making the qualifier a slot, or publishing
+  unqualified terms, would let a statement keep its own alias.
+- **`Scanner` refuses a column with no field (stage 6).** A page statement that carries
+  `COUNT(*) OVER () AS total` beside the entity columns cannot scan through `query.Scanner[T]`,
+  because the total has no field on the entity. The composer keeps a scan of its own that reads
+  the entity's fields by tag and the total into an `int`. A scanner that takes extra
+  destinations, or an entity wrapper the mapper flattens, would remove it.
+- **The window total travels on rows (stage 6).** `COUNT(*) OVER ()` gives every row the total,
+  and an empty page carries none. An empty first page is the exact total 0; an empty later page
+  has no total from the statement. The composer reports `NoTotal` there rather than run a count
+  twin. A library that offers the window total should document this edge.
+- **The composer needs the dialect (stage 6).** `Statement` does not expose the dialect it
+  compiled against, only its catalog, so the composer takes the dialect from `New` for the
+  placeholders it appends after the statement's own.
+- **`Statement.Text()` ends where the file ends (stage 6).** The composer appends `AND`, `ORDER
+  BY`, and the paging clause to `Text()`, which works because the loader trims a trailing
+  semicolon and whitespace. A listing statement must therefore end with its `WHERE` clause; the
+  hermetic test pins the rendered suffix, and nothing in the loader states the rule.
 
 ### The library
 
@@ -142,6 +205,31 @@ owner and no unit.
   workspace follows that sentence. The experiment follows the practice: godoc on every exported
   identifier, and the package comment in `doc.go` for a multi-file package.
 - **History tables survive a full `Down`.** Stage 14 decides whether `Reset` drops them.
+- **One seeded root, one partial unique index (stage 6).** `blobfs_directory` holds exactly one
+  row with no parent, seeded with `RootID` by the migration and guarded by
+  `blobfs_uq_directory_root` over the expression `(parent_id IS NULL)`. A second root is a unique
+  violation under the index's name, and `TestOneRoot` shows the primary key and the index are
+  distinct guards. No library operation can create a root, because `Mkdir` always binds a parent
+  and a validated name.
+- **The listing composes at the statement's level and carries its total (stage 6).** `ListFiles`
+  and `Children` are one statement each, anchored on a directory id, with the caller's predicates,
+  sort, and page appended in Go from the query library's clause patterns and the total from
+  `COUNT(*) OVER ()` in the same select list. `TestListingCarriesItsTotal` proves one query per
+  page and the window count present under `TotalExact` and absent under `TotalNone`;
+  `TestListingMatchesForest` proves the rows and the total equal a whole-forest recursion's
+  answer for every directory of a fixture, four sorts, two filters, and four page sizes;
+  `TestExactTotalUnderConcurrentInserts` proves the total agrees with its own rows while a second
+  connection inserts between calls, on the pool and under a repeatable-read transaction.
+- **`name` is the key of both listings (stage 6).** `(directory_id, name)` and `(parent_id,
+  name)` are unique, so a sort by name is total in either direction and needs no tie-breaker;
+  every other sort gains `name` as the tie-breaker. No index was added.
+- **`DirectoryPath` is one upward walk (stage 6).** `directory_ancestors` recurses from the
+  directory to the root, so its cost is the depth. `ResolveDirectory` stays one round trip per
+  segment from the root.
+- **The store's `Verify` has two halves (stage 6).** Every statement prepares as authored, and
+  each listing statement prepares once more as a canonical rendering with every declared field
+  filtered and sorted and the paging clause, so a field the table lacks fails at startup.
+  Twelve prepares in all: eight statements and four renderings.
 
 ### `go-storage` and `azureblob`
 

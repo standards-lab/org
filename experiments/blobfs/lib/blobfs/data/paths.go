@@ -11,25 +11,24 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 )
 
-// ResolveDirectory returns the directory at path inside the volume with
-// volumeID. A path is / for the volume's root or /a/b below it: it starts
-// with a slash, and every segment between slashes is a directory name,
-// normalized before it is compared. A path that does not start with a
-// slash, or one with an empty segment or a segment ValidateName refuses, is
-// blobfs.ErrInvalidPath; a segment that names no directory is
-// blobfs.ErrNotFound, as is a volume that does not exist.
+// ResolveDirectory returns the directory at path. A path is / for the root
+// or /a/b below it: it starts with a slash, and every segment between
+// slashes is a directory name, normalized before it is compared. A path
+// that does not start with a slash, or one with an empty segment or a
+// segment ValidateName refuses, is blobfs.ErrInvalidPath; a segment that
+// names no directory is blobfs.ErrNotFound, naming the prefix that failed.
 //
 // Resolution is iterative: one directory_child read per segment, starting
-// from the volume's root. Standard SQL has no array parameter, so the
+// from the root. Standard SQL has no ordered array parameter, so the
 // segments cannot bind as one list and be walked by a single recursive
 // statement at the standard tier; the round trips are one per segment. A
 // native variant could resolve a path in one statement.
-func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, volumeID, path string) (blobfs.Directory, error) {
+func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path string) (blobfs.Directory, error) {
 	segments, err := splitPath(path)
 	if err != nil {
 		return blobfs.Directory{}, fmt.Errorf("data: resolve %q: %w", path, err)
 	}
-	dir, err := s.RootDirectory(ctx, sess, volumeID)
+	dir, err := s.Root(ctx, sess)
 	if err != nil {
 		return blobfs.Directory{}, err
 	}
@@ -40,6 +39,36 @@ func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, volum
 		}
 	}
 	return dir, nil
+}
+
+// DirectoryPath returns the path of the directory with id: / for the root
+// and /a/b below it, the names of the chain from the root's child down to
+// the directory joined by slashes. It is one recursive statement that walks
+// upward from the directory, so its cost is the directory's depth. A
+// directory that does not exist is blobfs.ErrNotFound.
+func (s *Store) DirectoryPath(ctx context.Context, sess sqlate.Session, id string) (string, error) {
+	chain, err := s.directoryAncestors.All(ctx, sess, query.Args{"id": id})
+	if err != nil {
+		return "", fmt.Errorf("data: path of %s: %w", id, err)
+	}
+	if len(chain) == 0 {
+		return "", fmt.Errorf("data: path of %s: %w", id, blobfs.ErrNotFound)
+	}
+	if chain[0].ParentID != nil {
+		return "", fmt.Errorf("data: path of %s: the chain of %d ancestors does not reach the root", id, len(chain))
+	}
+	var b strings.Builder
+	for _, a := range chain[1:] {
+		if a.Name == nil {
+			return "", fmt.Errorf("data: path of %s: an ancestor below the root has no name", id)
+		}
+		b.WriteString("/")
+		b.WriteString(*a.Name)
+	}
+	if b.Len() == 0 {
+		return "/", nil
+	}
+	return b.String(), nil
 }
 
 // splitPath checks that path is absolute and returns its normalized,

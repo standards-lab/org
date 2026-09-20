@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
+	"time"
 
 	"github.com/standards-lab/sqlate"
 	"github.com/standards-lab/sqlate/query"
@@ -38,24 +39,41 @@ func newStore(t *testing.T) *data.Store {
 	return s
 }
 
+// fileColumns is the column list of the file listing statements, as the
+// scripted driver must return them, and the total column the counted
+// statement adds.
+var fileColumns = []string{"id", "directory_id", "name", "status", "key", "size", "content_type", "etag", "version", "created_at", "updated_at"}
+
+// fileRow is one scripted file row, its columns in fileColumns order.
+func fileRow(id, name string) []driver.Value {
+	now := time.Now()
+	return []driver.Value{id, blobfs.RootID, name, "available", id + "/" + name, nil, "text/plain", nil, int64(1), now, now}
+}
+
 // TestNew proves the catalog builds with the two sources, every statement
-// compiles and every projection constructs, and reports the inventory the
-// tier proof counts: twelve statements, all standard tier, of which the
-// two inserts behind CreateVolume require a transaction.
+// compiles and both listings construct, and reports the inventory the tier
+// proof counts: eight statements, all standard tier, none requiring a
+// transaction.
 func TestNew(t *testing.T) {
 	s := newStore(t)
 	stmts := s.Statements()
-	if len(stmts) != 12 {
-		t.Errorf("Statements returned %d statements, want 12", len(stmts))
-	}
-	txRequired := map[string]bool{"create_volume": true, "create_root_directory": true}
+	var names []string
 	for _, st := range stmts {
+		names = append(names, st.Name())
 		if st.Tier() != query.TierStandard {
 			t.Errorf("%s is %s tier, want standard", st.Name(), st.Tier())
 		}
-		if st.TransactionRequired() != txRequired[st.Name()] {
-			t.Errorf("%s TransactionRequired = %v, want %v", st.Name(), st.TransactionRequired(), txRequired[st.Name()])
+		if st.TransactionRequired() {
+			t.Errorf("%s requires a transaction; no statement of this stage does", st.Name())
 		}
+	}
+	want := []string{
+		"children_of_directory", "children_of_directory_with_total", "create_directory",
+		"directory_ancestors", "directory_by_id", "directory_child",
+		"files_in_directory", "files_in_directory_with_total",
+	}
+	if !slices.Equal(names, want) {
+		t.Errorf("Statements = %v, want %v", names, want)
 	}
 	for _, p := range catalog(t).Patterns() {
 		if p.Namespace == data.Namespace && p.Tier != query.TierStandard {
@@ -67,8 +85,8 @@ func TestNew(t *testing.T) {
 	}
 }
 
-// TestPatterns proves the published namespace and its inventory: the tree,
-// the three column lists, and the two path expressions.
+// TestPatterns proves the published namespace and its inventory: the two
+// column lists and nothing else.
 func TestPatterns(t *testing.T) {
 	var names []string
 	for _, p := range catalog(t).Patterns() {
@@ -76,14 +94,15 @@ func TestPatterns(t *testing.T) {
 			names = append(names, p.Name)
 		}
 	}
-	want := "directory_columns directory_path file_columns file_path tree volume_columns"
-	if got := strings.Join(names, " "); got != want {
-		t.Errorf("blobfs patterns = %q, want %q", got, want)
+	if got := strings.Join(names, " "); got != "directory_columns file_columns" {
+		t.Errorf("blobfs patterns = %q, want %q", got, "directory_columns file_columns")
 	}
 }
 
-// TestNewWithoutPatterns proves a catalog that lacks the blobfs namespace
-// is refused with an error naming it, before any statement compiles.
+// TestNewWithoutPatterns proves a catalog that lacks either namespace is
+// refused with an error naming what is missing, before any statement
+// compiles: the blobfs namespace the statements include, and the query
+// library's namespace the composer fills its clauses from.
 func TestNewWithoutPatterns(t *testing.T) {
 	c, err := query.NewCatalog(query.Patterns())
 	if err != nil {
@@ -93,11 +112,21 @@ func TestNewWithoutPatterns(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), `"blobfs"`) {
 		t.Fatalf("New without the blobfs namespace = %v, want an error naming the namespace", err)
 	}
+	c, err = query.NewCatalog(data.Patterns())
+	if err != nil {
+		t.Fatalf("NewCatalog: %v", err)
+	}
+	_, err = data.New(c, sqltest.Dialect{})
+	if err == nil || !strings.Contains(err.Error(), "sql.") {
+		t.Fatalf("New without the query library's namespace = %v, want an error naming a missing sql pattern", err)
+	}
 }
 
-// TestVerify proves Verify prepares every statement and both field-contract
-// probes: fourteen prepares against the scripted driver, none of which
-// consumes a response.
+// TestVerify proves Verify prepares every statement as authored and one
+// canonical rendering per listing statement: twelve prepares against the
+// scripted driver, none of which consumes a response. The four renderings
+// carry every declared field as a predicate and a sort term, and the
+// paging clause; the two counted ones carry the window count.
 func TestVerify(t *testing.T) {
 	s := newStore(t)
 	pool, rec := sqltest.Open(t)
@@ -105,86 +134,254 @@ func TestVerify(t *testing.T) {
 	if err := s.Verify(context.Background(), db); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if n := len(rec.SQL(sqltest.OpPrepare)); n != 14 {
-		t.Errorf("Verify prepared %d statements, want 14 (12 statements and 2 projections)", n)
+	prepared := rec.SQL(sqltest.OpPrepare)
+	if len(prepared) != 12 {
+		t.Fatalf("Verify prepared %d statements, want 12 (8 statements and 4 listing renderings)", len(prepared))
+	}
+	renderings, counted := 0, 0
+	for _, text := range prepared {
+		if !strings.Contains(text, " ROWS FETCH NEXT ") {
+			continue
+		}
+		renderings++
+		if !strings.Contains(text, " AND q.name IS NOT NULL") || !strings.Contains(text, " ORDER BY q.id, ") {
+			t.Errorf("rendering lacks the field probes:\n%s", text)
+		}
+		if strings.Contains(text, "COUNT(*) OVER ()") {
+			counted++
+		}
+	}
+	if renderings != 4 || counted != 2 {
+		t.Errorf("Verify prepared %d listing renderings of which %d counted, want 4 and 2", renderings, counted)
 	}
 }
 
-// listing is the row shape of the test-local projection bases below.
-type listing struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
+// TestListingCarriesItsTotal is the stage gate's hermetic proof: ListFiles
+// under TotalExact runs ONE statement, and that statement carries
+// COUNT(*) OVER () in its select list, so the total and the page come from
+// the same rows; under TotalNone the one statement omits the window count
+// and the page reports NoTotal. The total is read from the rows: a row's
+// total is the page's, and an empty first page has the exact total 0.
+func TestListingCarriesItsTotal(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	dir := blobfs.NewID()
+	counted := append(slices.Clone(fileColumns), "total")
 
-// projection compiles one test-local base statement against the consumer's
-// catalog and binds it to a projection over listing.
-func projection(t *testing.T, base string) query.Projection[listing] {
-	t.Helper()
-	fsys := fstest.MapFS{"statements/files.sql": {Data: []byte(base)}}
-	stmts, err := catalog(t).Compile(fsys, "statements", sqltest.Dialect{})
-	if err != nil {
-		t.Fatalf("Compile: %v", err)
-	}
-	return stmts.Statement("files").Project(query.Scanner[listing]())
-}
-
-// TestListInUnknownField proves the forgotten-filter case: a base that did
-// not declare the scoping field makes ListIn fail before any SQL reaches
-// the driver, with a query.UnknownFieldError naming the field as a filter,
-// and that error unwraps to query.ErrDirectives, the sentinel a generic
-// handler maps to a client error.
-func TestListInUnknownField(t *testing.T) {
-	p := projection(t, "--| tier: standard\n--| key: id\n--| field: id uuid\n--| field: name text\n"+
-		"{{> blobfs.tree}}\nSELECT f.id, f.name FROM blobfs_file f JOIN tree t ON t.id = f.directory_id")
-	pool, rec := sqltest.Open(t)
-	db := sqlate.Wrap(pool, sqltest.Dialect{})
-	d := query.Directives{Page: query.Page{Number: 1, Size: 10}}
-	_, _, err := data.ListIn(context.Background(), db, p, "directory_id", "x", d)
-	var unknown *query.UnknownFieldError
-	if !errors.As(err, &unknown) {
-		t.Fatalf("ListIn on an undeclared field = %v, want UnknownFieldError", err)
-	}
-	if unknown.Field != "directory_id" || unknown.Use != query.FieldUseFilter {
-		t.Errorf("UnknownFieldError = %+v, want field directory_id as a filter", unknown)
-	}
-	if !errors.Is(err, query.ErrDirectives) {
-		t.Errorf("UnknownFieldError does not unwrap to ErrDirectives: %v", err)
-	}
-	if calls := rec.Calls(); len(calls) != 0 {
-		t.Errorf("ListIn reached the driver with %d calls before rejecting the field", len(calls))
-	}
-}
-
-// TestListInAppendsScope proves ListIn appends the scope after the caller's
-// filters, binds its value through the field's declared type, and leaves
-// the caller's directives as they were.
-func TestListInAppendsScope(t *testing.T) {
-	p := projection(t, "--| tier: standard\n--| key: id\n--| field: id uuid\n--| field: name text\n--| field: directory_id uuid\n"+
-		"SELECT f.id, f.name, f.directory_id FROM blobfs_file f")
 	pool, rec := sqltest.Open(t,
-		sqltest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(0)}}},
-		sqltest.Response{Columns: []string{"id", "name"}},
+		sqltest.Response{Columns: counted, Rows: [][]driver.Value{
+			append(fileRow("f1", "a.txt"), int64(7)),
+			append(fileRow("f2", "b.txt"), int64(7)),
+		}},
+		sqltest.Response{Columns: counted},
+		sqltest.Response{Columns: fileColumns, Rows: [][]driver.Value{fileRow("f1", "a.txt")}},
 	)
 	db := sqlate.Wrap(pool, sqltest.Dialect{})
-	d := query.Directives{
-		Page:    query.Page{Number: 1, Size: 10},
-		Filters: []query.Filter{{Field: "name", Op: query.OpLike, Value: "a%"}},
+
+	page, err := s.ListFiles(ctx, db, dir, data.Listing{Page: 2, Size: 2})
+	if err != nil {
+		t.Fatalf("ListFiles exact: %v", err)
 	}
-	if _, total, err := data.ListIn(context.Background(), db, p, "directory_id", "dir", d); err != nil || total != 0 {
-		t.Fatalf("ListIn = total %d, %v", total, err)
+	if page.Total != 7 || len(page.Rows) != 2 || page.Rows[1].Name != "b.txt" || page.Rows[1].DirectoryID != blobfs.RootID || page.Next != "" {
+		t.Errorf("exact page = total %d, %d rows, next %q; want total 7 from the rows, 2 rows, no cursor", page.Total, len(page.Rows), page.Next)
 	}
-	if len(d.Filters) != 1 {
-		t.Errorf("ListIn modified the caller's directives: %d filters", len(d.Filters))
+	page, err = s.ListFiles(ctx, db, dir, data.Listing{Page: 1, Size: 2})
+	if err != nil {
+		t.Fatalf("ListFiles exact, empty: %v", err)
+	}
+	if page.Total != 0 || len(page.Rows) != 0 {
+		t.Errorf("empty first page = total %d, %d rows; want the exact total 0", page.Total, len(page.Rows))
+	}
+	page, err = s.ListFiles(ctx, db, dir, data.Listing{Page: 1, Size: 2, Total: data.TotalNone})
+	if err != nil {
+		t.Fatalf("ListFiles none: %v", err)
+	}
+	if page.Total != data.NoTotal || len(page.Rows) != 1 {
+		t.Errorf("page without a total = total %d, %d rows; want NoTotal and 1 row", page.Total, len(page.Rows))
+	}
+
+	queries := rec.SQL(sqltest.OpQuery)
+	if len(queries) != 3 {
+		t.Fatalf("three listings ran %d queries, want 3 (one statement per listing, no count twin)", len(queries))
+	}
+	const window = ", COUNT(*) OVER () AS total"
+	const tail = "\nFROM blobfs_file q\nWHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY"
+	for i, want := range []bool{true, true, false} {
+		if got := strings.Contains(queries[i], window); got != want {
+			t.Errorf("query %d carries the window count: %v, want %v\n%s", i, got, want, queries[i])
+		}
+		if !strings.HasSuffix(queries[i], tail) {
+			t.Errorf("query %d does not end with the anchor, the default sort, and the paging clause:\n%s", i, queries[i])
+		}
+	}
+	calls := rec.Calls()
+	if got := calls[0].Args; len(got) != 3 || got[0] != dir || got[1] != 2 || got[2] != 2 {
+		t.Errorf("page 2 of size 2 bound %v, want the directory, offset 2, fetch 2", got)
+	}
+	if n := rec.RowsLeaked(); n != 0 {
+		t.Errorf("%d row sets leaked", n)
+	}
+}
+
+// TestListingComposesClauses proves the composer appends the caller's
+// predicates and sort terms in the query library's spelling, at the
+// statement's own level: each filter after AND with its value cast to the
+// field's declared type, the sort terms in order with name as the
+// tie-breaker unless the caller sorted by it, and the paging placeholders
+// after every value. The caller's Listing is left as it was.
+func TestListingComposesClauses(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	pool, rec := sqltest.Open(t,
+		sqltest.Response{Columns: fileColumns},
+		sqltest.Response{Columns: fileColumns},
+	)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	l := data.Listing{
+		Page: 3, Size: 5, Total: data.TotalNone,
+		Filters: []query.Filter{
+			{Field: "name", Op: query.OpLike, Value: "a%"},
+			{Field: "size", Op: query.OpIsNotNull},
+			{Field: "status", Op: query.OpIn, Value: []any{"pending", "available"}},
+			{Field: "created_at", Op: query.OpGe, Value: "2026-01-01T00:00:00Z"},
+		},
+		Sort: []query.Sort{{Field: "created_at", Descending: true}, {Field: "size"}},
+	}
+	if _, err := s.ListFiles(ctx, db, "dir", l); err != nil {
+		t.Fatalf("ListFiles: %v", err)
+	}
+	if _, err := s.ListFiles(ctx, db, "dir", data.Listing{Page: 1, Size: 5, Total: data.TotalNone, Sort: []query.Sort{{Field: "name", Descending: true}}}); err != nil {
+		t.Fatalf("ListFiles by name desc: %v", err)
+	}
+	if len(l.Filters) != 4 || len(l.Sort) != 2 {
+		t.Errorf("the composer modified the caller's Listing: %+v", l)
 	}
 	queries := rec.SQL(sqltest.OpQuery)
-	if len(queries) != 2 {
-		t.Fatalf("ListIn ran %d queries, want the count and the page", len(queries))
+	wantTail := "WHERE q.directory_id = CAST($1 AS uuid)" +
+		" AND q.name LIKE CAST($2 AS text)" +
+		" AND q.size IS NOT NULL" +
+		" AND q.status IN (CAST($3 AS text), CAST($4 AS text))" +
+		" AND q.created_at >= CAST($5 AS timestamp with time zone)" +
+		" ORDER BY q.created_at DESC, q.size, q.name" +
+		" OFFSET $6 ROWS FETCH NEXT $7 ROWS ONLY"
+	if !strings.HasSuffix(queries[0], wantTail) {
+		t.Errorf("composed query ends with\n%s\nwant\n%s", queries[0], wantTail)
 	}
-	want := "WHERE q.name LIKE CAST($1 AS text) AND q.directory_id = CAST($2 AS uuid)"
-	for _, q := range queries {
-		if !strings.Contains(q, want) {
-			t.Errorf("query %q lacks %q", q, want)
+	if !strings.HasSuffix(queries[1], " ORDER BY q.name DESC OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
+		t.Errorf("a sort by name gained a tie-breaker:\n%s", queries[1])
+	}
+	args := rec.Calls()[0].Args
+	want := []any{"dir", "a%", "pending", "available", "2026-01-01T00:00:00Z", 10, 5}
+	if !slices.Equal(args, want) {
+		t.Errorf("bound %v, want %v", args, want)
+	}
+}
+
+// TestChildrenSQL proves the directory listing composes over its own
+// statement: the parent anchor, the directory columns, and the window
+// count, with the same clause handling as the file listing.
+func TestChildrenSQL(t *testing.T) {
+	s := newStore(t)
+	cols := []string{"id", "parent_id", "name", "version", "created_at", "updated_at", "total"}
+	pool, rec := sqltest.Open(t, sqltest.Response{Columns: cols})
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	page, err := s.Children(context.Background(), db, blobfs.RootID, data.Listing{Page: 1, Size: 3, Filters: []query.Filter{{Field: "name", Op: query.OpGt, Value: "m"}}})
+	if err != nil || page.Total != 0 || len(page.Rows) != 0 {
+		t.Fatalf("Children = %+v, %v; want an empty first page with total 0", page, err)
+	}
+	q := rec.SQL(sqltest.OpQuery)[0]
+	if !strings.Contains(q, "COUNT(*) OVER () AS total\nFROM blobfs_directory q\nWHERE q.parent_id = CAST($1 AS uuid) AND q.name > CAST($2 AS text) ORDER BY q.name OFFSET $3 ROWS FETCH NEXT $4 ROWS ONLY") {
+		t.Errorf("Children composed:\n%s", q)
+	}
+}
+
+// TestListingRefusals proves every refusal happens before any SQL reaches
+// the driver, with the query library's own error types, each unwrapping to
+// query.ErrDirectives: an unknown filter or sort field
+// (UnknownFieldError, naming the use), an unknown operator, an in filter
+// without a list, a page or size below one, and a cursor, which a later
+// stage implements.
+func TestListingRefusals(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	pool, rec := sqltest.Open(t)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	cases := []struct {
+		label string
+		l     data.Listing
+	}{
+		{"unknown filter field", data.Listing{Page: 1, Size: 1, Filters: []query.Filter{{Field: "unit_id", Op: query.OpEq, Value: "x"}}}},
+		{"unknown sort field", data.Listing{Page: 1, Size: 1, Sort: []query.Sort{{Field: "path"}}}},
+		{"unknown operator", data.Listing{Page: 1, Size: 1, Filters: []query.Filter{{Field: "name", Op: "between", Value: "x"}}}},
+		{"in without a list", data.Listing{Page: 1, Size: 1, Filters: []query.Filter{{Field: "name", Op: query.OpIn, Value: "x"}}}},
+		{"page zero", data.Listing{Page: 0, Size: 1}},
+		{"size zero", data.Listing{Page: 1, Size: 0}},
+		{"cursor", data.Listing{Page: 1, Size: 1, After: "opaque"}},
+	}
+	for _, c := range cases {
+		_, err := s.ListFiles(ctx, db, "dir", c.l)
+		if !errors.Is(err, query.ErrDirectives) {
+			t.Errorf("%s = %v, want ErrDirectives", c.label, err)
 		}
+		if _, err := s.Children(ctx, db, "dir", c.l); !errors.Is(err, query.ErrDirectives) {
+			t.Errorf("Children, %s = %v, want ErrDirectives", c.label, err)
+		}
+	}
+	var unknown *query.UnknownFieldError
+	_, err := s.ListFiles(ctx, db, "dir", cases[0].l)
+	if !errors.As(err, &unknown) || unknown.Field != "unit_id" || unknown.Use != query.FieldUseFilter {
+		t.Errorf("unknown filter field = %v, want UnknownFieldError naming unit_id as a filter", err)
+	}
+	_, err = s.ListFiles(ctx, db, "dir", cases[1].l)
+	if !errors.As(err, &unknown) || unknown.Field != "path" || unknown.Use != query.FieldUseSort {
+		t.Errorf("unknown sort field = %v, want UnknownFieldError naming path as a sort", err)
+	}
+	if calls := rec.Calls(); len(calls) != 0 {
+		t.Errorf("the refusals reached the driver with %d calls", len(calls))
+	}
+}
+
+// TestRootReadsByID proves Root is a read of the well-known id and no
+// search: one query bound to RootID, and a database without the row (the
+// schema not applied) is ErrNotFound.
+func TestRootReadsByID(t *testing.T) {
+	s := newStore(t)
+	pool, rec := sqltest.Open(t, sqltest.Response{Columns: []string{"id", "parent_id", "name", "version", "created_at", "updated_at"}})
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	if _, err := s.Root(context.Background(), db); !errors.Is(err, blobfs.ErrNotFound) {
+		t.Fatalf("Root without the seed = %v, want ErrNotFound", err)
+	}
+	calls := rec.Calls()
+	if len(calls) != 1 || len(calls[0].Args) != 1 || calls[0].Args[0] != blobfs.RootID {
+		t.Errorf("Root ran %d calls with %v, want one query bound to RootID", len(calls), calls)
+	}
+}
+
+// TestDirectoryPathComposes proves the path is composed from the ancestor
+// chain root first: the root alone is /, a chain is the names below the
+// root joined by slashes, and no chain is ErrNotFound. The statement runs
+// once per call, whatever the depth.
+func TestDirectoryPathComposes(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	cols := []string{"parent_id", "name"}
+	pool, rec := sqltest.Open(t,
+		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, nil}}},
+		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, nil}, {blobfs.RootID, "a"}, {"a", "b"}, {"b", "café"}}},
+		sqltest.Response{Columns: cols},
+	)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	for i, want := range []string{"/", "/a/b/café"} {
+		got, err := s.DirectoryPath(ctx, db, "id")
+		if err != nil || got != want {
+			t.Errorf("DirectoryPath %d = %q, %v, want %q", i, got, err, want)
+		}
+	}
+	if _, err := s.DirectoryPath(ctx, db, "missing"); !errors.Is(err, blobfs.ErrNotFound) {
+		t.Errorf("DirectoryPath of a missing directory = %v, want ErrNotFound", err)
+	}
+	if n := len(rec.SQL(sqltest.OpQuery)); n != 3 {
+		t.Errorf("three paths ran %d queries, want 3 (one recursive statement each)", n)
 	}
 }
 
@@ -197,12 +394,12 @@ func TestResolveDirectoryPaths(t *testing.T) {
 	pool, rec := sqltest.Open(t)
 	db := sqlate.Wrap(pool, sqltest.Dialect{})
 	for _, path := range []string{"", "a/b", "/a//b", "/a/", "/a/../b"} {
-		_, err := s.ResolveDirectory(context.Background(), db, blobfs.NewID(), path)
+		_, err := s.ResolveDirectory(context.Background(), db, path)
 		if !errors.Is(err, blobfs.ErrInvalidPath) {
 			t.Errorf("ResolveDirectory(%q) = %v, want ErrInvalidPath", path, err)
 		}
 	}
-	if _, err := s.ResolveDirectory(context.Background(), db, blobfs.NewID(), "/a/../b"); !errors.Is(err, blobfs.ErrInvalidName) {
+	if _, err := s.ResolveDirectory(context.Background(), db, "/a/../b"); !errors.Is(err, blobfs.ErrInvalidName) {
 		t.Errorf("ResolveDirectory(/a/../b) = %v, want ErrInvalidName as well", err)
 	}
 	if calls := rec.Calls(); len(calls) != 0 {
@@ -210,42 +407,22 @@ func TestResolveDirectoryPaths(t *testing.T) {
 	}
 }
 
-// TestInvalidNames proves the commands normalize and validate before any
-// SQL: an empty name, a slash, and a control character are ErrInvalidName
-// on CreateVolume, Mkdir, and RenameVolume alike, and nothing reaches the
-// driver.
-func TestInvalidNames(t *testing.T) {
+// TestMkdirInvalidNames proves Mkdir normalizes and validates before any
+// SQL: an empty name, a slash, a control character, and .. are
+// ErrInvalidName, and nothing reaches the driver. The empty name is the
+// stage gate's API half: no call of Mkdir writes a row without a name, so
+// no call creates a root.
+func TestMkdirInvalidNames(t *testing.T) {
 	s := newStore(t)
 	pool, rec := sqltest.Open(t)
 	db := sqlate.Wrap(pool, sqltest.Dialect{})
 	ctx := context.Background()
 	for _, name := range []string{"", "a/b", "tab\there", ".."} {
-		if _, _, err := s.CreateVolume(ctx, db, name); !errors.Is(err, blobfs.ErrInvalidName) {
-			t.Errorf("CreateVolume(%q) = %v, want ErrInvalidName", name, err)
-		}
-		if _, err := s.Mkdir(ctx, db, blobfs.NewID(), name); !errors.Is(err, blobfs.ErrInvalidName) {
+		if _, err := s.Mkdir(ctx, db, blobfs.RootID, name); !errors.Is(err, blobfs.ErrInvalidName) {
 			t.Errorf("Mkdir(%q) = %v, want ErrInvalidName", name, err)
-		}
-		if _, err := s.RenameVolume(ctx, db, blobfs.NewID(), 1, name); !errors.Is(err, blobfs.ErrInvalidName) {
-			t.Errorf("RenameVolume(%q) = %v, want ErrInvalidName", name, err)
 		}
 	}
 	if calls := rec.Calls(); len(calls) != 0 {
 		t.Errorf("name checks reached the driver with %d calls", len(calls))
-	}
-}
-
-// TestCreateVolumeNeedsTransaction proves the header does its work without
-// an engine: CreateVolume on the pool session is refused with
-// query.ErrTransactionRequired before any statement runs.
-func TestCreateVolumeNeedsTransaction(t *testing.T) {
-	s := newStore(t)
-	pool, rec := sqltest.Open(t)
-	db := sqlate.Wrap(pool, sqltest.Dialect{})
-	if _, _, err := s.CreateVolume(context.Background(), db, "vol"); !errors.Is(err, query.ErrTransactionRequired) {
-		t.Fatalf("CreateVolume on the pool = %v, want ErrTransactionRequired", err)
-	}
-	if calls := rec.Calls(); len(calls) != 0 {
-		t.Errorf("the refusal reached the driver with %d calls", len(calls))
 	}
 }

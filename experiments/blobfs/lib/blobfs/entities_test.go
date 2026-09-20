@@ -28,23 +28,52 @@ func TestNewID(t *testing.T) {
 		if len(id) != 36 {
 			t.Fatalf("NewID() = %q has length %d, want the 36-character canonical form", id, len(id))
 		}
+		if id == blobfs.RootID {
+			t.Fatalf("NewID() minted the root's id")
+		}
+	}
+}
+
+// TestRootID fixes the root's well-known id: the nil UUID in canonical
+// form, which parses as a uuid and binds to a uuid column as text.
+func TestRootID(t *testing.T) {
+	u, err := uuid.Parse(blobfs.RootID)
+	if err != nil {
+		t.Fatalf("uuid.Parse(RootID): %v", err)
+	}
+	if u != (uuid.UUID{}) {
+		t.Errorf("RootID = %q, want the nil UUID", blobfs.RootID)
+	}
+	if got := u.String(); got != blobfs.RootID {
+		t.Errorf("RootID %q is not in canonical form (%q)", blobfs.RootID, got)
+	}
+}
+
+// TestIsRoot fixes what makes a directory the root: a nil parent, and
+// nothing else.
+func TestIsRoot(t *testing.T) {
+	parent, name := "p", "n"
+	if !(blobfs.Directory{ID: blobfs.RootID}).IsRoot() {
+		t.Error("a directory with no parent is not the root")
+	}
+	if (blobfs.Directory{ID: blobfs.RootID, ParentID: &parent, Name: &name}).IsRoot() {
+		t.Error("a directory with a parent is the root")
 	}
 }
 
 // TestEntityTags fixes the scan and binding contract: every exported field
-// of Volume, Directory, and File carries a json tag naming its column, and
-// the columns a root leaves NULL (a directory's parent_id, volume_id, and
-// name) and the columns a store fills late (a file's size and etag) are
-// pointers, so a NULL scans as nil and a nil binds as NULL.
+// of Directory and File carries a json tag naming its column, and the
+// columns the root leaves NULL (a directory's parent_id and name) and the
+// columns a store fills late (a file's size and etag) are pointers, so a
+// NULL scans as nil and a nil binds as NULL.
 func TestEntityTags(t *testing.T) {
 	nullable := map[string]bool{
 		"Directory.ParentID": true,
-		"Directory.VolumeID": true,
 		"Directory.Name":     true,
 		"File.Size":          true,
 		"File.ETag":          true,
 	}
-	for _, v := range []any{blobfs.Volume{}, blobfs.Directory{}, blobfs.File{}} {
+	for _, v := range []any{blobfs.Directory{}, blobfs.File{}} {
 		rt := reflect.TypeOf(v)
 		for i := range rt.NumField() {
 			f := rt.Field(i)
@@ -67,11 +96,13 @@ func TestSentinels(t *testing.T) {
 		blobfs.ErrNotFound,
 		blobfs.ErrNameTaken,
 		blobfs.ErrInvalidName,
+		blobfs.ErrInvalidPath,
 		blobfs.ErrInvalidKey,
 		blobfs.ErrNotEmpty,
 		blobfs.ErrInvalidTransition,
 		blobfs.ErrDeleting,
 		blobfs.ErrCycle,
+		blobfs.ErrRootDirectory,
 	}
 	for i, a := range sentinels {
 		for j, b := range sentinels {

@@ -16,7 +16,7 @@ import (
 	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
 )
 
-var objectTables = []string{"blobfs_volume", "blobfs_directory", "blobfs_file", "volume_owner", "volume_bookmark"}
+var objectTables = []string{"blobfs_directory", "blobfs_file", "directory_owner", "bookmark"}
 
 // TestSchemaUpDown is the stage gate: both sets apply fresh through the
 // client, every table and both history tables exist at the expected head,
@@ -38,13 +38,13 @@ func TestSchemaUpDown(t *testing.T) {
 			t.Errorf("after Up, table %s is missing", table)
 		}
 	}
-	for _, index := range []string{"ix_volume_owner_unit", "uq_volume_bookmark_active"} {
+	for _, index := range []string{"blobfs_uq_directory_root", "ix_directory_owner_unit", "uq_bookmark_active"} {
 		if !livetest.Exists(ctx, t, db, index) {
 			t.Errorf("after Up, index %s is missing", index)
 		}
 	}
-	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 3 {
-		t.Errorf("%s head = %d, want 3", blobfsmigrations.Table, head)
+	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 2 {
+		t.Errorf("%s head = %d, want 2", blobfsmigrations.Table, head)
 	}
 	if head := livetest.Head(ctx, t, db, "schema_version"); head != 2 {
 		t.Errorf("schema_version head = %d, want 2", head)
@@ -74,7 +74,7 @@ func TestSchemaUpDown(t *testing.T) {
 
 // TestWrongOrderDownIsRefused is the evidence for the reverse-order rule:
 // with both sets applied, reverting blobfs's set before the consumer's
-// fails because volume_bookmark's foreign key depends on blobfs_file. The
+// fails because bookmark's foreign key depends on blobfs_file. The
 // inner migrator is driven directly, in the wrong order.
 //
 // Finding: the refusal is not a class-23 foreign-key violation. Postgres
@@ -103,7 +103,7 @@ func TestWrongOrderDownIsRefused(t *testing.T) {
 	}
 	err = inner.Down(ctx, len(blobfsSet))
 	if err == nil {
-		t.Fatal("blobfs Down before the consumer's succeeded; volume_bookmark's foreign key did not block it")
+		t.Fatal("blobfs Down before the consumer's succeeded; bookmark's foreign key did not block it")
 	}
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.Code != "2BP01" {
@@ -114,8 +114,8 @@ func TestWrongOrderDownIsRefused(t *testing.T) {
 	}
 	// The failed revert ran in a transaction, so blobfs's history is intact
 	// and the client's Down, in the right order, still succeeds.
-	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 3 {
-		t.Errorf("%s head after the refused Down = %d, want 3", blobfsmigrations.Table, head)
+	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 2 {
+		t.Errorf("%s head after the refused Down = %d, want 2", blobfsmigrations.Table, head)
 	}
 	if err := client.Down(ctx); err != nil {
 		t.Fatalf("Down in the right order: %v", err)

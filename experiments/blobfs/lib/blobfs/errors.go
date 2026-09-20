@@ -22,8 +22,14 @@ var (
 	// ErrInvalidPath reports a path the persistence layer could not read:
 	// one that does not start with a slash, or one with a segment
 	// ValidateName refuses, in which case the error also matches
-	// ErrInvalidName. A path is / for a volume's root and /a/b below it.
+	// ErrInvalidName. A path is / for the root and /a/b below it.
 	ErrInvalidPath = errors.New("blobfs: invalid path")
+
+	// ErrRootDirectory reports an operation refused because it targets the
+	// root: creating a second row with no parent, or deleting, moving, or
+	// renaming the root. There is exactly one root per install, seeded by
+	// the schema with the id RootID.
+	ErrRootDirectory = errors.New("blobfs: the root directory")
 
 	// ErrInvalidKey reports a key the store refused. A KeyError carries the
 	// key and the store's reason.
