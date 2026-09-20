@@ -8,11 +8,11 @@ engine = "github.com/standards-lab/sqlate/postgres"
 sql = "github.com/standards-lab/sqlate"
 blobfs = "lib/blobfs/data/patterns"
 
-# blobfs's own statements (the consumer's directory joins the list when the next stage creates
-# it): named for their operation, the delimiter kept out of comments and literals, no native form
-# in a standard-tier file, and the guard protocol's two includes appearing together.
+# blobfs's own statements and the consumer's: named for their operation, the delimiter kept out
+# of comments and literals, no native form in a standard-tier file, and the guard protocol's two
+# includes appearing together.
 [statements]
-dirs = ["lib/blobfs/data/statements"]
+dirs = ["lib/blobfs/data/statements", "domain/files/statements"]
 verb_named = true
 delimiter = true
 native_forms = true

@@ -30,7 +30,11 @@ func TestRun_PrintsUsageForHelp(t *testing.T) {
 		if code != 0 {
 			t.Errorf("%v exited %d: %s", args, code, errOut)
 		}
-		for _, want := range []string{"Usage:", "schema", "--dsn"} {
+		wants := []string{"Usage:", "schema", "mkdir", "ls", "--dsn"}
+		if len(args) == 1 && args[0] == "schema" {
+			wants = []string{"Usage:", "schema", "--dsn"}
+		}
+		for _, want := range wants {
 			if !strings.Contains(out, want) {
 				t.Errorf("%v: stdout lacks %q:\n%s", args, want, out)
 			}

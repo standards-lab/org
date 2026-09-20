@@ -16,11 +16,11 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 5a are committed, and stage 5b is committed as work in progress. The architect has
-removed `volume` from `blobfs`, and stage 6 is committed: the single-root schema, the
-consumer's `directory_owner` and `bookmark` tables, and the persistence package with the listing
-composer. The volume consumer package (`domain/volume`) is deleted, and stage 7 writes
-`domain/files` in its place; until then the binary serves only `schema up|down`.
+Stages 1 to 7 are committed: the single-root schema, the consumer's `directory_owner` and
+`bookmark` tables, the persistence package with the listing composer, and `domain/files`, which
+replaces the deleted volume consumer. The binary serves `schema up|down`, `mkdir <path>
+[--unit]`, and `ls <path>` with `--page`, `--size`, `--sort`, `--total none`, and `--unit`. The keyset cursor (`--after`), the write path, the file commands, and the
+bookmark commands are later stages.
 
 ## Running it
 
@@ -32,6 +32,46 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 7 decisions the plan did not spell out
+
+- **The transaction options.** `Store.List` runs through `DB.Transact` with `sqlate.ReadOnly()`
+  and `sqlate.Isolation(sql.LevelRepeatableRead)`. pgx renders them as `BEGIN ISOLATION LEVEL
+  REPEATABLE READ READ ONLY`. The hermetic recording pins both options on the one begin, and
+  the engine test lists while a second connection commits a directory and a file together and
+  sees equal totals on every run.
+- **A sort term and the two halves.** The file half takes every `--sort` term and refuses a field
+  it does not declare. The directory half takes the terms whose field both listings declare
+  (`id`, `name`, `version`, `created_at`, `updated_at`) and ignores the rest, so `--sort
+  size:desc` orders the files by size and leaves the directories in name order. `parent_id` is
+  not in the set: every row of one listing shares it. The owner projection takes the same set.
+  The set is restated in the consumer and pinned by a hermetic test.
+- **How `ls` shows a total.** One line per half: the rows on the page, the page number and size,
+  and `total N`, `total not counted` under `--total none`, or `total unknown (the page is empty)`
+  for an empty page after the first, where the window count travels on rows and the page has
+  none. An empty first page says `total 0`.
+- **How `--unit` refusals classify.** A unit that does not own the top-level ancestor, and a
+  top-level directory with no owner row, are `files.ErrNotOwned`. The check runs before the rest
+  of the path resolves, so a foreign unit learns nothing below the ancestor; an ancestor that
+  does not exist is `blobfs.ErrNotFound`. `mkdir --unit` below depth one is `files.ErrUnitDepth`,
+  refused before any I/O. The `--unit` value is parsed and re-rendered in canonical form, so the
+  comparison with the engine's text is case-insensitive to what was typed.
+- **`ls / --unit`.** The directory half is the owner projection filtered by the unit, converted
+  to `blobfs.Directory` so the result has one shape. The file half is empty with total 0: a file
+  in the root has no top-level ancestor and belongs to no unit.
+- **`mkdir` and its parents.** There is no `-p`; a missing parent is `blobfs.ErrNotFound`. `mkdir
+  /` is `blobfs.ErrRootDirectory`, a trailing slash `blobfs.ErrInvalidPath`. Without `--unit` the
+  two statements run on the pool; with `--unit` the parent's resolution, the insert, the read-back,
+  and the owner insert run in one transaction, and a refused owner rolls the directory back.
+- **The ancestor is resolved twice.** `ResolveDirectory` resolves from the root only, so a scoped
+  `ls /a/b` resolves `/a` for the scope check and then `/a/b` for the listing; the root read and
+  the first child read run twice. Recorded in the library ledger.
+- **`--after` is not registered.** Stage 8 adds the flag with the cursor.
+- **The rendering.** `mkdir` prints one result line through `Line`. `ls` prints through
+  `output.Listing`, which takes `output.Entry` rows and one `output.Page` per half.
+- **The `evidence` task stays stale.** It still points at `./domain/volume`. A path-only fix would
+  let a run overwrite the V1 transcript with an empty run, since the test does not exist yet;
+  stage 8 rewrites the task with the test.
 
 ### 2026-09-20: stage 6 decisions the plan did not spell out
 
@@ -182,6 +222,18 @@ owner and no unit.
   BY`, and the paging clause to `Text()`, which works because the loader trims a trailing
   semicolon and whitespace. A listing statement must therefore end with its `WHERE` clause; the
   hermetic test pins the rendered suffix, and nothing in the loader states the rule.
+- **A projection cannot skip its count (stage 7).** `Projection.List` always runs the count twin
+  before the page. The consumer's `ls / --unit --total none` reads the count and drops it. A
+  total mode on `Directives`, or the window count in the collection pattern, would remove the
+  statement.
+- **The transaction options compose as needed (stage 7).** `DB.Transact` takes `ReadOnly()` and
+  `Isolation(sql.LevelRepeatableRead)` beside the function, and every library method takes the
+  `*Tx` as its session, so the consumer gave `ls` one snapshot with no library change. This is
+  the consumer-side answer to the finding that `sqlate.Session` cannot begin a transaction.
+- **The scanner rule reaches the consumer's read model (stage 7).** `OwnedDirectory` restates
+  every column of `blobfs.Directory` beside `unit_id`, `parent_id` included though the read model
+  never uses it, and converts back to the library type for the result. An instance of the
+  embedded-struct finding above.
 
 ### The library
 
@@ -230,6 +282,21 @@ owner and no unit.
   each listing statement prepares once more as a canonical rendering with every declared field
   filtered and sorted and the paging clause, so a field the table lacks fails at startup.
   Twelve prepares in all: eight statements and four renderings.
+- **`ResolveDirectory` resolves from the root only (stage 7).** A consumer that needs the
+  depth-one ancestor of a path, as the scope check does, resolves `/first` and then the full
+  path, so the root read and the first child read run twice per scoped `ls`. A `ResolveUnder
+  (parentID, path)`, or a resolution that returns the chain it walked, would remove the repeat.
+- **A listing's declared fields are reachable only through the statement inventory (stage 7).**
+  `Store.Statements()` exposes them by statement name, so a consumer that routes sort terms
+  between the two halves restates the shared field set and pins it by a test. A `Fields()`
+  accessor per listing would let the consumer ask.
+- **The consumer's `List` is one transaction and two library listings (stage 7).**
+  `TestListRunsInOneReadOnlyRepeatableReadTransaction` proves one begin with both options, the
+  root read, the two halves, and the commit, and nothing else; `TestListHalvesAgreeUnderConcurrentWrites`
+  proves the halves agree on the engine while another connection commits directory-and-file
+  pairs between them. `TestListScopedChecksTheAncestorOnce` proves the owner row is read once,
+  before the path resolves further, and that neither listing statement carries an owner
+  predicate.
 
 ### `go-storage` and `azureblob`
 
@@ -247,6 +314,13 @@ owner and no unit.
   tree a second database.
 - Directory-grain ownership: a consumer table keyed on a depth-one directory, checked once at the
   ancestor, rehearses the document hierarchy per organization.
+- Directory-grain ownership as built (stage 7): the scope check is one read of the owner row for
+  the top-level ancestor of the path, before the rest of the path resolves, and the listing
+  statements carry no owner predicate, so the library's listings run unchanged under a scope.
+  At the root the scope is the owner projection filtered by the unit; a file stored in the root
+  belongs to no unit, so a service that keeps files at the root has no scope for them. Creating
+  the organization's tree is one `mkdir --unit` at depth one: the directory and the owner row in
+  one transaction.
 - File-grain ownership: a consumer join table with a partial unique index rehearses the logo.
 - The migration source is added to the service's one migrator, ahead of the service's own set.
   Reverting runs the service's set first.
@@ -256,8 +330,10 @@ owner and no unit.
 ## Evidence: read-model cost (measured 2026-09-20, PostgreSQL 18.4)
 
 The measurement is `evidence/v1-read-model.txt`, produced by
-`domain/volume/evidence_integration_test.go` against the volume-based schema. Stage 8 regenerates
-it against the shipped listing. The numbers below are medians of five runs, in milliseconds, with
+`domain/volume/evidence_integration_test.go` against the volume-based schema, a test that was
+deleted with the volume package. The `evidence` task in `mise.toml` still points at
+`./domain/volume` and is stale until stage 8 regenerates the transcript against the shipped
+listing. The numbers below are medians of five runs, in milliseconds, with
 100,000 file rows and about 10,000 directories in three trees. Plan shapes and buffer counts are
 the durable facts, and the milliseconds depend on the machine.
 

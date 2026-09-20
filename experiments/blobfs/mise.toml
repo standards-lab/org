@@ -163,10 +163,11 @@ for pkg in $(packages admin); do
   deps "$pkg" "^$module/domain/"
 done
 
-# 6. Only domain/volume/storage.go names go-storage, among the application packages. The
-# library's packages are covered by their own rules above.
-bad=$(grep -rl --include='*.go' -E "\"$storage" . | grep -v '_test.go$' | sed 's#^\./##' | grep -v -E '^(lib/|domain/volume/storage\.go$)' || true)
-[ -z "$bad" ] || report "an application file other than domain/volume/storage.go names go-storage" "$bad"
+# 6. Only domain/files/storage.go names go-storage, among the application packages. The
+# library's packages are covered by their own rules above. The file arrives with the write
+# path; the rule names it ahead of that.
+bad=$(grep -rl --include='*.go' -E "\"$storage" . | grep -v '_test.go$' | sed 's#^\./##' | grep -v -E '^(lib/|domain/files/storage\.go$)' || true)
+[ -z "$bad" ] || report "an application file other than domain/files/storage.go names go-storage" "$bad"
 
 # 7. Only a domain or admin package's database.go names sqlate/query, among the application
 # packages. sqlate/migrate is a different package and is not covered.
@@ -177,11 +178,11 @@ bad=$(grep -rl --include='*.go' -E "\"$sqlate/query" . | grep -v '_test.go$' | s
 # commands.go. Nothing under lib/ names it.
 names "$cobra" '^(internal/app/|cmd/|output/|(domain|admin)/[^/]+/commands\.go$)' "a file outside the command layers names cobra"
 
-# 9. Among the application packages, only domain/volume/blobfs.go and domain/volume/database.go
+# 9. Among the application packages, only domain/files/blobfs.go and domain/files/database.go
 # name lib/blobfs/data: the translation file composes the library's operations, and the SQL
-# client registers the library's pattern namespace in the catalog it builds, which is the one
-# place the query library is named.
-names "$module/lib/blobfs/data\"" '^(lib/|domain/volume/(blobfs|database)\.go$)' "an application file other than domain/volume/blobfs.go or database.go names lib/blobfs/data"
+# client registers the library's pattern namespace in the catalog it builds and lowers the
+# consumer's listing to the library's, which is the one place the query library is named.
+names "$module/lib/blobfs/data\"" '^(lib/|domain/files/(blobfs|database)\.go$)' "an application file other than domain/files/blobfs.go or database.go names lib/blobfs/data"
 
 [ "$fail" -eq 0 ] && echo "split-check: ok"
 exit "$fail"
