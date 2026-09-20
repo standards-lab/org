@@ -33,11 +33,33 @@ several isolated trees runs several configurations, each with its own database a
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, and the methods that take a `sqlate.Session`. It holds the standard-tier baseline. |
-| `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's variation points. (planned) |
+| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session`, and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
+| `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
+| `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
 | `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
 | `lib/migrator/` | A migrator that runs several migration sets, each with its own history table. It imports only `sqlate` and the standard library. |
 | `compose/` | The Postgres and Azurite services the experiment runs against. |
+
+## The two variation points
+
+The persistence package runs on any engine `sqlate` has a dialect for, and two of its operations
+may be replaced by an engine's own statements through the `data.Variant` interface. `data.New`
+runs the standard baseline unless it is given a variant with `data.WithVariant`, and a consumer
+that wants a different behavior for one operation embeds a variant and overrides that method.
+
+- **The tree lock** (`LockTree`, `Serializes`). A directory move takes the lock inside its
+  transaction, before its cycle check, so two opposing moves run one after the other. The Postgres
+  variant takes a transaction-scoped advisory lock under a fixed key (`pgnative.TreeLockKey`),
+  which the engine releases when the transaction ends. Standard SQL has no lock that is held to
+  commit, so the baseline's lock is a no-op and `Serializes` reports false: on the baseline, two
+  opposing concurrent moves can form a cycle, and a consumer that needs the guarantee serializes
+  moves outside the database.
+- **The file-delete begin** (`BeginFileDelete`). The step moves the file to `deleting` and returns
+  the row, so the caller can delete the object by its key and then complete the delete by removing
+  the row. A retry returns the same row; a missing file is `blobfs.ErrNotFound`. The Postgres
+  variant is one `UPDATE ... RETURNING`. The baseline is an update and a read-back, which must run
+  in one transaction so the read sees the row the update locked; it refuses the pool with
+  `query.ErrTransactionRequired`.
 
 ## Running it
 

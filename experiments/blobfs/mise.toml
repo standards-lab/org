@@ -122,6 +122,10 @@ deps lib/blobfs "^($sqlate|$storage)"
 deps lib/blobfs/data "^($storage|$module/lib/blobfs/data/pgnative)"
 # The native variant takes the persistence package and sqlate only.
 deps lib/blobfs/data/pgnative "^($storage|$module/lib/migrator)"
+# The conformance suite is variant-agnostic: it takes the persistence package and sqlate, never
+# a variant or the migrator, and no non-test file names it.
+deps lib/blobfs/data/datatest "^($storage|$module/lib/blobfs/data/pgnative|$module/lib/migrator)"
+names "$module/lib/blobfs/data/datatest\"" '^lib/blobfs/data/datatest/' "a non-test file names the conformance suite"
 # The migrator shim takes sqlate and the standard library only.
 deps lib/migrator "^($storage|$module)"
 # The two migration sources take sqlate/migrate only: neither go-storage nor any other package of

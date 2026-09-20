@@ -38,12 +38,14 @@ func Patterns() query.Source {
 // listings, and the operations as methods. It holds no session; every
 // method takes one.
 type Store struct {
-	stmts *query.Statements
+	stmts   *query.Statements
+	variant Variant
 
 	createDirectory    query.Statement
 	directoryByID      query.Rows[blobfs.Directory]
 	directoryChild     query.Rows[blobfs.Directory]
 	directoryAncestors query.Rows[ancestor]
+	fileByID           query.Rows[blobfs.File]
 	files              listing[blobfs.File]
 	children           listing[blobfs.Directory]
 }
@@ -62,7 +64,15 @@ type ancestor struct {
 // fills the clause patterns of the second. A catalog without either is
 // refused before compiling, naming what is missing; any other compile
 // failure is returned as the loader reports it. No I/O happens here.
-func New(catalog *query.Catalog, dialect sqlate.Dialect) (*Store, error) {
+//
+// The options choose the variant the store forwards its variation points
+// to (see Variant); without WithVariant the store runs the standard
+// baseline, built over the same compiled statements.
+func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	if !slices.Contains(catalog.Namespaces(), Namespace) {
 		return nil, fmt.Errorf("data: the catalog has no %q namespace; register data.Patterns() in it", Namespace)
 	}
@@ -83,28 +93,45 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	variant := o.variant
+	if variant == nil {
+		variant = newStandard(stmts)
+	}
 	return &Store{
 		stmts:              stmts,
+		variant:            variant,
 		createDirectory:    stmts.Statement("create_directory"),
 		directoryByID:      stmts.Statement("directory_by_id").Scan(directory),
 		directoryChild:     stmts.Statement("directory_child").Scan(directory),
 		directoryAncestors: stmts.Statement("directory_ancestors").Scan(query.Scanner[ancestor]()),
+		fileByID:           stmts.Statement("file_by_id").Scan(query.Scanner[blobfs.File]()),
 		files:              files,
 		children:           children,
 	}, nil
 }
 
 // Statements returns the compiled inventory in name order, for a consumer
-// that lists or registers the SQL its program runs.
+// that lists or registers the SQL its program runs: the persistence
+// package's own statements, the standard baseline's among them, followed
+// by the variant's own when it compiled any.
 func (s *Store) Statements() []query.Statement {
-	return s.stmts.Statements()
+	out := s.stmts.Statements()
+	if inv, ok := s.variant.(inventory); ok {
+		out = append(out, inv.Statements()...)
+	}
+	return out
 }
 
 // Verify prepares every statement as authored and one canonical rendering
 // of each listing statement (every declared field filtered and sorted,
 // with the paging clause) against the schema the session reaches, so a
 // statement the migrated schema no longer satisfies fails at startup and
-// not at first use.
+// not at first use. A variant that can verify itself is verified in the
+// same pass.
 func (s *Store) Verify(ctx context.Context, sess sqlate.Session) error {
-	return query.Verify(ctx, sess, s.stmts, s.files, s.children)
+	vs := []query.Verifier{s.stmts, s.files, s.children}
+	if v, ok := s.variant.(query.Verifier); ok {
+		vs = append(vs, v)
+	}
+	return query.Verify(ctx, sess, vs...)
 }

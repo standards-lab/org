@@ -52,8 +52,10 @@ func fileRow(id, name string) []driver.Value {
 
 // TestNew proves the catalog builds with the two sources, every statement
 // compiles and both listings construct, and reports the inventory the tier
-// proof counts: eight statements, all standard tier, none requiring a
-// transaction.
+// proof counts: ten statements, all standard tier, the baseline's
+// file-delete begin the only one requiring a transaction. The default
+// variant is the baseline, and it adds no statements of its own to the
+// inventory.
 func TestNew(t *testing.T) {
 	s := newStore(t)
 	stmts := s.Statements()
@@ -63,14 +65,17 @@ func TestNew(t *testing.T) {
 		if st.Tier() != query.TierStandard {
 			t.Errorf("%s is %s tier, want standard", st.Name(), st.Tier())
 		}
-		if st.TransactionRequired() {
-			t.Errorf("%s requires a transaction; no statement of this stage does", st.Name())
+		if st.TransactionRequired() != (st.Name() == "begin_file_delete") {
+			t.Errorf("%s: TransactionRequired = %v; only begin_file_delete requires one", st.Name(), st.TransactionRequired())
 		}
 	}
 	want := []string{
-		"children_of_directory", "children_of_directory_with_total", "create_directory",
-		"directory_ancestors", "directory_by_id", "directory_child",
+		"begin_file_delete", "children_of_directory", "children_of_directory_with_total", "create_directory",
+		"directory_ancestors", "directory_by_id", "directory_child", "file_by_id",
 		"files_in_directory", "files_in_directory_with_total",
+	}
+	if _, ok := s.Variant().(*data.Standard); !ok {
+		t.Errorf("the default variant is %T, want *data.Standard", s.Variant())
 	}
 	if !slices.Equal(names, want) {
 		t.Errorf("Statements = %v, want %v", names, want)
@@ -123,7 +128,7 @@ func TestNewWithoutPatterns(t *testing.T) {
 }
 
 // TestVerify proves Verify prepares every statement as authored and the
-// canonical renderings per listing: fourteen prepares against the
+// canonical renderings per listing: sixteen prepares against the
 // scripted driver, none of which consumes a response. Four offset
 // renderings carry every declared field as a predicate and a sort term
 // and the paging clause, the two counted ones the window count; and two
@@ -139,8 +144,8 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("Verify: %v", err)
 	}
 	prepared := rec.SQL(sqltest.OpPrepare)
-	if len(prepared) != 14 {
-		t.Fatalf("Verify prepared %d statements, want 14 (8 statements, 4 offset renderings, 2 cursor renderings)", len(prepared))
+	if len(prepared) != 16 {
+		t.Fatalf("Verify prepared %d statements, want 16 (10 statements, 4 offset renderings, 2 cursor renderings)", len(prepared))
 	}
 	renderings, counted, cursors := 0, 0, 0
 	for _, text := range prepared {

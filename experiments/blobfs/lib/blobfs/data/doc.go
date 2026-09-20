@@ -28,6 +28,18 @@
 // walk the same order. No operation walks the whole tree; a path is
 // resolved one segment per round trip and computed by one upward walk.
 //
+// Two operations are variation points, where an engine may do better than
+// standard SQL: the tree lock that serializes directory moves, and the
+// first step of a file delete. The Variant interface names them, Standard
+// is the baseline every engine runs (a no-op lock that reports it does
+// not serialize, and the delete begin as an update and a read-back in the
+// caller's transaction), and New takes another implementation through
+// WithVariant: the pgnative package's for Postgres, or a consumer's own,
+// which may embed either and override one method. The Store forwards
+// LockTree, Serializes, and BeginFileDelete to the variant and runs
+// everything else from its own statements. The datatest package holds the
+// conformance suite a variant must pass.
+//
 // Every method takes the session as an argument and passes it through
 // unwrapped, so a call runs against the pool or inside the caller's
 // transaction, and a statement headed transaction: required refuses a

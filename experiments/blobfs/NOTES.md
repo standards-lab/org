@@ -16,11 +16,13 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 8 are committed: the single-root schema, the
-consumer's `directory_owner` and `bookmark` tables, the persistence package with the listing
-composer and its keyset cursor, `domain/files`, and the listing evidence. The binary serves
-`schema up|down`, `mkdir <path> [--unit]`, and `ls <path>` with `--page`, `--size`, `--sort`,
-`--total none`, `--after-dirs`, `--after-files`, and `--unit`. `mise run evidence` writes
+Stages 1 to 9 are committed: the single-root schema, the consumer's `directory_owner` and
+`bookmark` tables, the persistence package with the listing composer and its keyset cursor,
+`domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
+two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
+and the conformance suite in `lib/blobfs/data/datatest`. The binary serves `schema up|down`, `mkdir <path> [--unit]`, and
+`ls <path>` with `--page`, `--size`, `--sort`, `--total none`, `--after-dirs`, `--after-files`,
+and `--unit`; it builds its store over the baseline. `mise run evidence` writes
 `evidence/read-model.txt`, the cost of the shipped listing. The write path, the file commands,
 and the bookmark commands are later stages.
 
@@ -34,6 +36,82 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 9 decisions the plan did not spell out
+
+- **The interface.** `data.Variant` has three methods: `LockTree(ctx, sess)`, `Serializes()
+  bool`, and `BeginFileDelete(ctx, sess, id) (blobfs.File, error)`. `Serializes` is the
+  capability probe: a caller that needs moves serialized checks it before the first move rather
+  than learn from a cycle. Both operations take `sqlate.Session`, as every method of the store
+  does, and the transaction requirement is enforced the way the concept says the write path's
+  is: by the statement's `transaction: required` header, or by the same type assertion in Go
+  where no statement runs.
+- **How a variant is supplied.** `data.New(catalog, dialect, opts...)` takes a functional
+  option, `data.WithVariant(v)`. A variant is built by its own constructor against the same
+  catalog and dialect (`pgnative.New`, `data.NewStandard`), because the variant's statements
+  compile against the consumer's catalog like the store's do and the store cannot build a type it
+  does not import. The default, with no option, is `Standard` built over the store's own compiled
+  statements, so the default costs no second compile. `Store.Variant()` returns the variant, so a
+  consumer can reach a capability beyond the interface.
+- **The store forwards.** `Store.LockTree`, `Store.Serializes`, and `Store.BeginFileDelete`
+  forward to the variant and add the operation's context to an error; the consumer and the later
+  stages call the store, never the variant. `Store.Statements()` appends the variant's inventory
+  when the variant has one, and `Store.Verify` runs the variant's `Verify` when it has one, so
+  `pgnative`'s two statements are listed and prepared at startup with the rest. `Standard`
+  exposes neither, because its statements are the persistence package's own and the store already
+  lists and verifies them.
+- **The baseline's statements live in the package's statement directory.** `begin_file_delete`
+  (the update, headed `transaction: required`) and `file_by_id` (the read-back) are ordinary
+  statements of `lib/blobfs/data/statements`, and `file_by_id` also serves the new `Store.File`,
+  which stage 10's `stat` will use. So the store compiles and verifies the baseline's begin even
+  when `pgnative` replaces it; the baseline is complete on every engine and always verified.
+- **What the baseline's tree lock does.** Nothing, and `Serializes` reports false. Standard SQL
+  has no statement that holds a lock to commit: `SELECT ... FOR UPDATE` is not standard tier, and
+  the update-the-root-row idiom (an `UPDATE blobfs_directory SET version = version WHERE id =
+  root`, which takes a row lock held to commit on every mainstream engine) was considered and set
+  aside because the standard says nothing about locks, so its guarantee would rest on each
+  engine's implementation rather than on the tier, and because it writes a tuple to the root on
+  every move. The no-op still refuses a pool session with `query.ErrTransactionRequired`, so a
+  caller gets the same refusal on every variant. The consequence is the stage 13 gate: on the
+  baseline, two opposing concurrent moves can form a cycle, and a consumer that needs the
+  guarantee on an engine without a native variant serializes moves outside the database. The
+  root-row idiom is recorded here as the candidate if the review wants a serializing baseline; it
+  would be a second standard variant, not a third variation point.
+- **The Postgres lock key.** `pg_advisory_xact_lock` takes a bigint, so the key is the 64-bit
+  FNV-1a hash of `pgnative.TreeLockName` (`blobfs_directory.tree`), exported as
+  `pgnative.TreeLockKey` and pinned by a test, so a consumer that takes advisory locks of its own
+  can avoid it and a port can derive the same one. The lock statement is headed `transaction:
+  required`, because a transaction-scoped lock taken under autocommit is released at once.
+- **Idempotence of the begin.** A begin on a row already deleting changes nothing and returns
+  the row: the baseline's update carries `AND status <> 'deleting'`, and the Postgres statement's
+  `CASE` expressions keep the version and `updated_at` when the old status is deleting. The
+  version therefore advances exactly once per delete, on the first begin, in both variants. The
+  transition table in `lib/blobfs/status.go` already allows pending, available, and deleting to
+  deleting, so no status change was added; stage 12's complete step needs the `DELETE ... WHERE
+  status = 'deleting'` and the cleanup of a bookmark, neither of which stage 9 adds.
+- **The pool on the begin.** The baseline requires a transaction, because its read-back needs
+  the update's row lock to hold so a concurrent complete cannot remove the row between the two
+  statements. The Postgres begin is one statement and accepts the pool; the interface's contract
+  says a portable caller passes a transaction. The conformance suite runs every begin in a
+  transaction, and each variant's own tests pin its pool behavior.
+- **The conformance suite's home.** `lib/blobfs/data/datatest` is a non-test package with one
+  exported function, `Run(t, db, store)`, because a helper in a `_test.go` file cannot be
+  imported by another package's tests and `pgnative`'s tests must run the same checks as the
+  persistence package's. It takes the migrated database from the caller and imports no test
+  infrastructure of the experiment, so it stays under `lib/` as a promotion candidate beside the
+  package it tests, the way `net/nettest` sits beside `net`. A consumer that supplies a variant of
+  its own runs it too. `split-check` holds it to the persistence package and `sqlate`, never a
+  variant, and forbids any non-test file from naming it; both rules were proved by a temporary
+  violation, and so was `pgnative`'s rule (an import of `lib/migrator`).
+- **Two directories for the statements, one lint.** `sqlint`'s native-forms check keys on each
+  file's declared tier, not on its directory, so the Postgres variant's directory is added to
+  `[statements].dirs` with the check left on: a native file is exempt by its tier and must carry
+  its port note to compile, and a file in that directory that declares the standard tier is still
+  held to the standard forms. Both refusals were exercised by hand (a lock statement without its
+  port note, and the same statement declared standard).
+- **The consumer is unchanged.** `domain/files` builds its store with `data.New` and no option,
+  so the binary runs the baseline. Stage 15's per-variant run will need the composition root to
+  choose the variant; nothing in stage 9 adds a flag for it.
 
 ### 2026-09-20: stage 8 decisions the plan did not spell out
 
@@ -323,6 +401,34 @@ owner and no unit.
   109 buffers for an index-only count twin after `VACUUM`. The total in the page statement
   agrees with its page, and it costs a heap read that a separate count avoids once the table is
   vacuumed. A library that offers both should say so.
+- **A native statement declares its tier and its port in the header (stage 9).** `--| tier:
+  native` and `--| native: <feature and port>` as free text on one line; the loader refuses a
+  native file without the declaration and a standard file with one, and `sqlint` reports both.
+  The declaration is one line, so a port note of any length is one long line; a multi-line value,
+  or a separate `port:` key, would let the note read as prose.
+- **`Verify` covers native statements (stage 9).** `Statements.Verify` prepares every statement's
+  text whatever its tier, so `pg_advisory_xact_lock` and `UPDATE ... RETURNING` are prepared at
+  startup with the rest. Nothing in `Verify` asks the dialect whether a native statement belongs
+  to it, so a Postgres variant compiled against another engine's dialect fails at prepare, not
+  at compile.
+- **The transaction requirement lives in the statement, not in the operation (stage 9).** The
+  baseline's begin is two statements that need one transaction, and the requirement is declared on
+  the first statement's header, which the second inherits only because the first refused the pool
+  before it ran. An operation-level requirement (a `Transact`-style contract on the method, or a
+  `*sqlate.Tx` parameter) would state it once. The experiment kept `sqlate.Session` on the
+  interface, as the concept prescribes for the write path, and enforces it in Go where no
+  statement runs (the baseline's no-op lock), so the refusal is uniform across variants.
+- **The `native_forms` check keys on the tier, not the directory (stage 9).** A directory listed
+  under `[statements]` may mix tiers; the check exempts a file by its declared tier. The
+  experiment keeps native files in a directory of their own for the layout's sake, not the
+  lint's. A per-directory `tier` requirement (every file in this directory must declare native,
+  or must declare standard) would let the configuration state the layout rule the experiment
+  follows by convention.
+- **`Statement.Native()` is the only reader of the port note (stage 9).** No tool lists the
+  native statements of a program with their ports; `pgnative`'s test asserts each note contains
+  `Port:` by convention. An `sqlint` report, or a `query.Statements` method that lists native
+  statements and their declarations, would turn the port notes into the work list the ledger
+  says they are.
 
 ### The library
 
@@ -379,6 +485,37 @@ owner and no unit.
   `Store.Statements()` exposes them by statement name, so a consumer that routes sort terms
   between the two halves restates the shared field set and pins it by a test. A `Fields()`
   accessor per listing would let the consumer ask.
+- **The variant seam costs one interface, one option, and three forwarding methods (stage 9).**
+  `data.Variant` has three methods, `data.New` takes `WithVariant`, and the store forwards
+  `LockTree`, `Serializes`, and `BeginFileDelete`. A consumer-supplied variant is a struct that
+  embeds a base variant and overrides one method; `TestConsumerVariantSwapsOneMethod` proves the
+  store runs the override and the base for the other method, in both directions, with no change
+  to the library. `datatest.Run` passes on both shipped variants (`TestStandardConformance`,
+  `TestConformance`).
+- **What the tree lock costs (stage 9).** On Postgres, one `SELECT pg_advisory_xact_lock($1)`
+  per moving transaction, held to its end, and `TestConformance/LockTree` shows a second
+  transaction blocks for as long as the first holds it (500 ms in the test) and proceeds at its
+  commit or rollback; `TestTreeLockIsAnAdvisoryLock` shows the lock in `pg_locks` inside the
+  transaction and gone after it. On the baseline the lock costs nothing and serializes nothing:
+  standard SQL has no lock held to commit, so the honest baseline is a no-op that reports
+  `Serializes() == false`, and stage 13 proves the cycle it allows. A second engine with a
+  transaction-scoped lock (SQL Server's `sp_getapplock`) ports the variant; one without (MySQL's
+  `GET_LOCK` is session-scoped, SQLite has none) keeps the no-op and serializes moves outside the
+  database. The lock's port note says so.
+- **What the file-delete begin costs (stage 9).** One round trip on Postgres (`UPDATE ...
+  RETURNING` over the published column list, the `CASE` expressions keeping a deleting row
+  unchanged) against two on the baseline (the update, then `file_by_id`) plus the transaction
+  the baseline requires. Both return the same row for the same fixture (`TestVariantsAgree`) and
+  the retry converges to the same row in both. The one-statement form accepts the pool; the
+  two-statement form refuses it with `query.ErrTransactionRequired` before any SQL, so the
+  transaction requirement is a property of the variant and the interface's contract is the
+  stricter one.
+- **How the guard composes with the begin (stage 9).** The begin does not take an expected
+  version, so it does not use `query.Guard`: a `rm` names a path, not a version, and a guarded
+  begin would also have to return the row, which `Guard.Run` does not (it returns the new
+  version). A consumer that wants an optimistic begin composes `guard_where` into a statement of
+  its own and reads the row back, and the ledger's earlier finding holds: the guard's check
+  reports only a version mismatch, so a refusal for status needs its own read.
 - **The consumer's `List` is one transaction and two library listings (stage 7).**
   `TestListRunsInOneReadOnlyRepeatableReadTransaction` proves one begin with both options, the
   root read, the two halves, and the commit, and nothing else; `TestListHalvesAgreeUnderConcurrentWrites`

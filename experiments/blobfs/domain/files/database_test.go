@@ -104,16 +104,16 @@ func TestNew(t *testing.T) {
 }
 
 // TestVerify proves Verify prepares the whole inventory, the consumer's
-// three statements and one projection and blobfs's eight statements and
-// six listing renderings (four offset, two cursor), eighteen prepares,
+// three statements and one projection and blobfs's ten statements and
+// six listing renderings (four offset, two cursor), twenty prepares,
 // and wraps a failure in ErrVerify with the failing statement named.
 func TestVerify(t *testing.T) {
 	s, rec := newStore(t)
 	if err := s.Verify(context.Background()); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if n := len(rec.SQL(sqltest.OpPrepare)); n != 18 {
-		t.Errorf("Verify prepared %d statements, want 18", n)
+	if n := len(rec.SQL(sqltest.OpPrepare)); n != 20 {
+		t.Errorf("Verify prepared %d statements, want 20", n)
 	}
 
 	s, rec = newStore(t)
