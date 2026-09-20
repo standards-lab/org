@@ -28,7 +28,7 @@ own.
 | `output/` | The result rendering every command family shares: a one-line result to stdout, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, and the methods that take a `sqlate.Session`. It holds the standard-tier baseline. (planned) |
+| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, and the methods that take a `sqlate.Session`. It holds the standard-tier baseline. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's variation points. (planned) |
 | `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
 | `lib/migrator/` | A migrator that runs several migration sets, each with its own history table. It imports only `sqlate` and the standard library. |

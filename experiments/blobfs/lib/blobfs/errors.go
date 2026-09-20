@@ -19,6 +19,12 @@ var (
 	// carries the reason.
 	ErrInvalidName = errors.New("blobfs: invalid name")
 
+	// ErrInvalidPath reports a path the persistence layer could not read:
+	// one that does not start with a slash, or one with a segment
+	// ValidateName refuses, in which case the error also matches
+	// ErrInvalidName. A path is / for a volume's root and /a/b below it.
+	ErrInvalidPath = errors.New("blobfs: invalid path")
+
 	// ErrInvalidKey reports a key the store refused. A KeyError carries the
 	// key and the store's reason.
 	ErrInvalidKey = errors.New("blobfs: invalid key")
