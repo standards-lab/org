@@ -7,11 +7,12 @@ import (
 )
 
 // commands is the list of mounts: the subtrees the root serves, each built
-// by the layer file that owns it. The admin commands come from admin.go;
-// the domain commands join the list when domain.go arrives. This file
-// composes and does nothing else. Every command family renders through out.
-func commands(adm *Admin, out *output.Output) []*cobra.Command {
+// by the layer file that owns it. The domain commands come from domain.go
+// and the admin commands from admin.go. This file composes and does nothing
+// else. Every command family renders through out.
+func commands(dom *Domain, adm *Admin, out *output.Output) []*cobra.Command {
 	var all []*cobra.Command
+	all = append(all, mountDomain(dom, out)...)
 	all = append(all, mountAdmin(adm, out)...)
 	return all
 }

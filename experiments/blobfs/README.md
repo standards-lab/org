@@ -20,12 +20,13 @@ own.
 | Directory | Contents |
 |-----------|----------|
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
-| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the logger, the output), the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver. |
+| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver. |
 | `internal/livetest/` | The throwaway-database helper the integration-tagged tests share. |
-| `domain/volume/` | The consumer's file-system layer over `blobfs`: the row types of the consumer's own tables, and in later stages its statements, database access, translation over the library, storage adapter, and file commands. |
+| `domain/volume/` | The consumer's file-system layer over `blobfs`: the row types of the consumer's own tables, its two read models (`volume_view` and `file_view`, projection bases over `blobfs`'s published patterns joined to `volume_owner`), `database.go` as the sole importer of `sqlate/query`, `blobfs.go` as the translation over the library, the `<volume>:<path>` address parser, and the `volume`, `mkdir`, and `ls` commands. In a later stage it gains the storage adapter and the file commands. |
+| `evidence/` | The transcripts the measurements write: `v1-read-model.txt` is proof V1, the read-model cost by form, with `EXPLAIN (ANALYZE, BUFFERS)` plans at 1k, 10k, and 100k file rows. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `volume_owner` and `volume_bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
-| `output/` | The result rendering every command family shares: a one-line result to stdout, an error to stderr. |
+| `output/` | The result rendering every command family shares: a one-line result to stdout, a listing as aligned rows with a total line, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
 | `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, and the methods that take a `sqlate.Session`. It holds the standard-tier baseline. |
@@ -47,6 +48,14 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   imports what its layer may not.
 - `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
   its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given.
+  The commands so far: `schema up|down`; `volume create <name> --unit <uuid>`, `volume ls`, and
+  `volume rename <name> <new-name>`; `mkdir <volume>:<path>`; and `ls <volume>:<path>`. A path is
+  addressed as `<volume>:<path>`, so `docs:/` is the root of the volume `docs` and
+  `docs:/reports/2026` a directory inside it. The two listings take `--page`, `--size`,
+  `--sort <field>[:desc]` (repeatable), and `--unit <uuid>`, which filters by the owning unit.
+- `mise run evidence` runs the read-model cost measurement (proof V1) against the compose stack
+  and writes its transcript to `evidence/v1-read-model.txt`. It seeds 100,000 file rows, so
+  `mise run integration` skips it; the test runs only under `BLOBFS_EVIDENCE=1`.
 
 The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
 and key are the emulator's published development credentials.

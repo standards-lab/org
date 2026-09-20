@@ -9,14 +9,19 @@ import (
 )
 
 // TestEntityTags fixes the scan and binding contract: every exported field
-// of Owner and Bookmark carries a json tag naming its column, and no column
-// of either table is nullable, so no field is a pointer.
+// of the row and entry types carries a json tag naming its column, in the
+// column order of its table or view, and only a nullable column is a
+// pointer: a file's size and etag, which are NULL until the file is
+// available.
 func TestEntityTags(t *testing.T) {
 	columns := map[string][]string{
-		"Owner":    {"volume_id", "unit_id", "version", "created_at", "updated_at"},
-		"Bookmark": {"volume_id", "file_id", "active", "created_at", "updated_at"},
+		"Owner":       {"volume_id", "unit_id", "version", "created_at", "updated_at"},
+		"Bookmark":    {"volume_id", "file_id", "active", "created_at", "updated_at"},
+		"VolumeEntry": {"id", "name", "version", "created_at", "updated_at", "unit_id"},
+		"FileEntry":   {"id", "directory_id", "name", "status", "key", "size", "content_type", "etag", "version", "created_at", "updated_at", "path", "volume_id", "unit_id"},
 	}
-	for _, v := range []any{volume.Owner{}, volume.Bookmark{}} {
+	nullable := map[string]bool{"FileEntry.size": true, "FileEntry.etag": true}
+	for _, v := range []any{volume.Owner{}, volume.Bookmark{}, volume.VolumeEntry{}, volume.FileEntry{}} {
 		rt := reflect.TypeOf(v)
 		want := columns[rt.Name()]
 		if rt.NumField() != len(want) {
@@ -29,8 +34,11 @@ func TestEntityTags(t *testing.T) {
 			if tag != want[i] || tag != strings.ToLower(tag) {
 				t.Errorf("%s.%s has json tag %q, want %q", rt.Name(), f.Name, tag, want[i])
 			}
-			if f.Type.Kind() == reflect.Pointer {
-				t.Errorf("%s.%s is a pointer; no column of %s is nullable", rt.Name(), f.Name, strings.ToLower(rt.Name()))
+			if f.Anonymous {
+				t.Errorf("%s.%s is embedded; the mapper does not flatten an embedded struct", rt.Name(), f.Name)
+			}
+			if pointer := f.Type.Kind() == reflect.Pointer; pointer != nullable[rt.Name()+"."+tag] {
+				t.Errorf("%s.%s pointer = %v, want %v", rt.Name(), f.Name, pointer, !pointer)
 			}
 		}
 	}

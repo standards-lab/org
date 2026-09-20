@@ -1,19 +1,18 @@
 # sqlint configuration for the experiment. The engine names the native forms a standard-tier
 # file may not use, and the sources name the pattern catalogs the linter resolves includes
 # against: sqlate's own patterns and the namespace blobfs publishes, a bare directory of pattern
-# files. The consumer's statement directories join the role tables in the stage that creates
-# them.
+# files.
 engine = "github.com/standards-lab/sqlate/postgres"
 
 [sources]
 sql = "github.com/standards-lab/sqlate"
 blobfs = "lib/blobfs/data/patterns"
 
-# blobfs's own statements: named for their operation, the delimiter kept out of comments and
-# literals, no native form in a standard-tier file, and the guard protocol's two includes
-# appearing together.
+# blobfs's own statements and the consumer's: named for their operation, the delimiter kept out
+# of comments and literals, no native form in a standard-tier file, and the guard protocol's two
+# includes appearing together.
 [statements]
-dirs = ["lib/blobfs/data/statements"]
+dirs = ["lib/blobfs/data/statements", "domain/volume/statements"]
 verb_named = true
 delimiter = true
 native_forms = true

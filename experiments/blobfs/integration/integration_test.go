@@ -74,6 +74,52 @@ func TestSchemaCommands(t *testing.T) {
 		}
 	}
 
+	unit := "0193b0a2-1111-7000-8000-000000000001"
+	steps := []struct {
+		args   []string
+		code   int
+		stdout []string // substrings expected on stdout, in order
+		stderr string   // a substring expected on stderr, for a failing step
+	}{
+		{args: []string{"volume", "create", "docs", "--unit", unit}, stdout: []string{"volume create: docs (id ", "unit " + unit}},
+		{args: []string{"volume", "create", "docs", "--unit", unit}, code: 1, stderr: "name taken"},
+		{args: []string{"mkdir", "docs:/a"}, stdout: []string{"mkdir: docs:/a\n"}},
+		{args: []string{"mkdir", "docs:/a/b"}, stdout: []string{"mkdir: docs:/a/b\n"}},
+		{args: []string{"mkdir", "docs:/x/y"}, code: 1, stderr: "not found"},
+		{args: []string{"ls", "docs:/a"}, stdout: []string{"KIND  NAME  SIZE  STATUS  PATH\n", "dir   b     -     -       /a/b\n", "total: 1 directories, 0 files\n"}},
+		{args: []string{"ls", "docs:/a", "--unit", unit}, stdout: []string{"dir   b", "total: 1 directories, 0 files\n"}},
+		{args: []string{"ls", "docs:/a", "--unit", "0193b0a2-2222-7000-8000-000000000002"}, stdout: []string{"KIND  NAME  SIZE  STATUS  PATH\n", "total: 0 directories, 0 files\n"}},
+		{args: []string{"volume", "ls"}, stdout: []string{"NAME  VERSION  UNIT", "docs  1        " + unit, "total: 1\n"}},
+		{args: []string{"volume", "rename", "docs", "manuals"}, stdout: []string{"volume rename: docs -> manuals (version 2)\n"}},
+		{args: []string{"ls", "manuals:/a"}, stdout: []string{"dir   b     -     -       /a/b\n", "total: 1 directories, 0 files\n"}},
+		{args: []string{"ls", "manuals:/"}, stdout: []string{"dir   a     -     -       /a\n", "total: 1 directories, 0 files\n"}},
+		{args: []string{"ls", "docs:/a"}, code: 1, stderr: "not found"},
+		{args: []string{"volume", "ls", "--sort", "name:desc", "--size", "1"}, stdout: []string{"manuals  2        " + unit, "total: 1\n"}},
+		{args: []string{"ls", "manuals"}, code: 1, stderr: "has no colon"},
+	}
+	for _, step := range steps {
+		out, errOut, code := run(t, bin, dsn, step.args...)
+		if code != step.code {
+			t.Errorf("%v exited %d, want %d\nstdout: %s\nstderr: %s", step.args, code, step.code, out, errOut)
+			continue
+		}
+		rest := out
+		for _, want := range step.stdout {
+			i := strings.Index(rest, want)
+			if i < 0 {
+				t.Errorf("%v: stdout lacks %q in order:\n%s", step.args, want, out)
+				break
+			}
+			rest = rest[i+len(want):]
+		}
+		if step.stderr != "" && !strings.Contains(errOut, step.stderr) {
+			t.Errorf("%v: stderr = %q, want %q", step.args, errOut, step.stderr)
+		}
+		if step.code == 0 && errOut != "" {
+			t.Errorf("%v: stderr = %q, want nothing", step.args, errOut)
+		}
+	}
+
 	out, errOut, code = run(t, bin, dsn, "schema", "down")
 	if code != 0 {
 		t.Fatalf("schema down exited %d: %s", code, errOut)

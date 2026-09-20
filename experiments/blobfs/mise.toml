@@ -29,6 +29,14 @@ run = "go test -race ./..."
 description = "Run the integration tier against the compose stack (BLOBFS_DSN, BLOBFS_STORAGE_*)"
 run = "go test -race -tags integration -count=1 ./..."
 
+[tasks.evidence]
+description = "Run the read-model cost measurement (proof V1) against the compose stack and write its transcript to evidence/v1-read-model.txt"
+run = '''
+set -e
+mkdir -p evidence
+BLOBFS_EVIDENCE=1 go test -tags integration -count=1 -timeout 30m -run '^TestReadModelCost$' -v ./domain/volume | tee evidence/v1-read-model.txt
+'''
+
 [tasks.fmt]
 description = "Format all Go source"
 run = "gofmt -w ."
@@ -168,6 +176,12 @@ bad=$(grep -rl --include='*.go' -E "\"$sqlate/query" . | grep -v '_test.go$' | s
 # 8. cobra is named only under internal/app/, cmd/, output/, and by a domain or admin package's
 # commands.go. Nothing under lib/ names it.
 names "$cobra" '^(internal/app/|cmd/|output/|(domain|admin)/[^/]+/commands\.go$)' "a file outside the command layers names cobra"
+
+# 9. Among the application packages, only domain/volume/blobfs.go and domain/volume/database.go
+# name lib/blobfs/data: the translation file composes the library's operations, and the SQL
+# client registers the library's pattern namespace in the catalog it builds, which is the one
+# place the query library is named.
+names "$module/lib/blobfs/data\"" '^(lib/|domain/volume/(blobfs|database)\.go$)' "an application file other than domain/volume/blobfs.go or database.go names lib/blobfs/data"
 
 [ "$fail" -eq 0 ] && echo "split-check: ok"
 exit "$fail"

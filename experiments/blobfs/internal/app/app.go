@@ -10,8 +10,9 @@ import (
 )
 
 // App is the application: the command tree assembled over the
-// infrastructure and the admin layer, the output the commands render
-// through, and the infrastructure that owns what a run opens.
+// infrastructure, the domain layer, and the admin layer, the output the
+// commands render through, and the infrastructure that owns what a run
+// opens.
 type App struct {
 	root  *cobra.Command
 	out   *output.Output
@@ -31,9 +32,10 @@ func New(stdout, stderr io.Writer) *App {
 
 	out := output.New(stdout, stderr)
 	infra := newInfrastructure(cfg, stderr)
+	dom := newDomain(infra)
 	adm := newAdmin(infra)
 
-	root.AddCommand(commands(adm, out)...)
+	root.AddCommand(commands(dom, adm, out)...)
 
 	return &App{root: root, out: out, infra: infra}
 }
@@ -64,7 +66,9 @@ func newRoot(cfg *Config) *cobra.Command {
 		Short: "A command-line file system over blobfs",
 		Long: "blobfs is the experiment's command-line file system: a SQL-backed directory\n" +
 			"tree over Postgres with file content in an object store. schema applies and\n" +
-			"reverts the database schema; the file commands arrive in later stages.",
+			"reverts the database schema; volume, mkdir, and ls manage volumes and\n" +
+			"directories, addressed as <volume>:<path>; the file commands arrive in later\n" +
+			"stages.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -41,6 +41,44 @@ func TestRun_PrintsUsageForHelp(t *testing.T) {
 	}
 }
 
+func TestRun_MountsTheDomainCommands(t *testing.T) {
+	out, _, code := execute(t, "--help")
+	if code != 0 {
+		t.Fatalf("--help exited %d", code)
+	}
+	for _, want := range []string{"volume", "mkdir", "ls"} {
+		if !strings.Contains(out, "\n  "+want) {
+			t.Errorf("root help lacks the command %q:\n%s", want, out)
+		}
+	}
+	out, _, code = execute(t, "volume", "--help")
+	if code != 0 {
+		t.Fatalf("volume --help exited %d", code)
+	}
+	for _, want := range []string{"create", "ls", "rename"} {
+		if !strings.Contains(out, "\n  "+want) {
+			t.Errorf("volume help lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+// The domain's leaves resolve the DSN the same way the admin's do: when a
+// store is constructed, after the flag checks, so a run with neither route
+// fails naming both, and a malformed --unit fails before that.
+func TestRun_RefusesDomainCommandsWithoutADSN(t *testing.T) {
+	t.Setenv("BLOBFS_DSN", "")
+	for _, args := range [][]string{{"volume", "ls"}, {"mkdir", "docs:/a"}, {"ls", "docs:/"}} {
+		_, errOut, code := execute(t, args...)
+		if code != 1 || !strings.Contains(errOut, "BLOBFS_DSN") || !strings.Contains(errOut, "--dsn") {
+			t.Errorf("%v: exited %d with %q, want 1 and an error naming --dsn and BLOBFS_DSN", args, code, errOut)
+		}
+	}
+	_, errOut, code := execute(t, "volume", "create", "docs", "--unit", "nope")
+	if code != 1 || !strings.Contains(errOut, "is not a UUID") || strings.Contains(errOut, "BLOBFS_DSN") {
+		t.Errorf("volume create --unit nope: exited %d with %q, want the UUID error before any DSN error", code, errOut)
+	}
+}
+
 func TestRun_MountsUpAndDownUnderSchema(t *testing.T) {
 	out, _, code := execute(t, "schema", "--help")
 	if code != 0 {
