@@ -305,7 +305,7 @@ owner and no unit.
   page the way the library's listings do.
 - **The wrap over a recursive base loses the index order (stage 8, confirmed).** Section e3 of
   the evidence: the same base, the upward walk joined to the files of one directory, pages in
-  0.07 ms and 21 buffers flat (an index scan in name order under a `Limit`) and in 5.2 ms and
+  0.07 ms and 21 buffers flat (an index scan in name order under a `Limit`) and in 5.1 ms and
   2443 buffers wrapped (a bitmap scan of the whole directory and a top-N sort above the join).
   PostgreSQL 18 shows no `Subquery Scan` node, because a trivial one is elided, but a subquery
   that contains a CTE is not pulled up and is planned as its own unit, so the outer `ORDER BY`
@@ -318,8 +318,8 @@ owner and no unit.
   which reads the whole directory anyway. So composing at the base's level is required for a
   base that contains `WITH RECURSIVE`, and the wrap suffices for a flat base.
 - **The window total costs the directory's heap read (stage 8).** `COUNT(*) OVER ()` in the page
-  statement makes the engine read every row of the directory with its columns: 5.5 ms and 2434
-  buffers for 10,008 files, against 0.02 ms and 12 buffers without the total and 0.77 ms and
+  statement makes the engine read every row of the directory with its columns: 6.3 ms and 2434
+  buffers for 10,008 files, against 0.02 ms and 12 buffers without the total and 0.79 ms and
   109 buffers for an index-only count twin after `VACUUM`. The total in the page statement
   agrees with its page, and it costs a heap read that a separate count avoids once the table is
   vacuumed. A library that offers both should say so.
@@ -431,18 +431,18 @@ so every run was planned with its literal values, as a custom plan is.
 
 | Section | Query | Small (10 files) | Biggest (10,008 files) |
 |---------|-------|------------------|------------------------|
-| 0 | Count twin before `VACUUM` | | 1.98 ms, 2434 buffers, bitmap heap scan |
-| 0 | Count twin after `VACUUM` | | 0.77 ms, 109 buffers, index-only scan |
-| 0 | Shipped exact-total page, before and after `VACUUM` | | 5.9 and 5.7 ms, 2434 buffers both |
-| a | Whole-forest baseline, count and page | 11.2 and 11.1 ms, 29,700 buffers | 13.5 and 18.0 ms, 29,800 and 32,100 buffers |
-| b | Shipped listing, exact total, page 1 | 0.12 ms, 13 buffers | 5.5 ms, 2434 buffers |
+| 0 | Count twin before `VACUUM` | | 1.96 ms, 2434 buffers, bitmap heap scan |
+| 0 | Count twin after `VACUUM` | | 0.79 ms, 109 buffers, index-only scan |
+| 0 | Shipped exact-total page, before and after `VACUUM` | | 5.8 and 6.1 ms, 2434 buffers both |
+| a | Whole-forest baseline, count and page | 11.3 and 11.1 ms, 29,700 buffers | 13.6 and 17.9 ms, 29,800 and 32,100 buffers |
+| b | Shipped listing, exact total, page 1 | 0.05 ms, 13 buffers | 6.3 ms, 2434 buffers |
 | c | Shipped listing, no total, page 1 | 0.04 ms, 13 buffers | 0.02 ms, 12 buffers |
-| d | Last page by offset, no total | | 7.9 ms, 2434 buffers |
-| d | Last page by offset, exact total | | 11.2 ms, 2434 buffers |
+| d | Last page by offset, no total | | 7.7 ms, 2434 buffers |
+| d | Last page by offset, exact total | | 11.1 ms, 2434 buffers |
 | d | Last page by cursor | | 0.02 ms, 6 buffers |
-| e1 | Wrap, unanchored base, count twin and page | | 0.76 ms, 109 buffers; 0.05 ms, 12 buffers |
-| e2 | Wrap, anchored base; the same with the window count inside | | 0.04 ms, 12 buffers; 5.7 ms, 2434 buffers |
-| e3 | Recursive base, flat and wrapped | | 0.07 ms, 21 buffers; 5.2 ms, 2443 buffers |
+| e1 | Wrap, unanchored base, count twin and page | | 0.75 ms, 109 buffers; 0.02 ms, 12 buffers |
+| e2 | Wrap, anchored base; the same with the window count inside | | 0.02 ms, 12 buffers; 5.9 ms, 2434 buffers |
+| e3 | Recursive base, flat and wrapped | | 0.07 ms, 21 buffers; 5.1 ms, 2443 buffers |
 
 What the measurement shows, and the answers to the V3 questions as far as it supports them:
 
@@ -454,7 +454,7 @@ What the measurement shows, and the answers to the V3 questions as far as it sup
   the file index, and the two are not comparable beyond their order of magnitude.
 - **Does the exact total stay the default?** Yes for the default page size and ordinary
   directories: for the small directory the total is free (13 buffers either way). For a big
-  directory the window count costs the whole directory's heap read (2434 buffers, 5.5 ms for
+  directory the window count costs the whole directory's heap read (2434 buffers, 6.3 ms for
   10,008 files) on every page, because the page statement must read every row's columns to
   count them, and `VACUUM` does not help it. The default holds because a consumer that lists a
   directory expects its size, and the cost is bounded by the directory, never by the tree.
@@ -464,7 +464,7 @@ What the measurement shows, and the answers to the V3 questions as far as it sup
   shipped no cap, and the numbers say a consumer with directories of tens of thousands of files
   should ask for the total once, on page one, and walk by cursor.
 - **Does the cursor earn its place?** Yes. The last page of the biggest directory costs 0.02 ms
-  and 6 buffers by cursor (an index scan from the cursor's name under a `Limit`) against 7.9 ms
+  and 6 buffers by cursor (an index scan from the cursor's name under a `Limit`) against 7.7 ms
   and 2434 buffers by offset (a bitmap scan of the directory and a top-N sort). Offset paging
   costs the pages skipped; the cursor costs the page.
 - **Does any sort earn an index?** Not on this evidence. Every measured query sorts by `name`,
@@ -477,7 +477,7 @@ What the measurement shows, and the answers to the V3 questions as far as it sup
   base (one table, no window function) is pulled up by the planner, and the wrap's plan equals
   the flat statement's, with the anchor outside as a directive or inside as a bound parameter.
   A base that contains `WITH RECURSIVE` is not pulled up: the wrapped e3 form scans and sorts the
-  whole directory above the join (5.2 ms, 2443 buffers) where the flat form pages through the
+  whole directory above the join (5.1 ms, 2443 buffers) where the flat form pages through the
   index (0.07 ms, 21 buffers). So the composer's choice to append the clauses at the statement's
   own level is required for the recursive shape the consumer-anchored read models take (the
   bookmark projection of stage 11, and any per-row path), and the wrap suffices for the plain
