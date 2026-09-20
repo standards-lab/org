@@ -47,9 +47,11 @@ once stage 16 is committed. Do not re-enter SETTLE. The plan is settled, and 3R 
    decisions it made. Then start the next stage.
 4. If context fills before stage 16, run `reset` (a handoff with the stage position and the exact
    next move) and continue in the fresh context.
-5. Stop after stage 16 is committed. Do not run `close`, do not push, and do not publish. Report
-   what was built, the answer to each proof, and the findings grouped by the three review goals
-   (the library, `sqlate`, `v1.storage`), and say anything that changed a settled decision.
+5. Stop after stage 16 is committed. Do not run `close`, do not push, and do not publish. Give a
+   short completion report (what was built, the answer to each proof in a line, the findings
+   grouped by the three review goals, and anything that changed a settled decision), then pause
+   and wait. Do not start the review on your own. The architect starts it by saying "start"; the
+   protocol is in "The post-execution review" below.
 
 The common gates, run from `experiments/blobfs`: `go build ./...`, `go vet ./...`, `go vet -tags
 integration ./...`, `go test -race ./...`, `mise run integration`, `mise run split-check`, `mise run
@@ -61,6 +63,45 @@ down`, `mise run reset`, or `docker compose down`.
 `fable` never commits, never pushes, and never writes the reset file. The orchestrator finishes
 documentation, comments, and commit messages in its own voice, and stage 16 follows that: `fable`
 drafts the evidence-heavy sections, and the orchestrator finishes and reads them firsthand.
+
+### The post-execution review
+
+When the architect says "start", run the review in two phases. Change no code during it unless the
+architect asks for an adjustment, and keep every explanation short: the architect wants to
+understand the mechanics without being overwhelmed.
+
+**Phase 1: orientation.** Explain how the API is structured and how the experiment runs, then
+demonstrate everything that was built by running the built binary live against the compose stack,
+in a throwaway database, one step at a time with a line of narration and the real output shown.
+Do not point at integration tests instead. Cover, in an order that builds up: bringing the stack
+up and applying the schema (`schema up`, `status`, and a `reset`); `mkdir` and `ls` with paging,
+sorting, `--total none`, and `--after`; `--unit` scoping at a depth-one directory and at `/`; the
+write path (`put`, `cat`, `stat`) including `--fail-after` and how a `pending` row is found and
+completed; `mv` and the cycle refusal; `rm`, `rmdir` (including the root refusal), and `rm -r`;
+`bookmark add|ls|rm` and the one-active rule; the same script on the baseline and on the
+`pgnative` variant; a second configuration to show isolation; and the migration set and the
+upgrade rehearsal. Add a short map of the layers before the demonstration. Leave the stack
+running and the database available so the architect can try commands too.
+
+**Phase 2: layer-by-layer review, top down.** Choose the layer segregation yourself and say what
+you chose. A sensible default, from the top: (1) the entry point and composition root
+(`cmd/blobfs`, `internal/app`); (2) the command surface and output (`domain/files/commands.go`,
+`admin/schema`, `output`); (3) the consumer domain (`domain/files`: entities, statements,
+`database.go`, the `blobfs.go` and `storage.go` translation files); (4) the persistence layer
+(`lib/blobfs/data`: statements, patterns, the listing composer); (5) the variant seam
+(`lib/blobfs/data/pgnative` and the variation-point interface); (6) the root package and schema
+(`lib/blobfs`, `lib/blobfs/migrations`); (7) the migrator (`lib/migrator`); (8) the tests,
+integration tier, and evidence. For each layer give the architect, and nothing more: at most five
+files to read, in reading order, with the line that says what each one is; the three to five things
+to understand about the layer, including the decisions and the tradeoffs behind them; and the
+findings for that layer from `NOTES.md` that affect it. Then stop and wait for the architect to
+finish with that layer, take their questions and requested adjustments, and only then move to the
+next one. The aim is to confirm that the infrastructure is well formed and performs as intended,
+so name for each layer what you believe is well formed, what you are least sure of, and what the
+evidence says about cost.
+
+After the last layer, collect the adjustments the architect asked for, apply them, and then plan
+the amendments to the concept and the design notes and the `close`, all with the architect.
 
 ### The design in one paragraph
 
