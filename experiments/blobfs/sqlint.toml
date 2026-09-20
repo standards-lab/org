@@ -10,5 +10,5 @@ sql = "github.com/standards-lab/sqlate"
 # The two migration sets: blobfs's own DDL and the consumer's. The migrations role has no
 # native-forms check; the DDL is Postgres at v1 by design.
 [migrations]
-dirs = ["lib/blobfs/migrations/postgres", "consumer/migrations/postgres"]
+dirs = ["lib/blobfs/migrations/postgres", "migrations/postgres"]
 single_statement = true

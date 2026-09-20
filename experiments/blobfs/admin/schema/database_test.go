@@ -1,0 +1,137 @@
+package schema_test
+
+import (
+	"context"
+	"database/sql"
+	"database/sql/driver"
+	"errors"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/standards-lab/sqlate"
+	"github.com/standards-lab/sqlate/sqltest"
+
+	"github.com/standards-lab/org/experiments/blobfs/admin/schema"
+	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+)
+
+// postgresDialect is the stub dialect under the name the Postgres engine
+// reports, with the lock capability, so Sets selects the Postgres directory
+// without the driver and the inner migrators run their locked protocol
+// against the recorder.
+type postgresDialect struct{ sqltest.Dialect }
+
+func (postgresDialect) Name() string { return "postgres" }
+
+func (postgresDialect) Lock(ctx context.Context, conn *sql.Conn, name string) error {
+	_, err := conn.ExecContext(ctx, "SELECT lock($1)", name)
+	return err
+}
+
+func (postgresDialect) Unlock(ctx context.Context, conn *sql.Conn, name string) error {
+	var held bool
+	if err := conn.QueryRowContext(ctx, "SELECT unlock($1)", name).Scan(&held); err != nil {
+		return err
+	}
+	if !held {
+		return errors.New("lock not held")
+	}
+	return nil
+}
+
+// TestSets_OrdersBlobfsFirstAndTheConsumerLast fixes the canonical order:
+// blobfs's set under its own history table, then the consumer's under
+// sqlate's default table, each holding its source's migrations.
+func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
+	sets, err := schema.Sets(postgresDialect{})
+	if err != nil {
+		t.Fatalf("Sets: %v", err)
+	}
+	if len(sets) != 2 {
+		t.Fatalf("Sets returned %d sets, want 2", len(sets))
+	}
+	first, last := sets[0], sets[1]
+	if first.Name != blobfsmigrations.Source || first.Table != blobfsmigrations.Table {
+		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, blobfsmigrations.Source, blobfsmigrations.Table)
+	}
+	if len(first.Migrations) != 3 || first.Migrations[0].Name != "volume" {
+		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 3 starting with volume", len(first.Migrations), first.Migrations[0].Name)
+	}
+	if last.Name != schema.ConsumerSet || last.Table != "" {
+		t.Errorf("last set = %q under %q, want %q under the default table", last.Name, last.Table, schema.ConsumerSet)
+	}
+	if len(last.Migrations) != 2 || last.Migrations[0].Name != "volume_owner" {
+		t.Errorf("last set holds %d migrations starting with %q, want the consumer's 2 starting with volume_owner", len(last.Migrations), last.Migrations[0].Name)
+	}
+}
+
+// TestNewClient_RefusesADialectWithoutDDL proves the selection by dialect
+// reaches the client: an engine blobfs ships no directory for fails with
+// the source's sentinel.
+func TestNewClient_RefusesADialectWithoutDDL(t *testing.T) {
+	pool, _ := sqltest.Open(t)
+	_, err := schema.NewClient(sqlate.Wrap(pool, sqltest.Dialect{}), nil)
+	if !errors.Is(err, blobfsmigrations.ErrUnsupportedEngine) {
+		t.Fatalf("NewClient(test dialect) = %v, want ErrUnsupportedEngine", err)
+	}
+}
+
+var historyCols = []string{"version", "name", "dirty"}
+
+// setRun scripts one set's locked run over an empty history: the lock, the
+// history table's create, the history read, one transaction per migration,
+// and the unlock.
+func setRun(steps int) []sqltest.Response {
+	out := []sqltest.Response{
+		{}, // lock
+		{}, // CREATE TABLE IF NOT EXISTS
+		{Columns: historyCols},
+	}
+	for range steps {
+		out = append(out, sqltest.Response{}, sqltest.Response{}) // the text, the history row
+	}
+	return append(out, sqltest.Response{Columns: []string{"unlock"}, Rows: [][]driver.Value{{true}}})
+}
+
+// TestUp_RunsBlobfsBeforeTheConsumer proves the client hands the sets to
+// the migrator in canonical order: on a fresh database, blobfs's history
+// table and DDL run before the consumer's.
+func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
+	responses := append(setRun(3), setRun(2)...)
+	pool, rec := sqltest.Open(t, responses...)
+	c, err := schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if err := c.Up(context.Background()); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	if rec.Pending() != 0 {
+		t.Errorf("%d scripted responses unconsumed", rec.Pending())
+	}
+	execs := rec.SQL(sqltest.OpExec)
+	position := func(prefix string) int {
+		return slices.IndexFunc(execs, func(s string) bool { return strings.Contains(s, prefix) })
+	}
+	order := []string{
+		"CREATE TABLE IF NOT EXISTS " + blobfsmigrations.Table,
+		"CREATE TABLE blobfs_volume",
+		"CREATE TABLE blobfs_file",
+		"CREATE TABLE IF NOT EXISTS schema_version",
+		"CREATE TABLE volume_owner",
+		"CREATE TABLE volume_bookmark",
+	}
+	last := -1
+	for _, text := range order {
+		at := position(text)
+		if at < 0 {
+			t.Errorf("no exec contains %q:\n%s", text, strings.Join(execs, "\n"))
+			continue
+		}
+		if at <= last {
+			t.Errorf("%q ran at %d, before the text that must precede it at %d", text, at, last)
+		}
+		last = at
+	}
+}

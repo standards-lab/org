@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/standards-lab/org/experiments/blobfs/consumer/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/migrations"
 )
 
 var objectName = regexp.MustCompile(`(?i)\b(?:CREATE\s+TABLE|CREATE\s+(?:UNIQUE\s+)?INDEX|CONSTRAINT)\s+([A-Za-z_][A-Za-z0-9_]*)`)

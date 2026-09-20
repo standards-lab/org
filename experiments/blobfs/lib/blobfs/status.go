@@ -22,7 +22,6 @@ const (
 	StatusDeleting Status = "deleting"
 )
 
-// String returns the status as the column stores it.
 func (s Status) String() string {
 	return string(s)
 }

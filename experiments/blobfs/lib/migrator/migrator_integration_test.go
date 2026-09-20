@@ -1,4 +1,4 @@
-//go:build compose
+//go:build integration
 
 package migrator_test
 

@@ -1,9 +1,9 @@
-//go:build compose
+//go:build integration
 
-// Package livetest is the helper the compose-backed tests share: it gives
-// each test its own throwaway database on the server BLOBFS_DSN names, so no
-// test depends on the state of the compose stack's database or on another
-// test, and drops the database when the test ends.
+// Package livetest is the helper the integration-tagged tests share: it
+// gives each test its own throwaway database on the server BLOBFS_DSN names,
+// so no test depends on the state of the compose stack's database or on
+// another test, and drops the database when the test ends.
 package livetest
 
 import (
@@ -26,8 +26,8 @@ import (
 // Open creates a uniquely named database on the server BLOBFS_DSN names and
 // returns the session over a pool connected to it. The pool is closed and
 // the database dropped, with FORCE so open sessions do not block the drop,
-// when the test ends. A missing BLOBFS_DSN fails the test: the compose tag
-// states that the stack is expected.
+// when the test ends. A missing BLOBFS_DSN fails the test: the integration
+// tag states that the stack is expected.
 func Open(t testing.TB) *sqlate.DB {
 	t.Helper()
 	db, _ := OpenDSN(t)
@@ -127,22 +127,6 @@ func Exists(ctx context.Context, t testing.TB, db *sqlate.DB, relation string) b
 		t.Fatalf("to_regclass(%s): %v", relation, err)
 	}
 	return exists
-}
-
-// RowExists reports whether query, with args bound, returns at least one
-// row.
-func RowExists(ctx context.Context, t testing.TB, db *sqlate.DB, query string, args ...any) bool {
-	t.Helper()
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		t.Fatalf("%s: %v", query, err)
-	}
-	defer func() { _ = rows.Close() }()
-	found := rows.Next()
-	if err := rows.Err(); err != nil {
-		t.Fatalf("%s: %v", query, err)
-	}
-	return found
 }
 
 // Head returns the highest applied version in the history table named, or
