@@ -48,7 +48,7 @@ func wantClassified(t *testing.T, got error, in *sqlate.ConstraintError, constra
 
 // TestClassifyWrite is the truth table of the write mapping: each of
 // blobfs's constraints maps to its sentinel under the class it reports,
-// the root's partial index included, as a blobfs.ViolationError whose
+// the two primary keys and the root's partial index included, as a blobfs.ViolationError whose
 // message names the sentinel and the constraint and keeps the
 // sqlate.ConstraintError reachable. A constraint blobfs does not own, a
 // class the constraint does not report (a check violation among them),
@@ -61,6 +61,8 @@ func TestClassifyWrite(t *testing.T) {
 		class      error
 		want       error
 	}{
+		{blobfs.ConstraintPrimaryKeyDirectory, sqlate.ErrUniqueViolation, blobfs.ErrIDTaken},
+		{blobfs.ConstraintPrimaryKeyFile, sqlate.ErrUniqueViolation, blobfs.ErrIDTaken},
 		{blobfs.ConstraintUniqueDirectoryRoot, sqlate.ErrUniqueViolation, blobfs.ErrRootDirectory},
 		{blobfs.ConstraintUniqueDirectoryParentName, sqlate.ErrUniqueViolation, blobfs.ErrNameTaken},
 		{blobfs.ConstraintUniqueFileDirectoryName, sqlate.ErrUniqueViolation, blobfs.ErrNameTaken},

@@ -17,14 +17,17 @@ type writeMapping struct {
 }
 
 // writeSentinels maps the constraints an insert or an update can violate
-// to the sentinel each one means there: a unique constraint on a name is a
-// name already held, the root's partial unique index is a second root, and
-// a foreign key to a directory is a parent or directory that does not
-// exist. The mapping is the write's view of the constraint. A delete
-// violates the same foreign keys with the opposite meaning (the row still
-// has children), so the delete operations of a later stage carry their own
-// table.
+// to the sentinel each one means there: a primary key is an id a
+// caller supplied that a row already carries, a unique constraint on a
+// name is a name already held, the root's partial unique index is a second
+// root, and a foreign key to a directory is a parent or directory that
+// does not exist. The mapping is the write's view of the constraint. A
+// delete violates the same foreign keys with the opposite meaning (the row
+// still has children), so the delete operations of a later stage carry
+// their own table.
 var writeSentinels = map[string]writeMapping{
+	blobfs.ConstraintPrimaryKeyDirectory:       {sqlate.ErrUniqueViolation, blobfs.ErrIDTaken},
+	blobfs.ConstraintPrimaryKeyFile:            {sqlate.ErrUniqueViolation, blobfs.ErrIDTaken},
 	blobfs.ConstraintUniqueDirectoryRoot:       {sqlate.ErrUniqueViolation, blobfs.ErrRootDirectory},
 	blobfs.ConstraintUniqueDirectoryParentName: {sqlate.ErrUniqueViolation, blobfs.ErrNameTaken},
 	blobfs.ConstraintUniqueFileDirectoryName:   {sqlate.ErrUniqueViolation, blobfs.ErrNameTaken},

@@ -9,6 +9,16 @@ package blobfs
 // must not import an engine package. The Postgres engine package's tests
 // check that every constant names a constraint or an index in its DDL.
 const (
+	// ConstraintPrimaryKeyDirectory is the primary key of blobfs_directory.
+	// A violation is ErrIDTaken: a caller-supplied id another directory
+	// already carries.
+	ConstraintPrimaryKeyDirectory = "blobfs_pk_directory"
+
+	// ConstraintPrimaryKeyFile is the primary key of blobfs_file. A
+	// violation is ErrIDTaken: a caller-supplied id another file already
+	// carries.
+	ConstraintPrimaryKeyFile = "blobfs_pk_file"
+
 	// ConstraintUniqueDirectoryRoot is the partial unique index that allows
 	// one directory row with no parent: the one root per install. A
 	// violation is ErrRootDirectory.

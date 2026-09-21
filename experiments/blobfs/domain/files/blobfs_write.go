@@ -2,12 +2,12 @@ package files
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/standards-lab/sqlate"
 
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
 )
 
 // Mkdir creates the directory at path under its parent, which must exist,
@@ -52,21 +52,22 @@ func (s *Store) Mkdir(ctx context.Context, path, unit string) (blobfs.Directory,
 
 // Put is the two-phase write as the consumer sequences it, in three steps
 // with two transaction boundaries. First, in one transaction on its own:
-// the parent directory is resolved, the name is looked up, and either the
-// pending row is inserted through blobfs's begin step or, when a pending
-// row already holds the name, that row is taken up again (Resumed); the
-// transaction commits, so the pending row is durable before any byte
-// reaches the store, and it is where a consumer would write its own rows
-// beside the pending row. Second, outside any transaction, the object is
-// stored under the row's key with the declared content type. Third, on the
-// pool, blobfs's complete step moves the row to available with what the
-// store reported, guarded by the version read in the first step.
+// the parent directory is resolved and blobfs's begin-or-resume step
+// either inserts the pending row or, when a pending row already holds the
+// name, returns that row to be taken up again (Resumed); the transaction
+// commits, so the pending row is durable before any byte reaches the
+// store, and it is where a consumer would write its own rows beside the
+// pending row. Second, outside any transaction, the object is stored
+// under the row's key with the declared content type. Third, on the pool,
+// blobfs's complete step moves the row to available with what the store
+// reported, guarded by the version read in the first step.
 //
 // A stop after the first or the second step (StopAfter, or a failure of
 // the object write) leaves the row pending, where ls and stat show it;
 // the error says so, and a put of the same path resumes the row: it
 // stores the object again, which replaces one an earlier attempt left,
-// and completes. A name held by an available or a deleting row is
+// and completes. A name held by an available or a deleting row, which the
+// begin-or-resume step reports as data.WriteExists, is
 // blobfs.ErrNameTaken, since the consumer has no content replacement, and
 // a parent that does not exist is blobfs.ErrNotFound. The object store is
 // opened before the first step, so a store that cannot be reached fails
@@ -87,17 +88,17 @@ func (s *Store) Put(ctx context.Context, req PutRequest) (PutResult, error) {
 		if err != nil {
 			return blobfs.File{}, err
 		}
-		existing, err := s.blobfs.FileByName(ctx, tx, dir.ID, name)
-		switch {
-		case err == nil && existing.Status == blobfs.StatusPending:
-			resumed = true
-			return existing, nil
-		case err == nil:
-			return blobfs.File{}, fmt.Errorf("a file named %q is %s: %w", existing.Name, existing.Status, blobfs.ErrNameTaken)
-		case !errors.Is(err, blobfs.ErrNotFound):
+		f, outcome, err := s.blobfs.BeginOrResumeFileWrite(ctx, tx, st, dir.ID, name, req.ContentType)
+		if err != nil {
 			return blobfs.File{}, err
 		}
-		return s.blobfs.BeginFileWrite(ctx, tx, st, dir.ID, name, req.ContentType)
+		switch outcome {
+		case data.WriteResumed:
+			resumed = true
+		case data.WriteExists:
+			return blobfs.File{}, fmt.Errorf("a file named %q is %s: %w", f.Name, f.Status, blobfs.ErrNameTaken)
+		}
+		return f, nil
 	})
 	if err != nil {
 		return PutResult{}, fmt.Errorf("files: put %s: %w", req.Path, err)

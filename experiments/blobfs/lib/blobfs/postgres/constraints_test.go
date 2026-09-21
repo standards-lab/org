@@ -27,6 +27,8 @@ func TestConstraintConstants(t *testing.T) {
 		}
 	}
 	for _, name := range []string{
+		blobfs.ConstraintPrimaryKeyDirectory,
+		blobfs.ConstraintPrimaryKeyFile,
 		blobfs.ConstraintUniqueDirectoryRoot,
 		blobfs.ConstraintUniqueDirectoryParentName,
 		blobfs.ConstraintUniqueFileDirectoryName,

@@ -49,6 +49,34 @@ func TestRootID(t *testing.T) {
 	}
 }
 
+// TestParseID proves a caller-supplied id is returned in the canonical
+// form NewID mints, whatever accepted form it came in, so the row and its
+// key agree; and that the nil UUID, the empty string, and text that is no
+// UUID are refused as an IDError matching ErrInvalidID, with the id and
+// the reason in the message.
+func TestParseID(t *testing.T) {
+	minted := blobfs.NewID()
+	for _, form := range []string{minted, strings.ToUpper(minted), "{" + minted + "}", "urn:uuid:" + minted, strings.ReplaceAll(minted, "-", "")} {
+		got, err := blobfs.ParseID(form)
+		if err != nil || got != minted {
+			t.Errorf("ParseID(%q) = %q, %v; want the canonical form %q", form, got, err, minted)
+		}
+	}
+	for _, id := range []string{blobfs.RootID, "{" + blobfs.RootID + "}", "", "not-a-uuid", minted + "0"} {
+		got, err := blobfs.ParseID(id)
+		var ie *blobfs.IDError
+		if !errors.Is(err, blobfs.ErrInvalidID) || !errors.As(err, &ie) || ie.ID != id || ie.Reason == "" || got != "" {
+			t.Errorf("ParseID(%q) = %q, %v; want an IDError carrying the id and a reason", id, got, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), id) {
+			t.Errorf("ParseID(%q) = %q does not name the id", id, err)
+		}
+	}
+	if _, err := blobfs.ParseID(blobfs.RootID); err == nil || !strings.Contains(err.Error(), "root") {
+		t.Errorf("ParseID(RootID) = %v, want a reason that names the root", err)
+	}
+}
+
 // TestIsRoot fixes what makes a directory the root: a nil parent, and
 // nothing else.
 func TestIsRoot(t *testing.T) {
@@ -103,6 +131,8 @@ func TestSentinels(t *testing.T) {
 		blobfs.ErrDeleting,
 		blobfs.ErrCycle,
 		blobfs.ErrRootDirectory,
+		blobfs.ErrInvalidID,
+		blobfs.ErrIDTaken,
 	}
 	for i, a := range sentinels {
 		for j, b := range sentinels {

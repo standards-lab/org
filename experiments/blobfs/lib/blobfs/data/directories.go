@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/standards-lab/sqlate"
@@ -31,22 +33,89 @@ func (s *Store) Directory(ctx context.Context, sess sqlate.Session, id string) (
 // validated first; a refusal is a blobfs.NameError, and an empty name is
 // one, so no call creates a row without a name. Every row Mkdir writes has
 // a parent, so no call creates a root either: the one root is seeded by
-// the schema. A name already held by a directory under the same parent is
-// blobfs.ErrNameTaken, and a parent that does not exist is
+// the schema. The id is minted, or taken from WithID and checked, before
+// any SQL. A name already held by a directory under the same parent is
+// blobfs.ErrNameTaken, an id another directory carries is
+// blobfs.ErrIDTaken, and a parent that does not exist is
 // blobfs.ErrNotFound. One row is written, so the session may be the pool
 // or a transaction.
-func (s *Store) Mkdir(ctx context.Context, sess sqlate.Session, parentID, name string) (blobfs.Directory, error) {
+func (s *Store) Mkdir(ctx context.Context, sess sqlate.Session, parentID, name string, opts ...WriteOption) (blobfs.Directory, error) {
 	name, err := validName(name)
 	if err != nil {
 		return blobfs.Directory{}, fmt.Errorf("data: mkdir: %w", err)
 	}
-	id := blobfs.NewID()
+	id, err := rowID(opts)
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: mkdir %q: %w", name, err)
+	}
+	d, err := s.insertDirectory(ctx, sess, id, parentID, name)
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: mkdir %q under %s: %w", name, parentID, err)
+	}
+	return d, nil
+}
+
+// EnsureDirectory returns the directory named name under the directory
+// with parentID, creating it when none exists, and reports whether this
+// call created it. It is the insert-or-find a seeder needs: a seeded
+// directory is read on every run after the first, without the seeder
+// catching blobfs.ErrNameTaken and looking the name up itself. The name
+// is normalized and validated and the id resolved as in Mkdir, before any
+// SQL; a found row keeps its own id whatever WithID supplied.
+//
+// The lookup runs first and the insert only when it found no row, so the
+// common case runs no failing statement and composes into a caller's
+// transaction, where a seeder writes its own rows beside the directory.
+// A creator that commits between the lookup and the insert makes the
+// insert fail as blobfs.ErrNameTaken. On the pool the row is then looked
+// up again and returned as found. Inside a transaction the error is
+// returned instead, because on Postgres the failed insert has aborted the
+// transaction, and the caller retries the transaction. The other refusals
+// are Mkdir's.
+func (s *Store) EnsureDirectory(ctx context.Context, sess sqlate.Session, parentID, name string, opts ...WriteOption) (blobfs.Directory, bool, error) {
+	name, err := validName(name)
+	if err != nil {
+		return blobfs.Directory{}, false, fmt.Errorf("data: ensure directory: %w", err)
+	}
+	id, err := rowID(opts)
+	if err != nil {
+		return blobfs.Directory{}, false, fmt.Errorf("data: ensure directory %q: %w", name, err)
+	}
+	args := query.Args{"parent_id": parentID, "name": name}
+	d, err := s.directoryChild.One(ctx, sess, args)
+	switch {
+	case err == nil:
+		return d, false, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return blobfs.Directory{}, false, fmt.Errorf("data: ensure directory %q under %s: %w", name, parentID, err)
+	}
+	d, err = s.insertDirectory(ctx, sess, id, parentID, name)
+	switch {
+	case err == nil:
+		return d, true, nil
+	case !errors.Is(err, blobfs.ErrNameTaken) || inTransaction(sess):
+		return blobfs.Directory{}, false, fmt.Errorf("data: ensure directory %q under %s: %w", name, parentID, err)
+	}
+	// A concurrent creator committed the name between the lookup and the
+	// insert; the row exists now.
+	d, err = s.directoryChild.One(ctx, sess, args)
+	if err != nil {
+		return blobfs.Directory{}, false, fmt.Errorf("data: ensure directory %q under %s after a concurrent create: %w", name, parentID, notFound(err))
+	}
+	return d, false, nil
+}
+
+// insertDirectory inserts the directory row under id and reads it back.
+// The name is normalized and validated already. A constraint violation is
+// classified through the write mapping and returned without context, so
+// each caller adds its own.
+func (s *Store) insertDirectory(ctx context.Context, sess sqlate.Session, id, parentID, name string) (blobfs.Directory, error) {
 	if _, err := s.createDirectory.Exec(ctx, sess, query.Args{"id": id, "parent_id": parentID, "name": name}); err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: mkdir %q under %s: %w", name, parentID, classifyWrite(err))
+		return blobfs.Directory{}, classifyWrite(err)
 	}
 	d, err := s.directoryByID.One(ctx, sess, query.Args{"id": id})
 	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: read back directory %q: %w", name, err)
+		return blobfs.Directory{}, fmt.Errorf("read back: %w", err)
 	}
 	return d, nil
 }

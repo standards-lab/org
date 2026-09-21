@@ -39,6 +39,15 @@ var (
 	// key and the store's reason.
 	ErrInvalidKey = errors.New("blobfs: invalid key")
 
+	// ErrInvalidID reports a caller-supplied row id that ParseID refused:
+	// text that is not a UUID, or the nil UUID, which is RootID. An IDError
+	// carries the reason.
+	ErrInvalidID = errors.New("blobfs: invalid id")
+
+	// ErrIDTaken reports a caller-supplied row id that a row of the same
+	// table already carries: the primary key refused the insert.
+	ErrIDTaken = errors.New("blobfs: id taken")
+
 	// ErrNotEmpty reports a directory delete refused because the directory
 	// still has child directories or files.
 	ErrNotEmpty = errors.New("blobfs: directory not empty")

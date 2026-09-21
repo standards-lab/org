@@ -4,9 +4,10 @@
 // whose methods run the statements against a sqlate.Session the caller
 // provides. It is the standard-tier baseline: every statement and every
 // pattern is standard SQL, so the package runs on any engine sqlate has a
-// dialect for. Ids are minted in Go with blobfs.NewID, a row's defaults are
-// read back after an insert instead of returned by it, and paging is
-// OFFSET and FETCH NEXT.
+// dialect for. Ids are minted in Go with blobfs.NewID, or supplied by the
+// caller through WithID so a seeded row keeps its id across resets; a
+// row's defaults are read back after an insert instead of returned by
+// it, and paging is OFFSET and FETCH NEXT.
 //
 // A consumer builds one pattern catalog for its whole program, with
 // query.Patterns() and Patterns() registered beside its own sources, and
@@ -18,8 +19,10 @@
 // parameters of its own.
 //
 // The tree has one root, seeded by the schema with blobfs.RootID. Root,
-// Directory, Mkdir, ResolveDirectory, and DirectoryPath read and write
-// directories. ListFiles and Children are the listings: each is an
+// Directory, Mkdir, EnsureDirectory, ResolveDirectory, and DirectoryPath
+// read and write directories; EnsureDirectory is the insert-or-find a
+// seeder runs, which looks the name up first and inserts only when it
+// found no row. ListFiles and Children are the listings: each is an
 // authored statement anchored on one directory, with the caller's filters,
 // sort, and page composed onto it in Go from the query library's clause
 // patterns, and with the total computed in the same statement by
@@ -39,9 +42,14 @@
 // and version and what the store reported, which moves the row to
 // available under the query library's version guard. A stop between the
 // steps leaves the row pending, where a listing finds it and a retry of
-// the same write, having found it through FileByName, completes it. There
-// is no fail step: an abandoned write is removed through the delete steps,
-// which a pending row already allows.
+// the same write, having found it through FileByName, completes it.
+// BeginOrResumeFileWrite is the begin step and that lookup as one
+// operation: it returns the row that holds the name and a WriteOutcome
+// that says whether the row was created, resumed as pending, or found in
+// another status, so a put, a copy, and a seeder share one write
+// protocol and each decides what a found row means. There is no fail
+// step: an abandoned write is removed through the delete steps, which a
+// pending row already allows.
 //
 // A file delete is two steps around the object delete the package never
 // makes. BeginFileDelete moves the row to deleting and returns it, so the
@@ -71,8 +79,9 @@
 // unwrapped, so a call runs against the pool or inside the caller's
 // transaction, and a statement headed transaction: required refuses a
 // session that is not a *sqlate.Tx. A violation of one of blobfs's own
-// constraints becomes blobfs.ErrNameTaken, blobfs.ErrNotFound,
-// blobfs.ErrRootDirectory, or, on a delete, blobfs.ErrNotEmpty. A
+// constraints becomes blobfs.ErrNameTaken, blobfs.ErrIDTaken,
+// blobfs.ErrNotFound, blobfs.ErrRootDirectory, or, on a delete,
+// blobfs.ErrNotEmpty. A
 // violation of a constraint blobfs does not own returns unclassified on a
 // write, wrapped with the operation's context; on a delete a foreign key
 // blobfs does not own is a consumer's row that references the one being

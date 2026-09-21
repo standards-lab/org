@@ -41,13 +41,15 @@ func (s *Store) FileByName(ctx context.Context, sess sqlate.Session, directoryID
 // BeginFileWrite is the first step of the two-phase write: it inserts the
 // file's row as blobfs.StatusPending, before any object exists, and returns
 // the row as the database holds it. The name is normalized and validated
-// first (a refusal is a blobfs.NameError), the id is minted, and the key is
+// first (a refusal is a blobfs.NameError), the id is minted or taken from
+// WithID and checked (a refusal is a blobfs.IDError), and the key is
 // built from the id and the name and validated against keys (a refusal is a
 // blobfs.KeyError), all before any SQL. A name already held in the
-// directory, by a row of any status, is blobfs.ErrNameTaken, and a
-// directory that does not exist is blobfs.ErrNotFound. The content type is
-// what the caller declares; the row's size and entity tag stay nil until
-// the write completes.
+// directory, by a row of any status, is blobfs.ErrNameTaken, an id
+// another file carries is blobfs.ErrIDTaken, and a directory that does
+// not exist is blobfs.ErrNotFound. The content type is what the caller
+// declares; the row's size and entity tag stay nil until the write
+// completes.
 //
 // The session may be the pool or a transaction. Inside a caller's
 // transaction the pending row commits with the caller's own rows, so a
@@ -56,25 +58,125 @@ func (s *Store) FileByName(ctx context.Context, sess sqlate.Session, directoryID
 // then stores the object under the row's Key and calls CompleteFileWrite
 // with the row's ID and Version. A stop between the two steps leaves the
 // row pending, where a listing or FileByName finds it; a retry of the same
-// write finds the row through FileByName and completes it, and an
-// abandoned write is removed through the delete steps.
-func (s *Store) BeginFileWrite(ctx context.Context, sess sqlate.Session, keys blobfs.KeyValidator, directoryID, name, contentType string) (blobfs.File, error) {
+// write finds the row through FileByName, or through
+// BeginOrResumeFileWrite, and completes it, and an abandoned write is
+// removed through the delete steps.
+func (s *Store) BeginFileWrite(ctx context.Context, sess sqlate.Session, keys blobfs.KeyValidator, directoryID, name, contentType string, opts ...WriteOption) (blobfs.File, error) {
 	name, err := validName(name)
 	if err != nil {
 		return blobfs.File{}, fmt.Errorf("data: begin write: %w", err)
 	}
-	id := blobfs.NewID()
+	id, err := rowID(opts)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("data: begin write of %q: %w", name, err)
+	}
 	key, err := blobfs.NewKey(keys, id, name)
 	if err != nil {
 		return blobfs.File{}, fmt.Errorf("data: begin write of %q: %w", name, err)
 	}
+	f, err := s.insertFile(ctx, sess, id, directoryID, name, key, contentType)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("data: begin write of %q in %s: %w", name, directoryID, err)
+	}
+	return f, nil
+}
+
+// WriteOutcome is what BeginOrResumeFileWrite did with the name: inserted
+// a pending row, took up a pending row an earlier write left, or found a
+// row in another status and inserted nothing.
+type WriteOutcome string
+
+const (
+	// WriteCreated reports a new pending row: the write's first step ran.
+	WriteCreated WriteOutcome = "created"
+
+	// WriteResumed reports a pending row an earlier write left, returned
+	// for the caller to store the object and complete at the row's version.
+	WriteResumed WriteOutcome = "resumed"
+
+	// WriteExists reports a row that is available or deleting, returned
+	// unchanged; its Status says which. The caller decides what that means:
+	// a put refuses the name, and a seeder skips it.
+	WriteExists WriteOutcome = "exists"
+)
+
+// BeginOrResumeFileWrite is the first step of the two-phase write as a
+// retry-safe operation: it returns the file row that holds name in the
+// directory with directoryID and the WriteOutcome that says how. No row
+// is BeginFileWrite under the same arguments and WriteCreated. A pending
+// row is returned as it is and WriteResumed, so the caller stores the
+// object under its Key and completes it at its Version, as a retry of a
+// stopped write does. An available or deleting row is returned as it is
+// and WriteExists, and nothing is inserted. The name, the id, and the key
+// are validated as in BeginFileWrite, before any SQL; a found row keeps
+// its own id and key whatever WithID supplied.
+//
+// The lookup runs first and the insert only when it found no row, so the
+// common paths run no failing statement and compose into a caller's
+// transaction. A writer that commits the name between the lookup and the
+// insert makes the insert fail as blobfs.ErrNameTaken. On the pool the
+// row is then looked up again and reported by its status. Inside a
+// transaction the error is returned instead, because on Postgres the
+// failed insert has aborted the transaction, and the caller retries the
+// transaction. The other refusals are BeginFileWrite's.
+func (s *Store) BeginOrResumeFileWrite(ctx context.Context, sess sqlate.Session, keys blobfs.KeyValidator, directoryID, name, contentType string, opts ...WriteOption) (blobfs.File, WriteOutcome, error) {
+	name, err := validName(name)
+	if err != nil {
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write: %w", err)
+	}
+	id, err := rowID(opts)
+	if err != nil {
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write of %q: %w", name, err)
+	}
+	key, err := blobfs.NewKey(keys, id, name)
+	if err != nil {
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write of %q: %w", name, err)
+	}
+	args := query.Args{"directory_id": directoryID, "name": name}
+	f, err := s.fileByName.One(ctx, sess, args)
+	switch {
+	case err == nil:
+		return f, found(f), nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write of %q in %s: %w", name, directoryID, err)
+	}
+	f, err = s.insertFile(ctx, sess, id, directoryID, name, key, contentType)
+	switch {
+	case err == nil:
+		return f, WriteCreated, nil
+	case !errors.Is(err, blobfs.ErrNameTaken) || inTransaction(sess):
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write of %q in %s: %w", name, directoryID, err)
+	}
+	// A concurrent writer committed the name between the lookup and the
+	// insert; the row exists now.
+	f, err = s.fileByName.One(ctx, sess, args)
+	if err != nil {
+		return blobfs.File{}, "", fmt.Errorf("data: begin or resume write of %q in %s after a concurrent write: %w", name, directoryID, notFound(err))
+	}
+	return f, found(f), nil
+}
+
+// found is the outcome for a row the lookup returned: resumed when it is
+// pending, exists otherwise.
+func found(f blobfs.File) WriteOutcome {
+	if f.Status == blobfs.StatusPending {
+		return WriteResumed
+	}
+	return WriteExists
+}
+
+// insertFile inserts the pending row under id and key and reads it back.
+// The name is normalized and validated and the key validated already. A
+// constraint violation is classified through the write mapping and
+// returned without context, so each caller adds its own.
+func (s *Store) insertFile(ctx context.Context, sess sqlate.Session, id, directoryID, name, key, contentType string) (blobfs.File, error) {
 	args := query.Args{"id": id, "directory_id": directoryID, "name": name, "key": key, "content_type": contentType}
 	if _, err := s.beginFileWrite.Exec(ctx, sess, args); err != nil {
-		return blobfs.File{}, fmt.Errorf("data: begin write of %q in %s: %w", name, directoryID, classifyWrite(err))
+		return blobfs.File{}, classifyWrite(err)
 	}
 	f, err := s.fileByID.One(ctx, sess, query.Args{"id": id})
 	if err != nil {
-		return blobfs.File{}, fmt.Errorf("data: read back file %q: %w", name, err)
+		return blobfs.File{}, fmt.Errorf("read back: %w", err)
 	}
 	return f, nil
 }
