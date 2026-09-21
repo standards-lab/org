@@ -1,0 +1,645 @@
+# Candidate 3: row-value keyset predicate vs the composer's expanded OR chain, on the biggest directory (10,009 files).
+# Buffers are EXPLAIN (ANALYZE, BUFFERS) top-node shared hit+read (median of 5 after a warm-up); the plan shows
+# Index Cond vs Filter and the index used; wall time is the median pgbench per-transaction latency (secondary).
+NOTICE:  database "blobfs_m28_keyset" does not exist, skipping
+psql:<stdin>:16: NOTICE:  table "gen_dir" does not exist, skipping
+psql:<stdin>:17: NOTICE:  table "gen_file" does not exist, skipping
+# fixture blobfs_m28_keyset: 10016 directories (incl. root), 100000 files; biggest directory 10009 files; deepest directory at depth 10
+# engine: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+# date: 2026-09-21
+# host: Linux 7.2.3-arch1-3 x86_64; client and server on one machine, everything in shared buffers.
+# page size 20, so every page fetches 21 rows; cursors after rows 20, 5000 and 9990 of the sort.
+# distinct created_at values in the biggest directory: 10009
+
+==================== the native candidate as it would ship ====================
+-- The keyset predicate for terms t1..tn (all ascending, or all descending with <), as the
+-- Postgres variant would render it in place of listing.go's expanded chain; every value still
+-- binds its own placeholder through the value pattern:
+--   (q.t1, q.t2, ..., q.tn) > (CAST($i AS type1), CAST($i+1 AS type2), ..., CAST($i+n-1 AS typen))
+-- for the created_at sort: (q.created_at, q.name) > (CAST($2 AS timestamp with time zone), CAST($3 AS text))
+
+==================== 1. as shipped: no created_at index ====================
+---- reference: sort by name, one term, the predicate is one comparison in both forms ----
+S1 name asc, start (after 'f10140.txt')                      plan   0.703 ms  exec    0.088 ms  buffers     12  Limit,Index Cond:,idx:blobfs_uq_file_directory_name
+S1 name asc, middle (after 'f54950.txt')                     plan   0.768 ms  exec    0.078 ms  buffers     13  Limit,Index Cond:,idx:blobfs_uq_file_directory_name
+S1 name asc, end (after 'f99820.txt')                        plan   0.555 ms  exec    0.119 ms  buffers     12  Sort,Limit,Bitmap Heap Scan,Index Cond:
+S1 name desc, middle (before 'f55030.txt')                   plan   0.569 ms  exec    0.073 ms  buffers     13  Limit,Index Cond:,idx:blobfs_uq_file_directory_name
+
+---- created_at asc, cursor start (after row 20: created_at 2025-09-21 17:03:50+00, name f70390.txt) ----
+S1 created_at asc, start, OR chain (standard)                plan   0.647 ms  exec    5.165 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3189.34..3189.39 rows=21 width=151) (actual time=5.119..5.121 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3189.34..3213.75 rows=9767 width=151) (actual time=5.118..5.119 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: top-N heapsort  Memory: 30kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=404.26..2926.00 rows=9767 width=151) (actual time=0.927..4.573 rows=9989.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2025-09-21 17:03:50+00'::timestamp with time zone) OR ((created_at = '2025-09-21 17:03:50+00'::timestamp with time zone) AND (name > 'f70390.txt'::text)))
+                  Rows Removed by Filter: 20
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.751..0.751 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=151
+    Planning Time: 0.647 ms
+    Execution Time: 5.165 ms
+S1 created_at asc, start, row value (native)                 plan   0.565 ms  exec    5.356 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3164.87..3164.92 rows=21 width=151) (actual time=5.289..5.291 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3164.87..3189.29 rows=9767 width=151) (actual time=5.288..5.289 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: top-N heapsort  Memory: 30kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=404.26..2901.53 rows=9767 width=151) (actual time=0.959..4.721 rows=9989.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) > ROW('2025-09-21 17:03:50+00'::timestamp with time zone, 'f70390.txt'::text))
+                  Rows Removed by Filter: 20
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.772..0.772 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=144
+    Planning Time: 0.565 ms
+    Execution Time: 5.356 ms
+    => created_at asc, start: OR chain 2436 buffers, row value 2436 buffers
+
+---- created_at asc, cursor middle (after row 5000: created_at 2026-03-21 12:34:50+00, name f75370.txt) ----
+S1 created_at asc, middle, OR chain (standard)               plan   1.208 ms  exec    5.535 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3057.60..3057.66 rows=21 width=151) (actual time=5.460..5.462 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3057.60..3069.92 rows=4926 width=151) (actual time=5.458..5.459 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: top-N heapsort  Memory: 30kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=403.05..2924.79 rows=4926 width=151) (actual time=1.465..5.044 rows=5009.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2026-03-21 12:34:50+00'::timestamp with time zone) OR ((created_at = '2026-03-21 12:34:50+00'::timestamp with time zone) AND (name > 'f75370.txt'::text)))
+                  Rows Removed by Filter: 5000
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=1.043..1.044 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=151
+    Planning Time: 1.208 ms
+    Execution Time: 5.535 ms
+S1 created_at asc, middle, row value (native)                plan   0.744 ms  exec    5.701 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3033.14..3033.19 rows=21 width=151) (actual time=5.612..5.617 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3033.14..3045.45 rows=4926 width=151) (actual time=5.611..5.613 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: top-N heapsort  Memory: 30kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=403.05..2900.32 rows=4926 width=151) (actual time=1.044..5.180 rows=5009.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) > ROW('2026-03-21 12:34:50+00'::timestamp with time zone, 'f75370.txt'::text))
+                  Rows Removed by Filter: 5000
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.740..0.740 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=144
+    Planning Time: 0.744 ms
+    Execution Time: 5.701 ms
+    => created_at asc, middle: OR chain 2436 buffers, row value 2436 buffers
+
+---- created_at asc, cursor end (after row 9990: created_at 2026-09-20 05:07:10+00, name f40190.txt) ----
+S1 created_at asc, end, OR chain (standard)                  plan   0.572 ms  exec    4.755 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=2924.00..2924.05 rows=20 width=151) (actual time=4.703..4.706 rows=19.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=2924.00..2924.05 rows=20 width=151) (actual time=4.702..4.703 rows=19.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=401.83..2923.56 rows=20 width=151) (actual time=1.212..4.675 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2026-09-20 05:07:10+00'::timestamp with time zone) OR ((created_at = '2026-09-20 05:07:10+00'::timestamp with time zone) AND (name > 'f40190.txt'::text)))
+                  Rows Removed by Filter: 9990
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.761..0.762 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=151
+    Planning Time: 0.572 ms
+    Execution Time: 4.755 ms
+S1 created_at asc, end, row value (native)                   plan   0.504 ms  exec    4.552 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=2899.53..2899.58 rows=20 width=151) (actual time=4.491..4.493 rows=19.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=2899.53..2899.58 rows=20 width=151) (actual time=4.490..4.491 rows=19.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=401.83..2899.10 rows=20 width=151) (actual time=1.253..4.461 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) > ROW('2026-09-20 05:07:10+00'::timestamp with time zone, 'f40190.txt'::text))
+                  Rows Removed by Filter: 9990
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.772..0.773 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=139
+    Planning Time: 0.504 ms
+    Execution Time: 4.552 ms
+    => created_at asc, end: OR chain 2436 buffers, row value 2436 buffers
+
+---- created_at desc, cursor start (after row 20: created_at 2026-09-20 05:07:10+00, name f40190.txt) ----
+S1 created_at desc, start, OR chain (standard)               plan   0.611 ms  exec    5.402 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3189.34..3189.39 rows=21 width=151) (actual time=5.351..5.353 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3189.34..3213.75 rows=9767 width=151) (actual time=5.350..5.351 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: top-N heapsort  Memory: 36kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=404.26..2926.00 rows=9767 width=151) (actual time=0.966..4.731 rows=9989.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at < '2026-09-20 05:07:10+00'::timestamp with time zone) OR ((created_at = '2026-09-20 05:07:10+00'::timestamp with time zone) AND (name < 'f40190.txt'::text)))
+                  Rows Removed by Filter: 20
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.781..0.781 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=145
+    Planning Time: 0.611 ms
+    Execution Time: 5.402 ms
+S1 created_at desc, start, row value (native)                plan   0.559 ms  exec    5.448 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3164.87..3164.92 rows=21 width=151) (actual time=5.381..5.383 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3164.87..3189.29 rows=9767 width=151) (actual time=5.379..5.381 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: top-N heapsort  Memory: 36kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=404.26..2901.53 rows=9767 width=151) (actual time=0.954..4.750 rows=9989.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) < ROW('2026-09-20 05:07:10+00'::timestamp with time zone, 'f40190.txt'::text))
+                  Rows Removed by Filter: 20
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.760..0.761 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=144
+    Planning Time: 0.559 ms
+    Execution Time: 5.448 ms
+    => created_at desc, start: OR chain 2436 buffers, row value 2436 buffers
+
+---- created_at desc, cursor middle (after row 5000: created_at 2026-03-21 21:17:40+00, name f75380.txt) ----
+S1 created_at desc, middle, OR chain (standard)              plan   0.845 ms  exec    4.992 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3056.08..3056.13 rows=21 width=151) (actual time=4.932..4.934 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3056.08..3068.26 rows=4870 width=151) (actual time=4.930..4.931 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: top-N heapsort  Memory: 36kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=403.04..2924.78 rows=4870 width=151) (actual time=1.032..4.594 rows=5009.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at < '2026-03-21 21:17:40+00'::timestamp with time zone) OR ((created_at = '2026-03-21 21:17:40+00'::timestamp with time zone) AND (name < 'f75380.txt'::text)))
+                  Rows Removed by Filter: 5000
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.838..0.838 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=145
+    Planning Time: 0.845 ms
+    Execution Time: 4.992 ms
+S1 created_at desc, middle, row value (native)               plan   0.562 ms  exec    5.462 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=3031.61..3031.67 rows=21 width=151) (actual time=5.382..5.386 rows=21.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=3031.61..3043.79 rows=4870 width=151) (actual time=5.380..5.382 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: top-N heapsort  Memory: 36kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=403.04..2900.31 rows=4870 width=151) (actual time=1.016..5.002 rows=5009.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) < ROW('2026-03-21 21:17:40+00'::timestamp with time zone, 'f75380.txt'::text))
+                  Rows Removed by Filter: 5000
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.826..0.827 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=144
+    Planning Time: 0.562 ms
+    Execution Time: 5.462 ms
+    => created_at desc, middle: OR chain 2436 buffers, row value 2436 buffers
+
+---- created_at desc, cursor end (after row 9990: created_at 2025-09-21 17:03:50+00, name f70390.txt) ----
+S1 created_at desc, end, OR chain (standard)                 plan   0.798 ms  exec    4.749 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=2923.97..2924.02 rows=19 width=151) (actual time=4.699..4.702 rows=19.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=2923.97..2924.02 rows=19 width=151) (actual time=4.698..4.699 rows=19.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=401.82..2923.56 rows=19 width=151) (actual time=1.034..4.662 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at < '2025-09-21 17:03:50+00'::timestamp with time zone) OR ((created_at = '2025-09-21 17:03:50+00'::timestamp with time zone) AND (name < 'f70390.txt'::text)))
+                  Rows Removed by Filter: 9990
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.847..0.848 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=145
+    Planning Time: 0.798 ms
+    Execution Time: 4.749 ms
+S1 created_at desc, end, row value (native)                  plan   0.736 ms  exec    4.582 ms  buffers   2436  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=2899.50..2899.55 rows=19 width=151) (actual time=4.513..4.515 rows=19.00 loops=1)
+      Buffers: shared hit=2436
+      ->  Sort  (cost=2899.50..2899.55 rows=19 width=151) (actual time=4.512..4.513 rows=19.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=2436
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=401.82..2899.10 rows=19 width=151) (actual time=0.958..4.484 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) < ROW('2025-09-21 17:03:50+00'::timestamp with time zone, 'f70390.txt'::text))
+                  Rows Removed by Filter: 9990
+                  Heap Blocks: exact=2326
+                  Buffers: shared hit=2430
+                  ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..401.82 rows=9787 width=0) (actual time=0.768..0.768 rows=10009.00 loops=1)
+                        Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                        Index Searches: 1
+                        Buffers: shared hit=104
+    Planning:
+      Buffers: shared hit=144
+    Planning Time: 0.736 ms
+    Execution Time: 4.582 ms
+    => created_at desc, end: OR chain 2436 buffers, row value 2436 buffers
+
+---- wall time, created_at asc, middle cursor ----
+S1 created_at asc middle, OR chain                    1 round trips  median    2.249 ms  p10    2.116  p90    2.516  (n=203)
+S1 created_at asc middle, row value                   1 round trips  median    2.215 ms  p10    2.112  p90    2.516  (n=197)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 2.371 ms
+    SQL script 1: /tmp/or_mid.sql
+     - latency average = 2.378 ms
+             2.378           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+    SQL script 2: /tmp/rv_mid.sql
+     - latency average = 2.357 ms
+             2.357           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+
+==================== 2. with blobfs_ix_file_directory_created (directory_id, created_at), as evidence/sort-index.txt built it ====================
+# index size: 3992 kB
+
+---- created_at asc, cursor start (after row 20: created_at 2025-09-21 17:03:50+00, name f70390.txt) ----
+S2 created_at asc, start, OR chain (standard)                plan   0.675 ms  exec    0.150 ms  buffers     51  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=1.39..22.58 rows=21 width=151) (actual time=0.111..0.113 rows=21.00 loops=1)
+      Buffers: shared hit=51
+      ->  Incremental Sort  (cost=1.39..10217.50 rows=10127 width=151) (actual time=0.110..0.111 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=51
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.79 rows=10127 width=151) (actual time=0.063..0.077 rows=22.00 loops=1)
+                  Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2025-09-21 17:03:50+00'::timestamp with time zone) OR ((created_at = '2025-09-21 17:03:50+00'::timestamp with time zone) AND (name > 'f70390.txt'::text)))
+                  Rows Removed by Filter: 20
+                  Index Searches: 1
+                  Buffers: shared hit=45
+    Planning:
+      Buffers: shared hit=171
+    Planning Time: 0.675 ms
+    Execution Time: 0.150 ms
+S2 created_at asc, start, row value (native)                 plan   0.662 ms  exec    0.148 ms  buffers     35  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=1.39..22.58 rows=21 width=151) (actual time=0.103..0.105 rows=21.00 loops=1)
+      Buffers: shared hit=35
+      ->  Incremental Sort  (cost=1.39..10217.00 rows=10127 width=151) (actual time=0.102..0.103 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=35
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.29 rows=10127 width=151) (actual time=0.021..0.064 rows=22.00 loops=1)
+                  Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at >= '2025-09-21 17:03:50+00'::timestamp with time zone))
+                  Filter: (ROW(created_at, name) > ROW('2025-09-21 17:03:50+00'::timestamp with time zone, 'f70390.txt'::text))
+                  Rows Removed by Filter: 1
+                  Index Searches: 1
+                  Buffers: shared hit=26
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 0.662 ms
+    Execution Time: 0.148 ms
+    => created_at asc, start: OR chain 51 buffers, row value 35 buffers
+
+---- created_at asc, cursor middle (after row 5000: created_at 2026-03-21 12:34:50+00, name f75370.txt) ----
+S2 created_at asc, middle, OR chain (standard)               plan   0.680 ms  exec    2.755 ms  buffers   5055  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.34..43.46 rows=21 width=151) (actual time=2.726..2.728 rows=21.00 loops=1)
+      Buffers: shared hit=5055
+      ->  Incremental Sort  (cost=2.34..9991.38 rows=5102 width=151) (actual time=2.725..2.726 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=5055
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.79 rows=5102 width=151) (actual time=2.680..2.691 rows=22.00 loops=1)
+                  Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2026-03-21 12:34:50+00'::timestamp with time zone) OR ((created_at = '2026-03-21 12:34:50+00'::timestamp with time zone) AND (name > 'f75370.txt'::text)))
+                  Rows Removed by Filter: 5000
+                  Index Searches: 1
+                  Buffers: shared hit=5049
+    Planning:
+      Buffers: shared hit=171
+    Planning Time: 0.680 ms
+    Execution Time: 2.755 ms
+S2 created_at asc, middle, row value (native)                plan   1.059 ms  exec    0.160 ms  buffers     35  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.30..42.48 rows=21 width=151) (actual time=0.111..0.113 rows=21.00 loops=1)
+      Buffers: shared hit=35
+      ->  Incremental Sort  (cost=2.30..9765.27 rows=5102 width=151) (actual time=0.110..0.111 rows=21.00 loops=1)
+            Sort Key: created_at, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=35
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9535.68 rows=5102 width=151) (actual time=0.027..0.070 rows=22.00 loops=1)
+                  Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at >= '2026-03-21 12:34:50+00'::timestamp with time zone))
+                  Filter: (ROW(created_at, name) > ROW('2026-03-21 12:34:50+00'::timestamp with time zone, 'f75370.txt'::text))
+                  Rows Removed by Filter: 1
+                  Index Searches: 1
+                  Buffers: shared hit=26
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 1.059 ms
+    Execution Time: 0.160 ms
+    => created_at asc, middle: OR chain 5055 buffers, row value 35 buffers
+
+---- created_at asc, cursor end (after row 9990: created_at 2026-09-20 05:07:10+00, name f40190.txt) ----
+S2 created_at asc, end, OR chain (standard)                  plan   0.705 ms  exec    0.163 ms  buffers     25  Sort,Limit,Bitmap Heap Scan,BitmapOr,Filter:,Index Cond:
+    Limit  (cost=80.68..80.72 rows=19 width=151) (actual time=0.116..0.118 rows=19.00 loops=1)
+      Buffers: shared hit=25
+      ->  Sort  (cost=80.68..80.72 rows=19 width=151) (actual time=0.115..0.116 rows=19.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=25
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=9.04..80.27 rows=19 width=151) (actual time=0.035..0.086 rows=19.00 loops=1)
+                  Recheck Cond: (((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at > '2026-09-20 05:07:10+00'::timestamp with time zone)) OR ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at = '2026-09-20 05:07:10+00'::timestamp with time zone)))
+                  Filter: ((created_at > '2026-09-20 05:07:10+00'::timestamp with time zone) OR ((created_at = '2026-09-20 05:07:10+00'::timestamp with time zone) AND (name > 'f40190.txt'::text)))
+                  Rows Removed by Filter: 1
+                  Heap Blocks: exact=13
+                  Buffers: shared hit=19
+                  ->  BitmapOr  (cost=9.04..9.04 rows=19 width=0) (actual time=0.022..0.022 rows=0.00 loops=1)
+                        Buffers: shared hit=6
+                        ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.61 rows=19 width=0) (actual time=0.020..0.020 rows=19.00 loops=1)
+                              Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at > '2026-09-20 05:07:10+00'::timestamp with time zone))
+                              Index Searches: 1
+                              Buffers: shared hit=3
+                        ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.43 rows=1 width=0) (actual time=0.001..0.001 rows=1.00 loops=1)
+                              Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at = '2026-09-20 05:07:10+00'::timestamp with time zone))
+                              Index Searches: 1
+                              Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=182
+    Planning Time: 0.705 ms
+    Execution Time: 0.163 ms
+S2 created_at asc, end, row value (native)                   plan   0.790 ms  exec    0.161 ms  buffers     22  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=76.20..76.24 rows=19 width=151) (actual time=0.106..0.108 rows=19.00 loops=1)
+      Buffers: shared hit=22
+      ->  Sort  (cost=76.20..76.24 rows=19 width=151) (actual time=0.105..0.106 rows=19.00 loops=1)
+            Sort Key: created_at, name
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=22
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=4.61..75.79 rows=19 width=151) (actual time=0.033..0.078 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) > ROW('2026-09-20 05:07:10+00'::timestamp with time zone, 'f40190.txt'::text))
+                  Rows Removed by Filter: 1
+                  Heap Blocks: exact=13
+                  Buffers: shared hit=16
+                  ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.61 rows=19 width=0) (actual time=0.020..0.020 rows=20.00 loops=1)
+                        Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at >= '2026-09-20 05:07:10+00'::timestamp with time zone))
+                        Index Searches: 1
+                        Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 0.790 ms
+    Execution Time: 0.161 ms
+    => created_at asc, end: OR chain 25 buffers, row value 22 buffers
+
+---- created_at desc, cursor start (after row 20: created_at 2026-09-20 05:07:10+00, name f40190.txt) ----
+S2 created_at desc, start, OR chain (standard)               plan   0.711 ms  exec    0.142 ms  buffers     51  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=1.39..22.57 rows=21 width=151) (actual time=0.115..0.117 rows=21.00 loops=1)
+      Buffers: shared hit=51
+      ->  Incremental Sort  (cost=1.39..10217.55 rows=10128 width=151) (actual time=0.114..0.115 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=51
+            ->  Index Scan Backward using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.79 rows=10128 width=151) (actual time=0.069..0.082 rows=22.00 loops=1)
+                  Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at < '2026-09-20 05:07:10+00'::timestamp with time zone) OR ((created_at = '2026-09-20 05:07:10+00'::timestamp with time zone) AND (name < 'f40190.txt'::text)))
+                  Rows Removed by Filter: 20
+                  Index Searches: 1
+                  Buffers: shared hit=45
+    Planning:
+      Buffers: shared hit=171
+    Planning Time: 0.711 ms
+    Execution Time: 0.142 ms
+S2 created_at desc, start, row value (native)                plan   0.785 ms  exec    0.156 ms  buffers     35  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=1.39..22.57 rows=21 width=151) (actual time=0.106..0.107 rows=21.00 loops=1)
+      Buffers: shared hit=35
+      ->  Incremental Sort  (cost=1.39..10217.07 rows=10128 width=151) (actual time=0.105..0.105 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=35
+            ->  Index Scan Backward using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.31 rows=10128 width=151) (actual time=0.027..0.070 rows=22.00 loops=1)
+                  Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at <= '2026-09-20 05:07:10+00'::timestamp with time zone))
+                  Filter: (ROW(created_at, name) < ROW('2026-09-20 05:07:10+00'::timestamp with time zone, 'f40190.txt'::text))
+                  Rows Removed by Filter: 1
+                  Index Searches: 1
+                  Buffers: shared hit=26
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 0.785 ms
+    Execution Time: 0.156 ms
+    => created_at desc, start: OR chain 51 buffers, row value 35 buffers
+
+---- created_at desc, cursor middle (after row 5000: created_at 2026-03-21 21:17:40+00, name f75380.txt) ----
+S2 created_at desc, middle, OR chain (standard)              plan   0.687 ms  exec    2.846 ms  buffers   5054  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.36..43.85 rows=21 width=151) (actual time=2.810..2.812 rows=21.00 loops=1)
+      Buffers: shared hit=5054
+      ->  Incremental Sort  (cost=2.36..9989.26 rows=5055 width=151) (actual time=2.809..2.810 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=5054
+            ->  Index Scan Backward using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9761.79 rows=5055 width=151) (actual time=2.766..2.775 rows=22.00 loops=1)
+                  Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at < '2026-03-21 21:17:40+00'::timestamp with time zone) OR ((created_at = '2026-03-21 21:17:40+00'::timestamp with time zone) AND (name < 'f75380.txt'::text)))
+                  Rows Removed by Filter: 5000
+                  Index Searches: 1
+                  Buffers: shared hit=5048
+    Planning:
+      Buffers: shared hit=171
+    Planning Time: 0.687 ms
+    Execution Time: 2.846 ms
+S2 created_at desc, middle, row value (native)               plan   0.697 ms  exec    0.153 ms  buffers     35  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.31..42.86 rows=21 width=151) (actual time=0.106..0.107 rows=21.00 loops=1)
+      Buffers: shared hit=35
+      ->  Incremental Sort  (cost=2.31..9761.96 rows=5055 width=151) (actual time=0.104..0.105 rows=21.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=35
+            ->  Index Scan Backward using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9534.48 rows=5055 width=151) (actual time=0.026..0.067 rows=22.00 loops=1)
+                  Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at <= '2026-03-21 21:17:40+00'::timestamp with time zone))
+                  Filter: (ROW(created_at, name) < ROW('2026-03-21 21:17:40+00'::timestamp with time zone, 'f75380.txt'::text))
+                  Rows Removed by Filter: 1
+                  Index Searches: 1
+                  Buffers: shared hit=26
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 0.697 ms
+    Execution Time: 0.153 ms
+    => created_at desc, middle: OR chain 5054 buffers, row value 35 buffers
+
+---- created_at desc, cursor end (after row 9990: created_at 2025-09-21 17:03:50+00, name f70390.txt) ----
+S2 created_at desc, end, OR chain (standard)                 plan   1.250 ms  exec    0.246 ms  buffers     24  Sort,Limit,Bitmap Heap Scan,BitmapOr,Filter:,Index Cond:
+    Limit  (cost=84.32..84.37 rows=20 width=151) (actual time=0.171..0.174 rows=19.00 loops=1)
+      Buffers: shared hit=24
+      ->  Sort  (cost=84.32..84.37 rows=20 width=151) (actual time=0.170..0.171 rows=19.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=24
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=9.05..83.89 rows=20 width=151) (actual time=0.044..0.117 rows=19.00 loops=1)
+                  Recheck Cond: (((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at < '2025-09-21 17:03:50+00'::timestamp with time zone)) OR ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at = '2025-09-21 17:03:50+00'::timestamp with time zone)))
+                  Filter: ((created_at < '2025-09-21 17:03:50+00'::timestamp with time zone) OR ((created_at = '2025-09-21 17:03:50+00'::timestamp with time zone) AND (name < 'f70390.txt'::text)))
+                  Rows Removed by Filter: 1
+                  Heap Blocks: exact=12
+                  Buffers: shared hit=18
+                  ->  BitmapOr  (cost=9.05..9.05 rows=20 width=0) (actual time=0.028..0.029 rows=0.00 loops=1)
+                        Buffers: shared hit=6
+                        ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.62 rows=20 width=0) (actual time=0.025..0.025 rows=19.00 loops=1)
+                              Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at < '2025-09-21 17:03:50+00'::timestamp with time zone))
+                              Index Searches: 1
+                              Buffers: shared hit=3
+                        ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.43 rows=1 width=0) (actual time=0.002..0.003 rows=1.00 loops=1)
+                              Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at = '2025-09-21 17:03:50+00'::timestamp with time zone))
+                              Index Searches: 1
+                              Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=182
+    Planning Time: 1.250 ms
+    Execution Time: 0.246 ms
+S2 created_at desc, end, row value (native)                  plan   1.167 ms  exec    0.252 ms  buffers     21  Sort,Limit,Bitmap Heap Scan,Filter:,Index Cond:
+    Limit  (cost=79.84..79.89 rows=20 width=151) (actual time=0.163..0.165 rows=19.00 loops=1)
+      Buffers: shared hit=21
+      ->  Sort  (cost=79.84..79.89 rows=20 width=151) (actual time=0.161..0.162 rows=19.00 loops=1)
+            Sort Key: created_at DESC, name DESC
+            Sort Method: quicksort  Memory: 29kB
+            Buffers: shared hit=21
+            ->  Bitmap Heap Scan on blobfs_file q  (cost=4.62..79.41 rows=20 width=151) (actual time=0.039..0.114 rows=19.00 loops=1)
+                  Recheck Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: (ROW(created_at, name) < ROW('2025-09-21 17:03:50+00'::timestamp with time zone, 'f70390.txt'::text))
+                  Rows Removed by Filter: 1
+                  Heap Blocks: exact=12
+                  Buffers: shared hit=15
+                  ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..4.62 rows=20 width=0) (actual time=0.023..0.023 rows=20.00 loops=1)
+                        Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at <= '2025-09-21 17:03:50+00'::timestamp with time zone))
+                        Index Searches: 1
+                        Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=173
+    Planning Time: 1.167 ms
+    Execution Time: 0.252 ms
+    => created_at desc, end: OR chain 24 buffers, row value 21 buffers
+
+---- three terms: sort created_at, version, then the key name; middle cursor ----
+S2 created_at, version asc, middle, OR chain (3 disjuncts)   plan   0.772 ms  exec    2.870 ms  buffers   5058  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.36..43.78 rows=21 width=151) (actual time=2.830..2.832 rows=21.00 loops=1)
+      Buffers: shared hit=5058
+      ->  Incremental Sort  (cost=2.36..10067.48 rows=5102 width=151) (actual time=2.828..2.829 rows=21.00 loops=1)
+            Sort Key: created_at, version, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=5058
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9837.89 rows=5102 width=151) (actual time=2.776..2.786 rows=22.00 loops=1)
+                  Index Cond: (directory_id = '02d00003-7000-8000-9000-000000000003'::uuid)
+                  Filter: ((created_at > '2026-03-21 12:34:50+00'::timestamp with time zone) OR ((created_at = '2026-03-21 12:34:50+00'::timestamp with time zone) AND (version > '1'::bigint)) OR ((created_at = '2026-03-21 12:34:50+00'::timestamp with time zone) AND (version = '1'::bigint) AND (name > 'f75370.txt'::text)))
+                  Rows Removed by Filter: 5000
+                  Index Searches: 1
+                  Buffers: shared hit=5049
+    Planning:
+      Buffers: shared hit=184
+    Planning Time: 0.772 ms
+    Execution Time: 2.870 ms
+S2 created_at, version asc, middle, row value (3 columns)    plan   0.695 ms  exec    0.173 ms  buffers     38  Sort,Incremental Sort,Limit,Filter:,Index Cond:,idx:blobfs_ix_file_directory_created
+    Limit  (cost=2.30..42.54 rows=21 width=151) (actual time=0.116..0.118 rows=21.00 loops=1)
+      Buffers: shared hit=38
+      ->  Incremental Sort  (cost=2.30..9778.03 rows=5102 width=151) (actual time=0.115..0.116 rows=21.00 loops=1)
+            Sort Key: created_at, version, name
+            Presorted Key: created_at
+            Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+            Buffers: shared hit=38
+            ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..9548.44 rows=5102 width=151) (actual time=0.027..0.070 rows=22.00 loops=1)
+                  Index Cond: ((directory_id = '02d00003-7000-8000-9000-000000000003'::uuid) AND (created_at >= '2026-03-21 12:34:50+00'::timestamp with time zone))
+                  Filter: (ROW(created_at, version, name) > ROW('2026-03-21 12:34:50+00'::timestamp with time zone, '1'::bigint, 'f75370.txt'::text))
+                  Rows Removed by Filter: 1
+                  Index Searches: 1
+                  Buffers: shared hit=26
+    Planning:
+      Buffers: shared hit=186
+    Planning Time: 0.695 ms
+    Execution Time: 0.173 ms
+    => created_at, version asc, middle: OR chain 5058 buffers, row value 38 buffers
+
+---- wall time, created_at asc, start cursor ----
+S2 created_at asc start, OR chain                     1 round trips  median    0.120 ms  p10    0.111  p90    0.137  (n=201)
+S2 created_at asc start, row value                    1 round trips  median    0.109 ms  p10    0.100  p90    0.125  (n=199)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 0.129 ms
+    SQL script 1: /tmp/or_start.sql
+     - latency average = 0.138 ms
+             0.138           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+    SQL script 2: /tmp/rv_start.sql
+     - latency average = 0.116 ms
+             0.116           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+
+---- wall time, created_at asc, middle cursor ----
+S2 created_at asc middle, OR chain                    1 round trips  median    0.955 ms  p10    0.900  p90    1.065  (n=189)
+S2 created_at asc middle, row value                   1 round trips  median    0.131 ms  p10    0.110  p90    0.156  (n=211)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 0.554 ms
+    SQL script 1: /tmp/or_middle.sql
+     - latency average = 1.000 ms
+             1.000           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+    SQL script 2: /tmp/rv_middle.sql
+     - latency average = 0.150 ms
+             0.150           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+
+---- wall time, created_at asc, end cursor ----
+S2 created_at asc end, OR chain                       1 round trips  median    0.128 ms  p10    0.118  p90    0.178  (n=199)
+S2 created_at asc end, row value                      1 round trips  median    0.111 ms  p10    0.101  p90    0.193  (n=201)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 0.140 ms
+    SQL script 1: /tmp/or_end.sql
+     - latency average = 0.141 ms
+             0.141           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+    SQL script 2: /tmp/rv_end.sql
+     - latency average = 0.137 ms
+             0.137           0 SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at FRO
+
