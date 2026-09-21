@@ -28,7 +28,7 @@ type deps struct {
 }
 
 // Commands builds the domain's root-level commands: mkdir, ls, put, cat,
-// stat, mv, rm, rmdir, and bookmark with its add, ls, and rm subcommands. A leaf's
+// stat, cp, mv, rm, rmdir, and bookmark with its add, ls, and rm subcommands. A leaf's
 // RunE calls newStore when it runs, never when the tree is built: the
 // composition root closes newStore over its persistent flags, which cobra
 // parses during execution, so the DSN is unknown until then. The store is
@@ -38,7 +38,7 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.move(), d.remove(), d.removeDirectory(), d.bookmark()}
+	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.copy(), d.move(), d.remove(), d.removeDirectory(), d.bookmark()}
 }
 
 // store constructs the store and verifies it against the database, so a
@@ -235,6 +235,55 @@ func (d deps) stat() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// copy is cp <src> <dst> [--fail-after <step>]: the available file at
+// src copied into the existing directory dst under its own name, or to
+// the new path dst, through the same two steps around the object write
+// as put, with the bytes streamed through this process. --fail-after
+// stops the copy after the named step with a non-zero exit, leaving the
+// pending row for a later cp of the same paths to complete.
+func (d deps) copy() *cobra.Command {
+	var failAfter string
+	cmd := &cobra.Command{
+		Use:   "cp <src> <dst>",
+		Short: "Copy a file into an existing directory or to a new path",
+		Long: "cp copies the file at an absolute path to a new file with the same bytes and\n" +
+			"content type. When the destination names an existing directory the copy lands in\n" +
+			"it under the source's name; otherwise the destination is the copy's path, whose\n" +
+			"parent must exist. The source must be an available file: a directory, a pending\n" +
+			"file, and a deleting file are refused. A destination name a file holds is refused,\n" +
+			"so nothing is overwritten. The bytes stream through this process around the same\n" +
+			"two steps as put: the row is inserted as pending and committed, the object is\n" +
+			"stored, and the row is completed as available. --fail-after insert or write stops\n" +
+			"after that step and exits non-zero; a cp of the same paths resumes the pending\n" +
+			"row. A copy may cross top-level directories, and neither bookmarks nor ownership\n" +
+			"follow it.",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			step, err := ParseStep(failAfter)
+			if err != nil {
+				return err
+			}
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			res, err := s.Copy(cmd.Context(), CopyRequest{Source: args[0], Destination: args[1], StopAfter: step})
+			if err != nil {
+				return err
+			}
+			f := res.File
+			line := fmt.Sprintf("cp: %s -> %s (id %s, %d bytes, etag %s)", res.From, res.To, f.ID, sizeOf(f), etagOf(f))
+			if res.Resumed {
+				line = fmt.Sprintf("cp: %s -> %s (id %s, %d bytes, etag %s, resumed the pending row)", res.From, res.To, f.ID, sizeOf(f), etagOf(f))
+			}
+			d.out.Line(line)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&failAfter, "fail-after", "", "stop after this step of the copy, insert or write, and exit non-zero")
+	return cmd
 }
 
 // move is mv <src> <dst>: the directory or file at src moved into the

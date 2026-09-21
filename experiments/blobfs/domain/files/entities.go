@@ -167,9 +167,9 @@ type Page[T any] struct {
 }
 
 // Step names a step of a two-phase command that --fail-after may stop
-// after. For put: insert, once the pending row is committed and before
-// the object is stored, and write, once the object is stored and before
-// the row is completed. For rm: begin, once the row is committed as
+// after. For put and cp: insert, once the pending row is committed and
+// before the object is stored, and write, once the object is stored and
+// before the row is completed. For rm: begin, once the row is committed as
 // deleting and before the object is deleted, and object, once the object
 // is deleted and before the row is removed. There is no stop after the
 // last step of either, because nothing follows it.
@@ -190,8 +190,8 @@ const (
 	StepObject Step = "object"
 )
 
-// ParseStep reads put's --fail-after value: insert, write, or empty for
-// no stop.
+// ParseStep reads put's and cp's --fail-after value: insert, write, or
+// empty for no stop.
 func ParseStep(s string) (Step, error) {
 	switch Step(s) {
 	case "", StepInsert, StepWrite:
@@ -260,6 +260,30 @@ type PutRequest struct {
 // whether the put resumed a pending row an earlier put left instead of
 // inserting one.
 type PutResult struct {
+	File    blobfs.File
+	Resumed bool
+}
+
+// CopyRequest is one file copy as the command line states it: the path
+// of the file to copy, the destination, which is an existing directory
+// or the copy's new path, and the step to stop after, empty for a full
+// copy.
+type CopyRequest struct {
+	Source      string
+	Destination string
+	StopAfter   Step
+}
+
+// CopyResult is what cp returns: the path the source was read at, the
+// path the copy is at, which is the destination itself when it named a
+// new path and the destination with the source's name appended when it
+// named an existing directory, the copy's row as it stands when the copy
+// returned, available after a full copy and pending after a stop, and
+// whether the copy resumed a pending row an earlier cp left instead of
+// inserting one. A copy by id leaves From and To empty.
+type CopyResult struct {
+	From    string
+	To      string
 	File    blobfs.File
 	Resumed bool
 }

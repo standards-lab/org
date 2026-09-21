@@ -414,6 +414,7 @@ func TestScript(t *testing.T) {
 				{"bookmarks", s.bookmarks},
 				{"deletes", s.deletes},
 				{"moves", s.moves},
+				{"copies", s.copies},
 				{"tree-lock", s.treeLock},
 				{"schema-down", s.schemaDown},
 			} {
@@ -1001,6 +1002,117 @@ func (s *script) moves(t *testing.T) {
 	}
 	if out := ok(t, s.tg, "cat", "/a/y/z/h.txt"); out != "moved\n" {
 		t.Errorf("cat after the third move = %q", out)
+	}
+}
+
+// copies is cp: a file into an existing directory under its own name and
+// to a new name, with cat reading the same bytes at the copy's path and
+// stat showing a row of its own with the source's size and type; a copy
+// across two top-level directories; the source untouched; the refusals:
+// the taken name, the source itself, a directory as the source, a missing
+// source and a missing parent, the root, and a pending and a deleting
+// source; --fail-after at each step, with a cp of the same paths
+// resuming the pending row; and a bookmark that does not follow the copy.
+func (s *script) copies(t *testing.T) {
+	unit := blobfs.NewID()
+	local := localFile(t, "c.txt", "copied\n")
+	for _, p := range []string{"/c", "/c/src", "/c/dst"} {
+		ok(t, s.tg, "mkdir", p)
+	}
+	ok(t, s.tg, "put", local, "/c/src/f.txt")
+	source := ok(t, s.tg, "stat", "/c/src/f.txt")
+
+	// Into a directory, to a new name, and across two top-level
+	// directories; the copy is its own row with the source's bytes.
+	out := ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst")
+	if !strings.HasPrefix(out, "cp: /c/src/f.txt -> /c/dst/f.txt (id ") || !strings.Contains(out, ", 7 bytes, etag \"") || strings.Contains(out, "resumed") {
+		t.Errorf("cp stdout = %q", out)
+	}
+	if out := ok(t, s.tg, "cat", "/c/dst/f.txt"); out != "copied\n" {
+		t.Errorf("cat of the copy = %q", out)
+	}
+	out = ok(t, s.tg, "stat", "/c/dst/f.txt")
+	if field(out, "id") == field(source, "id") || field(out, "key") == field(source, "key") || field(out, "status") != "available" || field(out, "size") != "7" ||
+		!strings.HasPrefix(field(out, "content-type"), "text/plain") || field(out, "version") != "2" {
+		t.Errorf("stat of the copy:\n%s", out)
+	}
+	if out := ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/g.txt"); !strings.HasPrefix(out, "cp: /c/src/f.txt -> /c/dst/g.txt (id ") {
+		t.Errorf("cp to a new name stdout = %q", out)
+	}
+	if out := ok(t, s.tg, "cat", "/c/dst/g.txt"); out != "copied\n" {
+		t.Errorf("cat of the renamed copy = %q", out)
+	}
+	if out := ok(t, s.tg, "cp", "/c/src/f.txt", "/reports"); !strings.HasPrefix(out, "cp: /c/src/f.txt -> /reports/f.txt (id ") {
+		t.Errorf("cp across top-level directories stdout = %q", out)
+	}
+	if got := column(ok(t, s.tg, "ls", "/c/dst")); strings.Join(got, " ") != "f.txt g.txt" {
+		t.Errorf("ls /c/dst after the copies = %v", got)
+	}
+	if out := ok(t, s.tg, "stat", "/c/src/f.txt"); out != source {
+		t.Errorf("the source's stat changed:\n%s\nwas:\n%s", out, source)
+	}
+
+	// Refusals.
+	refused(t, s.tg, "name taken", "cp", "/c/src/f.txt", "/c/dst")
+	refused(t, s.tg, "name taken", "cp", "/c/src/f.txt", "/c/src/f.txt")
+	refused(t, s.tg, "cp copies files", "cp", "/c/src", "/c/dst")
+	refused(t, s.tg, "not found", "cp", "/c/missing.txt", "/c/dst")
+	refused(t, s.tg, "not found", "cp", "/c/src/f.txt", "/c/nope/f.txt")
+	refused(t, s.tg, "the root directory", "cp", "/", "/c")
+	refused(t, s.tg, "the step is insert or write", "cp", "/c/src/f.txt", "/c/dst/x.txt", "--fail-after", "complete")
+	if _, errOut, code := run(t, s.tg, "put", local, "/c/src/pending.txt", "--fail-after", "insert"); code != 1 {
+		t.Fatalf("put --fail-after insert exited %d: %s", code, errOut)
+	}
+	refused(t, s.tg, "the file is pending", "cp", "/c/src/pending.txt", "/c/dst")
+	ok(t, s.tg, "put", local, "/c/src/del.txt")
+	if _, errOut, code := run(t, s.tg, "rm", "/c/src/del.txt", "--fail-after", "begin"); code != 1 {
+		t.Fatalf("rm --fail-after begin exited %d: %s", code, errOut)
+	}
+	refused(t, s.tg, "the file is deleting", "cp", "/c/src/del.txt", "/c/dst")
+	ok(t, s.tg, "rm", "/c/src/del.txt")
+
+	// --fail-after insert: the copy's row is pending, nothing is stored
+	// under it, and the retry resumes it.
+	_, errOut, code := run(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/stopped.txt", "--fail-after", "insert")
+	if code != 1 || !strings.Contains(errOut, "stopped after step insert") || !strings.Contains(errOut, "rerun cp") {
+		t.Fatalf("cp --fail-after insert exited %d: %s", code, errOut)
+	}
+	out = ok(t, s.tg, "stat", "/c/dst/stopped.txt")
+	if field(out, "status") != "pending" || field(out, "size") != "-" || field(out, "etag") != "-" || field(out, "version") != "1" {
+		t.Errorf("stat after the stop:\n%s", out)
+	}
+	refused(t, s.tg, "the file is pending", "cat", "/c/dst/stopped.txt")
+	if out := ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/stopped.txt"); !strings.HasSuffix(out, ", resumed the pending row)\n") {
+		t.Errorf("the retry stdout = %q, want the resumed row", out)
+	}
+	if out := ok(t, s.tg, "cat", "/c/dst/stopped.txt"); out != "copied\n" {
+		t.Errorf("cat after the retry = %q", out)
+	}
+	if out := ok(t, s.tg, "stat", "/c/dst/stopped.txt"); field(out, "status") != "available" || field(out, "version") != "2" {
+		t.Errorf("stat after the retry:\n%s", out)
+	}
+
+	// --fail-after write: the object is stored, the row is still pending,
+	// and the retry completes it.
+	_, errOut, code = run(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/written.txt", "--fail-after", "write")
+	if code != 1 || !strings.Contains(errOut, "stopped after step write") {
+		t.Fatalf("cp --fail-after write exited %d: %s", code, errOut)
+	}
+	if out := ok(t, s.tg, "stat", "/c/dst/written.txt"); field(out, "status") != "pending" {
+		t.Errorf("stat after the stop after write:\n%s", out)
+	}
+	if out := ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/written.txt"); !strings.Contains(out, "resumed the pending row") {
+		t.Errorf("the retry after write = %q", out)
+	}
+	if out := ok(t, s.tg, "cat", "/c/dst/written.txt"); out != "copied\n" {
+		t.Errorf("cat after the retry = %q", out)
+	}
+
+	// A bookmark of the source does not follow the copy.
+	ok(t, s.tg, "bookmark", "add", "/c/src/f.txt", "--unit", unit)
+	ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/h.txt")
+	if got := bookmarkPaths(ok(t, s.tg, "bookmark", "ls", "--unit", unit)); strings.Join(got, " ") != "/c/src/f.txt" {
+		t.Errorf("bookmark ls after the copy = %v, want the source alone", got)
 	}
 }
 

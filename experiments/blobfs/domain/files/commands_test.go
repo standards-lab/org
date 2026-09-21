@@ -51,8 +51,8 @@ func TestCommands_MountsMkdirAndLs(t *testing.T) {
 		names = append(names, c.Name())
 	}
 	slices.Sort(names)
-	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,mv,put,rm,rmdir,stat" {
-		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,mv,put,rm,rmdir,stat", got)
+	if got := strings.Join(names, ","); got != "bookmark,cat,cp,ls,mkdir,mv,put,rm,rmdir,stat" {
+		t.Errorf("Commands() = %s, want bookmark,cat,cp,ls,mkdir,mv,put,rm,rmdir,stat", got)
 	}
 	for _, c := range cmds {
 		if c.Name() != "bookmark" {
@@ -91,6 +91,8 @@ func TestCommands_ValidateBeforeConstructingTheStore(t *testing.T) {
 		{[]string{"put", "/a.txt"}, `accepts 2 arg`},
 		{[]string{"cat"}, `accepts 1 arg`},
 		{[]string{"stat", "/a", "/b"}, `accepts 1 arg`},
+		{[]string{"cp", "/a.txt"}, `accepts 2 arg`},
+		{[]string{"cp", "/a.txt", "/b.txt", "--fail-after", "complete"}, `the step is insert or write`},
 		{[]string{"rm"}, `accepts 1 arg`},
 		{[]string{"rm", "/a.txt", "--fail-after", "complete"}, `the step is begin or object`},
 		{[]string{"rm", "-r", "/a", "--fail-after", "begin"}, `rm -r takes no step`},
@@ -131,6 +133,8 @@ func TestCommands_ReturnTheConstructorsError(t *testing.T) {
 		{"put", "-", "/a.txt"},
 		{"cat", "/a.txt"},
 		{"stat", "/a.txt"},
+		{"cp", "/a.txt", "/b.txt"},
+		{"cp", "/a.txt", "/b.txt", "--fail-after", "write"},
 		{"rm", "/a.txt"},
 		{"rm", "-r", "/a"},
 		{"rm", "/a.txt", "--fail-after", "object"},

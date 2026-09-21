@@ -54,8 +54,13 @@ var (
 
 	// ErrNotAvailable reports a read of a file whose object is not there to
 	// read: a pending file, whose write has not completed, or a deleting
-	// one. stat shows the status; cat refuses.
+	// one. stat shows the status; cat refuses, and so does cp for its
+	// source.
 	ErrNotAvailable = errors.New("files: the file is not available")
+
+	// ErrNotAFile reports a cp whose source path names a directory and no
+	// file. cp copies files only, and directory copy is not offered.
+	ErrNotAFile = errors.New("files: cp copies files, and the source is a directory")
 
 	// ErrContainerMissing reports an object delete that found the store's
 	// container gone. The provider reports it apart from a missing object,
@@ -64,7 +69,7 @@ var (
 	// object is; the delete refuses the step and leaves the row deleting.
 	ErrContainerMissing = errors.New("files: the object store's container is missing")
 
-	// ErrStopped reports a put or an rm that stopped after the step
+	// ErrStopped reports a put, a cp, or an rm that stopped after the step
 	// --fail-after named, as asked. A StopError carries the command, the
 	// step, and the row as it was left.
 	ErrStopped = errors.New("files: stopped as requested")
@@ -133,12 +138,12 @@ const (
 	ConstraintUniqueBookmarkActive = "uq_bookmark_active"
 )
 
-// StopError reports a put or an rm that --fail-after stopped between its
-// steps, before the row was completed or removed: the command, the step
-// it stopped after, and the row as it was left, pending after a put and
-// deleting after an rm. It matches ErrStopped under errors.Is. The
-// message says how to finish: a rerun of the same command at the same
-// path resumes the row.
+// StopError reports a put, a cp, or an rm that --fail-after stopped
+// between its steps, before the row was completed or removed: the
+// command, the step it stopped after, and the row as it was left, pending
+// after a put or a cp and deleting after an rm. It matches ErrStopped
+// under errors.Is. The message says how to finish: a rerun of the same
+// command at the same path resumes the row.
 type StopError struct {
 	Command string
 	Step    Step

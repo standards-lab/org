@@ -191,11 +191,12 @@ func (s *Store) MoveEntry(ctx context.Context, req MoveRequest, scope Scope) (Mo
 	return res, nil
 }
 
-// destination reads mv's destination through sess: the directory the
-// source moves into, that directory's path, and the name the source
-// takes there. dst names an existing directory, in which case the name
-// is the source's own, or a new path, in which case the parent must exist
-// and the last segment is the name.
+// destination reads mv's destination through sess, and cp's, which reads
+// the same way: the directory the source moves or is copied into, that
+// directory's path, and the name the source takes there. dst names an
+// existing directory, in which case the name is the source's own, or a
+// new path, in which case the parent must exist and the last segment is
+// the name.
 func (s *Store) destination(ctx context.Context, sess sqlate.Session, dst, srcName string) (blobfs.Directory, string, string, error) {
 	dir, err := s.blobfs.ResolveDirectory(ctx, sess, dst)
 	switch {

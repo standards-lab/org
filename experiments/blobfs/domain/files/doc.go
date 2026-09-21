@@ -3,7 +3,7 @@
 // schema seeds. It owns the directory_owner and bookmark tables the
 // consumer's migration set creates, the consumer's read models over them,
 // the adapter over the object store, and the mkdir, ls, put, cat, stat,
-// mv, rm, rmdir, and bookmark commands. The consumer uses blobfs.Directory and
+// cp, mv, rm, rmdir, and bookmark commands. The consumer uses blobfs.Directory and
 // blobfs.File as the library defines them and does not restate them,
 // except in the read models, where the scanner's rules force it to.
 //
@@ -48,15 +48,20 @@
 //     delete, and scope) compose the operations from the library's
 //     methods, the consumer's statements, and the object store. Ids are
 //     the primary handle: ListDirectory, StatFile, OpenFile, PutFile,
-//     MoveEntry, and RemoveFile take directory and file ids, and the path
-//     forms List, Stat, Open, Put, Move, and Remove resolve their paths
-//     and then run the same steps, so a caller that holds an id from a
-//     listing acts without a resolution. Mkdir, RemoveDirectory,
-//     RemoveTree, AddBookmark, RemoveBookmark, and ListBookmarks take
-//     paths or a unit. List, ListDirectory, and ListBookmarks each run in
-//     one read-only repeatable-read transaction. Put and PutFile are the
-//     two-phase write: the pending row in a transaction of its own, the
-//     object write, and the completion on the pool. Remove and RemoveFile
+//     CopyFile, MoveEntry, and RemoveFile take directory and file ids,
+//     and the path forms List, Stat, Open, Put, Copy, Move, and Remove
+//     resolve their paths and then run the same steps, so a caller that
+//     holds an id from a listing acts without a resolution. Mkdir,
+//     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
+//     ListBookmarks take paths or a unit. List, ListDirectory, and
+//     ListBookmarks each run in one read-only repeatable-read
+//     transaction. Put and PutFile are the two-phase write: the pending
+//     row in a transaction of its own, the object write, and the
+//     completion on the pool. Copy and CopyFile run the same write over
+//     an available file's object, streamed from the store and back under
+//     the new row's key, with the source's content type; the copy's size
+//     and entity tag are what the store reports for the new object, and
+//     a bookmark or an owner row does not follow a copy. Remove and RemoveFile
 //     are its mirror: the begin and then the bookmark check in a
 //     transaction of its own, the object delete, and the row's removal on
 //     the pool; RemoveFile takes the version the caller read and holds the
