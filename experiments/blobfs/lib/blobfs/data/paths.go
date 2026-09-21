@@ -43,9 +43,10 @@ func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path 
 
 // DirectoryPath returns the path of the directory with id: / for the root
 // and /a/b below it, the names of the chain from the root's child down to
-// the directory joined by slashes. It is one recursive statement that walks
-// upward from the directory, so its cost is the directory's depth. A
-// directory that does not exist is blobfs.ErrNotFound.
+// the directory joined by slashes. The root's own name, /, contributes
+// nothing. It is one recursive statement that walks upward from the
+// directory, so its cost is the directory's depth. A directory that does
+// not exist is blobfs.ErrNotFound.
 func (s *Store) DirectoryPath(ctx context.Context, sess sqlate.Session, id string) (string, error) {
 	chain, err := s.directoryAncestors.All(ctx, sess, query.Args{"id": id})
 	if err != nil {
@@ -59,11 +60,8 @@ func (s *Store) DirectoryPath(ctx context.Context, sess sqlate.Session, id strin
 	}
 	var b strings.Builder
 	for _, a := range chain[1:] {
-		if a.Name == nil {
-			return "", fmt.Errorf("data: path of %s: an ancestor below the root has no name", id)
-		}
 		b.WriteString("/")
-		b.WriteString(*a.Name)
+		b.WriteString(a.Name)
 	}
 	if b.Len() == 0 {
 		return "/", nil

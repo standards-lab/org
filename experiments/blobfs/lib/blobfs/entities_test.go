@@ -56,20 +56,20 @@ func TestIsRoot(t *testing.T) {
 	if !(blobfs.Directory{ID: blobfs.RootID}).IsRoot() {
 		t.Error("a directory with no parent is not the root")
 	}
-	if (blobfs.Directory{ID: blobfs.RootID, ParentID: &parent, Name: &name}).IsRoot() {
+	if (blobfs.Directory{ID: blobfs.RootID, ParentID: &parent, Name: name}).IsRoot() {
 		t.Error("a directory with a parent is the root")
 	}
 }
 
 // TestEntityTags fixes the scan and binding contract: every exported field
 // of Directory and File carries a json tag naming its column, and the
-// columns the root leaves NULL (a directory's parent_id and name) and the
-// columns a store fills late (a file's size and etag) are pointers, so a
-// NULL scans as nil and a nil binds as NULL.
+// column the root leaves NULL (a directory's parent_id) and the columns a
+// store fills late (a file's size and etag) are pointers, so a NULL scans
+// as nil and a nil binds as NULL. A directory's name is never NULL: the
+// root's is /.
 func TestEntityTags(t *testing.T) {
 	nullable := map[string]bool{
 		"Directory.ParentID": true,
-		"Directory.Name":     true,
 		"File.Size":          true,
 		"File.ETag":          true,
 	}

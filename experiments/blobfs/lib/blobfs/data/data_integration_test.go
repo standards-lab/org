@@ -128,7 +128,7 @@ var (
 )
 
 // TestRoot proves the root as the store reads it: the seeded row with
-// RootID, no parent, and no name, reached by Root, by Directory under its
+// RootID, no parent, and the name /, reached by Root, by Directory under its
 // id, and by ResolveDirectory at /, and its path is /.
 func TestRoot(t *testing.T) {
 	e := open(t)
@@ -136,7 +136,7 @@ func TestRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Root: %v", err)
 	}
-	if root.ID != blobfs.RootID || root.ParentID != nil || root.Name != nil || !root.IsRoot() || root.Version != 1 || root.CreatedAt.IsZero() {
+	if root.ID != blobfs.RootID || root.ParentID != nil || root.Name != "/" || !root.IsRoot() || root.Version != 1 || root.CreatedAt.IsZero() {
 		t.Errorf("root = %+v, want the seeded row", root)
 	}
 	if d, err := e.store.Directory(e.ctx, e.db, blobfs.RootID); err != nil || d != root {
@@ -174,7 +174,7 @@ func TestNotFound(t *testing.T) {
 func TestMkdir(t *testing.T) {
 	e := open(t)
 	docs := e.mkdir(t, blobfs.RootID, "docs")
-	if docs.ParentID == nil || *docs.ParentID != blobfs.RootID || docs.Name == nil || *docs.Name != "docs" || docs.IsRoot() || docs.Version != 1 || docs.CreatedAt.IsZero() {
+	if docs.ParentID == nil || *docs.ParentID != blobfs.RootID || docs.Name != "docs" || docs.IsRoot() || docs.Version != 1 || docs.CreatedAt.IsZero() {
 		t.Errorf("docs = %+v", docs)
 	}
 	e.mkdir(t, blobfs.RootID, composed)
@@ -197,7 +197,7 @@ func TestMkdir(t *testing.T) {
 	}
 	e.mkdir(t, docs.ID, "docs")
 	d, err := e.store.Directory(e.ctx, e.db, docs.ID)
-	if err != nil || d.ID != docs.ID || *d.ParentID != blobfs.RootID || *d.Name != "docs" || d.Version != 1 {
+	if err != nil || d.ID != docs.ID || *d.ParentID != blobfs.RootID || d.Name != "docs" || d.Version != 1 {
 		t.Errorf("Directory = %+v, %v, want %+v", d, err, docs)
 	}
 
@@ -207,10 +207,10 @@ func TestMkdir(t *testing.T) {
 	}
 	var names []string
 	for _, d := range page.Rows {
-		if d.Name == nil || d.IsRoot() {
-			t.Fatalf("Children of the root listed a row with no name or no parent: %+v", d)
+		if d.Name == "/" || d.IsRoot() {
+			t.Fatalf("Children of the root listed the root or a row named /: %+v", d)
 		}
-		names = append(names, *d.Name)
+		names = append(names, d.Name)
 	}
 	if want := e.strings1(t, "SELECT name FROM blobfs_directory WHERE parent_id = $1 ORDER BY name", blobfs.RootID); !slices.Equal(names, want) || page.Total != 2 {
 		t.Errorf("Children of the root = %v, total %d, want %v, total 2", names, page.Total, want)

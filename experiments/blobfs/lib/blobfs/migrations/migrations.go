@@ -4,15 +4,22 @@
 // Table, and blobfs's schema is at its head before the consumer's
 // migrations reference it.
 //
-// The set runs in the order directory, file, file_created_index. The
-// third migration adds the index a listing sorted by creation time uses,
-// and it is the upgrade rehearsal: a version added over an installed
-// schema. The directory migration seeds
-// the one root directory, the row with no parent and no name and the id
-// blobfs.RootID, and a partial unique index allows no second row without a
-// parent. A check constraint states that a directory has no name exactly
-// when it has no parent, so a root with a name or a non-root without one
-// is refused.
+// The set is two migrations, directory and file. The directory migration
+// seeds the one root directory, the row with no parent, named /, and the
+// id blobfs.RootID, and a partial unique index allows no second row
+// without a parent. A check constraint states that a directory is named /
+// exactly when it has no parent, so a root under another name or a
+// non-root named / is refused.
+//
+// The set ships no index on blobfs_file (directory_id, created_at). The
+// unique constraint on (directory_id, name) orders a sort by name, and a
+// sort by created_at without that index sorts the directory: measured at
+// 100,000 files with 10,009 in one directory, page 1 sorted by created_at
+// without a total reads about 2,400 buffers, and 34 with the index. The
+// index cost 3,992 kB at that volume. A consumer that lists by creation
+// time adds the index in its own migration set, for example CREATE INDEX
+// ix_blobfs_file_directory_created ON blobfs_file (directory_id,
+// created_at); the measurement is in evidence/sort-index.txt.
 //
 // The source owns every object it creates, and every object's name starts
 // with the source name and an underscore: the tables blobfs_directory and
@@ -25,8 +32,7 @@
 // plain index), table is the table name without its blobfs_ prefix, and
 // detail names the referenced relation, the indexed columns, or the
 // checked rule: blobfs_fk_directory_parent,
-// blobfs_uq_directory_parent_name, blobfs_cc_directory_root_name,
-// blobfs_ix_file_directory_created.
+// blobfs_uq_directory_parent_name, blobfs_cc_directory_root_name.
 //
 // The DDL is Postgres at v1 and lives in the postgres directory. A second
 // engine adds a directory with the same file names, and Migrations selects

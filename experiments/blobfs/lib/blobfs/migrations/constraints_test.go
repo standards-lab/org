@@ -43,14 +43,15 @@ func TestConstraintConstants(t *testing.T) {
 }
 
 // TestRootSeed proves the directory migration seeds the root with the
-// root package's id, and that the id is the only literal id in the set:
-// a consumer addresses the root by blobfs.RootID and by nothing else.
+// root package's id and the name /, and that the id is the only literal
+// id in the set: a consumer addresses the root by blobfs.RootID and by
+// nothing else.
 func TestRootSeed(t *testing.T) {
 	set, err := migrations.Migrations(postgresDialect{})
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	seed := "INSERT INTO blobfs_directory (id) VALUES ('" + blobfs.RootID + "')"
+	seed := "INSERT INTO blobfs_directory (id, name) VALUES ('" + blobfs.RootID + "', '/')"
 	if !strings.Contains(set[0].Up, seed) {
 		t.Errorf("the directory migration does not seed the root with RootID:\n%s", set[0].Up)
 	}

@@ -277,7 +277,7 @@ func (s *suite) moveDirectory(t *testing.T) {
 		for _, target := range []blobfs.Directory{a, b, c} {
 			_, err := s.move(t, a.ID, target.ID, "a", a.Version)
 			if !errors.Is(err, blobfs.ErrCycle) {
-				t.Errorf("MoveDirectory of a under %s = %v, want ErrCycle", *target.Name, err)
+				t.Errorf("MoveDirectory of a under %s = %v, want ErrCycle", target.Name, err)
 			}
 		}
 		if after := s.directory(t, a.ID); !equalDirectory(after, a) {
@@ -296,14 +296,14 @@ func (s *suite) moveDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MoveDirectory: %v", err)
 		}
-		if *moved.ParentID != dst.ID || *moved.Name != "x" || moved.Version != x.Version+1 || !moved.UpdatedAt.After(x.UpdatedAt) || !moved.CreatedAt.Equal(x.CreatedAt) {
+		if *moved.ParentID != dst.ID || moved.Name != "x" || moved.Version != x.Version+1 || !moved.UpdatedAt.After(x.UpdatedAt) || !moved.CreatedAt.Equal(x.CreatedAt) {
 			t.Errorf("the moved row is %+v, want it under dst at the next version", moved)
 		}
 		if after := s.directory(t, x.ID); !equalDirectory(after, moved) {
 			t.Errorf("MoveDirectory returned %+v but the database holds %+v", moved, after)
 		}
-		s.wantPath(t, x.ID, "/"+*dst.Name+"/x")
-		s.wantPath(t, y.ID, "/"+*dst.Name+"/x/y")
+		s.wantPath(t, x.ID, "/"+dst.Name+"/x")
+		s.wantPath(t, y.ID, "/"+dst.Name+"/x/y")
 		if after := s.directory(t, y.ID); !equalDirectory(after, y) {
 			t.Errorf("the child changed to %+v from %+v; it follows its parent by id", after, y)
 		}
@@ -313,7 +313,7 @@ func (s *suite) moveDirectory(t *testing.T) {
 		if f := s.file(t, fy); f.DirectoryID != y.ID {
 			t.Errorf("the deep file is in %s, want %s", f.DirectoryID, y.ID)
 		}
-		if _, err := s.store.ResolveDirectory(s.ctx, s.db, "/"+*src.Name+"/x"); !errors.Is(err, blobfs.ErrNotFound) {
+		if _, err := s.store.ResolveDirectory(s.ctx, s.db, "/"+src.Name+"/x"); !errors.Is(err, blobfs.ErrNotFound) {
 			t.Errorf("the old path still resolves: %v", err)
 		}
 	})
@@ -324,10 +324,10 @@ func (s *suite) moveDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MoveDirectory as a rename: %v", err)
 		}
-		if *renamed.ParentID != blobfs.RootID || *renamed.Name != s.name("renamed-"+t.Name()) || renamed.Version != d.Version+1 {
+		if *renamed.ParentID != blobfs.RootID || renamed.Name != s.name("renamed-"+t.Name()) || renamed.Version != d.Version+1 {
 			t.Errorf("the renamed row is %+v", renamed)
 		}
-		s.wantPath(t, child.ID, "/"+*renamed.Name+"/child")
+		s.wantPath(t, child.ID, "/"+renamed.Name+"/child")
 	})
 	t.Run("NameTaken", func(t *testing.T) {
 		p := s.mkdir(t, "taken-"+t.Name())
@@ -448,8 +448,8 @@ func (s *suite) opposingMoves(t *testing.T) {
 		if err := <-b.done; err != nil {
 			t.Fatalf("B's rollback: %v", err)
 		}
-		s.wantPath(t, x.ID, "/"+*y.Name+"/moved")
-		s.wantPath(t, y.ID, "/"+*y.Name)
+		s.wantPath(t, x.ID, "/"+y.Name+"/moved")
+		s.wantPath(t, y.ID, "/"+y.Name)
 		if n := s.reachable(t, x.ID, y.ID); n != 2 {
 			t.Errorf("%d of the two directories are reachable from the root, want both", n)
 		}
@@ -603,7 +603,7 @@ func (s *suite) opposingSerializableMoves(t *testing.T) {
 	if s.ownAncestor(t, x.ID) || s.ownAncestor(t, y.ID) {
 		t.Error("a cycle formed under serializable isolation")
 	}
-	s.wantPath(t, x.ID, "/"+*y.Name+"/moved")
+	s.wantPath(t, x.ID, "/"+y.Name+"/moved")
 }
 
 // mover is one move under way on a goroutine: moved reports
@@ -926,7 +926,7 @@ func (s *suite) insertFile(t *testing.T, dir, name string, status blobfs.Status)
 
 // equalDirectory compares two rows field by field, timestamps by instant.
 func equalDirectory(a, b blobfs.Directory) bool {
-	return a.ID == b.ID && equalString(a.ParentID, b.ParentID) && equalString(a.Name, b.Name) &&
+	return a.ID == b.ID && equalString(a.ParentID, b.ParentID) && a.Name == b.Name &&
 		a.Version == b.Version && a.CreatedAt.Equal(b.CreatedAt) && a.UpdatedAt.Equal(b.UpdatedAt)
 }
 

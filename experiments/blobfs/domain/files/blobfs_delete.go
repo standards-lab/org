@@ -246,7 +246,7 @@ func (w *walker) empty(ctx context.Context, id, path string) error {
 			return fmt.Errorf("%s: the directory total %w", path, err)
 		}
 		for _, d := range page.Rows {
-			if err := w.removeTree(ctx, d.ID, path+"/"+*d.Name); err != nil {
+			if err := w.removeTree(ctx, d.ID, path+"/"+d.Name); err != nil {
 				return err
 			}
 		}

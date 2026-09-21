@@ -55,8 +55,8 @@ func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
 	if first.Name != blobfsmigrations.Source || first.Table != blobfsmigrations.Table {
 		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, blobfsmigrations.Source, blobfsmigrations.Table)
 	}
-	if len(first.Migrations) != 3 || first.Migrations[0].Name != "directory" {
-		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 3 starting with directory", len(first.Migrations), first.Migrations[0].Name)
+	if len(first.Migrations) != 2 || first.Migrations[0].Name != "directory" {
+		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 2 starting with directory", len(first.Migrations), first.Migrations[0].Name)
 	}
 	if last.Name != schema.ConsumerSet || last.Table != "" {
 		t.Errorf("last set = %q under %q, want %q under the default table", last.Name, last.Table, schema.ConsumerSet)
@@ -102,10 +102,10 @@ func setRun(steps int) []sqltest.Response {
 }
 
 // freshUp scripts a whole Up over an empty database: the lock, both sets'
-// checks, blobfs's three migrations, the consumer's two, and the unlock.
+// checks, blobfs's two migrations, the consumer's two, and the unlock.
 func freshUp() []sqltest.Response {
 	out := []sqltest.Response{locked, absent, absent}
-	out = append(out, setRun(3)...)
+	out = append(out, setRun(2)...)
 	out = append(out, setRun(2)...)
 	return append(out, unlocked)
 }
@@ -133,7 +133,6 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 		"CREATE TABLE IF NOT EXISTS " + blobfsmigrations.Table,
 		"CREATE TABLE blobfs_directory",
 		"CREATE TABLE blobfs_file",
-		"CREATE INDEX blobfs_ix_file_directory_created",
 		"CREATE TABLE IF NOT EXISTS schema_version",
 		"CREATE TABLE directory_owner",
 		"CREATE TABLE bookmark",
@@ -156,12 +155,12 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 }
 
 // TestStatus_ReadsBothSets proves Status returns the sets in canonical
-// order from the migrator's reads: blobfs at version 2 of 3 with the index
+// order from the migrator's reads: blobfs at version 1 of 2 with the file
 // migration pending, and the consumer with no history table yet.
 func TestStatus_ReadsBothSets(t *testing.T) {
 	present := sqltest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(1)}}}
-	head := sqltest.Response{Columns: []string{"version", "dirty"}, Rows: [][]driver.Value{{int64(2), false}}}
-	applied := sqltest.Response{Columns: historyCols, Rows: [][]driver.Value{{int64(1), "directory", false}, {int64(2), "file", false}}}
+	head := sqltest.Response{Columns: []string{"version", "dirty"}, Rows: [][]driver.Value{{int64(1), false}}}
+	applied := sqltest.Response{Columns: historyCols, Rows: [][]driver.Value{{int64(1), "directory", false}}}
 	pool, _ := sqltest.Open(t, present, head, present, applied, absent, absent)
 	c, err := schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
 	if err != nil {
@@ -175,7 +174,7 @@ func TestStatus_ReadsBothSets(t *testing.T) {
 		t.Fatalf("Status returned %d sets, want 2", len(sets))
 	}
 	b, consumer := sets[0], sets[1]
-	if b.Name != blobfsmigrations.Source || b.Table != blobfsmigrations.Table || b.Version != 2 || b.Latest != 3 || len(b.Pending) != 1 || b.Pending[0].Name != "file_created_index" || b.Dirty {
+	if b.Name != blobfsmigrations.Source || b.Table != blobfsmigrations.Table || b.Version != 1 || b.Latest != 2 || len(b.Pending) != 1 || b.Pending[0].Name != "file" || b.Dirty {
 		t.Errorf("blobfs status = %+v", b)
 	}
 	if consumer.Name != schema.ConsumerSet || consumer.Table != "schema_version" || consumer.Version != 0 || consumer.Latest != 2 || len(consumer.Pending) != 2 {

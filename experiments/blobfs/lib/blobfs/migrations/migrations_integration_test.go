@@ -67,7 +67,7 @@ func insertFile(ctx context.Context, t *testing.T, db *sqlate.DB, dir, name, sta
 }
 
 // TestSeededRoot proves the migration seeds exactly one directory: the
-// root, with the well-known id, no parent, and no name.
+// root, with the well-known id, no parent, and the name /.
 func TestSeededRoot(t *testing.T) {
 	ctx, db := applied(t)
 	rows, err := db.QueryContext(ctx, "SELECT CAST(id AS text), parent_id, name FROM blobfs_directory")
@@ -77,14 +77,14 @@ func TestSeededRoot(t *testing.T) {
 	defer func() { _ = rows.Close() }()
 	n := 0
 	for rows.Next() {
-		var id string
-		var parent, name *string
+		var id, name string
+		var parent *string
 		if err := rows.Scan(&id, &parent, &name); err != nil {
 			t.Fatalf("scan: %v", err)
 		}
 		n++
-		if id != blobfs.RootID || parent != nil || name != nil {
-			t.Errorf("seeded row = (%s, %v, %v), want (%s, NULL, NULL)", id, parent, name, blobfs.RootID)
+		if id != blobfs.RootID || parent != nil || name != "/" {
+			t.Errorf("seeded row = (%s, %v, %q), want (%s, NULL, /)", id, parent, name, blobfs.RootID)
 		}
 	}
 	if n != 1 {
@@ -93,11 +93,11 @@ func TestSeededRoot(t *testing.T) {
 }
 
 // TestOneRoot is the stage gate's first proof: a second root, a row with
-// no parent, is refused as a unique violation under the partial index's
-// name, blobfs_uq_directory_root, whatever its id.
+// no parent named /, is refused as a unique violation under the partial
+// index's name, blobfs_uq_directory_root, whatever its id.
 func TestOneRoot(t *testing.T) {
 	ctx, db := applied(t)
-	_, err := insertDirectory(ctx, t, db, nil, nil)
+	_, err := insertDirectory(ctx, t, db, nil, ptr("/"))
 	if !errors.Is(err, sqlate.ErrUniqueViolation) {
 		t.Fatalf("second root = %v, want ErrUniqueViolation", err)
 	}
@@ -107,15 +107,16 @@ func TestOneRoot(t *testing.T) {
 	// The refusal is by the index and not by the primary key: a second root
 	// under the root's own id is refused under the primary key, which shows
 	// the two are distinct guards.
-	_, err = db.ExecContext(ctx, "INSERT INTO blobfs_directory (id) VALUES ($1)", blobfs.RootID)
+	_, err = db.ExecContext(ctx, "INSERT INTO blobfs_directory (id, name) VALUES ($1, '/')", blobfs.RootID)
 	if name := livetest.Constraint(t, err, sqlate.ErrUniqueViolation); name != "blobfs_pk_directory" {
 		t.Errorf("root reinserted under its id: violated constraint = %q, want blobfs_pk_directory", name)
 	}
 }
 
 // TestRootRule proves the check constraint that states the root rule: a
-// root with a name and a non-root without one each fail under
-// blobfs_cc_directory_root_name.
+// root under a name other than / and a non-root named / each fail under
+// blobfs_cc_directory_root_name. A non-root with no name fails the
+// column's NOT NULL constraint, since every directory has a name.
 func TestRootRule(t *testing.T) {
 	ctx, db := applied(t)
 	cases := []struct {
@@ -123,8 +124,8 @@ func TestRootRule(t *testing.T) {
 		parent, name *string
 		want         string
 	}{
-		{"root with a name", nil, ptr("root"), "blobfs_cc_directory_root_name"},
-		{"non-root with no name", ptr(blobfs.RootID), nil, "blobfs_cc_directory_root_name"},
+		{"root under another name", nil, ptr("root"), "blobfs_cc_directory_root_name"},
+		{"non-root named /", ptr(blobfs.RootID), ptr("/"), "blobfs_cc_directory_root_name"},
 	}
 	for _, c := range cases {
 		_, err := insertDirectory(ctx, t, db, c.parent, c.name)
@@ -135,6 +136,9 @@ func TestRootRule(t *testing.T) {
 		if name := livetest.Constraint(t, err, sqlate.ErrCheckViolation); name != c.want {
 			t.Errorf("%s: violated constraint = %q, want %s", c.label, name, c.want)
 		}
+	}
+	if _, err := insertDirectory(ctx, t, db, ptr(blobfs.RootID), nil); !errors.Is(err, sqlate.ErrNotNullViolation) {
+		t.Errorf("non-root with no name = %v, want ErrNotNullViolation", err)
 	}
 }
 

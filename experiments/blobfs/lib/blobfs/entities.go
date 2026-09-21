@@ -12,15 +12,16 @@ import (
 const RootID = "00000000-0000-0000-0000-000000000000"
 
 // Directory is one node of the directory hierarchy, a row of
-// blobfs_directory. The root has a nil ParentID and a nil Name, and it is
-// the only row with either; every other directory has a ParentID and a
-// Name. Version is the concurrency token the guarded commands check. The
-// json tags are the scan and binding contract: the columns carry the same
-// names, and a nil pointer binds or scans as NULL.
+// blobfs_directory. The root has a nil ParentID and the Name "/", and it
+// is the only row with either; every other directory has a ParentID and a
+// Name that ValidateName accepts, which never contains a slash. Version is
+// the concurrency token the guarded commands check. The json tags are the
+// scan and binding contract: the columns carry the same names, and a nil
+// pointer binds or scans as NULL.
 type Directory struct {
 	ID        string    `json:"id"`
 	ParentID  *string   `json:"parent_id"`
-	Name      *string   `json:"name"`
+	Name      string    `json:"name"`
 	Version   int64     `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

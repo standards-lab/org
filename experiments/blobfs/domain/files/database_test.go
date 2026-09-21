@@ -37,15 +37,16 @@ var (
 	ownedColumns     = []string{"id", "parent_id", "name", "version", "created_at", "updated_at", "unit_id"}
 )
 
-// directory scripts one directory row: the root when parent and name are
-// nil, so the row scans into blobfs.Directory as the engine returns it.
+// directory scripts one directory row: the root when parent is nil and
+// name is /, so the row scans into blobfs.Directory as the engine returns
+// it.
 func directory(id string, parent, name any) sqltest.Response {
 	now := time.Now()
 	return sqltest.Response{Columns: directoryColumns, Rows: [][]driver.Value{{id, parent, name, int64(1), now, now}}}
 }
 
 // root scripts the seeded root row.
-func root() sqltest.Response { return directory(blobfs.RootID, nil, nil) }
+func root() sqltest.Response { return directory(blobfs.RootID, nil, "/") }
 
 // affected scripts one successful exec.
 func affected() sqltest.Response { return sqltest.Response{Affected: 1} }
@@ -186,7 +187,7 @@ func TestListRunsInOneReadOnlyRepeatableReadTransaction(t *testing.T) {
 	if c.Path != "/" || c.Directories.Total != 2 || len(c.Directories.Rows) != 2 || c.Files.Total != 1 || len(c.Files.Rows) != 1 {
 		t.Errorf("contents = %+v", c)
 	}
-	if *c.Directories.Rows[1].Name != "b" || c.Files.Rows[0].Name != "x.txt" || *c.Files.Rows[0].Size != 1 {
+	if c.Directories.Rows[1].Name != "b" || c.Files.Rows[0].Name != "x.txt" || *c.Files.Rows[0].Size != 1 {
 		t.Errorf("rows = %+v %+v", c.Directories.Rows, c.Files.Rows)
 	}
 	if rec.Pending() != 0 || rec.RowsLeaked() != 0 {
@@ -377,7 +378,7 @@ func TestListScopedAtRootUsesTheOwnerProjection(t *testing.T) {
 	if !strings.HasSuffix(page.SQL, " ORDER BY q.created_at DESC, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
 		t.Errorf("the page took a file-only term or lost the key:\n%s", page.SQL)
 	}
-	if c.Directories.Total != 3 || len(c.Directories.Rows) != 1 || *c.Directories.Rows[0].Name != "a" || *c.Directories.Rows[0].ParentID != blobfs.RootID {
+	if c.Directories.Total != 3 || len(c.Directories.Rows) != 1 || c.Directories.Rows[0].Name != "a" || *c.Directories.Rows[0].ParentID != blobfs.RootID {
 		t.Errorf("directories = %+v", c.Directories)
 	}
 	if c.Files.Total != 0 || len(c.Files.Rows) != 0 {

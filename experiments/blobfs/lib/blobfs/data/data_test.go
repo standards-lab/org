@@ -395,8 +395,8 @@ func TestDirectoryPathComposes(t *testing.T) {
 	ctx := context.Background()
 	cols := []string{"parent_id", "name"}
 	pool, rec := sqltest.Open(t,
-		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, nil}}},
-		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, nil}, {blobfs.RootID, "a"}, {"a", "b"}, {"b", "café"}}},
+		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, "/"}}},
+		sqltest.Response{Columns: cols, Rows: [][]driver.Value{{nil, "/"}, {blobfs.RootID, "a"}, {"a", "b"}, {"b", "café"}}},
 		sqltest.Response{Columns: cols},
 	)
 	db := sqlate.Wrap(pool, sqltest.Dialect{})

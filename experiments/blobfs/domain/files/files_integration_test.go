@@ -171,7 +171,7 @@ func (e env) list(t *testing.T, path string, l files.Listing) files.Contents {
 func names(dirs []blobfs.Directory) []string {
 	var out []string
 	for _, d := range dirs {
-		out = append(out, *d.Name)
+		out = append(out, d.Name)
 	}
 	return out
 }
@@ -188,7 +188,7 @@ func TestMkdir(t *testing.T) {
 	a := e.mkdir(t, "/a", "")
 	b := e.mkdir(t, "/a/b", "")
 	c := e.mkdir(t, "/a/b/c", "")
-	if a.ParentID == nil || *a.ParentID != blobfs.RootID || *b.ParentID != a.ID || *c.ParentID != b.ID || *c.Name != "c" {
+	if a.ParentID == nil || *a.ParentID != blobfs.RootID || *b.ParentID != a.ID || *c.ParentID != b.ID || c.Name != "c" {
 		t.Errorf("rows = %+v %+v %+v", a, b, c)
 	}
 	owned := e.mkdir(t, "/owned", unit)

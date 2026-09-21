@@ -15,10 +15,10 @@
 -- the projection bookmark ls lists through, filtered by unit_id.
 --
 -- The path is computed per row by a recursion anchored on the bookmarked
--- file's directory and walking upward to the root, whose name is NULL and
--- whose parent is NULL; the walk ends at the row that stepped past the
--- root, and the names are joined with slashes as the walk climbs, so the
--- root contributes nothing and a file in the root has the path /name. The
+-- file's directory and walking upward to the root, the row whose parent
+-- is NULL; the walk ends at the row that stepped past the root, and the
+-- names are joined with slashes as the walk climbs. The root's own name,
+-- /, contributes nothing, so a file in the root has the path /name. The
 -- recursion is a scalar subquery correlated on the file's directory rather
 -- than a top-level common table expression over every bookmark, because a
 -- projection base binds no parameter: with the recursion at the top level
@@ -36,11 +36,11 @@
 -- library columns are restated by name, as the scanner requires.
 SELECT b.unit_id, b.file_id, b.active,
   (WITH RECURSIVE up (directory_id, path) AS (
-      SELECT d.parent_id, COALESCE('/' || d.name, '')
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END
       FROM blobfs_directory d
       WHERE d.id = f.directory_id
     UNION ALL
-      SELECT d.parent_id, COALESCE('/' || d.name, '') || up.path
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
       FROM up
       JOIN blobfs_directory d ON d.id = up.directory_id
   )

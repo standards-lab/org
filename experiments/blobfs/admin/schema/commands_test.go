@@ -136,8 +136,8 @@ func TestCommands_ResetRequiresYes(t *testing.T) {
 // under the header, the pending migrations listed by number and name.
 func TestCommands_StatusRendersATable(t *testing.T) {
 	present := sqltest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(1)}}}
-	head := sqltest.Response{Columns: []string{"version", "dirty"}, Rows: [][]driver.Value{{int64(2), true}}}
-	applied := sqltest.Response{Columns: historyCols, Rows: [][]driver.Value{{int64(1), "directory", false}, {int64(2), "file", true}}}
+	head := sqltest.Response{Columns: []string{"version", "dirty"}, Rows: [][]driver.Value{{int64(1), true}}}
+	applied := sqltest.Response{Columns: historyCols, Rows: [][]driver.Value{{int64(1), "directory", true}}}
 	newClient := func() (*schema.Client, error) {
 		pool, _ := sqltest.Open(t, present, head, present, applied, absent, absent)
 		return schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
@@ -150,7 +150,7 @@ func TestCommands_StatusRendersATable(t *testing.T) {
 	if len(got) != 3 || !strings.HasPrefix(got[0], "set ") {
 		t.Fatalf("status stdout:\n%s", out)
 	}
-	if f := strings.Fields(got[1]); len(f) != 7 || f[0] != "blobfs" || f[1] != "blobfs_schema_version" || f[2] != "2" || f[3] != "3" || f[4] != "3" || f[5] != "file_created_index" || f[6] != "true" {
+	if f := strings.Fields(got[1]); len(f) != 7 || f[0] != "blobfs" || f[1] != "blobfs_schema_version" || f[2] != "1" || f[3] != "2" || f[4] != "2" || f[5] != "file" || f[6] != "true" {
 		t.Errorf("blobfs row = %q", got[1])
 	}
 	if f := strings.Fields(got[2]); len(f) != 9 || f[0] != "consumer" || f[1] != "schema_version" || f[2] != "0" || f[3] != "2" || f[4] != "1" || f[5] != "directory_owner," || f[6] != "2" || f[7] != "bookmark" || f[8] != "false" {

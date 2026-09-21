@@ -419,7 +419,7 @@ func TestScript(t *testing.T) {
 func (s *script) schemaUp(t *testing.T) {
 	refused(t, s.tg, "blobfs schema up", "ls", "/")
 	out := ok(t, s.tg, "schema", "status")
-	if got := lines(out); len(got) != 3 || !strings.HasPrefix(got[0], "set ") || !strings.Contains(got[1], "3 file_created_index") || !strings.Contains(got[2], "2 bookmark") {
+	if got := lines(out); len(got) != 3 || !strings.HasPrefix(got[0], "set ") || !strings.Contains(got[1], "2 file") || !strings.Contains(got[2], "2 bookmark") {
 		t.Errorf("schema status on an empty database:\n%s", out)
 	}
 	out = ok(t, s.tg, "schema", "up")
@@ -446,7 +446,7 @@ func (s *script) statusAtHead(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("schema status:\n%s", out)
 	}
-	if f := strings.Fields(got[1]); len(f) != 6 || f[0] != "blobfs" || f[1] != "blobfs_schema_version" || f[2] != "3" || f[3] != "3" || f[4] != "none" || f[5] != "false" {
+	if f := strings.Fields(got[1]); len(f) != 6 || f[0] != "blobfs" || f[1] != "blobfs_schema_version" || f[2] != "2" || f[3] != "2" || f[4] != "none" || f[5] != "false" {
 		t.Errorf("blobfs status row = %q", got[1])
 	}
 	if f := strings.Fields(got[2]); len(f) != 6 || f[0] != "consumer" || f[1] != "schema_version" || f[2] != "2" || f[3] != "2" || f[4] != "none" || f[5] != "false" {
@@ -1056,7 +1056,7 @@ func (s *script) schemaDown(t *testing.T) {
 		}
 	}
 	out = ok(t, s.tg, "schema", "status")
-	if got := lines(out); len(got) != 3 || !strings.Contains(got[1], "3 file_created_index") || !strings.Contains(got[2], "2 bookmark") {
+	if got := lines(out); len(got) != 3 || !strings.Contains(got[1], "2 file") || !strings.Contains(got[2], "2 bookmark") {
 		t.Errorf("schema status after down:\n%s", out)
 	}
 

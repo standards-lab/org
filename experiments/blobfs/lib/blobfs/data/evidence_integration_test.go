@@ -355,8 +355,8 @@ const (
 // owner), joined to the files of that directory. Flat, with the sort and
 // paging at the base's level; and wrapped as a derived table.
 const walkBase = "WITH RECURSIVE up (id, parent_id, path) AS (" +
-	"SELECT d.id, d.parent_id, CAST(COALESCE('/' || d.name, '') AS text) FROM blobfs_directory d WHERE d.id = CAST($1 AS uuid) " +
-	"UNION ALL SELECT p.id, p.parent_id, COALESCE('/' || p.name, '') || up.path FROM blobfs_directory p JOIN up ON p.id = up.parent_id) " +
+	"SELECT d.id, d.parent_id, CAST(CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END AS text) FROM blobfs_directory d WHERE d.id = CAST($1 AS uuid) " +
+	"UNION ALL SELECT p.id, p.parent_id, CASE WHEN p.parent_id IS NULL THEN '' ELSE '/' || p.name END || up.path FROM blobfs_directory p JOIN up ON p.id = up.parent_id) " +
 	"SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, up.path || '/' || f.name AS path " +
 	"FROM blobfs_file f JOIN up ON up.parent_id IS NULL WHERE f.directory_id = CAST($1 AS uuid)"
 

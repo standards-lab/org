@@ -122,11 +122,7 @@ func (d deps) list() *cobra.Command {
 			}
 			entries := make([]output.Entry, 0, len(c.Directories.Rows)+len(c.Files.Rows))
 			for _, dir := range c.Directories.Rows {
-				name := ""
-				if dir.Name != nil {
-					name = *dir.Name
-				}
-				entries = append(entries, output.Entry{Kind: "dir", Name: name, Updated: dir.UpdatedAt})
+				entries = append(entries, output.Entry{Kind: "dir", Name: dir.Name, Updated: dir.UpdatedAt})
 			}
 			for _, file := range c.Files.Rows {
 				entries = append(entries, output.Entry{Kind: "file", Name: file.Name, Size: file.Size, Status: string(file.Status), Updated: file.UpdatedAt})

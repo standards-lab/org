@@ -67,7 +67,7 @@ func (s *Store) Move(ctx context.Context, src, dst string) (MoveResult, error) {
 			if err != nil {
 				return MoveResult{}, err
 			}
-			return MoveResult{Kind: EntryDirectory, ID: moved.ID, From: src, To: strings.TrimSuffix(parentPath, "/") + "/" + *moved.Name}, nil
+			return MoveResult{Kind: EntryDirectory, ID: moved.ID, From: src, To: strings.TrimSuffix(parentPath, "/") + "/" + moved.Name}, nil
 		case !errors.Is(err, blobfs.ErrNotFound):
 			return MoveResult{}, err
 		}

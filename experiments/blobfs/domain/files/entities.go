@@ -44,8 +44,7 @@ type OwnedDirectory struct {
 // through the owner read model and one through the library's own listing
 // return the same shape.
 func (o OwnedDirectory) Directory() blobfs.Directory {
-	name := o.Name
-	return blobfs.Directory{ID: o.ID, ParentID: o.ParentID, Name: &name, Version: o.Version, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt}
+	return blobfs.Directory{ID: o.ID, ParentID: o.ParentID, Name: o.Name, Version: o.Version, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt}
 }
 
 // BookmarkedFile is one row of the consumer's bookmark read model,

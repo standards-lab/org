@@ -319,7 +319,7 @@ const walkAllBase = `WITH RECURSIVE up (file_id, directory_id, path) AS (
     FROM blobfs_file f
     WHERE f.id IN (SELECT b.file_id FROM bookmark b)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
 SELECT ` + evColumns + `
@@ -342,7 +342,7 @@ const anchoredBase = `WITH RECURSIVE up (file_id, directory_id, path) AS (
     JOIN blobfs_file f ON f.id = b.file_id
     WHERE b.unit_id = CAST($1 AS uuid)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
 SELECT ` + evColumns + `

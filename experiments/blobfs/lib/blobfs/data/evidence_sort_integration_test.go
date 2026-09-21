@@ -2,16 +2,18 @@
 
 package data_test
 
-// This file is the stage 14 measurement: what the rehearsal migration's
-// index, blobfs_ix_file_directory_created, buys a listing sorted by
-// created_at. It runs only under BLOBFS_EVIDENCE=1; mise run evidence sets
-// the variable and writes the transcript to evidence/sort-index.txt. It
-// seeds the same fixture as the listing measurement, spreads the files'
-// created_at over a year (bulk seeding gives every row of a batch the same
-// timestamp, which would make a sort by created_at degenerate), measures
-// the created_at listings at schema version 2, applies migration 3 through
-// migrate as an upgrade would, and measures them again, with the index's
-// size. The helpers are the listing measurement's.
+// This file is the stage 14 measurement: what an index on blobfs_file
+// (directory_id, created_at) buys a listing sorted by created_at. The
+// library's migration set ships no such index; a consumer adds it in its
+// own set, and this test creates it itself in its throwaway database. It
+// runs only under BLOBFS_EVIDENCE=1; mise run evidence sets the variable
+// and writes the transcript to evidence/sort-index.txt. It seeds the same
+// fixture as the listing measurement, spreads the files' created_at over
+// a year (bulk seeding gives every row of a batch the same timestamp,
+// which would make a sort by created_at degenerate), measures the
+// created_at listings without the index, creates the index, and measures
+// them again, with the index's size. The helpers are the listing
+// measurement's.
 
 import (
 	"context"
@@ -31,13 +33,21 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
 )
 
+// sortIndex is the index the measurement creates, under the name the
+// listing measurement's plan shapes recognize, and sortIndexDDL is its
+// statement.
+const (
+	sortIndex    = "blobfs_ix_file_directory_created"
+	sortIndexDDL = "CREATE INDEX " + sortIndex + " ON blobfs_file (directory_id, created_at)"
+)
+
 // TestSortIndexCost measures, for the biggest directory (about 10,000
 // files), ListFiles sorted by created_at ascending and descending on page
 // 1 with no total, the same ascending sort with the exact total, and the
-// cursor page after page 1, each before the index (schema version 2) and
-// after Up applies migration 3, plus the index's size. The sort by name of
-// section c of the listing measurement is the reference: it reads the
-// unique constraint's index either way.
+// cursor page after page 1, each before and after the index is created,
+// plus the index's size. The sort by name of section c of the listing
+// measurement is the reference: it reads the unique constraint's index
+// either way.
 func TestSortIndexCost(t *testing.T) {
 	if os.Getenv("BLOBFS_EVIDENCE") == "" {
 		t.Skip("set BLOBFS_EVIDENCE=1 to run the sort index measurement")
@@ -48,15 +58,15 @@ func TestSortIndexCost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(set) != 3 || set[2].Name != "file_created_index" {
-		t.Fatalf("the blobfs set is %d migrations ending in %q; want 3 ending in file_created_index", len(set), set[len(set)-1].Name)
-	}
-	installed, err := migrate.New(db, set[:2], migrate.Options{Table: migrations.Table})
+	installed, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := installed.Up(ctx); err != nil {
 		t.Fatal(err)
+	}
+	if livetest.Exists(ctx, t, db, sortIndex) {
+		t.Fatalf("the library's set created %s; the measurement creates the index itself", sortIndex)
 	}
 	version := scalar(ctx, t, db, "SELECT version()")
 	c, err := query.NewCatalog(query.Patterns(), data.Patterns())
@@ -121,28 +131,24 @@ func TestSortIndexCost(t *testing.T) {
 			*pages = append(*pages, ids(page.Rows))
 		}
 	}
-	section("before", "1. before the index: blobfs at version 2, the sort by created_at is a sort of the directory", &pagesBefore)
+	section("before", "1. before the index: the library's set alone, the sort by created_at is a sort of the directory", &pagesBefore)
 
-	upgraded, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
-	if err != nil {
-		t.Fatal(err)
+	if _, err := db.ExecContext(ctx, sortIndexDDL); err != nil {
+		t.Fatalf("create the index: %v", err)
 	}
-	if err := upgraded.Up(ctx); err != nil {
-		t.Fatalf("Up to version 3: %v", err)
-	}
-	if !livetest.Exists(ctx, t, db, "blobfs_ix_file_directory_created") {
-		t.Fatal("migration 3 did not create blobfs_ix_file_directory_created")
+	if !livetest.Exists(ctx, t, db, sortIndex) {
+		t.Fatalf("%s does not exist after its create", sortIndex)
 	}
 	if _, err := db.ExecContext(ctx, "VACUUM ANALYZE blobfs_file"); err != nil {
 		t.Fatal(err)
 	}
 	m.note("")
-	m.note("migration 3 applied through migrate.Up over the installed history (only version 3 ran); blobfs head is now %s.", scalar(ctx, t, db, "SELECT MAX(version) FROM "+migrations.Table))
-	indexSize := scalar(ctx, t, db, "SELECT pg_size_pretty(pg_relation_size('blobfs_ix_file_directory_created'))")
+	m.note("index created by the measurement, as a consumer's own migration would: %s", sortIndexDDL)
+	indexSize := scalar(ctx, t, db, "SELECT pg_size_pretty(pg_relation_size('"+sortIndex+"'))")
 	nameIndexSize := scalar(ctx, t, db, "SELECT pg_size_pretty(pg_relation_size('blobfs_uq_file_directory_name'))")
 	tableSize := scalar(ctx, t, db, "SELECT pg_size_pretty(pg_relation_size('blobfs_file'))")
-	m.note("sizes: blobfs_ix_file_directory_created %s; blobfs_uq_file_directory_name %s; blobfs_file heap %s (%d rows).", indexSize, nameIndexSize, tableSize, fixtureFiles)
-	section("after", "2. after the index: blobfs at version 3", &pagesAfter)
+	m.note("sizes: %s %s; blobfs_uq_file_directory_name %s; blobfs_file heap %s (%d rows).", sortIndex, indexSize, nameIndexSize, tableSize, fixtureFiles)
+	section("after", "2. after the index", &pagesAfter)
 
 	for i, f := range forms {
 		if !slices.Equal(pagesBefore[i], pagesAfter[i]) {
@@ -159,7 +165,7 @@ func TestSortIndexCost(t *testing.T) {
 	fmt.Fprintf(&out, "# machine: %s/%s, %d cpus; go %s. Timings are machine-dependent (a laptop, everything in shared buffers); plan shapes and buffer counts are not.\n", runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
 	fmt.Fprintf(&out, "# fixture: the listing measurement's (%d trees, %d file rows, a tenth of them in the biggest directory), with created_at spread uniformly over a year.\n", trees, fixtureFiles)
 	fmt.Fprintf(&out, "# method: ListFiles on the biggest directory sorted by created_at, captured as the store composes it; each query is EXPLAIN (ANALYZE, BUFFERS) once to warm the cache, then %d times; the median run by execution time is reported with its plan.\n", runs)
-	fmt.Fprintf(&out, "#   Section 1 is measured at blobfs schema version 2 (no created_at index) and section 2 after migration 3, blobfs_ix_file_directory_created (directory_id, created_at), is applied as an upgrade.\n")
+	fmt.Fprintf(&out, "#   Section 1 is measured over the library's migration set, which ships no created_at index, and section 2 after the measurement creates %s (directory_id, created_at), as a consumer's own migration set would.\n", sortIndex)
 	fmt.Fprintf(&out, "#   EXPLAIN runs over pgx's simple protocol; buffers are the top plan node's shared hit+read, in 8 KB pages. The tables were VACUUM ANALYZEd after seeding and after the index was built.\n")
 	fmt.Fprintf(&out, "# index size: %s (the name index is %s; the heap is %s).\n", indexSize, nameIndexSize, tableSize)
 	fmt.Fprintf(&out, "#\n# summary (median run; times in ms; buffers as hit+read pages):\n")

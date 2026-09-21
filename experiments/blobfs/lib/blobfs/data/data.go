@@ -59,10 +59,11 @@ type Store struct {
 }
 
 // ancestor is one row of directory_ancestors: a directory's parent and
-// name on the chain up to the root, the root's both nil.
+// name on the chain up to the root, whose parent is nil and whose name
+// is /.
 type ancestor struct {
 	ParentID *string `json:"parent_id"`
-	Name     *string `json:"name"`
+	Name     string  `json:"name"`
 }
 
 // New compiles blobfs's statements against catalog for dialect and binds

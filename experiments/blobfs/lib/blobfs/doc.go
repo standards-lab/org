@@ -10,7 +10,7 @@
 // the persistence layer maps database violations onto.
 //
 // An install is one directory tree in one database: the schema seeds a
-// single root directory, with no name and the well-known id RootID, and a
+// single root directory, named / and with the well-known id RootID, and a
 // partial unique index allows no second root. A consumer that wants several
 // isolated trees runs several installs, each with its own database and its
 // own container.
