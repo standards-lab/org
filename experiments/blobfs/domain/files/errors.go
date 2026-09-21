@@ -95,6 +95,16 @@ var (
 	// ErrNoBookmark reports a bookmark rm of a file the unit has not
 	// bookmarked. The file exists; the bookmark does not.
 	ErrNoBookmark = errors.New("files: the unit has no bookmark of the file")
+
+	// ErrMoveAcrossScopes reports a mv whose source and destination lie
+	// under different top-level directories, or one of them at the top
+	// level and the other below it. An owner row binds a top-level
+	// directory, and a listing under --unit is scoped at that ancestor, so
+	// a move that crossed it would carry an entry out of one unit's scope
+	// into another's, or give a top-level directory an owner row at another
+	// depth. A rename of a top-level directory stays at the top level and
+	// is allowed.
+	ErrMoveAcrossScopes = errors.New("files: a move stays under one top-level directory")
 )
 
 // The names of the constraints and the unique index the consumer's

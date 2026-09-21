@@ -17,6 +17,7 @@ package datatest
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,11 +38,17 @@ import (
 // begin and the shared complete step (the deleting row removed, a retry
 // of every step converging, a pending row deletable, a row that is not
 // deleting refused, and a row a consumer's foreign key references left
-// deleting until the reference goes); and the tree lock's (a pool session
+// deleting until the reference goes); the tree lock's (a pool session
 // refused, and the lock held to commit and to rollback when the store
-// serializes, or a documented no-op that never blocks when it does not).
-// db is a migrated throwaway database and store was built over the
-// variant under test with db's dialect.
+// serializes, or a documented no-op that never blocks when it does not);
+// and the directory move's through the lock (the sequential contract on
+// every variant, then two opposing concurrent moves, which leave no
+// cycle and refuse one of the two when the store serializes, and form a
+// cycle when it does not, which the suite asserts and then repairs). db
+// is a migrated throwaway database and store was built over the variant
+// under test with db's dialect. The move group builds a second store of
+// its own, over a wrapper of the store's variant that pauses each move
+// after its lock, so the two moves interleave deterministically.
 func Run(t *testing.T, db *sqlate.DB, store *data.Store) {
 	t.Helper()
 	ctx := context.Background()
@@ -49,6 +56,7 @@ func Run(t *testing.T, db *sqlate.DB, store *data.Store) {
 	t.Run("BeginFileDelete", s.beginFileDelete)
 	t.Run("FileDelete", s.fileDelete)
 	t.Run("LockTree", s.lockTree)
+	t.Run("MoveDirectory", s.moveDirectory)
 }
 
 // suite is one run's state.
@@ -237,6 +245,509 @@ func (s *suite) lockTree(t *testing.T) {
 	})
 }
 
+// moveDirectory checks the directory move against its contract: the
+// sequential outcomes, which are the same on every variant, then the two
+// opposing concurrent moves, whose outcome is what Serializes promises.
+func (s *suite) moveDirectory(t *testing.T) {
+	t.Run("RootRefused", func(t *testing.T) {
+		root := s.directory(t, blobfs.RootID)
+		_, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (blobfs.Directory, error) {
+			return s.store.MoveDirectory(s.ctx, tx, blobfs.RootID, root.ID, "root", root.Version)
+		})
+		if !errors.Is(err, blobfs.ErrRootDirectory) {
+			t.Errorf("MoveDirectory(root) = %v, want ErrRootDirectory", err)
+		}
+		if after := s.directory(t, blobfs.RootID); !equalDirectory(after, root) {
+			t.Errorf("the root changed to %+v from %+v", after, root)
+		}
+	})
+	t.Run("PoolRefused", func(t *testing.T) {
+		d := s.mkdir(t, "pool-"+t.Name())
+		if _, err := s.store.MoveDirectory(s.ctx, s.db, d.ID, blobfs.RootID, "renamed", d.Version); !errors.Is(err, query.ErrTransactionRequired) {
+			t.Errorf("MoveDirectory on the pool = %v, want ErrTransactionRequired", err)
+		}
+		if after := s.directory(t, d.ID); !equalDirectory(after, d) {
+			t.Errorf("the refused move changed the row to %+v from %+v", after, d)
+		}
+	})
+	t.Run("IntoOwnSubtreeRefused", func(t *testing.T) {
+		a := s.mkdir(t, "cycle-"+t.Name())
+		b := s.mkdirUnder(t, a.ID, "b")
+		c := s.mkdirUnder(t, b.ID, "c")
+		for _, target := range []blobfs.Directory{a, b, c} {
+			_, err := s.move(t, a.ID, target.ID, "a", a.Version)
+			if !errors.Is(err, blobfs.ErrCycle) {
+				t.Errorf("MoveDirectory of a under %s = %v, want ErrCycle", *target.Name, err)
+			}
+		}
+		if after := s.directory(t, a.ID); !equalDirectory(after, a) {
+			t.Errorf("the refused moves changed the row to %+v from %+v", after, a)
+		}
+	})
+	t.Run("MovesTheSubtree", func(t *testing.T) {
+		src := s.mkdir(t, "src-"+t.Name())
+		dst := s.mkdir(t, "dst-"+t.Name())
+		x := s.mkdirUnder(t, src.ID, "x")
+		y := s.mkdirUnder(t, x.ID, "y")
+		fx := s.insertFile(t, x.ID, "in-x.txt", blobfs.StatusAvailable)
+		fy := s.insertFile(t, y.ID, "in-y.txt", blobfs.StatusAvailable)
+		fileBefore := s.file(t, fx)
+		moved, err := s.move(t, x.ID, dst.ID, "x", x.Version)
+		if err != nil {
+			t.Fatalf("MoveDirectory: %v", err)
+		}
+		if *moved.ParentID != dst.ID || *moved.Name != "x" || moved.Version != x.Version+1 || !moved.UpdatedAt.After(x.UpdatedAt) || !moved.CreatedAt.Equal(x.CreatedAt) {
+			t.Errorf("the moved row is %+v, want it under dst at the next version", moved)
+		}
+		if after := s.directory(t, x.ID); !equalDirectory(after, moved) {
+			t.Errorf("MoveDirectory returned %+v but the database holds %+v", moved, after)
+		}
+		s.wantPath(t, x.ID, "/"+*dst.Name+"/x")
+		s.wantPath(t, y.ID, "/"+*dst.Name+"/x/y")
+		if after := s.directory(t, y.ID); !equalDirectory(after, y) {
+			t.Errorf("the child changed to %+v from %+v; it follows its parent by id", after, y)
+		}
+		if after := s.file(t, fx); !equalFile(after, fileBefore) {
+			t.Errorf("the file changed to %+v from %+v; it follows its directory by id", after, fileBefore)
+		}
+		if f := s.file(t, fy); f.DirectoryID != y.ID {
+			t.Errorf("the deep file is in %s, want %s", f.DirectoryID, y.ID)
+		}
+		if _, err := s.store.ResolveDirectory(s.ctx, s.db, "/"+*src.Name+"/x"); !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("the old path still resolves: %v", err)
+		}
+	})
+	t.Run("Renames", func(t *testing.T) {
+		d := s.mkdir(t, "rename-"+t.Name())
+		child := s.mkdirUnder(t, d.ID, "child")
+		renamed, err := s.move(t, d.ID, blobfs.RootID, s.name("renamed-"+t.Name()), d.Version)
+		if err != nil {
+			t.Fatalf("MoveDirectory as a rename: %v", err)
+		}
+		if *renamed.ParentID != blobfs.RootID || *renamed.Name != s.name("renamed-"+t.Name()) || renamed.Version != d.Version+1 {
+			t.Errorf("the renamed row is %+v", renamed)
+		}
+		s.wantPath(t, child.ID, "/"+*renamed.Name+"/child")
+	})
+	t.Run("NameTaken", func(t *testing.T) {
+		p := s.mkdir(t, "taken-"+t.Name())
+		s.mkdirUnder(t, p.ID, "held")
+		d := s.mkdir(t, "mover-"+t.Name())
+		_, err := s.move(t, d.ID, p.ID, "held", d.Version)
+		if !errors.Is(err, blobfs.ErrNameTaken) {
+			t.Errorf("MoveDirectory under a taken name = %v, want ErrNameTaken", err)
+		}
+		var ce *sqlate.ConstraintError
+		if !errors.As(err, &ce) || ce.Constraint != blobfs.ConstraintUniqueDirectoryParentName {
+			t.Errorf("the refusal does not carry blobfs_uq_directory_parent_name: %v", err)
+		}
+		// A file of the same name is no conflict: the name spaces are
+		// separate.
+		s.insertFile(t, p.ID, "shared", blobfs.StatusAvailable)
+		if _, err := s.move(t, d.ID, p.ID, "shared", d.Version); err != nil {
+			t.Errorf("MoveDirectory under the name of a file = %v, want the move to succeed", err)
+		}
+	})
+	t.Run("MissingParent", func(t *testing.T) {
+		d := s.mkdir(t, "orphan-"+t.Name())
+		_, err := s.move(t, d.ID, blobfs.NewID(), "d", d.Version)
+		if !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("MoveDirectory under a missing parent = %v, want ErrNotFound", err)
+		}
+		var ce *sqlate.ConstraintError
+		if !errors.As(err, &ce) || ce.Constraint != blobfs.ConstraintForeignKeyDirectoryParent {
+			t.Errorf("the refusal does not carry blobfs_fk_directory_parent: %v", err)
+		}
+		if after := s.directory(t, d.ID); !equalDirectory(after, d) {
+			t.Errorf("the refused move changed the row to %+v from %+v", after, d)
+		}
+	})
+	t.Run("MissingDirectory", func(t *testing.T) {
+		if _, err := s.move(t, blobfs.NewID(), blobfs.RootID, "ghost", 1); !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("MoveDirectory of a missing directory = %v, want ErrNotFound", err)
+		}
+	})
+	t.Run("StaleVersion", func(t *testing.T) {
+		d := s.mkdir(t, "stale-"+t.Name())
+		if _, err := s.move(t, d.ID, blobfs.RootID, s.name("stale-once-"+t.Name()), d.Version); err != nil {
+			t.Fatalf("the first rename: %v", err)
+		}
+		if _, err := s.move(t, d.ID, blobfs.RootID, s.name("stale-twice-"+t.Name()), d.Version); !errors.Is(err, query.ErrVersionMismatch) {
+			t.Errorf("MoveDirectory at the version before the rename = %v, want ErrVersionMismatch", err)
+		}
+	})
+	t.Run("OpposingConcurrentMoves", s.opposingMoves)
+	t.Run("OpposingSerializableMoves", s.opposingSerializableMoves)
+}
+
+// opposingMoves is the gate: transaction A moves X under Y while
+// transaction B moves Y under X, each through the full MoveDirectory, and
+// the two are interleaved through a wrapper variant that pauses each move
+// once its lock call has returned, with the commits held by the suite. A
+// starts first and reaches the pause with the lock held; B then starts.
+// When the store serializes, B blocks inside the lock while A holds it,
+// through A's check and update and until A commits; B's lock then
+// returns, and B's check sees X under Y and refuses with ErrCycle: no
+// cycle exists. When the store does not serialize, B passes the no-op
+// lock at once, A's check and update run and stay uncommitted, B's check
+// then runs against the same committed state and passes, B's update runs,
+// both commit, and X and Y are each other's ancestor and unreachable from
+// the root, which the suite asserts with a walk down from the root and a
+// bounded walk up from each, and then repairs.
+func (s *suite) opposingMoves(t *testing.T) {
+	x := s.mkdir(t, "x-"+t.Name())
+	y := s.mkdir(t, "y-"+t.Name())
+	g := &gated{Variant: s.store.Variant(), arrived: make(chan chan struct{})}
+	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
+	if err != nil {
+		t.Fatalf("NewCatalog: %v", err)
+	}
+	store, err := data.New(catalog, s.db.Dialect(), data.WithVariant(g))
+	if err != nil {
+		t.Fatalf("data.New over the gated variant: %v", err)
+	}
+	const wait = 5 * time.Second
+	arrived := func(who string) chan struct{} {
+		t.Helper()
+		select {
+		case release := <-g.arrived:
+			return release
+		case <-time.After(wait):
+			t.Fatalf("%s never reached the pause after its lock", who)
+			return nil
+		}
+	}
+	notArrived := func(who string) {
+		t.Helper()
+		select {
+		case <-g.arrived:
+			t.Fatalf("%s passed the lock while the other transaction held it; the store reports it serializes", who)
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+
+	a := s.startMove(store, x.ID, y.ID, x.Version)
+	releaseA := arrived("A")
+	b := s.startMove(store, y.ID, x.ID, y.Version)
+
+	if s.store.Serializes() {
+		notArrived("B")
+		close(releaseA)
+		if err := <-a.moved; err != nil {
+			t.Fatalf("A's move: %v", err)
+		}
+		notArrived("B")
+		a.commit <- struct{}{}
+		if err := <-a.done; err != nil {
+			t.Fatalf("A's commit: %v", err)
+		}
+		close(arrived("B"))
+		if err := <-b.moved; !errors.Is(err, blobfs.ErrCycle) {
+			t.Fatalf("B's move = %v, want ErrCycle: its check ran after A's commit", err)
+		}
+		if err := <-b.done; err != nil {
+			t.Fatalf("B's rollback: %v", err)
+		}
+		s.wantPath(t, x.ID, "/"+*y.Name+"/moved")
+		s.wantPath(t, y.ID, "/"+*y.Name)
+		if n := s.reachable(t, x.ID, y.ID); n != 2 {
+			t.Errorf("%d of the two directories are reachable from the root, want both", n)
+		}
+		if s.ownAncestor(t, x.ID) || s.ownAncestor(t, y.ID) {
+			t.Error("a directory is its own ancestor: a cycle formed under a serializing lock")
+		}
+		return
+	}
+
+	releaseB := arrived("B")
+	close(releaseA)
+	if err := <-a.moved; err != nil {
+		t.Fatalf("A's move on the baseline: %v", err)
+	}
+	// A's update is uncommitted, so B's check sees X still under the root
+	// and passes. B's update then waits on the row locks A's update took
+	// (an update of parent_id is a key update on Postgres, since the
+	// column is in a unique constraint, and the foreign-key check on the
+	// new parent shares the same rows), so B returns only once A commits;
+	// a B that returned ErrCycle here would mean its check ran after A's
+	// commit, which the no-op lock cannot cause.
+	close(releaseB)
+	select {
+	case err := <-b.moved:
+		if err != nil {
+			t.Fatalf("B's move on the baseline = %v; its check ran before A committed, so nothing refused it", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+	}
+	a.commit <- struct{}{}
+	if err := <-a.done; err != nil {
+		t.Fatalf("A's commit: %v", err)
+	}
+	select {
+	case err := <-b.moved:
+		if err != nil {
+			t.Fatalf("B's move on the baseline = %v after A's commit; its check had passed already", err)
+		}
+	case <-time.After(wait):
+		t.Fatal("B's move did not return after A committed")
+	}
+	b.commit <- struct{}{}
+	if err := <-b.done; err != nil {
+		t.Fatalf("B's commit: %v", err)
+	}
+	// The proof that the baseline forms a cycle: both moves committed, X is
+	// under Y and Y is under X, neither is reachable from the root, and
+	// each is its own ancestor.
+	if xr, yr := s.directory(t, x.ID), s.directory(t, y.ID); *xr.ParentID != y.ID || *yr.ParentID != x.ID {
+		t.Fatalf("after both commits x's parent is %s and y's is %s, want each the other", *xr.ParentID, *yr.ParentID)
+	}
+	if n := s.reachable(t, x.ID, y.ID); n != 0 {
+		t.Errorf("%d of the two directories are reachable from the root, want none: they form a cycle detached from the tree", n)
+	}
+	if !s.ownAncestor(t, x.ID) || !s.ownAncestor(t, y.ID) {
+		t.Error("the two directories are not each their own ancestor; the baseline formed no cycle")
+	}
+	// Repair, so the rest of the database stays walkable: Y goes back
+	// under the root, and X stays under Y.
+	if _, err := s.db.ExecContext(s.ctx, "UPDATE blobfs_directory SET parent_id = "+s.db.Dialect().Placeholder(1)+" WHERE id = "+s.db.Dialect().Placeholder(2), blobfs.RootID, y.ID); err != nil {
+		t.Fatalf("repair: %v", err)
+	}
+	if n := s.reachable(t, x.ID, y.ID); n != 2 {
+		t.Errorf("after the repair %d of the two directories are reachable, want both", n)
+	}
+}
+
+// opposingSerializableMoves is the standard-tier alternative to the lock,
+// measured on every variant: the same two opposing moves, each in a
+// transaction the caller opened at serializable isolation, interleaved as
+// on the baseline (both past their locks, A's update uncommitted when B's
+// check runs). The engine then refuses one of the two, at its update or
+// at its commit, with a serialization failure (SQLSTATE 40001, which
+// sqlate leaves unmapped), and no cycle forms. On a serializing variant
+// B's snapshot predates A's commit all the same, because the lock
+// statement is B's first and takes the snapshot before it blocks, so B is
+// refused at its update instead of at its check.
+func (s *suite) opposingSerializableMoves(t *testing.T) {
+	x := s.mkdir(t, "sx-"+t.Name())
+	y := s.mkdir(t, "sy-"+t.Name())
+	g := &gated{Variant: s.store.Variant(), arrived: make(chan chan struct{})}
+	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
+	if err != nil {
+		t.Fatalf("NewCatalog: %v", err)
+	}
+	store, err := data.New(catalog, s.db.Dialect(), data.WithVariant(g))
+	if err != nil {
+		t.Fatalf("data.New over the gated variant: %v", err)
+	}
+	const wait = 5 * time.Second
+	serializable := sqlate.Isolation(sql.LevelSerializable)
+	arrived := func(who string) chan struct{} {
+		t.Helper()
+		select {
+		case release := <-g.arrived:
+			return release
+		case <-time.After(wait):
+			t.Fatalf("%s never reached the pause after its lock", who)
+			return nil
+		}
+	}
+	a := s.startMove(store, x.ID, y.ID, x.Version, serializable)
+	releaseA := arrived("A")
+	b := s.startMove(store, y.ID, x.ID, y.Version, serializable)
+	var releaseB chan struct{}
+	if !s.store.Serializes() {
+		releaseB = arrived("B")
+	}
+	close(releaseA)
+	if err := <-a.moved; err != nil {
+		t.Fatalf("A's move: %v", err)
+	}
+	if s.store.Serializes() {
+		a.commit <- struct{}{}
+		if err := <-a.done; err != nil {
+			t.Fatalf("A's commit: %v", err)
+		}
+		releaseB = arrived("B")
+	}
+	close(releaseB)
+	if !s.store.Serializes() {
+		// B's update waits on A's row locks; A commits meanwhile.
+		time.Sleep(200 * time.Millisecond)
+		a.commit <- struct{}{}
+		if err := <-a.done; err != nil {
+			t.Fatalf("A's commit: %v", err)
+		}
+	}
+	var refused error
+	select {
+	case refused = <-b.moved:
+	case <-time.After(wait):
+		t.Fatal("B's move did not return")
+	}
+	if refused == nil {
+		b.commit <- struct{}{}
+		refused = <-b.done
+	} else if err := <-b.done; err != nil {
+		t.Fatalf("B's rollback: %v", err)
+	}
+	if refused == nil {
+		t.Fatal("B's move committed under serializable isolation; the engine did not refuse the second of two opposing moves")
+	}
+	var state interface{ SQLState() string }
+	if !errors.As(refused, &state) || state.SQLState() != "40001" {
+		t.Errorf("B was refused with %v, want a serialization failure (SQLSTATE 40001)", refused)
+	}
+	if n := s.reachable(t, x.ID, y.ID); n != 2 {
+		t.Errorf("%d of the two directories are reachable from the root, want both", n)
+	}
+	if s.ownAncestor(t, x.ID) || s.ownAncestor(t, y.ID) {
+		t.Error("a cycle formed under serializable isolation")
+	}
+	s.wantPath(t, x.ID, "/"+*y.Name+"/moved")
+}
+
+// mover is one move under way on a goroutine: moved reports
+// MoveDirectory's result once it returns, commit tells the goroutine to
+// commit, and done reports the commit, or the rollback that follows a
+// refused move.
+type mover struct {
+	moved  chan error
+	commit chan struct{}
+	done   chan error
+}
+
+// startMove begins a transaction on a goroutine under opts, runs
+// MoveDirectory through store in it, and waits for the suite before
+// committing.
+func (s *suite) startMove(store *data.Store, id, parentID string, version int64, opts ...sqlate.TxOption) *mover {
+	m := &mover{moved: make(chan error, 1), commit: make(chan struct{}), done: make(chan error, 1)}
+	go func() {
+		tx, err := s.db.Begin(s.ctx, opts...)
+		if err != nil {
+			m.moved <- err
+			m.done <- err
+			return
+		}
+		_, err = store.MoveDirectory(s.ctx, tx, id, parentID, "moved", version)
+		m.moved <- err
+		if err != nil {
+			m.done <- tx.Rollback()
+			return
+		}
+		<-m.commit
+		m.done <- tx.Commit()
+	}()
+	return m
+}
+
+// gated wraps a variant so that every LockTree, once the wrapped lock has
+// returned, sends a release channel of its own on arrived and waits on
+// it before it returns. The suite drives two moves through it and
+// decides when each proceeds past its lock, in arrival order; on a
+// serializing variant a second lock call blocks inside the wrapped lock
+// and never reaches arrived until the first transaction ends.
+type gated struct {
+	data.Variant
+	arrived chan chan struct{}
+}
+
+func (g *gated) LockTree(ctx context.Context, sess sqlate.Session) error {
+	if err := g.Variant.LockTree(ctx, sess); err != nil {
+		return err
+	}
+	release := make(chan struct{})
+	g.arrived <- release
+	<-release
+	return nil
+}
+
+// move runs MoveDirectory in a transaction of its own and commits it.
+func (s *suite) move(t *testing.T, id, parentID, name string, version int64) (blobfs.Directory, error) {
+	t.Helper()
+	return s.db.Transact(s.ctx, func(tx *sqlate.Tx) (blobfs.Directory, error) {
+		return s.store.MoveDirectory(s.ctx, tx, id, parentID, name, version)
+	})
+}
+
+// reachable counts how many of the given directories a walk down from the
+// root reaches. A directory in a cycle is never reached, because its chain
+// of parents never arrives at the root, so the walk terminates whatever
+// the two directories' state.
+func (s *suite) reachable(t *testing.T, ids ...string) int {
+	t.Helper()
+	p := s.db.Dialect().Placeholder
+	text := "WITH RECURSIVE tree (id) AS (" +
+		"SELECT d.id FROM blobfs_directory d WHERE d.parent_id IS NULL" +
+		" UNION ALL SELECT d.id FROM blobfs_directory d JOIN tree t ON d.parent_id = t.id)" +
+		" SELECT COUNT(*) FROM tree WHERE tree.id IN (" + p(1) + ", " + p(2) + ")"
+	return s.count(t, text, ids[0], ids[1])
+}
+
+// ownAncestor reports whether the directory with id is met again on a
+// walk up from itself, bounded to eight steps so the walk terminates on a
+// cycle.
+func (s *suite) ownAncestor(t *testing.T, id string) bool {
+	t.Helper()
+	p := s.db.Dialect().Placeholder
+	text := "WITH RECURSIVE up (id, parent_id, depth) AS (" +
+		"SELECT d.id, d.parent_id, CAST(0 AS integer) FROM blobfs_directory d WHERE d.id = " + p(1) +
+		" UNION ALL SELECT d.id, d.parent_id, up.depth + 1 FROM blobfs_directory d JOIN up ON up.parent_id = d.id WHERE up.depth < 8)" +
+		" SELECT COUNT(*) FROM up WHERE up.id = " + p(2)
+	return s.count(t, text, id, id) > 1
+}
+
+// count runs a one-value count query.
+func (s *suite) count(t *testing.T, text string, args ...any) int {
+	t.Helper()
+	rows, err := s.db.QueryContext(s.ctx, text, args...)
+	if err != nil {
+		t.Fatalf("%s: %v", text, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var n int
+	if !rows.Next() {
+		t.Fatalf("%s: no row: %v", text, rows.Err())
+	}
+	if err := rows.Scan(&n); err != nil {
+		t.Fatalf("%s: %v", text, err)
+	}
+	return n
+}
+
+// wantPath checks DirectoryPath of id.
+func (s *suite) wantPath(t *testing.T, id, want string) {
+	t.Helper()
+	got, err := s.store.DirectoryPath(s.ctx, s.db, id)
+	if err != nil || got != want {
+		t.Errorf("DirectoryPath(%s) = %q, %v, want %q", id, got, err, want)
+	}
+}
+
+// directory reads the row by id through the store, on the pool.
+func (s *suite) directory(t *testing.T, id string) blobfs.Directory {
+	t.Helper()
+	d, err := s.store.Directory(s.ctx, s.db, id)
+	if err != nil {
+		t.Fatalf("Directory(%s): %v", id, err)
+	}
+	return d
+}
+
+// mkdirUnder creates a directory under a parent.
+func (s *suite) mkdirUnder(t *testing.T, parentID, name string) blobfs.Directory {
+	t.Helper()
+	d, err := s.store.Mkdir(s.ctx, s.db, parentID, s.name(name))
+	if err != nil {
+		t.Fatalf("Mkdir(%q): %v", name, err)
+	}
+	return d
+}
+
+// name makes a subtest name usable as a directory name.
+func (*suite) name(name string) string {
+	return strings.NewReplacer("/", "-", "\\", "-").Replace(name)
+}
+
 // heldUntil proves a second transaction's LockTree blocks while the first
 // holds the lock and returns once the first ends through end.
 func (s *suite) heldUntil(t *testing.T, end func(*sqlate.Tx) error) {
@@ -389,7 +900,7 @@ func (s *suite) file(t *testing.T, id string) blobfs.File {
 // mkdir creates a directory under the root.
 func (s *suite) mkdir(t *testing.T, name string) blobfs.Directory {
 	t.Helper()
-	name = strings.NewReplacer("/", "-", "\\", "-").Replace(name)
+	name = s.name(name)
 	d, err := s.store.Mkdir(s.ctx, s.db, blobfs.RootID, name)
 	if err != nil {
 		t.Fatalf("Mkdir(%q): %v", name, err)
@@ -411,6 +922,12 @@ func (s *suite) insertFile(t *testing.T, dir, name string, status blobfs.Status)
 		t.Fatalf("insert file %s: %v", name, err)
 	}
 	return id
+}
+
+// equalDirectory compares two rows field by field, timestamps by instant.
+func equalDirectory(a, b blobfs.Directory) bool {
+	return a.ID == b.ID && equalString(a.ParentID, b.ParentID) && equalString(a.Name, b.Name) &&
+		a.Version == b.Version && a.CreatedAt.Equal(b.CreatedAt) && a.UpdatedAt.Equal(b.UpdatedAt)
 }
 
 // equalFile compares two rows field by field, timestamps by instant.

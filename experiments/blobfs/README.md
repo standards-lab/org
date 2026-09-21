@@ -26,14 +26,14 @@ several isolated trees runs several configurations, each with its own database a
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
 | `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
 | `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
-| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `rm`, `rmdir`, and `bookmark` commands. |
+| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `mv`, `rm`, `rmdir`, and `bookmark` commands. |
 | `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates both): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, and the directory removal), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
+| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, the directory removal, the cycle check, and the directory and file moves), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
 | `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
 | `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
@@ -87,6 +87,40 @@ and directories after their contents, until a page comes back empty, then remove
 it takes no lock, and a row inserted meanwhile is either removed by a later pass or refuses the
 directory's removal, in which case the walk empties the directory again a bounded number of
 times before it reports `blobfs.ErrNotEmpty`. A rerun continues from wherever it stopped.
+
+## The move path
+
+A directory move is three statements in the caller's transaction, in this order: the variant's
+tree lock, the cycle check, and the guarded update of `parent_id` and `name`. The cycle check
+(`directory_is_within`) is one upward walk from the new parent that looks for the moved
+directory, so it costs the new parent's depth; a new parent that is the directory or one of its
+descendants is `blobfs.ErrCycle`. The update is the query library's guarded command over the
+version the caller read, so a row another transaction changed is `query.ErrVersionMismatch`, a
+missing new parent is `blobfs.ErrNotFound` through the foreign key, and a taken name is
+`blobfs.ErrNameTaken` through the unique constraint. Directories and files have separate name
+spaces, so a directory may take a file's name beside it. The root is refused before any SQL.
+Children and files follow the moved directory by id, and no object moves, because no key encodes
+a path. A file move (`MoveFile`) is one guarded update on the pool with no lock and no check,
+since a file cannot be its own ancestor; a `deleting` row is refused, a `pending` row moves, and
+the key stays what the insert built, so a rename touches no object.
+
+The lock is what closes the race between two opposing moves: each takes it before its check, so
+the second one's check sees the first one's committed update and is refused. On the baseline the
+lock is a no-op, both checks pass against the same committed state, both updates commit, and the
+two directories become each other's ancestor, detached from the root; the conformance suite
+asserts that cycle on the baseline and its absence on `pgnative`. A caller on the baseline
+therefore serializes directory moves outside the database, or opens every moving transaction at
+serializable isolation and retries on SQLSTATE 40001, which the suite also proves refuses one of
+two opposing moves on both variants.
+
+`mv <src> <dst>` reads its destination the way Unix does: an existing directory is moved into,
+and any other path is the new path, whose parent must exist and whose last segment is the new
+name. The consumer resolves both paths and runs the library's move in one transaction. It keeps
+every move under one top-level directory (`files.ErrMoveAcrossScopes` otherwise), because the
+`directory_owner` row binds a top-level directory and `--unit` is checked at that ancestor: a
+top-level directory may be renamed but not moved below another, and nothing moves up to the top
+level or across two top-level directories. A bookmark follows its file, and `bookmark ls`
+recomputes the path.
 
 ## The write path
 
@@ -172,6 +206,14 @@ id is a UUID and stands in for the auth strategy's unit.
 - `stat <path>` prints the file's row, one field per line: path, id, name, status, size,
   content type, etag, key, version, and the timestamps. A `pending` file shows `-` for its size
   and etag. The object store is not consulted.
+- `mv <src> <dst>` moves or renames the directory or file at `src` and prints both paths and the
+  id. When `dst` names an existing directory the source moves into it under its own name;
+  otherwise `dst` is the new path, whose parent must exist. A directory moves with everything
+  under it, in one transaction under the tree lock, and a move into its own subtree is refused
+  as a cycle. A file's object stays where it is. A move stays under one top-level directory: a
+  top-level directory may be renamed but not moved below another, and nothing moves up to the
+  top level or across two top-level directories. A `deleting` file is refused; a `pending` one
+  moves. The root cannot be moved.
 - `rm <path>` deletes the file at the path through the three steps above and prints the path and
   the id. A file any unit bookmarks is refused before anything is touched. `--fail-after begin`
   stops once the row is committed as `deleting`, and `--fail-after object` once the object is

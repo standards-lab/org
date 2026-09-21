@@ -16,7 +16,7 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 12 are committed: the single-root schema, the consumer's `directory_owner` and
+Stages 1 to 13 are committed: the single-root schema, the consumer's `directory_owner` and
 `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
@@ -42,7 +42,17 @@ over `remove_file`, the same standard statement on every variant), the directory
 a foreign key the library does not own, the delete protocol in the conformance suite, the
 adapter's object delete, and the `rm`, `rmdir`, and `rm -r` commands with `rm --fail-after
 begin|object`. `files.New` takes `WithVariant`, and the consumer's delete tests run over both
-variants. Moving is stage 13.
+variants.
+
+Stage 13 added the cycle check (`IsWithin` over
+`directory_is_within`), the directory move (`MoveDirectory`: the variant's tree lock, the
+check, and the guarded update `reparent_directory` with its check `directory_version`, in the
+caller's transaction), the file move (`MoveFile` over the guarded `move_file`, no lock and no
+check), the `MoveDirectory` group of the conformance suite with the two opposing concurrent
+moves interleaved through a test-only gated variant and the suite holding the commits, and the
+consumer's `mv <src> <dst>` with its Unix destination rule and the scope rule that keeps a move
+under one top-level directory (`files.ErrMoveAcrossScopes`). Proof 4 is answered: on the
+baseline the two opposing moves form a cycle, so the lock is a caller requirement there.
 
 ## Running it
 
@@ -54,6 +64,132 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-21: stage 13 decisions the plan did not spell out
+
+- **The move steps and their order.** `MoveDirectory(ctx, sess, id, parentID, name, version)`
+  runs, in the caller's transaction, `Store.LockTree`, then `IsWithin(parentID, id)` (the cycle
+  check, one upward walk from the new parent looking for the moved directory, so its cost is the
+  new parent's depth), then the guarded update `reparent_directory` (`parent_id` and `name`
+  under `sql.guard_where` and `sql.guard_set`, with `AND parent_id IS NOT NULL` so no statement
+  of the library can move the root), then the read-back. The root is refused in Go before any
+  SQL, and so is an invalid name. The step takes `sqlate.Session`, as every method does; the
+  transaction requirement is enforced twice, by the lock's refusal of a pool session on both
+  variants and by the `transaction: required` header on `reparent_directory`, which is the
+  third of the three statements that must see one lock. The step takes the id and the version
+  the caller read, not the row, because the guard needs exactly those two; the consumer
+  resolves the directory in the same transaction and passes `dir.Version`. A rename is a move
+  to the same parent and pays the lock and the check like any move; skipping both when the
+  parent is unchanged was set aside because the step would have to trust the caller's row for
+  the current parent, and a rename is rare. `IsWithin` is exported on its own so a caller can
+  refuse a move early, with the documented caveat that its answer holds only under the lock.
+  Proved hermetically by `TestMoveDirectoryIsThreeStepsUnderOneLock` (the order and the bound
+  arguments), `TestMoveDirectoryRefusesBeforeSQL`, and `TestMoveDirectoryClassifies`, and on
+  the engine by the suite's `MoveDirectory` group on both variants.
+- **The file move.** `MoveFile(ctx, sess, id, directoryID, name, version)` is one guarded
+  statement, `move_file`, on the pool or in a transaction, with `AND status <> 'deleting'`: a
+  file cannot be its own ancestor, so it takes no lock and no check. The status predicate is
+  the second instance of the guard's limitation (the guard checks the version alone), so a
+  mismatch is classified by reading the row: the expected version with a deleting status is
+  `blobfs.ErrDeleting`, anything else the guard's own conflict. A pending row moves, and a put
+  at its new path resumes it, because the retry looks the name up under the parent
+  (`TestMove`). The key is untouched: it is `id/sanitized-name`, built once at the insert, and
+  the move statement names no key column, so a rename moves no object; `TestMoveFileOnTheEngine`
+  checks the key after a move and a rename, and `TestMove` reads the content back through the
+  consumer after both. A name a deleting row holds is `ErrNameTaken`, as it is for a put.
+- **Directories and files have separate name spaces, confirmed.** `blobfs_uq_directory_parent_name`
+  and `blobfs_uq_file_directory_name` are on different tables, so a directory may take the name
+  of a file beside it and the other way round (`MoveDirectory/NameTaken`,
+  `TestMoveFileOnTheEngine`). The consumer's `mv` then resolves a shared path as the directory
+  first: `mv /a/y/top.txt ...` moves the directory named `top.txt` when one exists, and `stat`
+  of the same path still finds the file. The concept's assumption that a shared name stays
+  unambiguous for resolution holds because every command resolves one kind; `mv` is the first
+  command that resolves either, and it takes the directory.
+- **`mv` reads its destination the way Unix does.** `mv <src> <dst>`: when `dst` resolves to an
+  existing directory the source moves into it under its own name, and otherwise `dst` is the
+  new path, whose parent must exist and whose last segment is the new name. `mv /a/x /a/x`
+  is a move into itself and is `ErrCycle`; `mv /a /` is a rename of `/a` to its own name. A
+  trailing slash is `ErrInvalidPath`, as everywhere. Both resolutions and the library's move
+  run in one transaction (`TestMoveFileIsOneTransaction`,
+  `TestMoveDirectoryIsOneTransactionUnderTheLock`); the resolutions run before the lock, which
+  is safe because the version guard catches a source that moved meanwhile and the check under
+  the lock walks from the new parent's committed position. The result line is
+  `mv: <from> -> <to> (id X)`. `mv` reads the root up to four times (the destination as a
+  directory, then its parent; the source as a directory, then its parent), the stage 7 finding
+  again.
+- **The ownership rule: a move stays under one top-level directory.** The top-level directory
+  that contains the source must be the one that contains the destination, where an entry at
+  the top level counts as contained by the root. So a top-level directory may be renamed (its
+  owner row is keyed by id and stays, and `ls / --unit` lists the new name) but not moved below
+  another; nothing moves up to the top level or across two top-level directories; a file in the
+  root may be renamed but not moved under a top-level directory. The reason: an owner row binds
+  a top-level directory and the scope is checked once at that ancestor, so a move across two
+  top-level directories would carry an entry from one unit's scope into another's without
+  either unit's say, and a move that changed a top-level directory's depth would leave an
+  owner row at a depth the scope check never reads. The rule is checked inside the transaction
+  once the destination resolves and before the source is touched, so a refused move runs no
+  update (`TestMoveStaysUnderOneTopLevelDirectory`), and the refusal is
+  `files.ErrMoveAcrossScopes`. `mv` takes no `--unit`; the rule is structural, and a unit's
+  right to move within its own scope is the authorization the experiment does not prove. The
+  rule is recorded under `v1.storage` as the finding that ownership at the directory grain
+  constrains moves to within a scope.
+- **Proof 4, answered: the lock is a caller requirement on the baseline.** The evidence is the
+  suite's `MoveDirectory/OpposingConcurrentMoves` on `TestStandardConformance`: transaction A
+  moves X under Y and B moves Y under X; both pass the no-op lock, A's check and update run and
+  stay uncommitted, B's check runs against the same committed state and passes, both commit,
+  and afterward X's parent is Y and Y's parent is X, neither is reachable by a walk down from
+  the root, and a bounded walk up from each meets itself again. The same interleaving on
+  `TestConformance` (`pgnative`) blocks B inside the lock until A commits, then refuses B with
+  `ErrCycle`, and both directories stay reachable. What a baseline caller does, in order of
+  preference: use a serializing variant; or open every moving transaction at serializable
+  isolation and retry on a serialization failure, which the suite's
+  `OpposingSerializableMoves` proves refuses the second of two opposing moves on both variants
+  with SQLSTATE 40001 and no cycle (standard tier, no lock, no write to the root, at the cost of
+  a retry loop and of a sentinel `sqlate` does not map); or serialize directory moves outside
+  the database. The root-row update idiom recorded at stage 9 stays the candidate for a
+  serializing standard variant, and this stage's evidence adds a reason to prefer the
+  serializable-isolation route over it: Postgres already serializes the two moves' updates on
+  its own row locks (an update of `parent_id` is a key update, since the column is in a unique
+  constraint, and the foreign-key check's `KEY SHARE` on the new parent conflicts with it),
+  which the root-row idiom would only widen to the whole tree, while the cycle comes from the
+  check running before the other move's commit, which only a lock taken before the check or a
+  serializable snapshot prevents. The isolation route needs nothing from the variant seam and no
+  extra write; the recommendation for the review is to document both and build neither until a
+  consumer on an engine without a native lock exists. On `pgnative` under serializable
+  isolation B is refused with 40001 at its update rather than with `ErrCycle` at its check,
+  because the lock statement is B's first and takes B's snapshot before it blocks.
+- **The determinism seam.** No third variation point and no production hook. The suite wraps
+  the store's variant in a test-only `gated` variant whose `LockTree` runs the wrapped lock and
+  then hands the suite a release channel and waits on it, and builds a second store over it
+  through the public `data.New`; each mover runs the whole `MoveDirectory` in a transaction the
+  suite begins and commits itself, so the interleaving is check, check, update, update, commit,
+  commit on the baseline and lock, check, update, commit, lock, refused check on `pgnative`.
+  The gate hands each arrival its own release channel because two movers waiting on one
+  channel would be released in an arbitrary order (the first draft did that and deadlocked
+  once). The only timed waits are the suite's existing 500 ms "did not arrive" checks and 5 s
+  bounds. The consumer's `TestMoveOpposingConcurrentMoves` runs the same gate through
+  `files.WithVariant` and `mv`: on `pgnative` it is the deterministic refusal through the
+  consumer; on the baseline it can only show the second released mover refused, because the
+  consumer's `Move` commits as soon as the library's update returns and no seam sits between
+  the check and the commit, so the cycle itself is proved at the library level.
+- **A move racing a delete, confirmed on both variants.** `TestMoveRacesADelete` holds a raw
+  uncommitted transaction on a second connection and runs the consumer's operation against it:
+  a move into a directory whose removal is uncommitted waits on the row and is `ErrNotFound`
+  once the removal commits (the foreign key) or succeeds once it rolls back; a removal of a
+  directory whose child is being moved out waits on the child's row and succeeds once the move
+  commits or is `ErrNotEmpty` once it rolls back; a removal of a directory a child is being
+  moved into waits on the directory's row and is `ErrNotEmpty` once the move commits or succeeds
+  once it rolls back. The stage 12 statement holds: the delete takes no tree lock, and one
+  foreign key or the other decides, with the engine's row locks making the second operation
+  wait for the first's outcome rather than race it.
+- **Where the tests live.** The library's hermetic `move_test.go` (the order, the bindings, the
+  refusals before SQL, the classification), `move_integration_test.go` (the file move on the
+  engine), and the suite's `MoveDirectory` group run through `TestStandardConformance` and
+  `TestConformance`; the consumer's hermetic `move_test.go` (one transaction, the scope rule,
+  the rendering) and `move_integration_test.go` (`TestMove`, `TestMoveOpposingConcurrentMoves`,
+  `TestMoveRacesADelete`, each over both variants); and the binary's `TestMoveCommands`.
+  `TestNew` counts twenty statements, `Verify` twenty-six prepares, and the consumer's
+  inventory thirty-six.
 
 ### 2026-09-20: stage 12 decisions the plan did not spell out
 
@@ -815,6 +951,21 @@ owner and no unit.
   `sqlate` itself gives everything this needs; the finding is that the classification is
   per-owner and per-operation, and a library cannot classify a constraint it does not own.
 
+- **`postgres.Dialect.MapError` leaves SQLSTATE 40001 unmapped (stage 13).** A serialization
+  failure reaches the caller as the driver's error, and the dialect's own test pins that. A
+  caller that runs moves at serializable isolation, the standard-tier alternative to the tree
+  lock, retries on it, and the only driver-free way to recognize it is the
+  `interface{ SQLState() string }` the driver's error implements. A sentinel for the class
+  would let a retry loop stay portable.
+- **The guard's single predicate, again (stage 13).** `move_file` adds `AND status <>
+  'deleting'` to the guarded update, and a refusal by status reports as a version mismatch, so
+  `MoveFile` reads the row to classify, as `CompleteFileWrite` does. Two of the library's four
+  guarded statements now carry the extra read.
+- **`ResolveDirectory` from the root, again (stage 13).** `mv` resolves the destination as a
+  directory, then its parent, then the source as a directory, then its parent: four
+  resolutions, each starting at the root. A resolution that returns the chain it walked, or a
+  `ResolveUnder`, would make it two.
+
 ### The library
 
 - **Constraint-to-sentinel mapping is per operation.** `blobfs_fk_directory_parent` means a
@@ -959,6 +1110,29 @@ owner and no unit.
   removal, three stalled passes over one listing) and reports a classifiable error with the
   tree consistent.
 
+- **The move path is two standard statements per kind and no third variation point (stage
+  13).** A directory move is the existing lock, the cycle check (`directory_is_within`), and
+  the guarded update (`reparent_directory` with `directory_version` as its check); a file move
+  is the guarded `move_file` over the existing `file_version`. Nothing native was needed:
+  `RETURNING` would save the read-back, as it would everywhere. `TestNew` counts twenty
+  statements and `Verify` twenty-six prepares; the consumer's inventory is thirty-six.
+- **The engine's row locks serialize the updates and not the checks (stage 13).** On Postgres
+  an update of `parent_id` is a key update, because the column is in the unique constraint
+  `blobfs_uq_directory_parent_name`, so it takes a `FOR UPDATE` tuple lock, and the foreign-key
+  check on the new parent takes `KEY SHARE`, which conflicts with it. Two opposing moves
+  therefore serialize their updates on each other's rows even on the baseline, and the second
+  update waits for the first's commit; the cycle forms anyway, because the second move's check
+  ran before that commit. The same locks make a move racing a delete wait for the other's
+  outcome, which one foreign key or the other then decides.
+- **The cycle check assumes an acyclic tree (stage 13).** `directory_is_within` and
+  `directory_ancestors` are unbounded upward walks; on a tree that already holds a cycle they
+  never terminate, which is why the suite repairs the cycle it forms on the baseline and never
+  runs `DirectoryPath` on it, and why the lock is a requirement and not a courtesy. A bounded
+  walk (a depth column and a limit) is the diagnostic form the suite uses to prove a cycle.
+- **Two name spaces, one path (stage 13).** A directory and a file may share a name under one
+  parent. Every command but `mv` resolves one kind, so the ambiguity never reached a command
+  before; `mv` resolves the directory first and says so.
+
 ### `go-storage` and `azureblob`
 
 - `Put` returns the caller's content type, while `Stat` and `Get` return the server's.
@@ -1048,6 +1222,17 @@ owner and no unit.
   is the unit's row count times the depth; a sort by the row's key costs the page's rows
   instead. A unit with more than a few hundred rows pays a JIT compile on a default Postgres
   unless the session lowers `jit_above_cost`.
+
+- Ownership at the directory grain constrains moves to within a scope (stage 13). The owner
+  row binds a top-level directory and the scope is checked once at that ancestor, so the
+  service refuses a move whose source and destination sit under different top-level
+  directories, or one at the top level and the other below it, before the library's move; a
+  top-level directory may be renamed, and its owner row is keyed by id and stays. A move of a
+  document across two organizations' trees is therefore not a move but a copy and a delete,
+  which the object key makes cheap on the SQL side and expensive on the store side. A service
+  on the baseline serializes directory moves itself: one mover per process, or every moving
+  transaction at serializable isolation with a retry on SQLSTATE 40001; on `pgnative` the
+  library's lock does it.
 
 ## Evidence: the cost of the shipped listing (proof V3, measured 2026-09-20, PostgreSQL 18.4)
 

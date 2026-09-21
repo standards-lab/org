@@ -51,8 +51,8 @@ func TestCommands_MountsMkdirAndLs(t *testing.T) {
 		names = append(names, c.Name())
 	}
 	slices.Sort(names)
-	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,put,rm,rmdir,stat" {
-		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,put,rm,rmdir,stat", got)
+	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,mv,put,rm,rmdir,stat" {
+		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,mv,put,rm,rmdir,stat", got)
 	}
 	for _, c := range cmds {
 		if c.Name() != "bookmark" {

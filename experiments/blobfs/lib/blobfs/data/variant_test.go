@@ -201,8 +201,8 @@ func TestConsumerVariantSwapsOneMethod(t *testing.T) {
 		if calls := rec.Calls(); len(calls) != 0 {
 			t.Errorf("the driver saw %v, want nothing: the override ran no SQL and the baseline's lock ran none", calls)
 		}
-		if n := len(s.Statements()); n != 16 {
-			t.Errorf("Statements() lists %d, want the persistence package's 16: the wrapper compiled nothing of its own", n)
+		if n := len(s.Statements()); n != 20 {
+			t.Errorf("Statements() lists %d, want the persistence package's 20: the wrapper compiled nothing of its own", n)
 		}
 	})
 

@@ -228,6 +228,28 @@ type PutResult struct {
 	Resumed bool
 }
 
+// MoveResult is what mv returns: what kind of entry moved, its id, the
+// path it was at, and the path it is at now, which is the destination
+// itself when the destination named a new path and the destination with
+// the source's name appended when it named an existing directory.
+type MoveResult struct {
+	Kind EntryKind
+	ID   string
+	From string
+	To   string
+}
+
+// EntryKind names what an entry of the tree is.
+type EntryKind string
+
+const (
+	// EntryDirectory is a directory.
+	EntryDirectory EntryKind = "directory"
+
+	// EntryFile is a file.
+	EntryFile EntryKind = "file"
+)
+
 // Contents is what ls returns for one directory: the path it listed, the
 // directories under it, and the files in it, each one page under the same
 // Listing with its own total. Both halves were read in one read-only

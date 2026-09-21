@@ -695,3 +695,85 @@ func TestDeleteCommands(t *testing.T) {
 	}
 	refused(t, bin, tg, "not found", "rm", "-r", "/docs")
 }
+
+// TestMoveCommands is the scripted run of mv through the built binary: a
+// file into an existing directory and renamed, with cat reading the same
+// bytes at the new path; a directory into an existing directory and
+// renamed, with ls showing the contents at the new path; the cycle
+// refusals; the root refusal; the scope rule, with a top-level directory
+// renamed under its unit and refused below another; the taken name and
+// the missing source; and a bookmark whose listed path follows the file.
+func TestMoveCommands(t *testing.T) {
+	_, tg := open(t)
+	bin := build(t)
+	unit := blobfs.NewID()
+	ok(t, bin, tg, "schema", "up")
+	local := filepath.Join(t.TempDir(), "f.txt")
+	if err := os.WriteFile(local, []byte("moved\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"/a", "/a/x", "/a/y", "/b"} {
+		ok(t, bin, tg, "mkdir", p)
+	}
+	ok(t, bin, tg, "put", local, "/a/x/f.txt")
+
+	// A file into a directory, then renamed.
+	if out := ok(t, bin, tg, "mv", "/a/x/f.txt", "/a/y"); !strings.HasPrefix(out, "mv: /a/x/f.txt -> /a/y/f.txt (id ") {
+		t.Errorf("mv stdout = %q", out)
+	}
+	if out := ok(t, bin, tg, "cat", "/a/y/f.txt"); out != "moved\n" {
+		t.Errorf("cat after the move = %q", out)
+	}
+	if out := ok(t, bin, tg, "mv", "/a/y/f.txt", "/a/y/g.txt"); !strings.HasPrefix(out, "mv: /a/y/f.txt -> /a/y/g.txt (id ") {
+		t.Errorf("mv rename stdout = %q", out)
+	}
+	if out := ok(t, bin, tg, "cat", "/a/y/g.txt"); out != "moved\n" {
+		t.Errorf("cat after the rename = %q", out)
+	}
+	if out := ok(t, bin, tg, "stat", "/a/y/g.txt"); field(out, "name") != "g.txt" || field(out, "version") != "4" {
+		t.Errorf("stat after two moves:\n%s", out)
+	}
+	refused(t, bin, tg, "not found", "stat", "/a/x/f.txt")
+
+	// A directory into a directory, then renamed.
+	if out := ok(t, bin, tg, "mv", "/a/x", "/a/y"); !strings.HasPrefix(out, "mv: /a/x -> /a/y/x (id ") {
+		t.Errorf("mv of a directory stdout = %q", out)
+	}
+	if got := column(ok(t, bin, tg, "ls", "/a/y")); strings.Join(got, " ") != "x g.txt" {
+		t.Errorf("ls /a/y after the move = %v", got)
+	}
+	ok(t, bin, tg, "mv", "/a/y/x", "/a/y/z")
+	if got := column(ok(t, bin, tg, "ls", "/a/y")); strings.Join(got, " ") != "z g.txt" {
+		t.Errorf("ls /a/y after the rename = %v", got)
+	}
+
+	// Refusals: the cycle, the root, the scope rule, the taken name, and
+	// the missing source.
+	refused(t, bin, tg, "would create a cycle", "mv", "/a/y", "/a/y/z")
+	refused(t, bin, tg, "would create a cycle", "mv", "/a/y", "/a/y")
+	refused(t, bin, tg, "the root directory", "mv", "/", "/elsewhere")
+	refused(t, bin, tg, "stays under one top-level directory", "mv", "/a/y", "/b/y")
+	refused(t, bin, tg, "stays under one top-level directory", "mv", "/a", "/b")
+	refused(t, bin, tg, "stays under one top-level directory", "mv", "/a/y/z", "/z")
+	ok(t, bin, tg, "mkdir", "/owned", "--unit", unit)
+	ok(t, bin, tg, "mv", "/owned", "/renamed")
+	if got := column(ok(t, bin, tg, "ls", "/", "--unit", unit)); strings.Join(got, " ") != "renamed" {
+		t.Errorf("ls / as the unit after the rename = %v", got)
+	}
+	refused(t, bin, tg, "stays under one top-level directory", "mv", "/renamed", "/b/renamed")
+	ok(t, bin, tg, "mkdir", "/a/held")
+	ok(t, bin, tg, "mkdir", "/a/y/held")
+	refused(t, bin, tg, "name taken", "mv", "/a/held", "/a/y")
+	refused(t, bin, tg, "not found", "mv", "/a/missing", "/a/y")
+	refused(t, bin, tg, "not found", "mv", "/a/held", "/a/nope/held")
+
+	// A bookmark's listed path follows the file.
+	ok(t, bin, tg, "bookmark", "add", "/a/y/g.txt", "--unit", unit)
+	ok(t, bin, tg, "mv", "/a/y/g.txt", "/a/y/z/h.txt")
+	if got := bookmarkPaths(ok(t, bin, tg, "bookmark", "ls", "--unit", unit)); strings.Join(got, " ") != "/a/y/z/h.txt" {
+		t.Errorf("bookmark ls after the move = %v", got)
+	}
+	if out := ok(t, bin, tg, "cat", "/a/y/z/h.txt"); out != "moved\n" {
+		t.Errorf("cat after the third move = %q", out)
+	}
+}

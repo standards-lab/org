@@ -3,7 +3,7 @@
 // schema seeds. It owns the directory_owner and bookmark tables the
 // consumer's migration set creates, the consumer's read models over them,
 // the adapter over the object store, and the mkdir, ls, put, cat, stat,
-// rm, rmdir, and bookmark commands. The consumer uses blobfs.Directory and
+// mv, rm, rmdir, and bookmark commands. The consumer uses blobfs.Directory and
 // blobfs.File as the library defines them and does not restate them,
 // except in the read models, where the scanner's rules force it to.
 //
@@ -39,7 +39,7 @@
 //     validation over the provider's rules, maps the store's errors onto
 //     the domain's, and opens and starts the store from the environment
 //     for the composition root.
-//   - blobfs.go composes Mkdir, List, Put, Stat, Open, Remove,
+//   - blobfs.go composes Mkdir, List, Put, Stat, Open, Move, Remove,
 //     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
 //     ListBookmarks from the library's methods, the consumer's statements,
 //     and the object store. List and ListBookmarks each run in one
@@ -47,10 +47,13 @@
 //     the pending row in a transaction of its own, the object write, and
 //     the completion on the pool. Remove is its mirror: the bookmark check
 //     and the begin in a transaction of its own, the object delete, and
-//     the row's removal on the pool. RemoveDirectory removes the owner row
-//     and the directory in one transaction, and RemoveTree walks a tree
-//     through those two, children first. AddBookmark resolves the file and
-//     inserts the bookmark in one transaction.
+//     the row's removal on the pool. Move resolves both paths and runs the
+//     library's move in one transaction, under the tree lock for a
+//     directory, and keeps every move under one top-level directory.
+//     RemoveDirectory removes the owner row and the directory in one
+//     transaction, and RemoveTree walks a tree through those two, children
+//     first. AddBookmark resolves the file and inserts the bookmark in one
+//     transaction.
 //   - commands.go builds the commands over a Store constructor and renders
 //     through output.
 //

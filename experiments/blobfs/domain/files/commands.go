@@ -28,7 +28,7 @@ type deps struct {
 }
 
 // Commands builds the domain's root-level commands: mkdir, ls, put, cat,
-// stat, rm, rmdir, and bookmark with its add, ls, and rm subcommands. A leaf's
+// stat, mv, rm, rmdir, and bookmark with its add, ls, and rm subcommands. A leaf's
 // RunE calls newStore when it runs, never when the tree is built: the
 // composition root closes newStore over its persistent flags, which cobra
 // parses during execution, so the DSN is unknown until then. The store is
@@ -38,7 +38,7 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.remove(), d.removeDirectory(), d.bookmark()}
+	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.move(), d.remove(), d.removeDirectory(), d.bookmark()}
 }
 
 // store constructs the store and verifies it against the database, so a
@@ -235,6 +235,38 @@ func (d deps) stat() *cobra.Command {
 				return err
 			}
 			d.out.Record(fileRecord(args[0], f))
+			return nil
+		},
+	}
+}
+
+// move is mv <src> <dst>: the directory or file at src moved into the
+// existing directory dst, or to the new path dst, in one transaction.
+func (d deps) move() *cobra.Command {
+	return &cobra.Command{
+		Use:   "mv <src> <dst>",
+		Short: "Move or rename a directory or a file",
+		Long: "mv moves the directory or file at an absolute path. When the destination names\n" +
+			"an existing directory the source moves into it and keeps its name; otherwise the\n" +
+			"destination is the new path, whose parent must exist and whose last segment is\n" +
+			"the new name, so mv renames as well. A directory moves with everything under\n" +
+			"it, in one transaction under the tree lock, and a move into its own subtree is\n" +
+			"refused. A file's object stays where it is; only its row changes. A move stays\n" +
+			"under one top-level directory: a top-level directory may be renamed but not\n" +
+			"moved below another, and nothing moves up to the top level or across two\n" +
+			"top-level directories, because the ownership row binds a top-level directory.\n" +
+			"The root cannot be moved.",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			res, err := s.Move(cmd.Context(), args[0], args[1])
+			if err != nil {
+				return err
+			}
+			d.out.Line(fmt.Sprintf("mv: %s -> %s (id %s)", res.From, res.To, res.ID))
 			return nil
 		},
 	}

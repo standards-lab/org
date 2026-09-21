@@ -51,6 +51,9 @@ type Store struct {
 	completeFileWrite  query.Guard
 	removeFile         query.Statement
 	removeDirectory    query.Statement
+	directoryIsWithin  query.Rows[int64]
+	reparentDirectory  query.Guard
+	moveFile           query.Guard
 	files              listing[blobfs.File]
 	children           listing[blobfs.Directory]
 }
@@ -116,6 +119,9 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 		completeFileWrite:  stmts.Statement("complete_file_write").Guarded(stmts.Statement("file_version"), "version"),
 		removeFile:         stmts.Statement("remove_file"),
 		removeDirectory:    stmts.Statement("remove_directory"),
+		directoryIsWithin:  stmts.Statement("directory_is_within").Scan(query.Scalar[int64]),
+		reparentDirectory:  stmts.Statement("reparent_directory").Guarded(stmts.Statement("directory_version"), "version"),
+		moveFile:           stmts.Statement("move_file").Guarded(stmts.Statement("file_version"), "version"),
 		files:              files,
 		children:           children,
 	}, nil

@@ -30,7 +30,7 @@ func TestRun_PrintsUsageForHelp(t *testing.T) {
 		if code != 0 {
 			t.Errorf("%v exited %d: %s", args, code, errOut)
 		}
-		wants := []string{"Usage:", "schema", "mkdir", "ls", "--dsn"}
+		wants := []string{"Usage:", "schema", "mkdir", "ls", "mv", "--dsn"}
 		if len(args) == 1 && args[0] == "schema" {
 			wants = []string{"Usage:", "schema", "--dsn"}
 		}
