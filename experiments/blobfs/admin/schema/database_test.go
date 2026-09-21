@@ -55,8 +55,8 @@ func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
 	if first.Name != blobfsmigrations.Source || first.Table != blobfsmigrations.Table {
 		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, blobfsmigrations.Source, blobfsmigrations.Table)
 	}
-	if len(first.Migrations) != 2 || first.Migrations[0].Name != "directory" {
-		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 2 starting with directory", len(first.Migrations), first.Migrations[0].Name)
+	if len(first.Migrations) != 3 || first.Migrations[0].Name != "directory" {
+		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 3 starting with directory", len(first.Migrations), first.Migrations[0].Name)
 	}
 	if last.Name != schema.ConsumerSet || last.Table != "" {
 		t.Errorf("last set = %q under %q, want %q under the default table", last.Name, last.Table, schema.ConsumerSet)
@@ -79,27 +79,42 @@ func TestNewClient_RefusesADialectWithoutDDL(t *testing.T) {
 
 var historyCols = []string{"version", "name", "dirty"}
 
-// setRun scripts one set's locked run over an empty history: the lock, the
-// history table's create, the history read, one transaction per migration,
-// and the unlock.
+// The scripted responses of the migrator's protocol: the outer lock and
+// unlock, the history-table existence check of a set with no history yet,
+// and one set's unlocked run over an empty history.
+var (
+	locked   = sqltest.Response{}
+	unlocked = sqltest.Response{Columns: []string{"unlock"}, Rows: [][]driver.Value{{true}}}
+	absent   = sqltest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(0)}}}
+)
+
+// setRun scripts one set's unlocked run over an empty history: the history
+// table's create, the history read, and one transaction per migration.
 func setRun(steps int) []sqltest.Response {
 	out := []sqltest.Response{
-		{}, // lock
 		{}, // CREATE TABLE IF NOT EXISTS
 		{Columns: historyCols},
 	}
 	for range steps {
 		out = append(out, sqltest.Response{}, sqltest.Response{}) // the text, the history row
 	}
-	return append(out, sqltest.Response{Columns: []string{"unlock"}, Rows: [][]driver.Value{{true}}})
+	return out
+}
+
+// freshUp scripts a whole Up over an empty database: the lock, both sets'
+// checks, blobfs's three migrations, the consumer's two, and the unlock.
+func freshUp() []sqltest.Response {
+	out := []sqltest.Response{locked, absent, absent}
+	out = append(out, setRun(3)...)
+	out = append(out, setRun(2)...)
+	return append(out, unlocked)
 }
 
 // TestUp_RunsBlobfsBeforeTheConsumer proves the client hands the sets to
 // the migrator in canonical order: on a fresh database, blobfs's history
-// table and DDL run before the consumer's.
+// table and DDL run before the consumer's, under one outer lock.
 func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
-	responses := append(setRun(2), setRun(2)...)
-	pool, rec := sqltest.Open(t, responses...)
+	pool, rec := sqltest.Open(t, freshUp()...)
 	c, err := schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -118,6 +133,7 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 		"CREATE TABLE IF NOT EXISTS " + blobfsmigrations.Table,
 		"CREATE TABLE blobfs_directory",
 		"CREATE TABLE blobfs_file",
+		"CREATE INDEX blobfs_ix_file_directory_created",
 		"CREATE TABLE IF NOT EXISTS schema_version",
 		"CREATE TABLE directory_owner",
 		"CREATE TABLE bookmark",
@@ -133,5 +149,36 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 			t.Errorf("%q ran at %d, before the text that must precede it at %d", text, at, last)
 		}
 		last = at
+	}
+	if locks := slices.DeleteFunc(slices.Clone(execs), func(s string) bool { return !strings.HasPrefix(s, "SELECT lock(") }); len(locks) != 1 {
+		t.Errorf("the run took %d locks, want the one outer lock", len(locks))
+	}
+}
+
+// TestStatus_ReadsBothSets proves Status returns the sets in canonical
+// order from the migrator's reads: blobfs at version 2 of 3 with the index
+// migration pending, and the consumer with no history table yet.
+func TestStatus_ReadsBothSets(t *testing.T) {
+	present := sqltest.Response{Columns: []string{"count"}, Rows: [][]driver.Value{{int64(1)}}}
+	head := sqltest.Response{Columns: []string{"version", "dirty"}, Rows: [][]driver.Value{{int64(2), false}}}
+	applied := sqltest.Response{Columns: historyCols, Rows: [][]driver.Value{{int64(1), "directory", false}, {int64(2), "file", false}}}
+	pool, _ := sqltest.Open(t, present, head, present, applied, absent, absent)
+	c, err := schema.NewClient(sqlate.Wrap(pool, postgresDialect{}), nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	sets, err := c.Status(context.Background())
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(sets) != 2 {
+		t.Fatalf("Status returned %d sets, want 2", len(sets))
+	}
+	b, consumer := sets[0], sets[1]
+	if b.Name != blobfsmigrations.Source || b.Table != blobfsmigrations.Table || b.Version != 2 || b.Latest != 3 || len(b.Pending) != 1 || b.Pending[0].Name != "file_created_index" || b.Dirty {
+		t.Errorf("blobfs status = %+v", b)
+	}
+	if consumer.Name != schema.ConsumerSet || consumer.Table != "schema_version" || consumer.Version != 0 || consumer.Latest != 2 || len(consumer.Pending) != 2 {
+		t.Errorf("consumer status = %+v", consumer)
 	}
 }

@@ -25,10 +25,10 @@ func TestMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	if len(set) != 2 {
-		t.Fatalf("Migrations returned %d migrations, want 2 (directory, file)", len(set))
+	if len(set) != 3 {
+		t.Fatalf("Migrations returned %d migrations, want 3 (directory, file, file_created_index)", len(set))
 	}
-	for i, name := range []string{"directory", "file"} {
+	for i, name := range []string{"directory", "file", "file_created_index"} {
 		if set[i].Name != name {
 			t.Errorf("migration %d is %q, want %q", i+1, set[i].Name, name)
 		}

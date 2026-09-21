@@ -147,16 +147,27 @@ func directoryID(ctx context.Context, t *testing.T, db *sqlate.DB, name string) 
 	return id
 }
 
-// TestSchemaCommands runs the binary's schema up and schema down against a
-// throwaway database named through BLOBFS_DSN alone: up creates the
-// consumer's tables over blobfs's and seeds the root, prints its one result
-// line, and exits zero; down removes every object table and exits zero.
+// historyTables are the two sets' history tables.
+var historyTables = []string{"blobfs_schema_version", "schema_version"}
+
+// TestSchemaCommands runs the binary's schema commands against a throwaway
+// database named through BLOBFS_DSN alone: status on the empty database
+// lists every migration pending; up creates the consumer's tables over
+// blobfs's and seeds the root, prints its one result line, and exits zero;
+// status then shows both sets at head; down removes every object table and
+// keeps the history tables; reset without --yes is refused before touching
+// the database; reset --yes drops the history tables too.
 func TestSchemaCommands(t *testing.T) {
 	ctx := context.Background()
 	db, tg := open(t)
 	bin := build(t)
 
-	out := ok(t, bin, tg, "schema", "up")
+	out := ok(t, bin, tg, "schema", "status")
+	if got := lines(out); len(got) != 3 || !strings.HasPrefix(got[0], "set ") || !strings.Contains(got[1], "3 file_created_index") || !strings.Contains(got[2], "2 bookmark") {
+		t.Errorf("schema status on an empty database:\n%s", out)
+	}
+
+	out = ok(t, bin, tg, "schema", "up")
 	if !strings.HasPrefix(out, "schema up:") {
 		t.Errorf("schema up stdout = %q, want the result line", out)
 	}
@@ -177,6 +188,17 @@ func TestSchemaCommands(t *testing.T) {
 	if roots != 1 {
 		t.Errorf("after schema up, %d roots, want the one seeded root", roots)
 	}
+	out = ok(t, bin, tg, "schema", "status")
+	got := lines(out)
+	if len(got) != 3 {
+		t.Fatalf("schema status after up:\n%s", out)
+	}
+	if f := strings.Fields(got[1]); len(f) != 6 || f[0] != "blobfs" || f[1] != "blobfs_schema_version" || f[2] != "3" || f[3] != "3" || f[4] != "none" || f[5] != "false" {
+		t.Errorf("blobfs status row after up = %q", got[1])
+	}
+	if f := strings.Fields(got[2]); len(f) != 6 || f[0] != "consumer" || f[1] != "schema_version" || f[2] != "2" || f[3] != "2" || f[4] != "none" || f[5] != "false" {
+		t.Errorf("consumer status row after up = %q", got[2])
+	}
 
 	out = ok(t, bin, tg, "schema", "down")
 	if !strings.HasPrefix(out, "schema down:") {
@@ -185,6 +207,36 @@ func TestSchemaCommands(t *testing.T) {
 	for _, table := range objectTables {
 		if livetest.Exists(ctx, t, db, table) {
 			t.Errorf("after schema down, table %s still exists", table)
+		}
+	}
+	for _, table := range historyTables {
+		if !livetest.Exists(ctx, t, db, table) {
+			t.Errorf("after schema down, history table %s is gone", table)
+		}
+	}
+
+	refused(t, bin, tg, "--yes", "schema", "reset")
+	for _, table := range historyTables {
+		if !livetest.Exists(ctx, t, db, table) {
+			t.Errorf("schema reset without --yes dropped history table %s", table)
+		}
+	}
+	out = ok(t, bin, tg, "schema", "reset", "--yes")
+	if !strings.HasPrefix(out, "schema reset:") {
+		t.Errorf("schema reset --yes stdout = %q, want the result line", out)
+	}
+	for _, table := range historyTables {
+		if livetest.Exists(ctx, t, db, table) {
+			t.Errorf("after schema reset --yes, history table %s still exists", table)
+		}
+	}
+	// A reset database applies from zero again, and a reset over a
+	// database with nothing applied succeeds.
+	ok(t, bin, tg, "schema", "reset", "--yes")
+	ok(t, bin, tg, "schema", "up")
+	for _, table := range objectTables {
+		if !livetest.Exists(ctx, t, db, table) {
+			t.Errorf("after the replay, table %s is missing", table)
 		}
 	}
 }

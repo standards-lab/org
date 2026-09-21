@@ -1,0 +1,1 @@
+DROP INDEX blobfs_ix_file_directory_created;

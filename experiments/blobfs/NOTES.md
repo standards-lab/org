@@ -14,10 +14,10 @@ The experiment produces three findings, and the review is organized by them:
 2. **`sqlate`.** The adjustments `blobfs` needs from `sqlate`, each with its evidence.
 3. **`v1.storage`.** How `blobfs` is incorporated into the `go-web-service` storage layer.
 
-## Position at the time of writing (2026-09-20)
+## Position at the time of writing (2026-09-21)
 
-Stages 1 to 13 are committed: the single-root schema, the consumer's `directory_owner` and
-`bookmark` tables, the persistence package with the listing composer and its keyset cursor,
+Stages 1 to 14 are committed. Stages 1 to 13 hold: the single-root schema, the consumer's
+`directory_owner` and `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
 and the conformance suite in `lib/blobfs/data/datatest`. Stage 10 added the
@@ -54,16 +54,99 @@ consumer's `mv <src> <dst>` with its Unix destination rule and the scope rule th
 under one top-level directory (`files.ErrMoveAcrossScopes`). Proof 4 is answered: on the
 baseline the two opposing moves form a cycle, so the lock is a caller requirement there.
 
+Stage 14 finished the multi-set migrator in `lib/migrator`: one outer lock
+on the migrator's own pinned connection through `sqlate.Locker`, every inner `migrate.Migrator`
+built `Unlocked`, a check of every set's history before any set runs (a dirty set or a
+mismatched history refuses `Up`, `Down`, and `Reset` with a `SetError`), `Status` per set,
+`Reset` (revert in reverse order, then drop each set's history table), and `Force` per set as
+the operator's repair. It added the rehearsal migration `0003_file_created_index` to blobfs's
+set (the index `blobfs_ix_file_directory_created` on `blobfs_file (directory_id, created_at)`),
+re-pinned the golden hashes with the first two unchanged, measured what the index buys
+(`evidence/sort-index.txt`), and extended the binary to `schema status|up|down|reset --yes`.
+The gate is proved by `lib/migrator/migrator_integration_test.go`: fresh replay, upgrade after
+restart, reset order across the bookmark and owner foreign keys with the wrong order failing,
+and two concurrent starters serialized on the outer lock.
+
 ## Running it
 
 `mise run up` starts Postgres on port 5434 and Azurite on port 10000. `mise run test` runs the
 hermetic tests, and `mise run integration` runs the tests that need the services. `mise run lint`
 runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the import boundaries.
-`mise run evidence` regenerates the read-model measurement. `README.md` has the layout.
+`mise run evidence` regenerates the three measurements. `README.md` has the layout.
 
 ## Decisions log
 
 Newest first.
+
+### 2026-09-21: stage 14 decisions the plan did not spell out
+
+- **The outer lock lives in `lib/migrator` and is the dialect's `sqlate.Locker`.** The stage
+  list left open whether the lock needed a Postgres-specific hook. It does not: `sqlate.Locker`
+  is a dialect capability the Postgres dialect implements (`pg_advisory_lock(hashtext(name))`
+  on a given `*sql.Conn`), and `migrate` itself takes its lock through it. The shim asserts the
+  capability on `db.Dialect()`, pins one connection from the pool (`db.Conn`), takes the lock
+  under `Options.LockName` (default `migrator.sets`), runs every set, and releases it under
+  `context.WithoutCancel` before the connection returns, the same shape as `migrate.locked`.
+  Every inner migrator is built with `migrate.Options.Unlocked`, so it takes no lock of its own
+  and the sets run one after another under the outer lock. The shim stays engine-neutral and
+  imports only `sqlate` and the standard library; `split-check`'s rule for it is unchanged. A
+  dialect without the capability is `migrate.ErrNoLocker` unless `Options.Unlocked`, which
+  mirrors `migrate` and is what the concurrency test's control uses.
+- **The inner migrators run on their own pooled connections.** `migrate` cannot take a
+  connection, so each set's run pins a second connection while the outer one holds the lock.
+  The pool needs two connections for a run. Promoted into `sqlate`, the sets would share the
+  locked connection.
+- **`Status` is a value and takes no lock.** `Status(ctx) ([]SetStatus, error)` returns one
+  `SetStatus` per set in declared order: name, history table, applied version, latest version,
+  pending migrations (`[]migrate.Migration`, so the command prints number and name), and the
+  dirty mark. It reads through the public `Version` and `Verify` of each inner migrator on the
+  pool, without the outer lock, so a `status` never waits behind a running `up`; a report read
+  during a run can show a set mid-run, which the doc comment says. A history row the set does
+  not contain is an error (`migrate.ErrUnknownVersion` in a `SetError`) rather than a row,
+  because a status that misreports a foreign history is worse than none. The `schema status`
+  command renders the slice as a table through `output.Rows`.
+- **`Reset` drops the history tables; `Down` keeps them.** `Down` records that the sets were
+  reverted (the tables stay, empty), and `Reset` returns the database to the state before the
+  first `Up`, which includes the history tables. `migrate` has no operation that drops its
+  table, so the shim runs `DROP TABLE <table>` on its pinned connection after each set's
+  revert, in the same reverse order. `TestFreshReplay` proves that after `Reset` neither the
+  sets' objects nor their history tables exist and that `Up` replays from zero. A `Reset` over
+  a database with nothing applied succeeds (the inner run creates the table, reverts nothing,
+  and the shim drops it).
+- **Dirty refusal checks every set before any set runs, in `Up`, `Down`, and `Reset`.** Each
+  run, under the outer lock, calls every inner migrator's `Verify` first; a dirty row or a
+  mismatched history is returned as a `SetError{Set, Err}` that unwraps to the inner error, so
+  `errors.Is(err, migrate.ErrDirty)` classifies it, `errors.As` reaches the `*migrate.DirtyError`
+  with the version, and the set name is data. Pending migrations are not an error. The dirty
+  state in the engine test is produced as `migrate` records it: a non-transactional migration
+  (`CREATE INDEX CONCURRENTLY` on a missing table) inserts its history row dirty, fails, and
+  leaves it so; no history table was edited by hand.
+- **The force is `Force(ctx, set, version)`, not an option on `Reset`.** `Reset` refuses a
+  dirty set. The smallest honest override is the one `migrate` already has, per set: the
+  operator repairs the schema by hand, states the version that is applied through `Force`
+  (0 when nothing of the set is), and then runs `Up` or `Reset`. A `Reset` flag that cleared
+  the mark and tried the down would guess whether the failed migration's objects exist. The
+  `schema` command does not expose `Force`; the stage list names `status|up|down|reset`, and
+  the ledger records that an admin surface must expose it.
+- **Migration 3 is a new migration and not an amendment.** The settled rule amends unreleased
+  text in place, but the rehearsal's purpose is an upgrade of an installed database: the set
+  gains a version, an installed database at version 2 gets only migration 3, and its rows
+  survive. `TestUpgradeAfterRestart` builds the installed state from the set cut to two
+  migrations, seeds rows, opens a new pool and a new migrator over the full set, and checks that
+  only version 3 was applied (rows 1 and 2 keep an earlier `applied_at`). The golden test pins
+  the new files, and `TestUpgradeKeepsInstalledHashes` checks the hashes of versions 1 and 2
+  against the values pinned at stage 6. The index is named `blobfs_ix_file_directory_created`,
+  `ix` being the kind for a plain index in the `blobfs_<kind>_<table>_<detail>` scheme, which the
+  migrations package comment now lists.
+- **`schema reset` requires `--yes`.** The command refuses with `schema.ErrResetNotConfirmed`
+  before constructing the client, so no DSN is needed to be refused, and the help text says
+  what the flag confirms. `up` and `down` keep their shape; `down` says in its help that the
+  history tables stay.
+- **A refused revert stops at the failing migration, and the migrations above it are already
+  reverted.** Reverting blobfs's set in the wrong order drops the index of migration 3 in its
+  own transaction and then fails at migration 2's `DROP TABLE blobfs_file` with SQLSTATE 2BP01,
+  so blobfs's head is 2 afterwards. The history agrees with the schema and the right order still
+  succeeds; the tests assert the head of 2 rather than an untouched 3.
 
 ### 2026-09-21: stage 13 decisions the plan did not spell out
 
@@ -786,6 +869,55 @@ owner and no unit.
 - **Multi-statement transactional migrations work on pgx.** pgx uses the simple protocol when a
   statement has no arguments. The concept's claim that v0.1.1 cannot host a source holds only for
   one merged `Migrator`: a `Migrator` per set with its own `Options.Table` runs on v0.1.1.
+- **The hooks the multi-set shim needs, so it disappears (stage 14).** The shim is 250 lines
+  over the public API and needed nothing outside it, with these repetitions and gaps:
+  - `migrate` does not export its default table name (`schema_version`); the shim repeats it to
+    refuse two sets on one table and to report the table in `Status`. Export it, or add a
+    `Table()` accessor on `Migrator`.
+  - `migrate` cannot run on a caller's connection. The shim pins its own connection for the
+    outer lock and each inner run pins a second one, so a run needs two pool connections. A
+    `Migrator` that takes a `*sql.Conn` (or a multi-set `Migrator` that shares one) removes it.
+  - `migrate` has no operation that drops its history table, so `Reset` runs `DROP TABLE` on
+    its own. A `Migrator.Drop` (or `Reset`) belongs beside `Force`.
+  - `Options.Unlocked` does what its comment says and is what the shim relies on: an inner
+    migrator under it takes no lock and runs on the outer lock's guarantee. Its doc comment
+    should say that a caller holding its own lock is the intended use, beside the dialect
+    without the capability.
+  - `Version` and `Verify` read without a lock and are enough for a status report; a
+    `Status` that returns head, dirty, and pending in one read would save the shim's four
+    queries per set.
+  - `Steps` tolerating a count larger than the applied prefix should be a documented guarantee
+    (the earlier entry), since `Down(len(set))` is how the shim reverts a whole set.
+  - `postgres.Dialect.MapError` does not map SQLSTATE 2BP01 (the earlier entry), so a revert
+    refused by a dependent object reaches the caller as a raw `*pgconn.PgError`; the shim wraps
+    it in `SetError` and the tests match the code by hand.
+  - `sqlate.Locker` is enough for the outer lock: the Postgres dialect's `Lock` and `Unlock`
+    work on any pinned connection, and a run with two starters serialized on it under the
+    default name `migrator.sets` (`TestConcurrentStartersSerialize`; the control without it
+    fails with a duplicate object, reported as SQLSTATE 23505 on `pg_type_typname_nsp_index`
+    when the loser waited on the winner's transaction).
+- **Proof 5, the migrator: integrated shipping, and `blobfs.sources` promotes the shim's
+  shape (stage 14).** The measures the concept names:
+  - Lines in the consumer's composition root: `admin/schema/database.go` builds the sets (14
+    lines for `Sets`, two `migrator.Set` literals) and the client (5 lines); the composition
+    root passes the database and logger. Under the documentation-only model the same consumer
+    would hold one `migrate.Migrator` per set and its own loop, lock, and reset, which is this
+    package (250 lines) copied into every consumer.
+  - Consumer edits an upgrade needs: none. `TestUpgradeAfterRestart` bumps the set the source
+    returns (standing for a `go.mod` bump), and the next `Up` applies only the new migration.
+  - `Reset` and `Status` stay one operation each across both sets, in reverse and declared
+    order respectively, and `schema reset --yes` and `schema status` are one command each.
+  - The shim needed nothing outside the public API. It repeats one constant (the default table
+    name) and one statement (`DROP TABLE`), both listed above.
+  - A consumer without `go-database` operates the schema in the lines above plus a command per
+    operation (`admin/schema/commands.go`, about 40 lines for the four leaves).
+  - The answer is integrated: the shim is small and stable, its API is the multi-set API the
+    concept describes (a `Set` per source with name, table, and migrations; `Up`, `Down`,
+    `Reset`, `Status`, `Force`; one lock name), and `blobfs.sources` promotes exactly that shape
+    into `sqlate` v0.2.0 as `migrate.New(db, []migrate.Set{...}, opts)`, with the default set
+    keeping `schema_version` so a v0.1.1 database needs no history migration. What the
+    promotion adds beyond the shim is the hooks list: one connection for the whole run, an
+    exported default table, a drop of the history table, and a one-read status.
 - **The catalog exposes its inventory and not its renderer (stage 6).** `Catalog.render` is
   unexported, so a composer outside the projection reads the clause patterns' text through
   `Catalog.Patterns()` and fills the slots with its own copy of the slot regex. The composer in
@@ -987,7 +1119,18 @@ owner and no unit.
 - **`tests-and-docs.md` says production source has no doc comments,** and no repository in the
   workspace follows that sentence. The experiment follows the practice: godoc on every exported
   identifier, and the package comment in `doc.go` for a multi-file package.
-- **History tables survive a full `Down`.** Stage 14 decides whether `Reset` drops them.
+- **History tables survive a full `Down`, and `Reset` drops them (stage 14).** `Down` leaves
+  each set's history table empty as the record of the revert; `Reset` drops it, and a later
+  `Up` replays from zero.
+- **The rehearsal migration is an index a consumer may not need (stage 14).** Migration 3 adds
+  `blobfs_ix_file_directory_created` on `blobfs_file (directory_id, created_at)`. It makes a
+  page sorted by `created_at` an index read (about 70 times fewer buffers and 70 times less
+  time for the biggest directory; the evidence section below), costs 3.9 MB for 100,000 files
+  against the name index's 8.8 MB, and buys nothing for an exact-total page, which reads every
+  row for the window count anyway. A library that ships an index in its set imposes its write
+  cost on every consumer; the alternative is to document the index and let the consumer's own
+  set add it. The experiment ships it in blobfs's set because the rehearsal needed a real
+  migration, and the review decides whether it stays.
 - **One seeded root, one partial unique index (stage 6).** `blobfs_directory` holds exactly one
   row with no parent, seeded with `RootID` by the migration and guarded by
   `blobfs_uq_directory_root` over the expression `(parent_id IS NULL)`. A second root is a unique
@@ -1178,6 +1321,22 @@ owner and no unit.
 - File-grain ownership: a consumer join table with a partial unique index rehearses the logo.
 - The migration source is added to the service's one migrator, ahead of the service's own set.
   Reverting runs the service's set first.
+- The migrator as built (stage 14): the service builds one `migrator.Migrator` over
+  `[]migrator.Set{blobfs's set, its own set}` (the source's `Migrations(dialect)` under the
+  source's `Table`; its own under the default table) and runs `Up` at start, which takes one
+  lock for both sets, so several replicas starting together serialize and every one ends at
+  head. `Up` refuses before running anything when any set is dirty or its history does not
+  match the binary's set, so a replica built from an older binary against a newer database
+  fails at start with `migrate.ErrUnknownVersion` naming the set. `Reset` reverts the service's
+  set before blobfs's, so the service's foreign keys never block it, and drops both history
+  tables; `Down` keeps them. The upgrade path is a `go.mod` bump: the next start finds blobfs's
+  new migration pending and applies only it, and the service's rows survive.
+- What the admin surface must expose (stage 14): `status` (one row per set: table, version,
+  latest, pending, dirty), `up`, `down`, `reset` behind an explicit confirmation, and a `force
+  <set> <version>` for dirty recovery, which the experiment's `schema` command leaves out and
+  `go-database`'s admin release would need. A refused revert in the wrong order leaves a set
+  partially reverted (the migrations above the failing one are gone), so the admin's `status`
+  after a failed `reset` is what tells the operator where the set stands.
 - `org_image` is hypothetical. No partial unique index existed in the workspace before this
   experiment.
 - The two-phase write as built (stage 10): the service inserts the pending row in the
@@ -1289,8 +1448,9 @@ What the measurement shows, and the answers to the V3 questions as far as it sup
   which `blobfs_uq_file_directory_name` orders in either direction. A sort by another field is
   an in-memory sort of the directory (the same shape as the exact-total page, a bitmap scan and
   a top-N sort), so its cost is the directory's size, as stage 6 said. The measurement did not
-  time one; the stage 14 rehearsal migration adds `(directory_id, created_at)` and can measure
-  the difference then.
+  time one; the stage 14 rehearsal migration adds `(directory_id, created_at)`, and the stage 14
+  evidence section below measures the difference: the index turns the `created_at` sort into an
+  index read, and no other sort was measured.
 - **Is composing at the base's level required, or does the wrap suffice?** Both, by base. A flat
   base (one table, no window function) is pulled up by the planner, and the wrap's plan equals
   the flat statement's, with the anchor outside as a directive or inside as a bound parameter.
@@ -1360,6 +1520,37 @@ What the measurement shows:
   units sorts by the key or lowers the threshold for the session.
 - **The path stays a read-time computation.** The read model stores nothing, and its cost is
   bounded by what the unit holds.
+
+## Evidence: what the created_at index buys a sorted listing (stage 14, measured 2026-09-21, PostgreSQL 18.4)
+
+The measurement is `evidence/sort-index.txt`, written by `mise run evidence` from
+`lib/blobfs/data/evidence_sort_integration_test.go` (`TestSortIndexCost`, gated by
+`BLOBFS_EVIDENCE=1`), over the listing measurement's fixture (100,000 files, a tenth of them in
+the biggest directory) with `created_at` spread uniformly over a year, because bulk seeding gives
+every row of a batch one timestamp and the sort would be degenerate. Each form is `ListFiles` on
+the biggest directory as the store composes it, `EXPLAIN (ANALYZE, BUFFERS)` warmed once and then
+five times with the median reported, first at blobfs schema version 2 and then after migration 3
+is applied through `migrate.Up` as an upgrade (only version 3 ran). Both tables were `VACUUM
+ANALYZE`d after seeding and `blobfs_file` again after the index was built.
+
+| Form (biggest directory, page of 20) | Before the index | After the index |
+|---|---|---|
+| `created_at` ascending, no total | 1.93 ms, 2436 buffers, bitmap scan of the directory and a top-N sort | 0.03 ms, 25 buffers, index scan and an incremental sort on the name tie-breaker |
+| `created_at` descending, no total | 1.93 ms, 2436 buffers, the same | 0.03 ms, 25 buffers, backward index scan |
+| `created_at` ascending, exact total | 5.54 ms, 2436 buffers, bitmap scan, sort, window count | 5.67 ms, 2378 buffers, the same shape over the new index |
+| cursor page after page 1, `created_at` ascending | 2.52 ms, 2436 buffers, bitmap scan and sort | 0.04 ms, 45 buffers, index scan from the cursor |
+
+The index is 3992 kB for 100,000 rows; the name index (`blobfs_uq_file_directory_name`) is
+8776 kB and the heap 36 MB. Every form returns the same ids before and after.
+
+- **Does any sort earn an index?** The `created_at` sort does, when a consumer lists by it
+  without the total: the page goes from the directory's size to the page's size (about 70 times
+  fewer buffers and 70 times less time for 10,000 files), and the cursor page the same. The
+  exact-total page gains nothing, because the window count reads every row of the directory
+  whichever index finds them, so a consumer that sorts by `created_at` with the total pays the
+  directory's size regardless, as stage 8 said of every exact-total page. The name sort was
+  already an index read through the unique constraint. Whether the index belongs in blobfs's
+  set or in the consumer's is a review question (the library ledger entry).
 
 ### Earlier evidence: read-model cost by form (proof V1, 2026-09-20, volume-era schema)
 

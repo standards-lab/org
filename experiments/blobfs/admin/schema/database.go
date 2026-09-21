@@ -61,6 +61,18 @@ func (c *Client) Up(ctx context.Context) error {
 
 // Down reverts every applied migration of both sets, the consumer's set
 // first, so its foreign keys into blobfs's tables never block the revert.
+// The history tables stay.
 func (c *Client) Down(ctx context.Context) error {
 	return c.migrator.Down(ctx)
+}
+
+// Reset reverts both sets as Down does and drops their history tables, so
+// the database returns to its state before the first Up.
+func (c *Client) Reset(ctx context.Context) error {
+	return c.migrator.Reset(ctx)
+}
+
+// Status reads both sets' state in canonical order, without a lock.
+func (c *Client) Status(ctx context.Context) ([]migrator.SetStatus, error) {
+	return c.migrator.Status(ctx)
 }

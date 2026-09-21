@@ -4,7 +4,10 @@
 // Table, and blobfs's schema is at its head before the consumer's
 // migrations reference it.
 //
-// The set runs in the order directory, file. The directory migration seeds
+// The set runs in the order directory, file, file_created_index. The
+// third migration adds the index a listing sorted by creation time uses,
+// and it is the upgrade rehearsal: a version added over an installed
+// schema. The directory migration seeds
 // the one root directory, the row with no parent and no name and the id
 // blobfs.RootID, and a partial unique index allows no second row without a
 // parent. A check constraint states that a directory has no name exactly
@@ -18,11 +21,12 @@
 // because a violation reaches a consumer as
 // sqlate.ConstraintError.Constraint, and the persistence layer maps
 // blobfs's own constraints to its sentinel errors. The scheme is
-// blobfs_<kind>_<table>_<detail>, where kind is pk, fk, uq, or cc, table
-// is the table name without its blobfs_ prefix, and detail names the
-// referenced relation, the unique columns, or the checked rule:
-// blobfs_fk_directory_parent, blobfs_uq_directory_parent_name,
-// blobfs_cc_directory_root_name.
+// blobfs_<kind>_<table>_<detail>, where kind is pk, fk, uq, cc, or ix (a
+// plain index), table is the table name without its blobfs_ prefix, and
+// detail names the referenced relation, the indexed columns, or the
+// checked rule: blobfs_fk_directory_parent,
+// blobfs_uq_directory_parent_name, blobfs_cc_directory_root_name,
+// blobfs_ix_file_directory_created.
 //
 // The DDL is Postgres at v1 and lives in the postgres directory. A second
 // engine adds a directory with the same file names, and Migrations selects

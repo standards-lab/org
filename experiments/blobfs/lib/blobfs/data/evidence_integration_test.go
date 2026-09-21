@@ -464,6 +464,7 @@ func shapeOf(plan string) []string {
 		"Seq Scan on blobfs_directory", "Index Scan using blobfs_pk_directory", "Index Scan using blobfs_uq_directory",
 		"Seq Scan on blobfs_file", "Index Scan using blobfs_uq_file_directory_name", "Index Only Scan using blobfs_uq_file_directory_name",
 		"Index Scan Backward using blobfs_uq_file_directory_name", "Bitmap Heap Scan on blobfs_file", "Bitmap Index Scan on blobfs_uq_file_directory_name",
+		"Index Scan using blobfs_ix_file_directory_created", "Index Scan Backward using blobfs_ix_file_directory_created", "Bitmap Index Scan on blobfs_ix_file_directory_created",
 		"Hash Join", "Nested Loop", "Merge Join", "Sort", "Incremental Sort", "Aggregate", "WindowAgg", "Limit",
 		"Heap Fetches: 0",
 	} {

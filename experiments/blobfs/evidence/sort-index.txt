@@ -1,0 +1,209 @@
+=== RUN   TestSortIndexCost
+# blobfs stage 14: what the created_at index buys a sorted listing
+# date: 2026-09-21
+# engine: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+# machine: linux/amd64, 22 cpus; go go1.27.1. Timings are machine-dependent (a laptop, everything in shared buffers); plan shapes and buffer counts are not.
+# fixture: the listing measurement's (3 trees, 100000 file rows, a tenth of them in the biggest directory), with created_at spread uniformly over a year.
+# method: ListFiles on the biggest directory sorted by created_at, captured as the store composes it; each query is EXPLAIN (ANALYZE, BUFFERS) once to warm the cache, then 5 times; the median run by execution time is reported with its plan.
+#   Section 1 is measured at blobfs schema version 2 (no created_at index) and section 2 after migration 3, blobfs_ix_file_directory_created (directory_id, created_at), is applied as an upgrade.
+#   EXPLAIN runs over pgx's simple protocol; buffers are the top plan node's shared hit+read, in 8 KB pages. The tables were VACUUM ANALYZEd after seeding and after the index was built.
+# index size: 3992 kB (the name index is 8776 kB; the heap is 36 MB).
+#
+# summary (median run; times in ms; buffers as hit+read pages):
+# sec    query                                        dir        plan ms   exec ms  buffers  plan shape
+# before created_at asc, page 1, no total             biggest      0.027     1.932     2436  Bitmap Heap Scan on blobfs_file, Bitmap Index Scan on blobfs_uq_file_directory_name, Sort, Limit
+# before created_at desc, page 1, no total            biggest      0.027     1.930     2436  Bitmap Heap Scan on blobfs_file, Bitmap Index Scan on blobfs_uq_file_directory_name, Sort, Limit
+# before created_at asc, page 1, exact total          biggest      0.034     5.543     2436  Bitmap Heap Scan on blobfs_file, Bitmap Index Scan on blobfs_uq_file_directory_name, Sort, WindowAgg, Limit
+# before created_at asc, cursor page after page 1     biggest      0.042     2.517     2436  Bitmap Heap Scan on blobfs_file, Bitmap Index Scan on blobfs_uq_file_directory_name, Sort, Limit
+# after  created_at asc, page 1, no total             biggest      0.021     0.027       25  Index Scan using blobfs_ix_file_directory_created, Sort, Incremental Sort, Limit
+# after  created_at desc, page 1, no total            biggest      0.020     0.026       25  Index Scan Backward using blobfs_ix_file_directory_created, Sort, Incremental Sort, Limit
+# after  created_at asc, page 1, exact total          biggest      0.038     5.672     2378  Bitmap Heap Scan on blobfs_file, Bitmap Index Scan on blobfs_ix_file_directory_created, Sort, WindowAgg, Limit
+# after  created_at asc, cursor page after page 1     biggest      0.035     0.035       45  Index Scan using blobfs_ix_file_directory_created, Sort, Incremental Sort, Limit
+
+==================== fixture ====================
+directories: 10003 under the root in 3 trees; files: 100000; biggest directory: /t2/d0 (10008 files).
+created_at spread uniformly over the year before seeding; distinct created_at values in the biggest directory: 10008.
+VACUUM ANALYZE ran on both tables after seeding and again after the index was built.
+
+==================== 1. before the index: blobfs at version 2, the sort by created_at is a sort of the directory ====================
+created_at asc, page 1, no total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- before: created_at asc, page 1, no total, biggest directory: median of 5 runs: planning 0.027 ms, execution 1.932 ms, buffers 2436 ----
+Limit  (cost=5535.62..5535.68 rows=21 width=174) (actual time=1.901..1.903 rows=21.00 loops=1)
+  Buffers: shared hit=2436
+  ->  Sort  (cost=5535.62..5559.78 rows=9663 width=174) (actual time=1.901..1.902 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=2436
+        ->  Bitmap Heap Scan on blobfs_file q  (cost=503.31..5275.09 rows=9663 width=174) (actual time=0.542..1.378 rows=10008.00 loops=1)
+              Recheck Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Heap Blocks: exact=2326
+              Buffers: shared hit=2436
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..500.89 rows=9663 width=0) (actual time=0.375..0.375 rows=10008.00 loops=1)
+                    Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=110
+Planning Time: 0.027 ms
+Execution Time: 1.932 ms
+created_at desc, page 1, no total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at DESC, q.name DESC OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- before: created_at desc, page 1, no total, biggest directory: median of 5 runs: planning 0.027 ms, execution 1.930 ms, buffers 2436 ----
+Limit  (cost=5535.62..5535.68 rows=21 width=174) (actual time=1.899..1.901 rows=21.00 loops=1)
+  Buffers: shared hit=2436
+  ->  Sort  (cost=5535.62..5559.78 rows=9663 width=174) (actual time=1.899..1.900 rows=21.00 loops=1)
+        Sort Key: created_at DESC, name DESC
+        Sort Method: top-N heapsort  Memory: 34kB
+        Buffers: shared hit=2436
+        ->  Bitmap Heap Scan on blobfs_file q  (cost=503.31..5275.09 rows=9663 width=174) (actual time=0.534..1.375 rows=10008.00 loops=1)
+              Recheck Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Heap Blocks: exact=2326
+              Buffers: shared hit=2436
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..500.89 rows=9663 width=0) (actual time=0.358..0.358 rows=10008.00 loops=1)
+                    Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=110
+Planning Time: 0.027 ms
+Execution Time: 1.930 ms
+created_at asc, page 1, exact total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at, COUNT(*) OVER () AS total
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- before: created_at asc, page 1, exact total, biggest directory: median of 5 runs: planning 0.034 ms, execution 5.543 ms, buffers 2436 ----
+Limit  (cost=5656.41..5656.46 rows=21 width=182) (actual time=5.509..5.510 rows=21.00 loops=1)
+  Buffers: shared hit=2436
+  ->  Sort  (cost=5656.41..5680.57 rows=9663 width=182) (actual time=5.508..5.509 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=2436
+        ->  WindowAgg  (cost=5395.37..5395.88 rows=9663 width=182) (actual time=2.710..3.671 rows=10008.00 loops=1)
+              Window: w1 AS ()
+              Storage: Memory  Maximum Storage: 1927kB
+              Buffers: shared hit=2436
+              ->  Bitmap Heap Scan on blobfs_file q  (cost=503.31..5275.09 rows=9663 width=174) (actual time=0.570..1.649 rows=10008.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                    Heap Blocks: exact=2326
+                    Buffers: shared hit=2436
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..500.89 rows=9663 width=0) (actual time=0.384..0.385 rows=10008.00 loops=1)
+                          Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=110
+Planning Time: 0.034 ms
+Execution Time: 5.543 ms
+created_at asc, cursor page after page 1: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) AND (q.created_at > CAST($2 AS timestamp with time zone) OR (q.created_at = CAST($3 AS timestamp with time zone) AND q.name > CAST($4 AS text))) ORDER BY q.created_at, q.name OFFSET $5 ROWS FETCH NEXT $6 ROWS ONLY
+
+---- before: created_at asc, cursor page after page 1, biggest directory: median of 5 runs: planning 0.042 ms, execution 2.517 ms, buffers 2436 ----
+Limit  (cost=5607.52..5607.58 rows=21 width=174) (actual time=2.479..2.481 rows=21.00 loops=1)
+  Buffers: shared hit=2436
+  ->  Sort  (cost=5607.52..5631.63 rows=9642 width=174) (actual time=2.479..2.480 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=2436
+        ->  Bitmap Heap Scan on blobfs_file q  (cost=503.30..5347.56 rows=9642 width=174) (actual time=0.582..1.889 rows=9988.00 loops=1)
+              Recheck Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Filter: ((created_at > '2025-09-22 04:28:10.920786+00'::timestamp with time zone) OR ((created_at = '2025-09-22 04:28:10.920786+00'::timestamp with time zone) AND (name > 'f45900.txt'::text)))
+              Rows Removed by Filter: 20
+              Heap Blocks: exact=2326
+              Buffers: shared hit=2436
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..500.89 rows=9663 width=0) (actual time=0.396..0.396 rows=10008.00 loops=1)
+                    Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=110
+Planning Time: 0.042 ms
+Execution Time: 2.517 ms
+
+migration 3 applied through migrate.Up over the installed history (only version 3 ran); blobfs head is now 3.
+sizes: blobfs_ix_file_directory_created 3992 kB; blobfs_uq_file_directory_name 8776 kB; blobfs_file heap 36 MB (100000 rows).
+
+==================== 2. after the index: blobfs at version 3 ====================
+created_at asc, page 1, no total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- after: created_at asc, page 1, no total, biggest directory: median of 5 runs: planning 0.021 ms, execution 0.027 ms, buffers 25 ----
+Limit  (cost=2.34..43.34 rows=21 width=174) (actual time=0.017..0.019 rows=21.00 loops=1)
+  Buffers: shared hit=25
+  ->  Incremental Sort  (cost=2.34..19425.05 rows=9947 width=174) (actual time=0.017..0.018 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Presorted Key: created_at
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+        Buffers: shared hit=25
+        ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..18977.43 rows=9947 width=174) (actual time=0.007..0.010 rows=22.00 loops=1)
+              Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Index Searches: 1
+              Buffers: shared hit=25
+Planning Time: 0.021 ms
+Execution Time: 0.027 ms
+created_at desc, page 1, no total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at DESC, q.name DESC OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- after: created_at desc, page 1, no total, biggest directory: median of 5 runs: planning 0.020 ms, execution 0.026 ms, buffers 25 ----
+Limit  (cost=2.34..43.34 rows=21 width=174) (actual time=0.016..0.017 rows=21.00 loops=1)
+  Buffers: shared hit=25
+  ->  Incremental Sort  (cost=2.34..19425.05 rows=9947 width=174) (actual time=0.016..0.016 rows=21.00 loops=1)
+        Sort Key: created_at DESC, name DESC
+        Presorted Key: created_at
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+        Buffers: shared hit=25
+        ->  Index Scan Backward using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..18977.43 rows=9947 width=174) (actual time=0.006..0.009 rows=22.00 loops=1)
+              Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Index Searches: 1
+              Buffers: shared hit=25
+Planning Time: 0.020 ms
+Execution Time: 0.026 ms
+created_at asc, page 1, exact total: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at, COUNT(*) OVER () AS total
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.created_at, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- after: created_at asc, page 1, exact total, biggest directory: median of 5 runs: planning 0.038 ms, execution 5.672 ms, buffers 2378 ----
+Limit  (cost=5445.37..5445.42 rows=21 width=182) (actual time=5.636..5.638 rows=21.00 loops=1)
+  Buffers: shared hit=2378
+  ->  Sort  (cost=5445.37..5470.24 rows=9947 width=182) (actual time=5.636..5.637 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=2378
+        ->  WindowAgg  (cost=5176.69..5177.18 rows=9947 width=182) (actual time=2.821..3.791 rows=10008.00 loops=1)
+              Window: w1 AS ()
+              Storage: Memory  Maximum Storage: 1927kB
+              Buffers: shared hit=2378
+              ->  Bitmap Heap Scan on blobfs_file q  (cost=277.51..5052.84 rows=9947 width=174) (actual time=0.611..1.742 rows=10008.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                    Heap Blocks: exact=2326
+                    Buffers: shared hit=2378
+                    ->  Bitmap Index Scan on blobfs_ix_file_directory_created  (cost=0.00..275.02 rows=9947 width=0) (actual time=0.425..0.425 rows=10008.00 loops=1)
+                          Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=52
+Planning Time: 0.038 ms
+Execution Time: 5.672 ms
+created_at asc, cursor page after page 1: SELECT q.id, q.directory_id, q.name, q.status, q.key, q.size, q.content_type, q.etag, q.version, q.created_at, q.updated_at
+FROM blobfs_file q
+WHERE q.directory_id = CAST($1 AS uuid) AND (q.created_at > CAST($2 AS timestamp with time zone) OR (q.created_at = CAST($3 AS timestamp with time zone) AND q.name > CAST($4 AS text))) ORDER BY q.created_at, q.name OFFSET $5 ROWS FETCH NEXT $6 ROWS ONLY
+
+---- after: created_at asc, cursor page after page 1, biggest directory: median of 5 runs: planning 0.035 ms, execution 0.035 ms, buffers 45 ----
+Limit  (cost=2.35..43.60 rows=21 width=174) (actual time=0.023..0.024 rows=21.00 loops=1)
+  Buffers: shared hit=45
+  ->  Incremental Sort  (cost=2.35..19498.66 rows=9925 width=174) (actual time=0.022..0.023 rows=21.00 loops=1)
+        Sort Key: created_at, name
+        Presorted Key: created_at
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+        Buffers: shared hit=45
+        ->  Index Scan using blobfs_ix_file_directory_created on blobfs_file q  (cost=0.42..19052.03 rows=9925 width=174) (actual time=0.011..0.015 rows=22.00 loops=1)
+              Index Cond: (directory_id = '01a0c2e7-e928-70b7-9ebb-f69a4e0a0ed3'::uuid)
+              Filter: ((created_at > '2025-09-22 04:28:10.920786+00'::timestamp with time zone) OR ((created_at = '2025-09-22 04:28:10.920786+00'::timestamp with time zone) AND (name > 'f45900.txt'::text)))
+              Rows Removed by Filter: 20
+              Index Searches: 1
+              Buffers: shared hit=45
+Planning Time: 0.035 ms
+Execution Time: 0.035 ms
+
+cross-check: every form returns the same 20 ids before and after the index.
+--- PASS: TestSortIndexCost (2.67s)
+PASS
+ok  	github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data	2.677s

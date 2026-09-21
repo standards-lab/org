@@ -65,8 +65,9 @@ func newRoot(cfg *Config) *cobra.Command {
 		Use:   "blobfs",
 		Short: "A command-line file system over blobfs",
 		Long: "blobfs is the experiment's command-line file system: a SQL-backed directory\n" +
-			"tree over Postgres with file content in an object store. schema applies and\n" +
-			"reverts the database schema; mkdir creates a directory, ls lists one, and\n" +
+			"tree over Postgres with file content in an object store. schema reports,\n" +
+			"applies, reverts, and resets the database schema (status, up, down, reset\n" +
+			"--yes); mkdir creates a directory, ls lists one, and\n" +
 			"rmdir removes an empty one; put uploads a file, cat reads one back, stat shows\n" +
 			"its row, and rm deletes it, or with -r a whole directory tree; mv moves or\n" +
 			"renames a directory or a file; all at absolute paths such as\n" +

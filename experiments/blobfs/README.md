@@ -27,8 +27,8 @@ several isolated trees runs several configurations, each with its own database a
 | `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
 | `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
 | `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `mv`, `rm`, `rmdir`, and `bookmark` commands. |
-| `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates both): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
-| `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
+| `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates the first three): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `sort-index.txt` is the stage 14 measurement, what the `created_at` index of the rehearsal migration buys a sorted listing; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
+| `admin/schema/` | The schema administration layer: the `schema` command, which reports, applies, reverts, and resets the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
@@ -36,8 +36,8 @@ several isolated trees runs several configurations, each with its own database a
 | `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, the directory removal, the cycle check, and the directory and file moves), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
 | `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
-| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
-| `lib/migrator/` | A migrator that runs several migration sets, each with its own history table. It imports only `sqlate` and the standard library. |
+| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table: the directory table, the file table, and the index on `blobfs_file (directory_id, created_at)` that stage 14 added as the upgrade rehearsal. |
+| `lib/migrator/` | The multi-set migrator: it runs several migration sets, each with its own history table, in declared order under one lock on its own pinned connection, and offers `Up`, `Down`, `Reset`, `Status`, and `Force`. It imports only `sqlate` and the standard library. |
 | `compose/` | The Postgres and Azurite services the experiment runs against. |
 
 ## The two variation points
@@ -148,10 +148,11 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   imports what its layer may not.
 - `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
   its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given.
-- `mise run evidence` runs the two cost measurements against the compose stack, each in a
+- `mise run evidence` runs the three cost measurements against the compose stack, each in a
   throwaway database, and writes their transcripts: `TestListingCost` in `lib/blobfs/data` to
-  `evidence/read-model.txt`, and `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`.
-  Both are skipped unless `BLOBFS_EVIDENCE=1`, which the task sets.
+  `evidence/read-model.txt`, `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`,
+  and `TestSortIndexCost` in `lib/blobfs/data` to `evidence/sort-index.txt`. All three are
+  skipped unless `BLOBFS_EVIDENCE=1`, which the task sets.
 
 The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
 and key are the emulator's published development credentials. The object store is configured by
@@ -164,8 +165,11 @@ is opened by the first file command that needs it: `mkdir` and `ls` never read t
 Paths are absolute: `/` is the root and `/reports/2026` a directory two levels below it. A unit
 id is a UUID and stands in for the auth strategy's unit.
 
-- `schema up` applies both migration sets, `blobfs`'s first, and `schema down` reverts them in
-  the opposite order.
+- `schema status` prints one row per migration set (its history table, applied version, latest
+  version, pending migrations, and dirty mark). `schema up` applies both sets, `blobfs`'s first;
+  `schema down` reverts them in the opposite order and keeps the history tables; `schema reset
+  --yes` reverts them and drops the history tables too, and refuses without `--yes`. A set whose
+  last migration failed midway refuses `up`, `down`, and `reset` until its history is repaired.
 - `mkdir <path>` creates the last segment under its parent, which must exist; there is no `-p`.
   `mkdir <path> --unit <uuid>` works at a top-level path only and writes the directory and its
   `directory_owner` row in one transaction.
