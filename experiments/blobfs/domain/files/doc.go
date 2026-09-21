@@ -25,21 +25,25 @@
 //     row's path by a recursion correlated on the file's directory, so
 //     bookmark ls lists a unit's bookmarks with their full paths at a cost
 //     proportional to the unit's bookmark count times the depth.
-//   - database.go is the only file that imports sqlate/query. It builds the
-//     program's one pattern catalog, compiles the consumer's statements
-//     against it, binds the typed handles, converts a Listing to the
-//     library's listing and to the query library's directives, maps the
+//   - database.go and the database_<concern>.go files are the only files
+//     that import sqlate/query. database.go builds the program's one
+//     pattern catalog, compiles the consumer's statements against it,
+//     binds the typed handles, converts a Listing to the library's listing
+//     and to the query library's directives, takes the option that chooses
+//     blobfs's variant, and verifies every statement against the database.
+//     database_bookmarks.go holds the bookmark statements, maps the
 //     bookmark table's constraint violations to the consumer's sentinels
 //     (one table for the insert, one for the file delete the foreign key
-//     refuses), takes the option that chooses blobfs's variant, and
-//     verifies every statement against the database.
+//     refuses), and holds the bookmark operations. database_owners.go
+//     holds the owner statements and operations.
 //   - storage.go is the only application file that imports go-storage and
 //     its Azure Blob provider. It adapts the storage store to the object
 //     operations the file commands make, implements blobfs's key
 //     validation over the provider's rules, maps the store's errors onto
 //     the domain's, and opens and starts the store from the environment
 //     for the composition root.
-//   - blobfs.go composes Mkdir, List, Put, Stat, Open, Move, Remove,
+//   - blobfs.go and the blobfs_<concern>.go files (read, write, move, and
+//     delete) compose Mkdir, List, Put, Stat, Open, Move, Remove,
 //     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
 //     ListBookmarks from the library's methods, the consumer's statements,
 //     and the object store. List and ListBookmarks each run in one

@@ -2,15 +2,12 @@ package files
 
 import (
 	"context"
-	"database/sql"
 	"embed"
-	"errors"
 	"fmt"
 
 	"github.com/standards-lab/sqlate"
 	"github.com/standards-lab/sqlate/query"
 
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
 )
 
@@ -21,11 +18,12 @@ var statementFiles embed.FS
 // catalog, the consumer's statements compiled against that catalog and
 // bound to typed handles, blobfs's persistence compiled against the same
 // catalog, and the object store, opened on the first file command that
-// needs it. Its methods are the domain's operations. This file is the
-// only one in the package that imports the query library: it converts a
-// Listing to the library's listing and to the query library's directives,
-// and it wraps each consumer statement in a typed method, so blobfs.go
-// composes operations without naming the query library.
+// needs it. Its methods are the domain's operations. Only database.go and
+// the database_<concern>.go files import the query library: database.go
+// converts a Listing to the library's listing and to the query library's
+// directives, and the other files wrap each consumer statement in a typed
+// method, so the blobfs_<concern>.go files compose operations without
+// naming the query library.
 type Store struct {
 	db      *sqlate.DB
 	catalog *query.Catalog
@@ -44,12 +42,6 @@ type Store struct {
 	bookmarkCount    query.Rows[bookmarkCount]
 
 	blobfs *data.Store
-}
-
-// bookmarkCount is the one row of file_bookmark_count: how many units
-// bookmark a file.
-type bookmarkCount struct {
-	Bookmarks int64 `json:"bookmarks"`
 }
 
 // Option configures New beyond its required arguments.
@@ -138,182 +130,6 @@ func (s *Store) Verify(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", ErrVerify, err)
 	}
 	return nil
-}
-
-// bookmarkMapping is what a constraint of the bookmark table means on an
-// insert: the violation class the constraint reports and the sentinel
-// that class means there.
-type bookmarkMapping struct {
-	class    error
-	sentinel error
-}
-
-// bookmarkSentinels maps the constraints a bookmark insert can violate to
-// the sentinel each one means there: the primary key is a bookmark the
-// unit holds already, the partial unique index is another active
-// bookmark, and the foreign key is a file that no longer exists. The names
-// are the consumer's own, so blobfs's write mapping never sees them and
-// the consumer classifies its own constraints where it names them.
-var bookmarkSentinels = map[string]bookmarkMapping{
-	ConstraintPrimaryKeyBookmark:     {sqlate.ErrUniqueViolation, ErrAlreadyBookmarked},
-	ConstraintUniqueBookmarkActive:   {sqlate.ErrUniqueViolation, ErrActiveBookmark},
-	ConstraintForeignKeyBookmarkFile: {sqlate.ErrForeignKeyViolation, blobfs.ErrNotFound},
-}
-
-// classifyBookmark maps a constraint violation from a bookmark insert to
-// the consumer's sentinel when the violated constraint is one
-// bookmarkSentinels lists under the class reported, keeping the
-// sqlate.ConstraintError reachable through errors.As. Any other error is
-// returned as it came.
-func classifyBookmark(err error) error {
-	var ce *sqlate.ConstraintError
-	if !errors.As(err, &ce) {
-		return err
-	}
-	m, ok := bookmarkSentinels[ce.Constraint]
-	if !ok || !errors.Is(ce.Class, m.class) {
-		return err
-	}
-	return fmt.Errorf("%w: %w", m.sentinel, err)
-}
-
-// insertBookmark writes the bookmark of the file with fileID for the unit
-// with unitID through sess, active or not. A violated constraint reaches
-// the caller classified.
-func (s *Store) insertBookmark(ctx context.Context, sess sqlate.Session, unitID, fileID string, active bool) error {
-	_, err := s.createBookmark.Exec(ctx, sess, query.Args{"unit_id": unitID, "file_id": fileID, "active": active})
-	if err != nil {
-		return fmt.Errorf("files: bookmark file %s for unit %s: %w", fileID, unitID, classifyBookmark(err))
-	}
-	return nil
-}
-
-// fileDeleteSentinels maps the consumer's constraints a file's removal can
-// violate to the sentinel each one means there: the bookmark table's
-// foreign key means a unit still bookmarks the file. The library reports
-// the violation as blobfs.ErrReferenced by class and leaves the name to
-// the consumer; the same key means a missing file on a bookmark insert.
-var fileDeleteSentinels = map[string]bookmarkMapping{
-	ConstraintForeignKeyBookmarkFile: {sqlate.ErrForeignKeyViolation, ErrBookmarked},
-}
-
-// classifyFileDelete maps a refusal of a file's removal to the consumer's
-// sentinel when the violated constraint is one fileDeleteSentinels lists
-// under the class reported, keeping the sqlate.ConstraintError reachable
-// through errors.As. Any other error is returned as it came.
-func classifyFileDelete(err error) error {
-	var ce *sqlate.ConstraintError
-	if !errors.As(err, &ce) {
-		return err
-	}
-	m, ok := fileDeleteSentinels[ce.Constraint]
-	if !ok || !errors.Is(ce.Class, m.class) {
-		return err
-	}
-	return fmt.Errorf("%w: %w", m.sentinel, err)
-}
-
-// bookmarksOfFile returns how many units bookmark the file with fileID,
-// through sess.
-func (s *Store) bookmarksOfFile(ctx context.Context, sess sqlate.Session, fileID string) (int64, error) {
-	c, err := s.bookmarkCount.One(ctx, sess, query.Args{"file_id": fileID})
-	if err != nil {
-		return 0, fmt.Errorf("files: bookmarks of file %s: %w", fileID, err)
-	}
-	return c.Bookmarks, nil
-}
-
-// deleteBookmark removes the bookmark of the file with fileID for the
-// unit with unitID through sess. No row affected is ErrNoBookmark.
-func (s *Store) deleteBookmark(ctx context.Context, sess sqlate.Session, unitID, fileID string) error {
-	n, err := s.removeBookmark.Exec(ctx, sess, query.Args{"unit_id": unitID, "file_id": fileID})
-	if err != nil {
-		return fmt.Errorf("files: remove bookmark of file %s for unit %s: %w", fileID, unitID, err)
-	}
-	if n == 0 {
-		return fmt.Errorf("files: remove bookmark of file %s for unit %s: %w", fileID, unitID, ErrNoBookmark)
-	}
-	return nil
-}
-
-// bookmarksOf lists the bookmarks of the unit with unitID through sess:
-// one page of the bookmark read model under l, filtered by unit_id,
-// sorted by the caller's terms or by path when there are none, with
-// file_id appended by the projection as the tie-breaker. The projection
-// always runs its count statement, so under TotalNone the count is read
-// and dropped and the page reports NoTotal.
-func (s *Store) bookmarksOf(ctx context.Context, sess sqlate.Session, unitID string, l Listing) (Page[BookmarkedFile], error) {
-	sort := sortTerms(l.Sort, nil)
-	if len(sort) == 0 {
-		sort = []query.Sort{{Field: "path"}}
-	}
-	d := query.Directives{
-		Page:    query.Page{Number: l.Page, Size: l.Size},
-		Sort:    sort,
-		Filters: []query.Filter{{Field: "unit_id", Op: query.OpEq, Value: unitID}},
-	}
-	rows, total, err := s.bookmarks.List(ctx, sess, d)
-	if err != nil {
-		return Page[BookmarkedFile]{}, fmt.Errorf("files: bookmarks of %s: %w", unitID, err)
-	}
-	if l.Total == TotalNone {
-		total = NoTotal
-	}
-	return Page[BookmarkedFile]{Rows: rows, Total: total}, nil
-}
-
-// insertOwner writes the ownership row of a directory inside tx. The
-// statement requires a transaction, so a pool session is refused.
-func (s *Store) insertOwner(ctx context.Context, tx *sqlate.Tx, directoryID, unitID string) error {
-	_, err := s.createOwner.Exec(ctx, tx, query.Args{"directory_id": directoryID, "unit_id": unitID})
-	if err != nil {
-		return fmt.Errorf("files: create owner of %s: %w", directoryID, err)
-	}
-	return nil
-}
-
-// deleteOwner removes the ownership row of a directory inside tx, if the
-// directory has one; none affected is not an error. The statement
-// requires a transaction, so a pool session is refused.
-func (s *Store) deleteOwner(ctx context.Context, tx *sqlate.Tx, directoryID string) error {
-	if _, err := s.removeOwner.Exec(ctx, tx, query.Args{"directory_id": directoryID}); err != nil {
-		return fmt.Errorf("files: remove owner of %s: %w", directoryID, err)
-	}
-	return nil
-}
-
-// owner reads the ownership row of the directory with directoryID through
-// sess. The bool reports whether the directory has one.
-func (s *Store) owner(ctx context.Context, sess sqlate.Session, directoryID string) (DirectoryOwner, bool, error) {
-	o, err := s.ownerOfDirectory.One(ctx, sess, query.Args{"directory_id": directoryID})
-	if errors.Is(err, sql.ErrNoRows) {
-		return DirectoryOwner{}, false, nil
-	}
-	if err != nil {
-		return DirectoryOwner{}, false, fmt.Errorf("files: owner of %s: %w", directoryID, err)
-	}
-	return o, true, nil
-}
-
-// ownedBy lists the directories the unit with unitID owns through sess:
-// one page of owned_directories under l, sorted by the terms the
-// directory half takes, filtered by unit_id. The projection always runs
-// its count statement, so under TotalNone the count is read and dropped;
-// the page then reports NoTotal like the library's listings do.
-func (s *Store) ownedBy(ctx context.Context, sess sqlate.Session, unitID string, l Listing) (Page[OwnedDirectory], error) {
-	d := query.Directives{
-		Page:    query.Page{Number: l.Page, Size: l.Size},
-		Sort:    sortTerms(l.Sort, directoryFields),
-		Filters: []query.Filter{{Field: "unit_id", Op: query.OpEq, Value: unitID}},
-	}
-	rows, total, err := s.ownedDirectories.List(ctx, sess, d)
-	if err != nil {
-		return Page[OwnedDirectory]{}, fmt.Errorf("files: directories owned by %s: %w", unitID, err)
-	}
-	if l.Total == TotalNone {
-		total = NoTotal
-	}
-	return Page[OwnedDirectory]{Rows: rows, Total: total}, nil
 }
 
 // directoryFields are the fields both of the library's listings declare,

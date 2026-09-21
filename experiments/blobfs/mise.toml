@@ -179,20 +179,22 @@ done
 bad=$(grep -rl --include='*.go' -E "\"$storage" . | grep -v '_test.go$' | sed 's#^\./##' | grep -v -E '^(lib/|domain/files/storage\.go$)' || true)
 [ -z "$bad" ] || report "an application file other than domain/files/storage.go names go-storage" "$bad"
 
-# 7. Only a domain or admin package's database.go names sqlate/query, among the application
-# packages. sqlate/migrate is a different package and is not covered.
-bad=$(grep -rl --include='*.go' -E "\"$sqlate/query" . | grep -v '_test.go$' | sed 's#^\./##' | grep -v -E '^(lib/|(domain|admin)/[^/]+/database\.go$)' || true)
+# 7. Only a domain or admin package's database.go, or a database_<concern>.go split from it,
+# names sqlate/query, among the application packages. sqlate/migrate is a different package and
+# is not covered.
+bad=$(grep -rl --include='*.go' -E "\"$sqlate/query" . | grep -v '_test.go$' | sed 's#^\./##' | grep -v -E '^(lib/|(domain|admin)/[^/]+/database(_[a-z]+)?\.go$)' || true)
 [ -z "$bad" ] || report "an application file other than a database.go names sqlate/query" "$bad"
 
 # 8. cobra is named only under internal/app/, cmd/, output/, and by a domain or admin package's
 # commands.go. Nothing under lib/ names it.
 names "$cobra" '^(internal/app/|cmd/|output/|(domain|admin)/[^/]+/commands\.go$)' "a file outside the command layers names cobra"
 
-# 9. Among the application packages, only domain/files/blobfs.go and domain/files/database.go
-# name lib/blobfs/data: the translation file composes the library's operations, and the SQL
-# client registers the library's pattern namespace in the catalog it builds and lowers the
-# consumer's listing to the library's, which is the one place the query library is named.
-names "$module/lib/blobfs/data\"" '^(lib/|domain/files/(blobfs|database)\.go$)' "an application file other than domain/files/blobfs.go or database.go names lib/blobfs/data"
+# 9. Among the application packages, only domain/files/blobfs.go and domain/files/database.go,
+# with the blobfs_<concern>.go and database_<concern>.go files split from them, name
+# lib/blobfs/data: the translation files compose the library's operations, and the SQL client
+# registers the library's pattern namespace in the catalog it builds and lowers the consumer's
+# listing to the library's, which is the one place the query library is named.
+names "$module/lib/blobfs/data\"" '^(lib/|domain/files/(blobfs|database)(_[a-z]+)?\.go$)' "an application file other than domain/files/blobfs.go or database.go names lib/blobfs/data"
 
 # 10. Among the application packages, only internal/app/domain.go names the Postgres variant:
 # the variant is a composition choice (--variant, BLOBFS_VARIANT), and no domain or admin
