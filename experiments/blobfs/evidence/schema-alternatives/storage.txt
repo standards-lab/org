@@ -1,0 +1,81 @@
+# Table and index sizes after REINDEX DATABASE and VACUUM ANALYZE, so no
+# number carries a page-split artifact of the load order.
+
+===== blobfs_opus_a
+              object              | kind  |  size   |  bytes   
+----------------------------------+-------+---------+----------
+ blobfs_directory                 | table | 912 kB  |   933888
+ blobfs_file                      | table | 18 MB   | 19054592
+ blobfs_ix_file_directory_created | index | 3992 kB |  4087808
+ blobfs_pk_directory              | index | 328 kB  |   335872
+ blobfs_pk_file                   | index | 3104 kB |  3178496
+ blobfs_uq_directory_parent_name  | index | 416 kB  |   425984
+ blobfs_uq_directory_root         | index | 16 kB   |    16384
+ blobfs_uq_file_directory_name    | index | 4880 kB |  4997120
+(8 rows)
+
+ heaps | indexes | library_total 
+-------+---------+---------------
+ 19 MB | 12 MB   | 32 MB
+(1 row)
+
+
+===== blobfs_opus_b
+               object                | kind  |  size   |  bytes   
+-------------------------------------+-------+---------+----------
+ blobfs_entry                        | table | 21 MB   | 21741568
+ blobfs_ix_entry_parent_kind_created | index | 5208 kB |  5332992
+ blobfs_ix_entry_parent_kind_name    | index | 5360 kB |  5488640
+ blobfs_pk_entry                     | index | 3416 kB |  3497984
+ blobfs_uq_entry_id_kind             | index | 4464 kB |  4571136
+ blobfs_uq_entry_parent_name         | index | 5272 kB |  5398528
+ blobfs_uq_entry_root                | index | 16 kB   |    16384
+(7 rows)
+
+ heaps | indexes | library_total 
+-------+---------+---------------
+ 21 MB | 23 MB   | 44 MB
+(1 row)
+
+
+===== blobfs_opus_c
+               object               | kind  |  size   |  bytes   
+------------------------------------+-------+---------+----------
+ blobfs_directory                   | table | 592 kB  |   606208
+ blobfs_file                        | table | 13 MB   | 14131200
+ blobfs_node                        | table | 11 MB   | 11132928
+ blobfs_ix_node_parent_kind_created | index | 5208 kB |  5332992
+ blobfs_ix_node_parent_kind_name    | index | 5360 kB |  5488640
+ blobfs_pk_directory                | index | 328 kB  |   335872
+ blobfs_pk_file                     | index | 3104 kB |  3178496
+ blobfs_pk_node                     | index | 3416 kB |  3497984
+ blobfs_uq_node_id_kind             | index | 4464 kB |  4571136
+ blobfs_uq_node_parent_name         | index | 5272 kB |  5398528
+ blobfs_uq_node_root                | index | 16 kB   |    16384
+(11 rows)
+
+ heaps | indexes | library_total 
+-------+---------+---------------
+ 25 MB | 27 MB   | 51 MB
+(1 row)
+
+
+===== blobfs_opus_c2
+               object               | kind  |  size   |  bytes   
+------------------------------------+-------+---------+----------
+ blobfs_file                        | table | 13 MB   | 14131200
+ blobfs_node                        | table | 12 MB   | 12869632
+ blobfs_ix_node_parent_kind_created | index | 5208 kB |  5332992
+ blobfs_ix_node_parent_kind_name    | index | 5360 kB |  5488640
+ blobfs_pk_file                     | index | 3104 kB |  3178496
+ blobfs_pk_node                     | index | 3416 kB |  3497984
+ blobfs_uq_node_id_kind             | index | 4464 kB |  4571136
+ blobfs_uq_node_parent_name         | index | 5272 kB |  5398528
+ blobfs_uq_node_root                | index | 16 kB   |    16384
+(9 rows)
+
+ heaps | indexes | library_total 
+-------+---------+---------------
+ 26 MB | 26 MB   | 52 MB
+(1 row)
+

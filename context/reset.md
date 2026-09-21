@@ -8,16 +8,21 @@
 ## Disposition
 
 - **Integrated:** nothing decayed.
-- **Promoted:** nothing. Every result of the experiment is evidence in `experiments/blobfs/`, and
-  the concept and design notes change only at the review that follows.
+- **Promoted:** nothing. Every result of the experiment and of the review is evidence or a recorded
+  decision under `experiments/blobfs/`. The concept and design-note edits wait for the closeout
+  and are listed in `experiments/blobfs/DECISIONS.md`, section "Edits queued for the close".
 - **Culled:** nothing in `context/` changed this session.
-- **Retained:** `concepts/blobfs.md` as written, provisional. The experiment showed that several
-  of its paragraphs are wrong or changed. `experiments/blobfs/REVIEW.md`, section "Amendments to
-  make at close", lists each edit as file, change, and reason. The edits wait for the architect's
-  review and are not made yet.
+- **Retained:** `concepts/blobfs.md` as written, provisional. The amendments in `REVIEW.md`,
+  section "Amendments to make at close", and the additions in `DECISIONS.md` are made at the
+  closeout, after the architect's final review.
 - **Roadmap:** no manifest edit. `blobfs.experiment` stays the task in flight, and the roadmap does
-  not advance on a handoff. The `blobfs.sources` summary needs a rewrite from `REVIEW.md`, Finding
-  2, items 26 to 32, at close.
+  not advance on a handoff. The rewrite of the `blobfs.sources` summary and the requirements for
+  `blobfs.build` wait for the closeout. `DECISIONS.md`, section "Requirements carried to later
+  tasks", holds them.
+- **Architecture layer:** nothing promoted on a handoff. A candidate for the closeout: the review's
+  principles may have generalized past this repository, namely navigation one directory at a
+  time, engine packages that own their DDL and native variants, migration sets as layers, and ids
+  as the primary handle. Promotion waits for the closeout.
 - **Cross-repo:** none.
 
 ## Next-focus
@@ -25,110 +30,113 @@
 Task `blobfs.experiment`, an `experiment` session in `standards-lab`, on branch
 `blobfs-experiment` (open, unpublished), in `standards-lab/experiments/blobfs`.
 
-**Stages: 16 of 16 done, all committed.** The experiment is built, verified, and recorded. The
-working tree is clean. The last experiment commit is `96ca8e2` ("Record the experiment's findings
-in REVIEW.md"), and this handoff is the commit after it. Nothing is closed, pushed, or published.
+**Phase 2 is complete and Phase 3 has not started.** The architect reviewed the eight layers of the
+built experiment, saw the live demonstration and the guided tour, and answered all fifteen
+questions of `REVIEW.md`. Every decision, adjustment, and edit is recorded in
+`experiments/blobfs/DECISIONS.md`. Read it in full first. It carries no provisional entry and no
+open question. `GUIDE.md` (the tour of the built experiment) and `evidence/schema-alternatives/`
+(the four-design measurements behind the schema decision) are also new files in the tree. The
+original sixteen stages are done and committed.
 
-The experiment's organized record is `experiments/blobfs/REVIEW.md`: the three findings (the
-library, the `sqlate` adjustments, the `v1.storage` incorporation), the proofs table, the
-amendments to make at close, fifteen decisions for the architect with a recommendation each, what
-the experiment did not prove, and the commands that reproduce every result.
-`experiments/blobfs/NOTES.md` is the chronological log, and `experiments/blobfs/evidence/` holds
-the three cost transcripts.
+**Stages: 16 of 32 done. Phase 3 stages 17 to 32 are approved, and none has started.** The list, in
+dependency order, lowest first. Each entry names the adjustment of `DECISIONS.md` it implements.
+
+17. Decompose `domain/files`: split `blobfs.go` and `database.go` by concern, role as prefix
+    (adjustment 11). No behavior change.
+18. Schema amendments: name the root `/`, make `Directory.Name` a `string`, and remove the
+    `created_at` index migration, with a fixture third migration in the migrator tests and the
+    golden hashes re-pinned (adjustments 13 and 15). Existing databases must be reset first
+    (adjustment 17).
+19. Engine package: create `lib/blobfs/postgres` from `pgnative` and the Postgres DDL, exporting the
+    whole migration set, and remove `lib/blobfs/migrations` (adjustments 14 and 16). Update the
+    consumer, `split-check`, and the `mise` tasks.
+20. Constraint error wrapper: the message prints the sentinel and the constraint name, and the
+    driver error stays reachable through `errors.As` (adjustment 12).
+21. `Page.More`: one extra row on every page, the projections derive it from their count, and the
+    tool prints a `more:` line (decision 5 of the review additions).
+22. Seeding operations in the library: `EnsureDirectory`, `BeginOrResumeFileWrite`, and optional
+    caller-supplied ids (adjustment 18).
+23. The bookmark race: `HoldFile` and `rm` beginning before it counts, with tests of both
+    interleavings (adjustment 10).
+24. Relative path resolution from a directory id (adjustment 9).
+25. Id-keyed consumer operations with path wrappers, the scope check by id through `IsWithin`, and a
+    bookmark read model that returns ids and computes the path on request (adjustment 9).
+26. File `cp` (adjustment 2).
+27. Tool: an id column in `ls`, `stat` of directories, the `id:<uuid>` form, `--cursors`, and
+    `--filter` (adjustments 3, 4, and 9).
+28. Native variation points, measurement: `RETURNING` for the begin and complete write steps and for
+    `Mkdir`, path resolution in one statement, and a row-value keyset predicate, measured against
+    the standard tier with the round-trip method of `evidence/schema-alternatives/40_protocol.sh`
+    (adjustment 14). Report the numbers before any implementation.
+29. Native variation points, implementation: only the measured winners, in `lib/blobfs/postgres`,
+    each proven by the conformance suite on both variants (adjustment 14).
+30. Cost regression assertions where they add legitimate value (adjustment 19).
+31. Evidence: regenerate the transcripts with `mise run evidence` (adjustment 5).
+32. Documentation and cleanup: the library docs and `README.md` conventions, the `GUIDE.md` update,
+    the `README.md` evidence table, the migrator and `NewStorage` notes, and the removal of the
+    leftover Azurite containers (adjustments 7 and 8).
+
+**After stage 32.** Validate the whole step: the whole-module build, the full test run, the
+integration tier, and `mise run demo`. **The updated `GUIDE.md` drives the architect's final
+review.** It must cover every capability, including those Phase 3 adds, each with a summary, the
+key files, and the commands to run. Then set the requirements for `blobfs.build` with the
+architect, and then run `close`: the edits queued in `DECISIONS.md`, the roadmap, and the publish
+with `gh pr create`, which is the architect's decision at that point.
 
 ### The exact next move
 
 Resume with `/marathon:marathon experiment`. LOCATE routes to `Status: handoff`, and 3R checks out
-`blobfs-experiment` and reads this file. Do not re-enter SETTLE and do not run any stage: all
-sixteen are done. Then stop and wait. Do not start the review on your own. The architect starts it
-by saying "start", and the protocol is "The post-execution review" below.
+`blobfs-experiment` and reads this file. Do not re-enter SETTLE. The stage list is approved.
 
-Before the review, read `experiments/blobfs/REVIEW.md` (the whole file) and
-`experiments/blobfs/README.md`, then look at the tree. The review explains code, so read each
-layer's files firsthand before presenting them.
+1. Read `DECISIONS.md` in full, then `GUIDE.md` and `README.md`, then look at the tree.
+2. Start stage 17. Before it, state the delegation call out loud: implementation goes to `fable`
+   under the model-routing convention, one stage at a time, briefed with full context. The
+   orchestrator finishes the documentation, code comments, and commit messages.
+3. Run the stage's check: `mise run build`, `vet`, `test`, `lint`, and `split-check`, and
+   `mise run integration` for any stage that touches the database. Read what `fable` produced
+   firsthand, the diff and the check output, and then report with `diff --stat`, the check result,
+   the delegation call, and only the decisions the plan did not spell out. Leave the working tree
+   uncommitted until the architect approves. Commit on approval, and the architect states whether a
+   `reset` follows.
+4. Move to the next stage only after the commit. A finding that reaches beyond one stage is a
+   re-plan of the remaining stages.
 
-### Cautions for the review
+### Cautions
 
-- Run the binary only against a throwaway database. `mise.toml` sets `BLOBFS_DSN` to the compose
-  stack's default `app` database, and mise's value overrides a variable set on the command line, so
-  `mise run cli -- schema up` changes `app`. Create a database (for example `CREATE DATABASE
-  blobfs_review` through `docker exec blobfs-postgres psql -U app -d app`) and pass its DSN with
-  `--dsn`. Give the object store its own container through `BLOBFS_STORAGE_CONTAINER`. Drop both at
-  the end of the review, and never `mise run down`, `mise run reset`, or `docker compose down`.
-- The default `app` database already holds the full schema, at head, with only the seeded root
-  row. A stage 11 subagent applied it there by mistake. Nothing depends on it. The architect can
-  restore it with `mise exec -- go run ./cmd/blobfs schema down` from `experiments/blobfs`, which
-  is the architect's to run or to authorize. Do not run it unasked.
-- `mise run evidence` rewrites the three committed transcripts under `evidence/`, and the figures
-  in `NOTES.md` and `REVIEW.md` cite them. Do not run it during the review.
-- The Docker stack (`blobfs-postgres` on port 5434, `blobfs-azurite` on port 10000) is running.
-  If it is not, `mise run up` starts it.
-- `mise run demo` runs the scripted end-to-end run against the built binary once per variant, in
-  throwaway databases and containers, printing every command and its output. It is a safe way to
-  show the transcript, but the live demonstration below runs the binary by hand.
+- Baseline at this handoff: the build, `go vet`, `split-check`, `golangci-lint` (0 issues),
+  `sqlint`, all hermetic tests, and the integration tier (about 50 seconds) pass. A stage that
+  breaks one of them is not done.
+- Run the binary only against a throwaway database, and give the object store its own container
+  through `BLOBFS_STORAGE_CONTAINER`. `mise.toml` sets `BLOBFS_DSN` to the compose stack's default
+  `app` database, and mise's value overrides a variable set on the command line, so `mise run cli`
+  changes `app`. `GUIDE.md`, section "Setup", shows the safe wrapper.
+- Never run `mise run down`, `mise run reset`, or `docker compose down`. Run `mise run evidence`
+  only in stage 31, because it rewrites the committed transcripts that `NOTES.md` and `REVIEW.md`
+  cite.
+- Stage 18 changes migrations in place, and the migrator does not detect that. The databases
+  `blobfs_review`, `blobfs_review2`, and `blobfs_tour` are throwaway from the review and can be
+  dropped once the architect says so. The default `app` database holds the full schema at head from
+  an earlier mistake, and nothing depends on it. Resetting it is the architect's to run or to
+  authorize, for example with `schema reset --yes` against `app`. Never do it unasked.
+- The compose stack (`blobfs-postgres` on port 5434, `blobfs-azurite` on port 10000) is running. If
+  it is not, `mise run up` starts it.
+- The internal `livetest` package deletes Azurite containers, and the CLI cannot. The empty
+  containers `gcheck` and `gcheck2` remain from a guide check, and the architect's own `blobtour`
+  containers may exist.
+- The earlier notes called the file `cp` stage 17. In this list it is stage 26.
+- Documentation, code comments, commit messages, and context notes are the orchestrator's, in the
+  voice standard, whoever drafted them.
 
-### The post-execution review
+### The design after the review
 
-When the architect says "start", run the review in two phases. Change no code during it unless the
-architect asks for an adjustment, and keep every explanation short: the architect wants to
-understand the mechanics without being overwhelmed. Route any adjustment that is technically
-complex to `fable` under the standing model-routing convention, state the delegation call first,
-and read what it produced firsthand before saying anything about it.
-
-**Phase 1: orientation.** Explain how the API is structured and how the experiment runs, then
-demonstrate everything that was built by running the built binary live against the compose stack,
-in a throwaway database, one step at a time with a line of narration and the real output shown.
-Do not point at integration tests instead. Cover, in an order that builds up: bringing the stack
-up and applying the schema (`schema up`, `status`, and a `reset --yes`); `mkdir` and `ls` with
-paging, sorting, `--total none`, and the `--after-dirs` and `--after-files` cursors; `--unit`
-scoping at a depth-one directory and at `/`; the write path (`put`, `cat`, `stat`) including
-`--fail-after` and how a `pending` row is found and completed by a retry; `mv` (a file, a directory,
-the cycle refusal, the root refusal, and the scope refusal); `rm` with `--fail-after begin|object`
-and a converging retry, `rmdir` (including the root refusal), and `rm -r`; `bookmark add|ls|rm` and
-the one-active rule; the same script on the baseline and on the `pgnative` variant (`--variant
-standard` and `--variant pgnative`; the tree-lock step is where the two differ from outside); a
-second configuration to show isolation (a second database and container); and the migration set
-(`schema status` shows both sets and their versions). The upgrade rehearsal cannot be shown from
-the binary, because `schema up` applies the whole three-migration set, so point at
-`TestUpgradeAfterRestart` in `lib/migrator/migrator_integration_test.go` and run that one test.
-Add a short
-map of the layers before the demonstration. Leave the stack running and the database available so
-the architect can try commands too.
-
-**Phase 2: layer-by-layer review, top down.** Choose the layer segregation yourself and say what
-you chose. A sensible default, from the top: (1) the entry point and composition root
-(`cmd/blobfs`, `internal/app`); (2) the command surface and output (`domain/files/commands.go`,
-`admin/schema`, `output`); (3) the consumer domain (`domain/files`: entities, statements,
-`database.go`, the `blobfs.go` and `storage.go` translation files); (4) the persistence layer
-(`lib/blobfs/data`: statements, patterns, the listing composer, the cursor); (5) the variant seam
-(`lib/blobfs/data/variant.go`, `lib/blobfs/data/pgnative`, `lib/blobfs/data/datatest`); (6) the
-root package and schema (`lib/blobfs`, `lib/blobfs/migrations`); (7) the migrator
-(`lib/migrator`); (8) the tests, integration tier, and evidence (`integration`, `evidence`). For
-each layer give the architect, and nothing more: at most five files to read, in reading order,
-with the line that says what each one is; the three to five things to understand about the layer,
-including the decisions and the tradeoffs behind them; and the findings for that layer from
-`REVIEW.md` that affect it. Then stop and wait for the architect to finish with that layer, take
-their questions and requested adjustments, and only then move to the next one. The aim is to
-confirm that the infrastructure is well formed and performs as intended, so name for each layer
-what you believe is well formed, what you are least sure of, and what the evidence says about
-cost.
-
-After the last layer, collect the adjustments the architect asked for, apply them, and then plan
-with the architect the amendments to the concept and the design notes (the list is in `REVIEW.md`),
-the answers to the fifteen decisions, and the `close`. The `close` publishes the branch with `gh pr
-create`, which is the architect's decision at that point.
-
-### The design in one paragraph
-
-`blobfs` provides only the container-based directory and file infrastructure. A configuration
-points at one container, which is the root of the tree. A consumer that wants several isolated
-trees runs several configurations, each with its own container and database. The schema is
-`blobfs_directory` (one seeded root row with the well-known id `blobfs.RootID`, the nil UUID, no
-name, one root enforced by the partial unique index `blobfs_uq_directory_root`) and `blobfs_file`.
-The listing is a statement anchored on one directory with the total computed in the same statement
-(`COUNT(*) OVER ()`), composed in Go over authored statements, with offset paging and a keyset
-cursor, and it never walks the whole forest. The path stays a read-time computation. Native SQL is
-confined to two variation points behind the `data.Variant` interface, the tree lock and the
-file-delete begin, and the standard-tier baseline is complete on any engine. The consumer keeps
-`directory_owner(directory_id, unit_id)` and `bookmark(unit_id, file_id, active)` in its own
-migration set.
+`blobfs` keeps a virtual directory tree and file metadata in SQL for an object store, and it never
+calls the object store. The schema is two tables, `blobfs_directory` and `blobfs_file`, with
+separate name spaces. One seeded root row, named `/` and given the nil UUID `blobfs.RootID`, anchors
+every path. The API is id-first and navigates one directory at a time, with filters, sort, and
+pagination over that directory's children, offset or keyset, and a `Page` that says both whether
+rows remain and whether a cursor can continue. A file write, delete, and copy are two-phase, with a
+`pending` or `deleting` row that any retry converges from. Engines are packages: `lib/blobfs/postgres`
+owns its DDL as a whole migration set, its native variant, and its port notes, and the standard tier
+is the baseline and the fallback. Migration sets are layers with their own histories, run bottom-up
+and reverted top-down. The service, not the library, seeds named states, and the library supplies
+the idempotent operations that make seeding files safe.

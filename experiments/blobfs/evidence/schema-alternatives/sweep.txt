@@ -1,0 +1,123 @@
+# The sweeper's read: every pending row in the install older than a threshold.
+# The library's listings are anchored on one directory, so this read is not one of
+# them today; it is measured because the concept names a sweeper and because the
+# designs differ in how much of the row a status scan has to touch. No design has
+# an index on status here; a partial index on the two transient statuses would
+# serve any of them equally.
+
+# summary:
+# des query                                                     plan ms   exec ms  buffers  plan shape
+# a   sweep: every pending row older than a threshold, 100 rows    0.558     6.349     2332  Seq Scan, Sort, Limit
+# b   sweep: every pending row older than a threshold, 100 rows    1.665     8.172     2660  Seq Scan, Sort, Limit
+# c   sweep: every pending row older than a threshold, 100 rows    1.968    10.623     3099  Seq Scan, Sort, Limit, Hash Join
+# c2  sweep: every pending row older than a threshold, 100 rows    1.233     9.946     3311  Seq Scan, Sort, Limit, Hash Join
+
+---- a: sweep: every pending row older than a threshold, 100 rows: planning 0.558 ms, execution 6.349 ms, buffers 2332 ----
+SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at
+FROM blobfs_file f
+WHERE f.status = CAST('pending' AS text) AND f.updated_at < CAST('2026-01-01 00:00:00+00' AS timestamp with time zone) ORDER BY f.updated_at, f.id OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY
+
+Limit  (cost=3836.97..3837.22 rows=100 width=151) (actual time=6.300..6.308 rows=100.00 loops=1)
+  Buffers: shared hit=2332
+  ->  Sort  (cost=3836.97..3837.69 rows=287 width=151) (actual time=6.299..6.303 rows=100.00 loops=1)
+        Sort Key: updated_at, id
+        Sort Method: top-N heapsort  Memory: 67kB
+        Buffers: shared hit=2332
+        ->  Seq Scan on blobfs_file f  (cost=0.00..3826.00 rows=287 width=151) (actual time=0.006..6.212 rows=281.00 loops=1)
+              Filter: ((updated_at < '2026-01-01 00:00:00+00'::timestamp with time zone) AND (status = 'pending'::text))
+              Rows Removed by Filter: 99719
+              Buffers: shared hit=2326
+Planning:
+  Buffers: shared hit=155
+Planning Time: 0.558 ms
+Execution Time: 6.349 ms
+
+---- b: sweep: every pending row older than a threshold, 100 rows: planning 1.665 ms, execution 8.172 ms, buffers 2660 ----
+SELECT f.id, f.parent_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at
+FROM blobfs_entry f
+WHERE f.kind = CAST('file' AS text) AND f.status = CAST('pending' AS text) AND f.updated_at < CAST('2026-01-01 00:00:00+00' AS timestamp with time zone) ORDER BY f.updated_at, f.id OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY
+
+Limit  (cost=4590.23..4590.48 rows=100 width=151) (actual time=8.099..8.108 rows=100.00 loops=1)
+  Buffers: shared hit=2660
+  ->  Sort  (cost=4590.23..4590.96 rows=292 width=151) (actual time=8.097..8.102 rows=100.00 loops=1)
+        Sort Key: updated_at, id
+        Sort Method: top-N heapsort  Memory: 67kB
+        Buffers: shared hit=2660
+        ->  Seq Scan on blobfs_entry f  (cost=0.00..4579.07 rows=292 width=151) (actual time=0.924..7.926 rows=281.00 loops=1)
+              Filter: ((updated_at < '2026-01-01 00:00:00+00'::timestamp with time zone) AND (kind = 'file'::text) AND (status = 'pending'::text))
+              Rows Removed by Filter: 109723
+              Buffers: shared hit=2654
+Planning:
+  Buffers: shared hit=219
+Planning Time: 1.665 ms
+Execution Time: 8.172 ms
+
+---- c: sweep: every pending row older than a threshold, 100 rows: planning 1.968 ms, execution 10.623 ms, buffers 3099 ----
+SELECT n.id, n.parent_id, n.name, f.status, f.key, f.size, f.content_type, f.etag, n.version, n.created_at, n.updated_at
+FROM blobfs_file f JOIN blobfs_node n ON n.id = f.node_id
+WHERE f.status = CAST('pending' AS text) AND n.updated_at < CAST('2026-01-01 00:00:00+00' AS timestamp with time zone) ORDER BY n.updated_at, n.id OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY
+
+Limit  (cost=5702.81..5714.20 rows=100 width=151) (actual time=8.822..10.513 rows=100.00 loops=1)
+  Buffers: shared hit=3099
+  ->  Gather Merge  (cost=5702.81..5743.84 rows=360 width=151) (actual time=8.820..10.508 rows=100.00 loops=1)
+        Workers Planned: 1
+        Workers Launched: 1
+        Buffers: shared hit=3099
+        ->  Sort  (cost=4702.80..4703.33 rows=212 width=151) (actual time=6.990..6.993 rows=77.50 loops=2)
+              Sort Key: n.updated_at, n.id
+              Sort Method: quicksort  Memory: 61kB
+              Buffers: shared hit=3099
+              Worker 0:  Sort Method: quicksort  Memory: 61kB
+              ->  Parallel Hash Join  (cost=2467.94..4694.69 rows=212 width=151) (actual time=4.057..6.890 rows=140.50 loops=2)
+                    Hash Cond: (n.id = f.node_id)
+                    Buffers: shared hit=3084
+                    ->  Parallel Seq Scan on blobfs_node n  (cost=0.00..2167.85 rows=22437 width=66) (actual time=0.005..2.501 rows=19048.50 loops=2)
+                          Filter: (updated_at < '2026-01-01 00:00:00+00'::timestamp with time zone)
+                          Rows Removed by Filter: 35954
+                          Buffers: shared hit=1359
+                    ->  Parallel Hash  (cost=2460.29..2460.29 rows=612 width=101) (actual time=3.401..3.401 rows=500.00 loops=2)
+                          Buckets: 2048  Batches: 1  Memory Usage: 176kB
+                          Buffers: shared hit=1725
+                          ->  Parallel Seq Scan on blobfs_file f  (cost=0.00..2460.29 rows=612 width=101) (actual time=0.011..3.255 rows=500.00 loops=2)
+                                Filter: (status = 'pending'::text)
+                                Rows Removed by Filter: 49500
+                                Buffers: shared hit=1725
+Planning:
+  Buffers: shared hit=267
+Planning Time: 1.968 ms
+Execution Time: 10.623 ms
+
+---- c2: sweep: every pending row older than a threshold, 100 rows: planning 1.233 ms, execution 9.946 ms, buffers 3311 ----
+SELECT n.id, n.parent_id, n.name, f.status, f.key, f.size, f.content_type, f.etag, n.version, n.created_at, n.updated_at
+FROM blobfs_file f JOIN blobfs_node n ON n.id = f.node_id
+WHERE f.status = CAST('pending' AS text) AND n.updated_at < CAST('2026-01-01 00:00:00+00' AS timestamp with time zone) ORDER BY n.updated_at, n.id OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY
+
+Limit  (cost=5914.37..5925.77 rows=100 width=151) (actual time=8.026..9.854 rows=100.00 loops=1)
+  Buffers: shared hit=3311
+  ->  Gather Merge  (cost=5914.37..5955.85 rows=364 width=151) (actual time=8.024..9.848 rows=100.00 loops=1)
+        Workers Planned: 1
+        Workers Launched: 1
+        Buffers: shared hit=3311
+        ->  Sort  (cost=4914.36..4914.89 rows=214 width=151) (actual time=6.278..6.281 rows=77.00 loops=2)
+              Sort Key: n.updated_at, n.id
+              Sort Method: quicksort  Memory: 64kB
+              Buffers: shared hit=3311
+              Worker 0:  Sort Method: quicksort  Memory: 58kB
+              ->  Parallel Hash Join  (cost=2468.11..4906.18 rows=214 width=151) (actual time=3.073..6.192 rows=140.50 loops=2)
+                    Hash Cond: (n.id = f.node_id)
+                    Buffers: shared hit=3296
+                    ->  Parallel Seq Scan on blobfs_node n  (cost=0.00..2379.85 rows=22179 width=66) (actual time=0.003..2.795 rows=19048.50 loops=2)
+                          Filter: (updated_at < '2026-01-01 00:00:00+00'::timestamp with time zone)
+                          Rows Removed by Filter: 35954
+                          Buffers: shared hit=1571
+                    ->  Parallel Hash  (cost=2460.29..2460.29 rows=625 width=101) (actual time=2.455..2.455 rows=500.00 loops=2)
+                          Buckets: 2048  Batches: 1  Memory Usage: 144kB
+                          Buffers: shared hit=1725
+                          ->  Parallel Seq Scan on blobfs_file f  (cost=0.00..2460.29 rows=625 width=101) (actual time=0.007..2.340 rows=500.00 loops=2)
+                                Filter: (status = 'pending'::text)
+                                Rows Removed by Filter: 49500
+                                Buffers: shared hit=1725
+Planning:
+  Buffers: shared hit=265
+Planning Time: 1.233 ms
+Execution Time: 9.946 ms
