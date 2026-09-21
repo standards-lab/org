@@ -35,11 +35,11 @@ func files(at time.Time, names ...string) sqltest.Response {
 
 // TestCursorContinuesThePage proves the cursor round trip on the scripted
 // driver: an offset page under TotalExact fetches one row beyond its size,
-// returns only the page, keeps its total, and fills Next; the page read
-// with After runs the plain statement whatever Total says, carries the
-// keyset predicate after the anchor and before ORDER BY, binds the last
-// row's name and offset zero, ignores the page number, and reports
-// NoTotal; the last page has no Next.
+// returns only the page, keeps its total, reports More, and fills Next;
+// the page read with After runs the plain statement whatever Total says,
+// carries the keyset predicate after the anchor and before ORDER BY,
+// binds the last row's name and offset zero, ignores the page number, and
+// reports NoTotal; the last page has no More and no Next.
 func TestCursorContinuesThePage(t *testing.T) {
 	s := newStore(t)
 	ctx := context.Background()
@@ -61,22 +61,22 @@ func TestCursorContinuesThePage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("page 1: %v", err)
 	}
-	if len(first.Rows) != 2 || first.Rows[1].Name != "b.txt" || first.Total != 5 || first.Next == "" {
-		t.Fatalf("page 1 = %d rows, total %d, next %q; want 2 rows, total 5, and a cursor", len(first.Rows), first.Total, first.Next)
+	if len(first.Rows) != 2 || first.Rows[1].Name != "b.txt" || first.Total != 5 || !first.More || first.Next == "" {
+		t.Fatalf("page 1 = %d rows, total %d, more %v, next %q; want 2 rows, total 5, More, and a cursor", len(first.Rows), first.Total, first.More, first.Next)
 	}
 	second, err := s.ListFiles(ctx, db, dir, data.Listing{Size: 2, After: first.Next})
 	if err != nil {
 		t.Fatalf("page after %q: %v", first.Next, err)
 	}
-	if len(second.Rows) != 2 || second.Rows[0].Name != "c.txt" || second.Rows[1].Name != "d.txt" || second.Total != data.NoTotal || second.Next == "" || second.Next == first.Next {
-		t.Errorf("page 2 = %+v; want c and d, NoTotal, and a new cursor", second)
+	if len(second.Rows) != 2 || second.Rows[0].Name != "c.txt" || second.Rows[1].Name != "d.txt" || second.Total != data.NoTotal || !second.More || second.Next == "" || second.Next == first.Next {
+		t.Errorf("page 2 = %+v; want c and d, NoTotal, More, and a new cursor", second)
 	}
 	third, err := s.ListFiles(ctx, db, dir, data.Listing{Page: 7, Size: 2, After: second.Next})
 	if err != nil {
 		t.Fatalf("page after %q: %v", second.Next, err)
 	}
-	if len(third.Rows) != 1 || third.Rows[0].Name != "e.txt" || third.Total != data.NoTotal || third.Next != "" {
-		t.Errorf("last page = %+v; want e alone, NoTotal, no cursor", third)
+	if len(third.Rows) != 1 || third.Rows[0].Name != "e.txt" || third.Total != data.NoTotal || third.More || third.Next != "" {
+		t.Errorf("last page = %+v; want e alone, NoTotal, no More, no cursor", third)
 	}
 
 	queries := rec.SQL(sqltest.OpQuery)
@@ -216,25 +216,36 @@ func TestCursorRefusals(t *testing.T) {
 }
 
 // TestNullableSortIssuesNoCursor proves a sort a cursor cannot continue
-// still pages by number, fetches exactly its size, and issues no Next; and
-// that the page number is still checked for an offset page.
+// still pages by number, still fetches one row beyond its size so More is
+// reported, and issues no Next: a page with rows beyond it is the third
+// state, More with an empty Next, and a caller reads the next page by
+// number. It also proves the page number is still checked for an offset
+// page.
 func TestNullableSortIssuesNoCursor(t *testing.T) {
 	s := newStore(t)
 	ctx := context.Background()
-	pool, rec := sqltest.Open(t, files(time.Now(), "a.txt", "b.txt"))
+	pool, rec := sqltest.Open(t, files(time.Now(), "a.txt", "b.txt"), files(time.Now(), "a.txt", "b.txt", "c.txt"))
 	db := sqlate.Wrap(pool, sqltest.Dialect{})
-	page, err := s.ListFiles(ctx, db, "dir", data.Listing{Page: 3, Size: 2, Total: data.TotalNone, Sort: []query.Sort{{Field: "size", Descending: true}}})
+	bySize := data.Listing{Page: 3, Size: 2, Total: data.TotalNone, Sort: []query.Sort{{Field: "size", Descending: true}}}
+	page, err := s.ListFiles(ctx, db, "dir", bySize)
 	if err != nil {
 		t.Fatalf("by size: %v", err)
 	}
-	if len(page.Rows) != 2 || page.Next != "" {
-		t.Errorf("by size = %d rows, next %q; want 2 rows and no cursor", len(page.Rows), page.Next)
+	if len(page.Rows) != 2 || page.More || page.Next != "" {
+		t.Errorf("by size = %d rows, more %v, next %q; want 2 rows, no More, and no cursor", len(page.Rows), page.More, page.Next)
 	}
-	if got := rec.Calls()[0].Args; !slices.Equal(got, []any{"dir", 4, 2}) {
-		t.Errorf("by size bound %v, want the directory, offset 4, fetch 2 (no row beyond the page)", got)
+	if got := rec.Calls()[0].Args; !slices.Equal(got, []any{"dir", 4, 3}) {
+		t.Errorf("by size bound %v, want the directory, offset 4, fetch 3 (one row beyond the page tells whether more remain)", got)
 	}
 	if !strings.HasSuffix(rec.SQL(sqltest.OpQuery)[0], " ORDER BY q.size DESC, q.name DESC OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
 		t.Errorf("by size composed:\n%s", rec.SQL(sqltest.OpQuery)[0])
+	}
+	page, err = s.ListFiles(ctx, db, "dir", bySize)
+	if err != nil {
+		t.Fatalf("by size with a row beyond: %v", err)
+	}
+	if len(page.Rows) != 2 || page.Rows[1].Name != "b.txt" || !page.More || page.Next != "" {
+		t.Errorf("by size with a row beyond = %d rows, more %v, next %q; want 2 rows, More, and no cursor (page by number)", len(page.Rows), page.More, page.Next)
 	}
 	if _, err := s.ListFiles(ctx, db, "dir", data.Listing{Size: 2}); !errors.Is(err, query.ErrDirectives) {
 		t.Errorf("an offset page without a page number = %v, want ErrDirectives", err)

@@ -47,7 +47,9 @@ func (s *Store) owner(ctx context.Context, sess sqlate.Session, directoryID stri
 // one page of owned_directories under l, sorted by the terms the
 // directory half takes, filtered by unit_id. The projection always runs
 // its count statement, so under TotalNone the count is read and dropped;
-// the page then reports NoTotal like the library's listings do.
+// the page then reports NoTotal like the library's listings do. More is
+// derived from that count in both modes, since the projection fetches
+// exactly its page size and no row beyond it.
 func (s *Store) ownedBy(ctx context.Context, sess sqlate.Session, unitID string, l Listing) (Page[OwnedDirectory], error) {
 	d := query.Directives{
 		Page:    query.Page{Number: l.Page, Size: l.Size},
@@ -58,8 +60,9 @@ func (s *Store) ownedBy(ctx context.Context, sess sqlate.Session, unitID string,
 	if err != nil {
 		return Page[OwnedDirectory]{}, fmt.Errorf("files: directories owned by %s: %w", unitID, err)
 	}
+	p := Page[OwnedDirectory]{Rows: rows, Total: total, More: more(l, len(rows), total)}
 	if l.Total == TotalNone {
-		total = NoTotal
+		p.Total = NoTotal
 	}
-	return Page[OwnedDirectory]{Rows: rows, Total: total}, nil
+	return p, nil
 }

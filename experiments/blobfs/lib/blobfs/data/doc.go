@@ -25,7 +25,8 @@
 // patterns, and with the total computed in the same statement by
 // COUNT(*) OVER () when the Listing asks for one. A page is reached by its
 // number or continued from the keyset cursor of an earlier page, and both
-// walk the same order. No operation walks the whole tree; a path is
+// walk the same order; every page reports whether rows remain after it,
+// with or without a total. No operation walks the whole tree; a path is
 // resolved one segment per round trip and computed by one upward walk.
 // File and FileByName read one file row, by id or by directory and name.
 //

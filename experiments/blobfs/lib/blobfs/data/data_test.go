@@ -211,22 +211,22 @@ func TestListingCarriesItsTotal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListFiles exact: %v", err)
 	}
-	if page.Total != 7 || len(page.Rows) != 2 || page.Rows[1].Name != "b.txt" || page.Rows[1].DirectoryID != blobfs.RootID || page.Next != "" {
-		t.Errorf("exact page = total %d, %d rows, next %q; want total 7 from the rows, 2 rows, no cursor", page.Total, len(page.Rows), page.Next)
+	if page.Total != 7 || len(page.Rows) != 2 || page.Rows[1].Name != "b.txt" || page.Rows[1].DirectoryID != blobfs.RootID || page.More || page.Next != "" {
+		t.Errorf("exact page = total %d, %d rows, more %v, next %q; want total 7 from the rows, 2 rows, no More (the engine returned no row beyond the page), no cursor", page.Total, len(page.Rows), page.More, page.Next)
 	}
 	page, err = s.ListFiles(ctx, db, dir, data.Listing{Page: 1, Size: 2})
 	if err != nil {
 		t.Fatalf("ListFiles exact, empty: %v", err)
 	}
-	if page.Total != 0 || len(page.Rows) != 0 {
-		t.Errorf("empty first page = total %d, %d rows; want the exact total 0", page.Total, len(page.Rows))
+	if page.Total != 0 || len(page.Rows) != 0 || page.More {
+		t.Errorf("empty first page = total %d, %d rows, more %v; want the exact total 0 and no More", page.Total, len(page.Rows), page.More)
 	}
 	page, err = s.ListFiles(ctx, db, dir, data.Listing{Page: 1, Size: 2, Total: data.TotalNone})
 	if err != nil {
 		t.Fatalf("ListFiles none: %v", err)
 	}
-	if page.Total != data.NoTotal || len(page.Rows) != 1 {
-		t.Errorf("page without a total = total %d, %d rows; want NoTotal and 1 row", page.Total, len(page.Rows))
+	if page.Total != data.NoTotal || len(page.Rows) != 1 || page.More {
+		t.Errorf("page without a total = total %d, %d rows, more %v; want NoTotal, 1 row, no More", page.Total, len(page.Rows), page.More)
 	}
 
 	queries := rec.SQL(sqltest.OpQuery)
@@ -246,6 +246,80 @@ func TestListingCarriesItsTotal(t *testing.T) {
 	calls := rec.Calls()
 	if got := calls[0].Args; len(got) != 3 || got[0] != dir || got[1] != 2 || got[2] != 3 {
 		t.Errorf("page 2 of size 2 bound %v, want the directory, offset 2, fetch 3 (one row beyond the page tells whether a next page exists)", got)
+	}
+	if n := rec.RowsLeaked(); n != 0 {
+		t.Errorf("%d row sets leaked", n)
+	}
+}
+
+// TestMoreReportsTheRowBeyondThePage proves Page.More on the scripted
+// driver, where the row count the engine returns is chosen exactly: a
+// page that gets its size plus one row is trimmed to its size and reports
+// More, with the same total as its rows, on an offset page under
+// TotalExact and under TotalNone; a page that gets exactly its size
+// reports no More; an empty first page reports no More with the exact
+// total 0; an empty page after the first reports no More with NoTotal;
+// and a sort a cursor cannot continue reports More with an empty Next,
+// the state that tells a caller to read the next page by number.
+func TestMoreReportsTheRowBeyondThePage(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	dir := blobfs.NewID()
+	at := time.Now()
+	counted := append(slices.Clone(fileColumns), "total")
+	countedRows := func(total int64, names ...string) sqltest.Response {
+		resp := sqltest.Response{Columns: counted}
+		for _, name := range names {
+			resp.Rows = append(resp.Rows, append(fileRowAt("id-"+name, name, at), total))
+		}
+		return resp
+	}
+	pool, rec := sqltest.Open(t,
+		countedRows(5, "a.txt", "b.txt", "c.txt"),
+		files(at, "a.txt", "b.txt", "c.txt"),
+		countedRows(2, "a.txt", "b.txt"),
+		countedRows(0),
+		countedRows(0),
+		countedRows(5, "a.txt", "b.txt", "c.txt"),
+	)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	list := func(label string, l data.Listing) data.Page[blobfs.File] {
+		t.Helper()
+		p, err := s.ListFiles(ctx, db, dir, l)
+		if err != nil {
+			t.Fatalf("%s: %v", label, err)
+		}
+		return p
+	}
+
+	p := list("size plus one, exact", data.Listing{Page: 1, Size: 2})
+	if len(p.Rows) != 2 || p.Rows[1].Name != "b.txt" || p.Total != 5 || !p.More || p.Next == "" {
+		t.Errorf("size plus one, exact = %d rows, total %d, more %v, next %q; want 2 rows, total 5, More, and a cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	p = list("size plus one, no total", data.Listing{Page: 1, Size: 2, Total: data.TotalNone})
+	if len(p.Rows) != 2 || p.Total != data.NoTotal || !p.More || p.Next == "" {
+		t.Errorf("size plus one, no total = %d rows, total %d, more %v, next %q; want 2 rows, NoTotal, More, and a cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	p = list("exactly the size", data.Listing{Page: 1, Size: 2})
+	if len(p.Rows) != 2 || p.Total != 2 || p.More || p.Next != "" {
+		t.Errorf("exactly the size = %d rows, total %d, more %v, next %q; want 2 rows, total 2, no More, no cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	p = list("empty first page", data.Listing{Page: 1, Size: 2})
+	if len(p.Rows) != 0 || p.Total != 0 || p.More || p.Next != "" {
+		t.Errorf("empty first page = %d rows, total %d, more %v, next %q; want none, total 0, no More, no cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	p = list("empty page after the first", data.Listing{Page: 4, Size: 2})
+	if len(p.Rows) != 0 || p.Total != data.NoTotal || p.More || p.Next != "" {
+		t.Errorf("empty page after the first = %d rows, total %d, more %v, next %q; want none, NoTotal, no More, no cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	p = list("size plus one, by a nullable field", data.Listing{Page: 1, Size: 2, Sort: []query.Sort{{Field: "size"}}})
+	if len(p.Rows) != 2 || p.Total != 5 || !p.More || p.Next != "" {
+		t.Errorf("size plus one, by size = %d rows, total %d, more %v, next %q; want 2 rows, total 5, More, and no cursor", len(p.Rows), p.Total, p.More, p.Next)
+	}
+	for i, c := range rec.Calls() {
+		if got := c.Args[len(c.Args)-1]; got != 3 {
+			t.Errorf("listing %d bound a fetch count of %v, want 3 on every page", i, got)
+		}
 	}
 	if n := rec.RowsLeaked(); n != 0 {
 		t.Errorf("%d row sets leaked", n)
@@ -300,7 +374,7 @@ func TestListingComposesClauses(t *testing.T) {
 		t.Errorf("a sort by name gained a tie-breaker:\n%s", queries[1])
 	}
 	args := rec.Calls()[0].Args
-	want := []any{"dir", "a%", "pending", "available", "2026-01-01T00:00:00Z", 10, 5}
+	want := []any{"dir", "a%", "pending", "available", "2026-01-01T00:00:00Z", 10, 6}
 	if !slices.Equal(args, want) {
 		t.Errorf("bound %v, want %v", args, want)
 	}

@@ -182,6 +182,11 @@ func TestBookmarks(t *testing.T) {
 		if p.Total != 5 {
 			t.Errorf("page %d total = %d, want 5", page, p.Total)
 		}
+		// Five bookmarks at size 2: More is derived from the count, so
+		// pages 1 and 2 have more and page 3 does not.
+		if p.More != (page < 3) {
+			t.Errorf("page %d more = %v, want %v", page, p.More, page < 3)
+		}
 		paged = append(paged, paths(p.Rows)...)
 	}
 	if !slices.Equal(paged, want) {
@@ -205,12 +210,12 @@ func TestBookmarks(t *testing.T) {
 		}
 	}
 	p = e.bookmarksOf(t, unit, files.Listing{Page: 4, Size: 2})
-	if len(p.Rows) != 0 || p.Total != 5 {
-		t.Errorf("an empty later page = %+v, want no rows and the exact total", p)
+	if len(p.Rows) != 0 || p.Total != 5 || p.More {
+		t.Errorf("an empty later page = %+v, want no rows, the exact total, and no More", p)
 	}
 	p = e.bookmarksOf(t, unit, files.Listing{Page: 1, Size: 2, Total: files.TotalNone})
-	if p.Total != files.NoTotal || len(p.Rows) != 2 {
-		t.Errorf("TotalNone = %+v", p)
+	if p.Total != files.NoTotal || len(p.Rows) != 2 || !p.More {
+		t.Errorf("TotalNone = %+v, want NoTotal, 2 rows, and More from the count that still runs", p)
 	}
 	if _, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 2, Sort: []files.Sort{{Field: "key"}}}); !errors.Is(err, query.ErrDirectives) {
 		t.Errorf("a sort by an undeclared field = %v, want ErrDirectives", err)

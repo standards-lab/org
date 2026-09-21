@@ -170,11 +170,20 @@ func lower(l Listing, allowed map[string]bool, after string) data.Listing {
 }
 
 // page translates a library page to the consumer's: the rows as they are,
-// the total, NoTotal when the library reports none, and the next cursor.
+// the total, NoTotal when the library reports none, whether more rows
+// remain, and the next cursor.
 func page[T any](p data.Page[T]) Page[T] {
 	total := p.Total
 	if total == data.NoTotal {
 		total = NoTotal
 	}
-	return Page[T]{Rows: p.Rows, Total: total, Next: p.Next}
+	return Page[T]{Rows: p.Rows, Total: total, More: p.More, Next: p.Next}
+}
+
+// more reports whether rows remain after a projection's page: the page
+// number and size place the page's last row against the count, which the
+// projection always runs. It is how the consumer's read models derive
+// More, since they page by number only and fetch exactly their size.
+func more(l Listing, listed, total int) bool {
+	return (l.Page-1)*l.Size+listed < total
 }

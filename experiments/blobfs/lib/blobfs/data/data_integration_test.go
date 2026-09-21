@@ -334,6 +334,7 @@ func pages(t *testing.T, e env, dir string, size int, l data.Listing) ([]string,
 	t.Helper()
 	var ids []string
 	total := data.NoTotal
+	more := true
 	for page := 1; page <= 100; page++ {
 		l.Page, l.Size = page, size
 		p, err := e.store.ListFiles(e.ctx, e.db, dir, l)
@@ -346,10 +347,19 @@ func pages(t *testing.T, e env, dir string, size int, l data.Listing) ([]string,
 			}
 			total = p.Total
 		}
+		// The previous page's More is confirmed by this page's rows, and a
+		// short page is the last one.
+		if page > 1 && more != (len(p.Rows) > 0) {
+			t.Errorf("page %d of size %d reported More %v, and page %d holds %d rows", page-1, size, more, page, len(p.Rows))
+		}
+		more = p.More
 		for _, f := range p.Rows {
 			ids = append(ids, f.ID)
 		}
 		if len(p.Rows) < size {
+			if p.More {
+				t.Errorf("page %d of size %d holds %d rows and reports More", page, size, len(p.Rows))
+			}
 			return ids, total
 		}
 	}
@@ -423,17 +433,77 @@ func TestListingMatchesForest(t *testing.T) {
 
 // TestListingPagesPastTheEnd fixes the convention for a page beyond the
 // last: no row carries the window count, so the page is empty and its
-// Total is NoTotal, while an empty first page has the exact total 0.
+// Total is NoTotal, while an empty first page has the exact total 0. Both
+// report no More, so the empty later page reads as the end of the listing
+// and not as a fault.
 func TestListingPagesPastTheEnd(t *testing.T) {
 	e := open(t)
 	insertFile(e.ctx, t, e.db, blobfs.RootID, "only")
 	page, err := e.store.ListFiles(e.ctx, e.db, blobfs.RootID, data.Listing{Page: 3, Size: 5})
-	if err != nil || len(page.Rows) != 0 || page.Total != data.NoTotal {
-		t.Errorf("page past the end = %d rows, total %d, %v; want none and NoTotal", len(page.Rows), page.Total, err)
+	if err != nil || len(page.Rows) != 0 || page.Total != data.NoTotal || page.More {
+		t.Errorf("page past the end = %d rows, total %d, more %v, %v; want none, NoTotal, no More", len(page.Rows), page.Total, page.More, err)
 	}
 	page, err = e.store.ListFiles(e.ctx, e.db, blobfs.RootID, data.Listing{Page: 1, Size: 5, Filters: []query.Filter{{Field: "name", Op: query.OpEq, Value: "none"}}})
-	if err != nil || len(page.Rows) != 0 || page.Total != 0 {
-		t.Errorf("empty first page = %d rows, total %d, %v; want none and the exact total 0", len(page.Rows), page.Total, err)
+	if err != nil || len(page.Rows) != 0 || page.Total != 0 || page.More {
+		t.Errorf("empty first page = %d rows, total %d, more %v, %v; want none, the exact total 0, no More", len(page.Rows), page.Total, page.More, err)
+	}
+}
+
+// TestMoreAgainstTheEngine proves Page.More on Postgres at the exact
+// boundaries: a directory of three files listed at size 3 fills one page
+// with no More; at size 2 the first page has More and a cursor, and the
+// second page has one row and no More; a directory of four files at size
+// 2 fills page 2 exactly, with no More; the rule holds under TotalNone
+// and for Children; an empty directory has no More with the exact total
+// 0; and a sort by size, which a cursor cannot continue, still reports
+// More with an empty Next, the state that says to page by number.
+func TestMoreAgainstTheEngine(t *testing.T) {
+	e := open(t)
+	three := e.mkdir(t, blobfs.RootID, "three").ID
+	four := e.mkdir(t, blobfs.RootID, "four").ID
+	empty := e.mkdir(t, blobfs.RootID, "empty").ID
+	for _, name := range []string{"a", "b", "c"} {
+		insertFile(e.ctx, t, e.db, three, name)
+	}
+	for _, name := range []string{"a", "b", "c", "d"} {
+		insertFile(e.ctx, t, e.db, four, name)
+	}
+	list := func(label, dir string, l data.Listing) data.Page[blobfs.File] {
+		t.Helper()
+		p, err := e.store.ListFiles(e.ctx, e.db, dir, l)
+		if err != nil {
+			t.Fatalf("%s: %v", label, err)
+		}
+		return p
+	}
+	check := func(label string, p data.Page[blobfs.File], rows, total int, more, next bool) {
+		t.Helper()
+		if len(p.Rows) != rows || p.Total != total || p.More != more || (p.Next != "") != next {
+			t.Errorf("%s = %d rows, total %d, more %v, cursor %v; want %d rows, total %d, more %v, cursor %v", label, len(p.Rows), p.Total, p.More, p.Next != "", rows, total, more, next)
+		}
+	}
+
+	check("three at size 3", list("three at size 3", three, data.Listing{Page: 1, Size: 3}), 3, 3, false, false)
+	first := list("three at size 2", three, data.Listing{Page: 1, Size: 2})
+	check("three at size 2, page 1", first, 2, 3, true, true)
+	check("three at size 2, page 2", list("three at size 2, page 2", three, data.Listing{Page: 2, Size: 2}), 1, 3, false, false)
+	check("three at size 2, after the cursor", list("after the cursor", three, data.Listing{Size: 2, After: first.Next}), 1, data.NoTotal, false, false)
+	check("four at size 2, page 2", list("four at size 2, page 2", four, data.Listing{Page: 2, Size: 2}), 2, 4, false, false)
+	check("four at size 2, page 1, no total", list("four, no total", four, data.Listing{Page: 1, Size: 2, Total: data.TotalNone}), 2, data.NoTotal, true, true)
+	check("four at size 2, page 2, no total", list("four page 2, no total", four, data.Listing{Page: 2, Size: 2, Total: data.TotalNone}), 2, data.NoTotal, false, false)
+	check("empty directory", list("empty", empty, data.Listing{Page: 1, Size: 2}), 0, 0, false, false)
+	bySize := data.Listing{Page: 1, Size: 2, Sort: []query.Sort{{Field: "size"}}}
+	check("three by size, page 1", list("three by size", three, bySize), 2, 3, true, false)
+	bySize.Page = 2
+	check("three by size, page 2", list("three by size, page 2", three, bySize), 1, 3, false, false)
+
+	dirs, err := e.store.Children(e.ctx, e.db, blobfs.RootID, data.Listing{Page: 1, Size: 2})
+	if err != nil || len(dirs.Rows) != 2 || dirs.Total != 3 || !dirs.More || dirs.Next == "" {
+		t.Errorf("Children at size 2 = %d rows, total %d, more %v, next %q, %v; want 2 rows of 3, More, and a cursor", len(dirs.Rows), dirs.Total, dirs.More, dirs.Next, err)
+	}
+	dirs, err = e.store.Children(e.ctx, e.db, blobfs.RootID, data.Listing{Page: 1, Size: 3})
+	if err != nil || len(dirs.Rows) != 3 || dirs.More || dirs.Next != "" {
+		t.Errorf("Children at size 3 = %d rows, more %v, next %q, %v; want 3 rows, no More, no cursor", len(dirs.Rows), dirs.More, dirs.Next, err)
 	}
 }
 
@@ -528,7 +598,8 @@ func insertFilesTogether(t *testing.T, e env, dir string, names ...string) {
 
 // cursorPages runs ListFiles from page 1 by number and then by cursor
 // until Next is empty, checking every cursor page carries NoTotal and no
-// more rows than the size, and returns the ids concatenated and the
+// more rows than the size and that More agrees with Next on these sorts,
+// which a cursor continues, and returns the ids concatenated and the
 // number of requests made.
 func cursorPages(t *testing.T, e env, dir string, size int, l data.Listing) ([]string, int) {
 	t.Helper()
@@ -546,6 +617,9 @@ func cursorPages(t *testing.T, e env, dir string, size int, l data.Listing) ([]s
 		}
 		if l.After != "" && p.Total != data.NoTotal {
 			t.Errorf("cursor page %d reports total %d, want NoTotal", requests, p.Total)
+		}
+		if p.More != (p.Next != "") {
+			t.Errorf("cursor page %d reports More %v with the cursor %q", requests, p.More, p.Next)
 		}
 		for _, f := range p.Rows {
 			ids = append(ids, f.ID)

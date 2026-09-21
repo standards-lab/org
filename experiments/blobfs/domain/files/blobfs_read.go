@@ -20,7 +20,8 @@ import (
 // snapshot and agree with each other.
 //
 // Each half continues from its own cursor in l.After when one is given,
-// and each page carries the cursor of the next page in Next.
+// and each page says in More whether rows remain and carries the cursor
+// of the next page in Next.
 //
 // A unit in l is the directory-grain ownership rehearsal: the scope is
 // checked once, at the depth-one ancestor of path, before the path is
@@ -94,7 +95,7 @@ func (s *Store) topLevel(ctx context.Context, sess sqlate.Session, l Listing) (C
 	if err != nil {
 		return Contents{}, err
 	}
-	dirs := Page[blobfs.Directory]{Total: owned.Total}
+	dirs := Page[blobfs.Directory]{Total: owned.Total, More: owned.More}
 	for _, o := range owned.Rows {
 		dirs.Rows = append(dirs.Rows, o.Directory())
 	}

@@ -164,8 +164,10 @@ func TestCommands_VerifyTheStoreBeforeUse(t *testing.T) {
 }
 
 // TestCommands_RenderTheListing proves ls renders directories then files
-// with a line per half, and that the flags reach the store: page, size,
-// and the total mode.
+// with a line per half and a more: line under each, and that the flags
+// reach the store: page, size, and the total mode. A half whose sort a
+// cursor cannot continue still says more: yes when rows remain, with no
+// next-files: line, so the reader pages by number.
 func TestCommands_RenderTheListing(t *testing.T) {
 	scripted := func() (*files.Store, error) {
 		s, _ := newStore(t, root(), listing(directoryColumns, true, 3, "docs"), listing(fileColumns, true, 9, "a.txt", "b.txt"))
@@ -176,11 +178,11 @@ func TestCommands_RenderTheListing(t *testing.T) {
 		t.Fatalf("ls: %v", err)
 	}
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 6 || !strings.HasPrefix(lines[0], "KIND") || !strings.HasPrefix(lines[1], "dir   docs") || !strings.HasPrefix(lines[2], "file  a.txt  1") || !strings.HasPrefix(lines[3], "file  b.txt  2") {
+	if len(lines) != 8 || !strings.HasPrefix(lines[0], "KIND") || !strings.HasPrefix(lines[1], "dir   docs") || !strings.HasPrefix(lines[2], "file  a.txt  1") || !strings.HasPrefix(lines[3], "file  b.txt  2") {
 		t.Errorf("stdout =\n%s", out)
 	}
-	if lines[4] != "directories: 1 on page 2 of size 2, total 3" || lines[5] != "files: 2 on page 2 of size 2, total 9" {
-		t.Errorf("half lines = %q, %q", lines[4], lines[5])
+	if lines[4] != "directories: 1 on page 2 of size 2, total 3" || lines[5] != "more: no" || lines[6] != "files: 2 on page 2 of size 2, total 9" || lines[7] != "more: no" {
+		t.Errorf("half lines = %q, %q, %q, %q", lines[4], lines[5], lines[6], lines[7])
 	}
 
 	// An empty page after the first has no total, and --total none never
@@ -193,7 +195,7 @@ func TestCommands_RenderTheListing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ls page 3: %v", err)
 	}
-	if !strings.Contains(out, "directories: 0 on page 3 of size 20, total unknown") || !strings.Contains(out, "files: 0 on page 3 of size 20, total unknown") {
+	if !strings.Contains(out, "directories: 0 on page 3 of size 20, total unknown (the page is empty)\nmore: no\n") || !strings.Contains(out, "files: 0 on page 3 of size 20, total unknown (the page is empty)\nmore: no\n") {
 		t.Errorf("an empty later page rendered:\n%s", out)
 	}
 	scripted = func() (*files.Store, error) {
@@ -204,8 +206,22 @@ func TestCommands_RenderTheListing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ls --total none: %v", err)
 	}
-	if !strings.Contains(out, "directories: 1 on page 1 of size 20, total not counted") || !strings.Contains(out, "files: 0 on page 1 of size 20, total not counted") {
+	if !strings.Contains(out, "directories: 1 on page 1 of size 20, total not counted\nmore: no\n") || !strings.Contains(out, "files: 0 on page 1 of size 20, total not counted\nmore: no\n") {
 		t.Errorf("--total none rendered:\n%s", out)
+	}
+
+	// A sort by size cannot be continued by a cursor: the file half says
+	// more: yes and prints no cursor.
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), listing(directoryColumns, true, 0), listing(fileColumns, true, 3, "a.txt", "b.txt", "c.txt"))
+		return s, nil
+	}
+	out, err = run(t, scripted, "ls", "/", "--size", "2", "--sort", "size")
+	if err != nil {
+		t.Fatalf("ls --sort size: %v", err)
+	}
+	if !strings.Contains(out, "files: 2 on page 1 of size 2, total 3\nmore: yes\n") || strings.Contains(out, "next-") || strings.Contains(out, "file  c.txt") {
+		t.Errorf("a half by a sort a cursor cannot continue rendered:\n%s", out)
 	}
 }
 
@@ -331,11 +347,12 @@ func TestParseSort(t *testing.T) {
 	}
 }
 
-// TestCommands_RenderTheCursor proves ls prints a next-files: line when
-// the file half has a next page, that the cursor it prints is accepted
-// back as --after-files, that the half read after it says so and carries
-// no total while the other half is still read by number with its total,
-// and that --after-dirs continues the directory half the same way.
+// TestCommands_RenderTheCursor proves ls prints a next-files: line, under
+// its more: yes line, when the file half has a next page, that the cursor
+// it prints is accepted back as --after-files, that the half read after
+// it says so, carries no total, and says more: no on the last page while
+// the other half is still read by number with its total, and that
+// --after-dirs continues the directory half the same way.
 func TestCommands_RenderTheCursor(t *testing.T) {
 	scripted := func() (*files.Store, error) {
 		s, _ := newStore(t, root(), listing(directoryColumns, true, 1, "docs"), listing(fileColumns, true, 3, "a.txt", "b.txt", "c.txt"))
@@ -347,6 +364,9 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	}
 	if strings.Contains(out, "next-dirs:") || !strings.Contains(out, "file  b.txt") || strings.Contains(out, "file  c.txt") {
 		t.Errorf("page 1 rendered:\n%s", out)
+	}
+	if !strings.Contains(out, "directories: 1 on page 1 of size 2, total 1\nmore: no\n") || !strings.Contains(out, "files: 2 on page 1 of size 2, total 3\nmore: yes\nnext-files: ") {
+		t.Errorf("page 1's more: lines rendered:\n%s", out)
 	}
 	var cursor string
 	for _, line := range strings.Split(out, "\n") {
@@ -366,7 +386,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ls --after-files: %v", err)
 	}
-	if !strings.Contains(out, "directories: 1 on page 1 of size 2, total 1\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\n") || strings.Contains(out, "next-") {
+	if !strings.Contains(out, "directories: 1 on page 1 of size 2, total 1\nmore: no\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\nmore: no\n") || strings.Contains(out, "next-") {
 		t.Errorf("the cursor page rendered:\n%s", out)
 	}
 
@@ -378,7 +398,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ls: %v", err)
 	}
-	if !strings.Contains(out, "next-dirs: ") || strings.Contains(out, "next-files:") {
+	if !strings.Contains(out, "more: yes\nnext-dirs: ") || strings.Contains(out, "next-files:") {
 		t.Errorf("a directory half with a next page rendered:\n%s", out)
 	}
 	for _, line := range strings.Split(out, "\n") {
@@ -394,7 +414,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ls --after-dirs: %v", err)
 	}
-	if !strings.Contains(out, "directories: 1 after the cursor, size 2, total not counted\n") || !strings.Contains(out, "files: 0 on page 1 of size 2, total 0\n") {
+	if !strings.Contains(out, "directories: 1 after the cursor, size 2, total not counted\nmore: no\n") || !strings.Contains(out, "files: 0 on page 1 of size 2, total 0\nmore: no\n") {
 		t.Errorf("the directory cursor page rendered:\n%s", out)
 	}
 
@@ -440,14 +460,16 @@ func TestCommands_RenderBookmarks(t *testing.T) {
 		t.Fatalf("bookmark ls: %v", err)
 	}
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 4 || !strings.HasPrefix(lines[0], "PATH") || !strings.HasPrefix(lines[1], "/reports/2026/plan.txt  1     available  -") || !strings.HasPrefix(lines[2], "/notes.md               2     available  active") {
+	if len(lines) != 5 || !strings.HasPrefix(lines[0], "PATH") || !strings.HasPrefix(lines[1], "/reports/2026/plan.txt  1     available  -") || !strings.HasPrefix(lines[2], "/notes.md               2     available  active") {
 		t.Errorf("stdout =\n%s", out)
 	}
-	if lines[3] != "bookmarks: 2 on page 2 of size 2, total 7" {
-		t.Errorf("the page line = %q", lines[3])
+	if lines[3] != "bookmarks: 2 on page 2 of size 2, total 7" || lines[4] != "more: yes" {
+		t.Errorf("the page lines = %q, %q (page 2 of size 2 ends at row 4 of 7)", lines[3], lines[4])
 	}
+	// The read model's count runs under --total none too, so more: is
+	// still derived from it: page 1 of size 20 holds 2 of 7.
 	out, err = run(t, scripted, "bookmark", "ls", "--unit", unit, "--total", "none")
-	if err != nil || !strings.HasSuffix(out, "bookmarks: 2 on page 1 of size 20, total not counted\n") {
+	if err != nil || !strings.HasSuffix(out, "bookmarks: 2 on page 1 of size 20, total not counted\nmore: yes\n") {
 		t.Errorf("bookmark ls --total none rendered %q, %v", out, err)
 	}
 

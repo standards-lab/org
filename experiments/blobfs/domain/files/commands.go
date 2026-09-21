@@ -102,7 +102,8 @@ func (d deps) list() *cobra.Command {
 		Long: "ls lists the directory at an absolute path such as /reports: the directories\n" +
 			"under it, then the files in it, one page of each. --sort applies to both halves;\n" +
 			"a field only files have sorts the files and leaves the directories in name order.\n" +
-			"A half with a next page prints next-dirs: or next-files: with a cursor; pass it\n" +
+			"Each half prints more: yes or more: no, whether rows remain after its page. A half\n" +
+			"with a next page prints next-dirs: or next-files: with a cursor; pass it\n" +
 			"back as --after-dirs or --after-files to continue that half, which then ignores\n" +
 			"--page and carries no total. With --unit, the unit must own the path's top-level\n" +
 			"directory, and at / the listing is the unit's own top-level directories.",
@@ -572,10 +573,10 @@ func declaredType(flag, local string) string {
 // pageOf describes one half's page for the output: the request's page and
 // size, whether the half was read after a cursor (after not empty), the
 // rows listed, the total as the half reported it, marked counted when the
-// listing asked for one and the half was read by number, and the cursor
-// of the next page.
+// listing asked for one and the half was read by number, whether rows
+// remain, and the cursor of the next page.
 func pageOf[T any](l Listing, after string, p Page[T]) output.Page {
-	out := output.Page{Number: l.Page, Size: l.Size, Listed: len(p.Rows), Counted: l.Total == TotalExact && after == "", Cursor: after != "", Next: p.Next}
+	out := output.Page{Number: l.Page, Size: l.Size, Listed: len(p.Rows), Counted: l.Total == TotalExact && after == "", Cursor: after != "", More: p.More, Next: p.Next}
 	if p.Total == NoTotal {
 		out.Total = output.NoTotal
 	} else {

@@ -258,6 +258,11 @@ func TestList(t *testing.T) {
 		if c.Directories.Total != 3 || c.Files.Total != len(fileNames) || c.Path != "/a" {
 			t.Errorf("page %d totals = %d directories, %d files; want 3, %d", page, c.Directories.Total, c.Files.Total, len(fileNames))
 		}
+		// Three directories at size 2: page 1 has more, page 2 does not.
+		// Seven files: both pages have more.
+		if c.Directories.More != (page == 1) || !c.Files.More {
+			t.Errorf("page %d more = directories %v, files %v; want %v and true", page, c.Directories.More, c.Files.More, page == 1)
+		}
 		dirs = append(dirs, names(c.Directories.Rows)...)
 	}
 	if want := []string{"b", "m", "z"}; !slices.Equal(dirs, want) {
@@ -302,12 +307,12 @@ func TestList(t *testing.T) {
 		t.Errorf("List(/a/b/c) = %+v", c)
 	}
 	c = e.list(t, "/a", files.Listing{Page: 1, Size: 10, Total: files.TotalNone})
-	if c.Files.Total != files.NoTotal || c.Directories.Total != files.NoTotal || len(c.Files.Rows) != 7 || len(c.Directories.Rows) != 3 {
-		t.Errorf("List(/a) without a total = %+v", c)
+	if c.Files.Total != files.NoTotal || c.Directories.Total != files.NoTotal || len(c.Files.Rows) != 7 || len(c.Directories.Rows) != 3 || c.Files.More || c.Directories.More {
+		t.Errorf("List(/a) without a total = %+v, want every row on the page and no More", c)
 	}
 	c = e.list(t, "/a", files.Listing{Page: 4, Size: 10})
-	if c.Files.Total != files.NoTotal || c.Directories.Total != files.NoTotal || len(c.Files.Rows) != 0 {
-		t.Errorf("an empty later page = %+v, want NoTotal on both halves", c)
+	if c.Files.Total != files.NoTotal || c.Directories.Total != files.NoTotal || len(c.Files.Rows) != 0 || c.Files.More || c.Directories.More {
+		t.Errorf("an empty later page = %+v, want NoTotal and no More on both halves", c)
 	}
 	c = e.list(t, "/a/b/c", files.Listing{Page: 1, Size: 10})
 	if c.Directories.Total != 0 {
@@ -354,6 +359,9 @@ func TestListByCursor(t *testing.T) {
 		}
 		if l.After.Files == "" && c.Files.Total != 7 {
 			t.Errorf("the file half by number reports total %d, want 7", c.Files.Total)
+		}
+		if c.Directories.More != (c.Directories.Next != "") || c.Files.More != (c.Files.Next != "") {
+			t.Errorf("a half's More disagrees with its cursor: directories %v %q, files %v %q", c.Directories.More, c.Directories.Next, c.Files.More, c.Files.Next)
 		}
 		if c.Directories.Next == "" && c.Files.Next == "" {
 			break
@@ -419,11 +427,22 @@ func TestListScope(t *testing.T) {
 	}
 
 	c = e.list(t, "/", files.Listing{Page: 1, Size: 10, Unit: unit})
-	if !slices.Equal(names(c.Directories.Rows), []string{"alpha", "docs"}) || c.Directories.Total != 2 {
-		t.Errorf("List(/) as the unit = %v, total %d; want alpha and docs", names(c.Directories.Rows), c.Directories.Total)
+	if !slices.Equal(names(c.Directories.Rows), []string{"alpha", "docs"}) || c.Directories.Total != 2 || c.Directories.More {
+		t.Errorf("List(/) as the unit = %v, total %d, more %v; want alpha and docs and no More", names(c.Directories.Rows), c.Directories.Total, c.Directories.More)
 	}
-	if c.Files.Total != 0 || len(c.Files.Rows) != 0 {
+	if c.Files.Total != 0 || len(c.Files.Rows) != 0 || c.Files.More {
 		t.Errorf("List(/) as the unit lists files %+v; the root's files belong to no unit", c.Files)
+	}
+	// The owner read model derives More from its count: page 1 of size 1
+	// over two directories has more, under TotalNone too, and page 2 does
+	// not.
+	c = e.list(t, "/", files.Listing{Page: 1, Size: 1, Unit: unit})
+	if len(c.Directories.Rows) != 1 || c.Directories.Total != 2 || !c.Directories.More || c.Directories.Next != "" {
+		t.Errorf("List(/) as the unit, page 1 of 1 = %+v; want one of 2 with More and no cursor", c.Directories)
+	}
+	c = e.list(t, "/", files.Listing{Page: 1, Size: 1, Unit: unit, Total: files.TotalNone})
+	if len(c.Directories.Rows) != 1 || c.Directories.Total != files.NoTotal || !c.Directories.More {
+		t.Errorf("List(/) as the unit, page 1 of 1 without a total = %+v; want one row, NoTotal, and More", c.Directories)
 	}
 	for _, d := range c.Directories.Rows {
 		if d.ParentID == nil || *d.ParentID != blobfs.RootID || d.Version != 1 || d.CreatedAt.IsZero() {
@@ -431,8 +450,8 @@ func TestListScope(t *testing.T) {
 		}
 	}
 	c = e.list(t, "/", files.Listing{Page: 2, Size: 1, Unit: unit, Sort: []files.Sort{{Field: "name", Descending: true}}})
-	if !slices.Equal(names(c.Directories.Rows), []string{"alpha"}) || c.Directories.Total != 2 {
-		t.Errorf("List(/) as the unit, page 2 of 1 by name desc = %v, total %d", names(c.Directories.Rows), c.Directories.Total)
+	if !slices.Equal(names(c.Directories.Rows), []string{"alpha"}) || c.Directories.Total != 2 || c.Directories.More {
+		t.Errorf("List(/) as the unit, page 2 of 1 by name desc = %v, total %d, more %v; want alpha and no More", names(c.Directories.Rows), c.Directories.Total, c.Directories.More)
 	}
 	c = e.list(t, "/", files.Listing{Page: 1, Size: 10, Unit: other})
 	if !slices.Equal(names(c.Directories.Rows), []string{"beta"}) || c.Directories.Total != 1 {

@@ -124,7 +124,9 @@ func (s *Store) deleteBookmark(ctx context.Context, sess sqlate.Session, unitID,
 // sorted by the caller's terms or by path when there are none, with
 // file_id appended by the projection as the tie-breaker. The projection
 // always runs its count statement, so under TotalNone the count is read
-// and dropped and the page reports NoTotal.
+// and dropped and the page reports NoTotal. More is derived from that
+// count in both modes, since the projection fetches exactly its page
+// size and no row beyond it.
 func (s *Store) bookmarksOf(ctx context.Context, sess sqlate.Session, unitID string, l Listing) (Page[BookmarkedFile], error) {
 	sort := sortTerms(l.Sort, nil)
 	if len(sort) == 0 {
@@ -139,10 +141,11 @@ func (s *Store) bookmarksOf(ctx context.Context, sess sqlate.Session, unitID str
 	if err != nil {
 		return Page[BookmarkedFile]{}, fmt.Errorf("files: bookmarks of %s: %w", unitID, err)
 	}
+	p := Page[BookmarkedFile]{Rows: rows, Total: total, More: more(l, len(rows), total)}
 	if l.Total == TotalNone {
-		total = NoTotal
+		p.Total = NoTotal
 	}
-	return Page[BookmarkedFile]{Rows: rows, Total: total}, nil
+	return p, nil
 }
 
 // AddBookmark records that the unit bookmarks the file at path and

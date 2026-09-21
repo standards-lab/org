@@ -378,10 +378,10 @@ func TestListScopedAtRootUsesTheOwnerProjection(t *testing.T) {
 	if !strings.HasSuffix(page.SQL, " ORDER BY q.created_at DESC, q.name OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
 		t.Errorf("the page took a file-only term or lost the key:\n%s", page.SQL)
 	}
-	if c.Directories.Total != 3 || len(c.Directories.Rows) != 1 || c.Directories.Rows[0].Name != "a" || *c.Directories.Rows[0].ParentID != blobfs.RootID {
-		t.Errorf("directories = %+v", c.Directories)
+	if c.Directories.Total != 3 || len(c.Directories.Rows) != 1 || c.Directories.Rows[0].Name != "a" || *c.Directories.Rows[0].ParentID != blobfs.RootID || !c.Directories.More {
+		t.Errorf("directories = %+v, want one row of 3 on page 2 of size 1, with More", c.Directories)
 	}
-	if c.Files.Total != 0 || len(c.Files.Rows) != 0 {
+	if c.Files.Total != 0 || len(c.Files.Rows) != 0 || c.Files.More {
 		t.Errorf("files = %+v, want none: the root's files belong to no unit", c.Files)
 	}
 
@@ -398,6 +398,65 @@ func TestListScopedAtRootUsesTheOwnerProjection(t *testing.T) {
 	}
 	if n := len(rec.SQL(sqltest.OpQuery)); n != 2 {
 		t.Errorf("the projection ran %d queries under TotalNone, want 2: it cannot skip its count", n)
+	}
+}
+
+// TestProjectionPagesDeriveMore proves how the consumer's two read models
+// report More: they page by number and fetch exactly their size, so More
+// is the page's position against the count the projection always runs,
+// offset plus rows below the count. A page that ends exactly at the count
+// has no More, one row short of the count has More, a later page past
+// the count has none, and under TotalNone the count still decides More
+// while the page reports NoTotal.
+func TestProjectionPagesDeriveMore(t *testing.T) {
+	ctx := context.Background()
+	unit := blobfs.NewID()
+	now := time.Now()
+	owned := func(names ...string) sqltest.Response {
+		resp := sqltest.Response{Columns: ownedColumns}
+		for _, name := range names {
+			resp.Rows = append(resp.Rows, []driver.Value{"id-" + name, blobfs.RootID, name, int64(1), now, now, unit})
+		}
+		return resp
+	}
+	cases := []struct {
+		label string
+		l     files.Listing
+		count int64
+		rows  []string
+		more  bool
+		total int
+	}{
+		{"exactly the count", files.Listing{Page: 1, Size: 2}, 2, []string{"a", "b"}, false, 2},
+		{"one below the count", files.Listing{Page: 1, Size: 2}, 3, []string{"a", "b"}, true, 3},
+		{"the last page", files.Listing{Page: 2, Size: 2}, 3, []string{"c"}, false, 3},
+		{"a page past the count", files.Listing{Page: 3, Size: 2}, 3, nil, false, 3},
+		{"no total, one below the count", files.Listing{Page: 1, Size: 2, Total: files.TotalNone}, 3, []string{"a", "b"}, true, files.NoTotal},
+		{"no total, exactly the count", files.Listing{Page: 2, Size: 2, Total: files.TotalNone}, 4, []string{"c", "d"}, false, files.NoTotal},
+	}
+	for _, c := range cases {
+		s, _ := newStore(t, counted(c.count), owned(c.rows...))
+		l := c.l
+		l.Unit = unit
+		got, err := s.List(ctx, "/", l)
+		if err != nil {
+			t.Fatalf("%s: ls / --unit: %v", c.label, err)
+		}
+		if got.Directories.More != c.more || got.Directories.Total != c.total || len(got.Directories.Rows) != len(c.rows) {
+			t.Errorf("%s: owned directories = more %v, total %d, %d rows; want more %v, total %d, %d rows", c.label, got.Directories.More, got.Directories.Total, len(got.Directories.Rows), c.more, c.total, len(c.rows))
+		}
+		paths := make([]string, len(c.rows))
+		for i, name := range c.rows {
+			paths[i] = "/" + name + ".txt"
+		}
+		s, _ = newStore(t, counted(c.count), bookmarks(unit, paths...))
+		p, err := s.ListBookmarks(ctx, unit, c.l)
+		if err != nil {
+			t.Fatalf("%s: bookmark ls: %v", c.label, err)
+		}
+		if p.More != c.more || p.Total != c.total || len(p.Rows) != len(c.rows) {
+			t.Errorf("%s: bookmarks = more %v, total %d, %d rows; want more %v, total %d, %d rows", c.label, p.More, p.Total, len(p.Rows), c.more, c.total, len(c.rows))
+		}
 	}
 }
 
@@ -478,8 +537,8 @@ func TestListContinuesEachHalfFromItsCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if first.Files.Next == "" || first.Directories.Next != "" || len(first.Files.Rows) != 2 || first.Files.Total != 3 {
-		t.Fatalf("page 1 = files next %q, directories next %q, %d files, total %d; want a file cursor only, 2 files, total 3", first.Files.Next, first.Directories.Next, len(first.Files.Rows), first.Files.Total)
+	if first.Files.Next == "" || first.Directories.Next != "" || len(first.Files.Rows) != 2 || first.Files.Total != 3 || !first.Files.More || first.Directories.More {
+		t.Fatalf("page 1 = files next %q, directories next %q, %d files, total %d, more %v and %v; want a file cursor only, 2 files, total 3, More on the files alone", first.Files.Next, first.Directories.Next, len(first.Files.Rows), first.Files.Total, first.Files.More, first.Directories.More)
 	}
 
 	s, rec := newStore(t,
@@ -501,7 +560,7 @@ func TestListContinuesEachHalfFromItsCursor(t *testing.T) {
 	if args := rec.Calls()[3].Args; len(args) != 4 || args[1] != "b.txt" || args[2] != 0 {
 		t.Errorf("the file half bound %v, want the last name and offset 0", args)
 	}
-	if second.Files.Total != files.NoTotal || second.Directories.Total != 1 || second.Files.Next != "" || len(second.Files.Rows) != 1 {
+	if second.Files.Total != files.NoTotal || second.Directories.Total != 1 || second.Files.Next != "" || second.Files.More || len(second.Files.Rows) != 1 {
 		t.Errorf("contents = %+v", second)
 	}
 

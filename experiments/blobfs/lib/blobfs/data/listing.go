@@ -33,9 +33,10 @@ import (
 // A page is reached by its number (offset paging) or by a cursor (keyset
 // paging, see cursor.go). Both walk the same order, so the two return the
 // same rows over the same data. The composer fetches one row beyond the
-// page whenever the sort can be continued by a cursor, so it knows
-// whether a next page exists without a count, and fills Page.Next with
-// the cursor of the row after the page's last row.
+// page on every page, offset or cursor, and drops it: its presence sets
+// Page.More, so a caller knows whether rows remain without a count, and
+// when the sort can be continued by a cursor it also fills Page.Next with
+// the cursor of the page's last row.
 
 // TotalMode says whether a listing computes its total.
 type TotalMode int
@@ -77,7 +78,8 @@ const NoTotal = -1
 // was issued by the other listing or under another sort, or when the sort
 // cannot be continued: a sort whose terms up to the key mix directions,
 // or one naming a field that can be NULL (size, etag, parent_id). Such a
-// sort still pages by number, and its pages carry no Next.
+// sort still pages by number, and its pages carry no Next; More still
+// says whether rows remain.
 type Listing struct {
 	Filters []query.Filter
 	Sort    []query.Sort
@@ -88,13 +90,23 @@ type Listing struct {
 }
 
 // Page is one page of a listing: its rows, never more than the requested
-// size; its total, NoTotal when the page carries none; and Next, the
-// cursor of the following page, empty on the last page and for a sort a
-// cursor cannot continue. Next is filled for an offset page too, so a
-// caller can read page one with its total and then walk by cursor.
+// size; its total, NoTotal when the page carries none; More, whether rows
+// remain after this page; and Next, the cursor of the following page.
+//
+// More is reported on every page, offset or cursor, whatever Total says:
+// the composer fetches one row beyond the page and More is that row's
+// presence. It is independent of the total, so a page under TotalNone and
+// an empty page after the first, whose Total is NoTotal, still say
+// whether rows remain. Next is filled only when More is true and the sort
+// can be continued by a cursor, on an offset page too, so a caller can
+// read page one with its total and then walk by cursor. A page thus reads
+// as one of three states: More false, no rows remain; More true with a
+// Next, continue by cursor; More true with an empty Next, the sort cannot
+// be continued, so read the following page by number.
 type Page[T any] struct {
 	Rows  []T
 	Total int
+	More  bool
 	Next  string
 }
 
@@ -185,9 +197,10 @@ func newListing[T any](c clauses, plain, counted query.Statement) (listing[T], e
 
 // run composes and runs one page: the statement chosen by the total mode
 // (the plain one under a cursor, which carries no total), the listing's
-// own arguments, and the caller's directives. When the sort can be
-// continued by a cursor, one row beyond the page is fetched and dropped,
-// and its presence fills Next with the cursor of the page's last row.
+// own arguments, and the caller's directives. One row beyond the page is
+// fetched and dropped: its presence sets More and, when the sort can be
+// continued by a cursor, fills Next with the cursor of the page's last
+// row.
 func (l listing[T]) run(ctx context.Context, sess sqlate.Session, args query.Args, d Listing) (Page[T], error) {
 	var after *cursor
 	if d.After != "" {
@@ -226,8 +239,11 @@ func (l listing[T]) run(ctx context.Context, sess sqlate.Session, args query.Arg
 	if err := rows.Err(); err != nil {
 		return Page[T]{}, mapErr(sess, err)
 	}
-	if p.terms != nil && len(page.Rows) > d.Size {
+	if len(page.Rows) > d.Size {
 		page.Rows = page.Rows[:d.Size]
+		page.More = true
+	}
+	if page.More && p.terms != nil {
 		values, err := valuesOf(page.Rows[d.Size-1], p.terms)
 		if err != nil {
 			return Page[T]{}, err
@@ -244,7 +260,7 @@ func (l listing[T]) run(ctx context.Context, sess sqlate.Session, args query.Arg
 
 // plan is one composed page statement: its text, the values to bind, and
 // the cursor terms when the sort can be continued by a cursor (nil when it
-// cannot), in which case the text fetches one row beyond the page.
+// cannot). The text always fetches one row beyond the page.
 type plan struct {
 	text   string
 	values []any
@@ -254,11 +270,12 @@ type plan struct {
 // compose renders st with d's clauses appended and returns the text and
 // the values to bind: st's own arguments in its parameter order, then each
 // filter value, then the cursor's values, then the offset and the fetch
-// count. The directives are checked before any text is composed: a bad
-// page, an unknown field or operator, a malformed value, and a cursor
-// that does not continue this sort are refused here, and the engine never
-// sees them. after, when not nil, is the decoded cursor the page continues
-// from; the page number is then ignored.
+// count, which is the page size plus one so the row beyond the page tells
+// whether more remain. The directives are checked before any text is
+// composed: a bad page, an unknown field or operator, a malformed value,
+// and a cursor that does not continue this sort are refused here, and the
+// engine never sees them. after, when not nil, is the decoded cursor the
+// page continues from; the page number is then ignored.
 func (l listing[T]) compose(st query.Statement, args query.Args, d Listing, after *cursor) (plan, error) {
 	if after == nil && d.Page < 1 {
 		return plan{}, fmt.Errorf("%w: page number must be at least 1", query.ErrDirectives)
@@ -334,12 +351,9 @@ func (l listing[T]) compose(st query.Statement, args query.Args, d Listing, afte
 	}
 	text.WriteString(l.clauses.fill("order", map[string]string{"terms": strings.Join(rendered, ", ")}))
 
-	offset, fetch := 0, d.Size
+	offset, fetch := 0, d.Size+1
 	if after == nil {
 		offset = (d.Page - 1) * d.Size
-	}
-	if terms != nil {
-		fetch++
 	}
 	text.WriteString(l.clauses.fill("paging", map[string]string{
 		"offset": l.clauses.placeholder(len(values) + 1),

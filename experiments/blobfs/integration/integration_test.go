@@ -509,30 +509,39 @@ func (s *script) directories(t *testing.T) {
 	if got := column(out); strings.Join(got, " ") != "2025 2026 a.txt b.txt c.txt" {
 		t.Errorf("ls /reports names = %v", got)
 	}
-	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total 2\n") || !strings.Contains(out, "files: 3 on page 1 of size 20, total 3\n") {
+	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total 2\nmore: no\n") || !strings.Contains(out, "files: 3 on page 1 of size 20, total 3\nmore: no\n") {
 		t.Errorf("ls /reports stdout:\n%s", out)
 	}
 	out = ok(t, s.tg, "ls", "/reports", "--page", "2", "--size", "1", "--sort", "name:desc")
 	if got := column(out); strings.Join(got, " ") != "2025 b.txt" {
 		t.Errorf("ls page 2 of 1 by name desc names = %v", got)
 	}
-	if !strings.Contains(out, "directories: 1 on page 2 of size 1, total 2\n") || !strings.Contains(out, "files: 1 on page 2 of size 1, total 3\n") {
+	if !strings.Contains(out, "directories: 1 on page 2 of size 1, total 2\nmore: no\n") || !strings.Contains(out, "files: 1 on page 2 of size 1, total 3\nmore: yes\nnext-files: ") {
 		t.Errorf("ls page 2 stdout:\n%s", out)
 	}
+	// A sort by size cannot be continued by a cursor: the file half says
+	// more: yes with no next-files: line, so the reader pages by number.
 	out = ok(t, s.tg, "ls", "/reports", "--sort", "size:desc")
 	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt a.txt b.txt" {
 		t.Errorf("ls by size desc names = %v; want directories in name order and files by size", got)
 	}
+	out = ok(t, s.tg, "ls", "/reports", "--sort", "size:desc", "--size", "2")
+	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt a.txt" {
+		t.Errorf("ls by size desc at size 2 names = %v", got)
+	}
+	if !strings.Contains(out, "files: 2 on page 1 of size 2, total 3\nmore: yes\n") || strings.Contains(out, "next-files:") {
+		t.Errorf("ls by size desc at size 2 stdout:\n%s", out)
+	}
 	out = ok(t, s.tg, "ls", "/reports", "--total", "none")
-	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total not counted\n") || !strings.Contains(out, "files: 3 on page 1 of size 20, total not counted\n") {
+	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total not counted\nmore: no\n") || !strings.Contains(out, "files: 3 on page 1 of size 20, total not counted\nmore: no\n") {
 		t.Errorf("ls --total none stdout:\n%s", out)
 	}
 	out = ok(t, s.tg, "ls", "/reports", "--page", "5")
-	if !strings.Contains(out, "directories: 0 on page 5 of size 20, total unknown") || !strings.Contains(out, "files: 0 on page 5 of size 20, total unknown") {
+	if !strings.Contains(out, "directories: 0 on page 5 of size 20, total unknown (the page is empty)\nmore: no\n") || !strings.Contains(out, "files: 0 on page 5 of size 20, total unknown (the page is empty)\nmore: no\n") {
 		t.Errorf("an empty later page stdout:\n%s", out)
 	}
 	out = ok(t, s.tg, "ls", "/reports/2026")
-	if !strings.Contains(out, "directories: 0 on page 1 of size 20, total 0\n") || !strings.Contains(out, "files: 0 on page 1 of size 20, total 0\n") {
+	if !strings.Contains(out, "directories: 0 on page 1 of size 20, total 0\nmore: no\n") || !strings.Contains(out, "files: 0 on page 1 of size 20, total 0\nmore: no\n") {
 		t.Errorf("an empty first page stdout:\n%s", out)
 	}
 	refused(t, s.tg, "not found", "ls", "/reports/missing")
@@ -556,11 +565,14 @@ func (s *script) directories(t *testing.T) {
 	if cursor == "" {
 		t.Fatalf("ls --size 2 printed no next-files line:\n%s", out)
 	}
+	if !strings.Contains(out, "directories: 2 on page 1 of size 2, total 2\nmore: no\n") || !strings.Contains(out, "files: 2 on page 1 of size 2, total 3\nmore: yes\nnext-files: ") {
+		t.Errorf("ls --size 2 stdout:\n%s", out)
+	}
 	out = ok(t, s.tg, "ls", "/reports", "--size", "2", "--after-files", cursor)
 	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt" {
 		t.Errorf("ls --after-files names = %v", got)
 	}
-	if !strings.Contains(out, "directories: 2 on page 1 of size 2, total 2\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\n") || strings.Contains(out, "next-") {
+	if !strings.Contains(out, "directories: 2 on page 1 of size 2, total 2\nmore: no\n") || !strings.Contains(out, "files: 1 after the cursor, size 2, total not counted\nmore: no\n") || strings.Contains(out, "next-") {
 		t.Errorf("ls --after-files stdout:\n%s", out)
 	}
 	refused(t, s.tg, "not one this listing issued", "ls", "/reports", "--after-files", "nonsense")
@@ -582,7 +594,7 @@ func (s *script) directories(t *testing.T) {
 	if got := column(out); strings.Join(got, " ") != "archive" {
 		t.Errorf("ls / as the unit names = %v", got)
 	}
-	if !strings.Contains(out, "directories: 1 on page 1 of size 20, total 1\n") || !strings.Contains(out, "files: 0 on page 1 of size 20, total 0\n") {
+	if !strings.Contains(out, "directories: 1 on page 1 of size 20, total 1\nmore: no\n") || !strings.Contains(out, "files: 0 on page 1 of size 20, total 0\nmore: no\n") {
 		t.Errorf("ls / as the unit stdout:\n%s", out)
 	}
 	out = ok(t, s.tg, "ls", "/", "--unit", other)
@@ -746,7 +758,7 @@ func (s *script) bookmarks(t *testing.T) {
 	if got := bookmarkPaths(out); strings.Join(got, " ") != deep+" /library/draft.bin /library/x.txt /root.txt" {
 		t.Errorf("bookmark ls paths = %v", got)
 	}
-	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total 4\n") {
+	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total 4\nmore: no\n") {
 		t.Errorf("bookmark ls stdout:\n%s", out)
 	}
 	for _, line := range lines(out) {
@@ -764,11 +776,15 @@ func (s *script) bookmarks(t *testing.T) {
 	if got := bookmarkPaths(out); strings.Join(got, " ") != deep {
 		t.Errorf("bookmark ls page 2 of 3 by path desc = %v", got)
 	}
-	if !strings.Contains(out, "bookmarks: 1 on page 2 of size 3, total 4\n") {
+	if !strings.Contains(out, "bookmarks: 1 on page 2 of size 3, total 4\nmore: no\n") {
 		t.Errorf("bookmark ls page 2 stdout:\n%s", out)
 	}
+	out = ok(t, s.tg, "bookmark", "ls", "--unit", unit, "--page", "1", "--size", "3")
+	if !strings.Contains(out, "bookmarks: 3 on page 1 of size 3, total 4\nmore: yes\n") || strings.Contains(out, "next") {
+		t.Errorf("bookmark ls page 1 of 3 stdout:\n%s", out)
+	}
 	out = ok(t, s.tg, "bookmark", "ls", "--unit", unit, "--total", "none")
-	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total not counted\n") {
+	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total not counted\nmore: no\n") {
 		t.Errorf("bookmark ls --total none stdout:\n%s", out)
 	}
 	out = ok(t, s.tg, "bookmark", "ls", "--unit", other)
@@ -776,7 +792,7 @@ func (s *script) bookmarks(t *testing.T) {
 		t.Errorf("bookmark ls of the other unit = %v", got)
 	}
 	out = ok(t, s.tg, "bookmark", "ls", "--unit", blobfs.NewID())
-	if !strings.Contains(out, "bookmarks: 0 on page 1 of size 20, total 0\n") {
+	if !strings.Contains(out, "bookmarks: 0 on page 1 of size 20, total 0\nmore: no\n") {
 		t.Errorf("bookmark ls of a unit with none:\n%s", out)
 	}
 	refused(t, s.tg, "unknown sort field", "bookmark", "ls", "--unit", unit, "--sort", "key")

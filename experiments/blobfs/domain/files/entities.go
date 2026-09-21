@@ -120,12 +120,16 @@ type Sort struct {
 }
 
 // Page is one page of one half of a listing: its rows, its total, which
-// is NoTotal when the page carries none, and Next, the cursor that
-// continues the half after this page, empty on the last page and when the
-// half cannot be continued by cursor.
+// is NoTotal when the page carries none, More, whether rows remain after
+// this page, and Next, the cursor that continues the half after this
+// page, empty on the last page and when the half cannot be continued by
+// cursor. More is reported whatever the total mode: the library's
+// listings fetch one row beyond the page, and the consumer's read models
+// derive it from the count they always run.
 type Page[T any] struct {
 	Rows  []T
 	Total int
+	More  bool
 	Next  string
 }
 

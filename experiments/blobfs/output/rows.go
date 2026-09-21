@@ -47,7 +47,8 @@ const NoTotal = -1
 // of all pages, which is NoTotal when the page carries none and is not
 // reported at all when the listing did not ask for one (Counted false).
 // Cursor says the half was read after a cursor rather than by number, so
-// the number is not shown, and Next is the cursor of the following page,
+// the number is not shown. More says whether rows remain after the page,
+// written as its own line, and Next is the cursor of the following page,
 // written on its own line when it is not empty.
 type Page struct {
 	Number  int
@@ -56,14 +57,16 @@ type Page struct {
 	Total   int
 	Counted bool
 	Cursor  bool
+	More    bool
 	Next    string
 }
 
 // Listing writes a directory listing to stdout: the entries as aligned
 // columns, directories then files as the caller ordered them, one line per
-// half saying what the page holds and the total or its absence, and after
-// a half that has a next page, the line next-dirs: or next-files: with the
-// cursor that continues it.
+// half saying what the page holds and the total or its absence, a more:
+// line saying whether rows remain after it, and after a half that has a
+// next page, the line next-dirs: or next-files: with the cursor that
+// continues it.
 func (o *Output) Listing(entries []Entry, directories, files Page) {
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
@@ -81,9 +84,10 @@ func (o *Output) Listing(entries []Entry, directories, files Page) {
 	o.page("files", "next-files", files)
 }
 
-// page writes one half's line: the rows on the page, the page number and
+// page writes one half's lines: the rows on the page, the page number and
 // size (or the cursor and the size), and the total as counted, not
-// counted, or unknown; then the next cursor under label when there is one.
+// counted, or unknown; then more: yes or more: no; then the next cursor
+// under label when there is one.
 func (o *Output) page(half, label string, p Page) {
 	total := "not counted"
 	switch {
@@ -97,6 +101,11 @@ func (o *Output) page(half, label string, p Page) {
 	} else {
 		_, _ = fmt.Fprintf(o.stdout, "%s: %d on page %d of size %d, total %s\n", half, p.Listed, p.Number, p.Size, total)
 	}
+	more := "no"
+	if p.More {
+		more = "yes"
+	}
+	_, _ = fmt.Fprintf(o.stdout, "more: %s\n", more)
 	if p.Next != "" {
 		_, _ = fmt.Fprintf(o.stdout, "%s: %s\n", label, p.Next)
 	}
@@ -115,9 +124,9 @@ type BookmarkEntry struct {
 
 // Bookmarks writes a bookmark listing to stdout: the entries as aligned
 // columns in the order given, then one line saying what the page holds
-// and the total or its absence, in the form the halves of a directory
-// listing use. The read model pages by number only, so no cursor line is
-// written.
+// and the total or its absence and a more: line, in the form the halves
+// of a directory listing use. The read model pages by number only, so no
+// cursor line is written.
 func (o *Output) Bookmarks(entries []BookmarkEntry, p Page) {
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
