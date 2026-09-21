@@ -47,19 +47,24 @@ func (o OwnedDirectory) Directory() blobfs.Directory {
 	return blobfs.Directory{ID: o.ID, ParentID: o.ParentID, Name: o.Name, Version: o.Version, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt}
 }
 
-// BookmarkedFile is one row of the consumer's bookmark read model,
-// bookmarks: a unit's bookmark of a file, the file's columns the listing
-// shows, and the file's full path, computed by the read model from the
-// file's directory upward. It is what bookmark ls lists. Active says the
-// bookmark is the unit's one active bookmark. Size is nil for a file whose
-// write has not completed. CreatedAt and UpdatedAt are the bookmark's, not
-// the file's. The fields are flat, as in OwnedDirectory, because the
+// BookmarkedFile is one row of the consumer's bookmark read model: a
+// unit's bookmark of a file, the file's id and directory id, the file's
+// columns the listing shows, and, when the listing asked for paths, the
+// file's full path, computed by the read model from the file's directory
+// upward. It is what bookmark ls lists. FileID and DirectoryID are the
+// handles a caller acts with; Path is empty unless Listing.Paths was set,
+// because the path costs a recursion per row. Active says the bookmark is
+// the unit's one active bookmark. Size is nil for a file whose write has
+// not completed. CreatedAt and UpdatedAt are the bookmark's, not the
+// file's. The fields are flat, as in OwnedDirectory, because the
 // struct-tag mapper does not flatten an embedded struct; the read model
 // restates the library columns it uses and no others. The json tags are
-// the scan contract: the projection's columns carry the same names.
+// the scan contract: the projections' columns carry the same names, and
+// the projection without paths leaves Path zero.
 type BookmarkedFile struct {
 	UnitID      string        `json:"unit_id"`
 	FileID      string        `json:"file_id"`
+	DirectoryID string        `json:"directory_id"`
 	Active      bool          `json:"active"`
 	Path        string        `json:"path"`
 	Name        string        `json:"name"`
@@ -90,10 +95,12 @@ const NoTotal = -1
 // Listing is one page request of ls, as the command line states it: the
 // 1-based page and its size, the sort terms in order, the total mode, the
 // cursors to continue each half from, and the unit whose scope the
-// listing is checked against when Unit is not empty. It is the consumer's
-// own shape of a read request; database.go lowers it to the library's
-// listing and to the query library's directives, since no other file of
-// the package names those.
+// listing is checked against when Unit is not empty. Paths applies to the
+// bookmark listing alone: it asks for each row's path, which costs a
+// recursion per row, and is off by default. It is the consumer's own
+// shape of a read request; database.go lowers it to the library's listing
+// and to the query library's directives, since no other file of the
+// package names those.
 type Listing struct {
 	Page  int
 	Size  int
@@ -101,6 +108,32 @@ type Listing struct {
 	Total TotalMode
 	After After
 	Unit  string
+	Paths bool
+}
+
+// Scope is the ownership claim an id-keyed operation checks: the unit
+// acting and the directory the unit names as its scope root, a top-level
+// directory it owns. The zero value makes no claim and no check. A scope
+// that names a unit or a directory but not both is refused. The claim is
+// an input to check, never a fact to trust: the check reads the owner row
+// of DirectoryID and refuses unless Unit owns it, then refuses a target
+// directory that does not lie within it. Both refusals are ErrNotOwned.
+type Scope struct {
+	Unit        string
+	DirectoryID string
+}
+
+// MoveRequest is one move by id, as MoveEntry takes it: the kind and id
+// of the entry to move, the id of the directory it moves into, the name it
+// takes there (empty keeps its name), and the version the caller read
+// (0 when none was read, in which case the row's current version guards
+// the move).
+type MoveRequest struct {
+	Kind        EntryKind
+	ID          string
+	DirectoryID string
+	Name        string
+	Version     int64
 }
 
 // After holds the cursors a listing continues from, one per half, each
@@ -253,10 +286,11 @@ const (
 	EntryFile EntryKind = "file"
 )
 
-// Contents is what ls returns for one directory: the path it listed, the
-// directories under it, and the files in it, each one page under the same
-// Listing with its own total. Both halves were read in one read-only
-// repeatable-read transaction, so they agree with each other.
+// Contents is what ls returns for one directory: the path it listed,
+// which is empty for a listing by id, the directories under it, and the
+// files in it, each one page under the same Listing with its own total.
+// Both halves were read in one read-only repeatable-read transaction, so
+// they agree with each other.
 type Contents struct {
 	Path        string
 	Directories Page[blobfs.Directory]

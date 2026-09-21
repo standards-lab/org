@@ -444,6 +444,9 @@ func (d deps) bookmarkList() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// The command prints paths, so it asks for them; the read
+			// model computes none by default.
+			l.Paths = true
 			s, err := d.store(cmd.Context())
 			if err != nil {
 				return err

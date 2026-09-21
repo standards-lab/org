@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -18,17 +19,31 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 )
 
-// bookmarkColumns is the scan contract of the bookmark read model, in the
-// order the projection's base selects them.
-var bookmarkColumns = []string{"unit_id", "file_id", "active", "path", "name", "status", "size", "content_type", "created_at", "updated_at"}
+// bookmarkColumns is the scan contract of the bookmark read model with
+// paths, in the order the projection's base selects them; the base
+// without paths selects the same columns less path.
+var bookmarkColumns = []string{"unit_id", "file_id", "directory_id", "active", "path", "name", "status", "size", "content_type", "created_at", "updated_at"}
 
-// bookmarks scripts one page of the bookmark read model: one row per
-// path, none active, each available with a size.
+// bookmarks scripts one page of the bookmark read model with paths: one
+// row per path, none active, each available with a size, each in the
+// directory D.
 func bookmarks(unit string, paths ...string) sqltest.Response {
 	resp := sqltest.Response{Columns: bookmarkColumns}
 	now := time.Now()
 	for i, p := range paths {
-		resp.Rows = append(resp.Rows, []driver.Value{unit, "F" + path.Base(p), false, p, path.Base(p), "available", int64(i + 1), "text/plain", now, now})
+		resp.Rows = append(resp.Rows, []driver.Value{unit, "F" + path.Base(p), "D", false, p, path.Base(p), "available", int64(i + 1), "text/plain", now, now})
+	}
+	return resp
+}
+
+// bookmarksByID scripts one page of the bookmark read model without
+// paths: one row per name, none active, each available with a size, each
+// in the directory D.
+func bookmarksByID(unit string, names ...string) sqltest.Response {
+	resp := sqltest.Response{Columns: slices.DeleteFunc(slices.Clone(bookmarkColumns), func(c string) bool { return c == "path" })}
+	now := time.Now()
+	for i, name := range names {
+		resp.Rows = append(resp.Rows, []driver.Value{unit, "F" + name, "D", false, name, "available", int64(i + 1), "text/plain", now, now})
 	}
 	return resp
 }
@@ -45,14 +60,15 @@ func violation(constraint string, class error) sqltest.Response {
 
 // TestListBookmarksRunsInOneReadOnlyRepeatableReadTransaction is the
 // stage gate's hermetic proof that the projection's total agrees with its
-// page: one bookmark ls is one transaction, begun read-only at repeatable
-// read, holding the count statement and the page statement, then
-// committed. Both statements read the bookmark read model filtered by the
-// unit, the page in path order with file_id as the tie-breaker.
+// page: one bookmark ls with paths is one transaction, begun read-only at
+// repeatable read, holding the count statement and the page statement,
+// then committed. Both statements read the bookmark read model with
+// paths filtered by the unit, the page in path order with file_id as the
+// tie-breaker.
 func TestListBookmarksRunsInOneReadOnlyRepeatableReadTransaction(t *testing.T) {
 	unit := blobfs.NewID()
 	s, rec := newStore(t, counted(3), bookmarks(unit, "/a/b.txt", "/c.txt"))
-	p, err := s.ListBookmarks(context.Background(), unit, files.Listing{Page: 1, Size: 2})
+	p, err := s.ListBookmarks(context.Background(), unit, files.Listing{Page: 1, Size: 2, Paths: true})
 	if err != nil {
 		t.Fatalf("ListBookmarks: %v", err)
 	}
@@ -84,7 +100,7 @@ func TestListBookmarksRunsInOneReadOnlyRepeatableReadTransaction(t *testing.T) {
 	if args := page.Args; len(args) != 3 || args[1] != 0 || args[2] != 2 {
 		t.Errorf("the page bound %v, want the unit, offset 0, fetch 2", args)
 	}
-	if p.Total != 3 || len(p.Rows) != 2 || p.Rows[0].Path != "/a/b.txt" || p.Rows[1].Name != "c.txt" || *p.Rows[1].Size != 2 || p.Rows[0].UnitID != unit {
+	if p.Total != 3 || len(p.Rows) != 2 || p.Rows[0].Path != "/a/b.txt" || p.Rows[1].Name != "c.txt" || *p.Rows[1].Size != 2 || p.Rows[0].UnitID != unit || p.Rows[0].FileID != "Fb.txt" || p.Rows[0].DirectoryID != "D" {
 		t.Errorf("page = %+v", p)
 	}
 	if rec.Pending() != 0 || rec.RowsLeaked() != 0 {
@@ -99,6 +115,66 @@ func TestListBookmarksRunsInOneReadOnlyRepeatableReadTransaction(t *testing.T) {
 	}
 	if got := ops(rec); got != "begin query rollback" {
 		t.Errorf("ops after a failure = %q, want begin query rollback", got)
+	}
+}
+
+// TestListBookmarksComputesPathsOnRequest proves the two shapes of the
+// bookmark read model: by default the count and the page run the base
+// without the upward walk, select the file's id and directory id, leave
+// Path empty, and sort by name with file_id as the tie-breaker; with
+// Paths the base with the correlated recursion runs, sorted by path. A
+// sort by path without Paths names a field the default base does not
+// declare and is refused before any statement runs.
+func TestListBookmarksComputesPathsOnRequest(t *testing.T) {
+	ctx := context.Background()
+	unit := blobfs.NewID()
+	s, rec := newStore(t, counted(2), bookmarksByID(unit, "b.txt", "c.txt"))
+	p, err := s.ListBookmarks(ctx, unit, files.Listing{Page: 1, Size: 5})
+	if err != nil {
+		t.Fatalf("ListBookmarks: %v", err)
+	}
+	if got := ops(rec); got != "begin query query commit" {
+		t.Errorf("ops = %q", got)
+	}
+	for _, q := range rec.SQL(sqltest.OpQuery) {
+		if strings.Contains(q, "WITH RECURSIVE") || strings.Contains(q, "path") {
+			t.Errorf("the default listing computes the path:\n%s", q)
+		}
+		if !strings.Contains(q, "b.file_id, f.directory_id") || !strings.Contains(q, "WHERE q.unit_id = CAST($1 AS uuid)") {
+			t.Errorf("the default listing lacks the ids or the unit filter:\n%s", q)
+		}
+	}
+	if page := rec.SQL(sqltest.OpQuery)[1]; !strings.HasSuffix(page, " ORDER BY q.name, q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
+		t.Errorf("the default page is not in name order with the key as the tie-breaker:\n%s", page)
+	}
+	if len(p.Rows) != 2 || p.Rows[0].FileID != "Fb.txt" || p.Rows[0].DirectoryID != "D" || p.Rows[0].Path != "" || p.Rows[1].Name != "c.txt" {
+		t.Errorf("rows = %+v, want ids and no path", p.Rows)
+	}
+
+	s, rec = newStore(t, counted(2), bookmarks(unit, "/a/b.txt", "/c.txt"))
+	p, err = s.ListBookmarks(ctx, unit, files.Listing{Page: 1, Size: 5, Paths: true})
+	if err != nil {
+		t.Fatalf("ListBookmarks with paths: %v", err)
+	}
+	for _, q := range rec.SQL(sqltest.OpQuery) {
+		if !strings.Contains(q, "WITH RECURSIVE up") || !strings.Contains(q, "b.file_id, f.directory_id") {
+			t.Errorf("the listing with paths lacks the walk or the ids:\n%s", q)
+		}
+	}
+	if page := rec.SQL(sqltest.OpQuery)[1]; !strings.HasSuffix(page, " ORDER BY q.path, q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY") {
+		t.Errorf("the page with paths is not in path order:\n%s", page)
+	}
+	if len(p.Rows) != 2 || p.Rows[0].Path != "/a/b.txt" || p.Rows[0].DirectoryID != "D" {
+		t.Errorf("rows with paths = %+v", p.Rows)
+	}
+
+	s, rec = newStore(t)
+	_, err = s.ListBookmarks(ctx, unit, files.Listing{Page: 1, Size: 5, Sort: []files.Sort{{Field: "path"}}})
+	if !errors.Is(err, query.ErrDirectives) || !strings.Contains(err.Error(), "path") {
+		t.Errorf("a sort by path without paths = %v, want ErrDirectives naming it", err)
+	}
+	if got := ops(rec); got != "begin rollback" {
+		t.Errorf("ops after the refusal = %q, want no statement", got)
 	}
 }
 
@@ -140,8 +216,8 @@ func TestListBookmarksLowersTheDirectives(t *testing.T) {
 	}
 
 	s, rec = newStore(t)
-	_, err = s.ListBookmarks(ctx, unit, files.Listing{Page: 1, Size: 5, Sort: []files.Sort{{Field: "directory_id"}}})
-	if !errors.Is(err, query.ErrDirectives) || !strings.Contains(err.Error(), "directory_id") {
+	_, err = s.ListBookmarks(ctx, unit, files.Listing{Page: 1, Size: 5, Sort: []files.Sort{{Field: "key"}}})
+	if !errors.Is(err, query.ErrDirectives) || !strings.Contains(err.Error(), "key") {
 		t.Errorf("a sort by an undeclared field = %v, want ErrDirectives naming it", err)
 	}
 	if got := ops(rec); got != "begin rollback" {

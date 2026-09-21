@@ -180,8 +180,10 @@ func TestBookmarkCost(t *testing.T) {
 		}
 		return rec.calls[0], rec.calls[1]
 	}
-	page1 := Listing{Page: 1, Size: evPageSize}
-	byKey := Listing{Page: 1, Size: evPageSize, Sort: []Sort{{Field: "file_id"}}}
+	// The measured shape is the listing with paths: the projection that
+	// computes each row's path, which the default listing leaves out.
+	page1 := Listing{Page: 1, Size: evPageSize, Paths: true}
+	byKey := Listing{Page: 1, Size: evPageSize, Sort: []Sort{{Field: "file_id"}}, Paths: true}
 
 	m.note("")
 	m.note("==================== a. the shipped projection against the bookmark count ====================")
@@ -260,7 +262,7 @@ func TestBookmarkCost(t *testing.T) {
 	for _, label := range []string{"u10", "u1000", "shallow", "deep"} {
 		u := byLabel[label]
 		_, page := shipped(u, page1)
-		want := evColumn(ctx, t, db, 3, page.sql, page.args...)
+		want := evColumn(ctx, t, db, 4, page.sql, page.args...)
 		for _, q := range []struct {
 			label string
 			c     evCall
@@ -269,7 +271,7 @@ func TestBookmarkCost(t *testing.T) {
 			{"anchored", evCall{sql: anchoredPage, args: []any{u.id, 0, evPageSize}}},
 			{"anchored wrapped", evCall{sql: anchoredWrappedPage, args: []any{u.id, 0, evPageSize}}},
 		} {
-			if got := evColumn(ctx, t, db, 3, q.c.sql, q.c.args...); !slices.Equal(got, want) {
+			if got := evColumn(ctx, t, db, 4, q.c.sql, q.c.args...); !slices.Equal(got, want) {
 				t.Errorf("%s: the %s form lists a different first page:\n%v\n%v", u.label, q.label, got, want)
 			}
 		}
@@ -306,8 +308,9 @@ func TestBookmarkCost(t *testing.T) {
 	fmt.Print(out.String())
 }
 
-// The columns every form selects, in the order the read model scans them.
-const evColumns = "b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at"
+// The columns every form selects, in the order the read model with paths
+// scans them; the path is the fifth column.
+const evColumns = "b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at"
 
 // The projection over a top-level recursion: the shape the plan described.
 // The recursion is anchored on every bookmarked file's directory, because

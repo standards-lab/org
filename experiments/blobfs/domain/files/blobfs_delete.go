@@ -14,13 +14,14 @@ import (
 // Remove is the file delete as the consumer sequences it, rm <path>: the
 // parent is resolved and the name looked up on the pool, whatever the
 // row's status, and the row then goes through the three steps of
-// deleteFile. A pending row (an abandoned write), an available row, and a
-// row already deleting (an earlier rm that stopped) are treated alike:
-// the steps are idempotent, so a rerun resumes where the earlier run
-// stopped. A file that does not exist, or a parent that does not, is
-// blobfs.ErrNotFound; after a finished rm the same path reports that,
-// which is how a caller learns the delete is done. The row returned is
-// the row as the begin step left it, deleting.
+// deleteFile, as RemoveFile does by id without the lookup. A pending row
+// (an abandoned write), an available row, and a row already deleting (an
+// earlier rm that stopped) are treated alike: the steps are idempotent,
+// so a rerun resumes where the earlier run stopped. A file that does not
+// exist, or a parent that does not, is blobfs.ErrNotFound; after a
+// finished rm the same path reports that, which is how a caller learns
+// the delete is done. The row returned is the row as the begin step left
+// it, deleting.
 func (s *Store) Remove(ctx context.Context, path string, stopAfter Step) (blobfs.File, error) {
 	parent, name, _, err := splitParent(path)
 	if err != nil {
@@ -34,19 +35,51 @@ func (s *Store) Remove(ctx context.Context, path string, stopAfter Step) (blobfs
 	if err != nil {
 		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", path, err)
 	}
-	return s.deleteFile(ctx, path, f.ID, stopAfter)
+	return s.deleteFile(ctx, path, f.ID, 0, stopAfter)
 }
 
-// deleteFile runs the steps of a file delete for the file with id at
-// path, in three steps with two transaction boundaries, the mirror of
-// Put. First, in one transaction on its own: blobfs's begin step moves
-// the row to deleting through the variant, then the bookmark table is
-// read for the file, and the delete is refused with ErrBookmarked while
-// any unit bookmarks it, which rolls the begin back, so a bookmarked
-// file's object is never deleted; otherwise the transaction commits.
-// Second, outside any transaction, the object is deleted under the row's
-// key; the store treats a missing object as success, so the step repeats
-// safely. Third, on the pool, blobfs's complete step removes the row.
+// RemoveFile is the file delete by id: the three steps of deleteFile for
+// the file with id, with no read before them, so a caller that holds an
+// id from a listing acts on it directly. A file that does not exist is
+// blobfs.ErrNotFound from the begin step, and the messages name the file
+// as "file <id>".
+//
+// version, when not 0, is the version the caller read: the begin
+// transaction first holds the row at that version through
+// blobfs.HoldFile, and a row that moved on is query.ErrVersionMismatch,
+// with nothing begun. A row already deleting is held by nothing and is
+// not refused: its version advanced when its delete began, and a rerun
+// resumes that delete whatever version the caller holds, as Remove does.
+// With 0 the begin step alone guards the row, by its status.
+//
+// With a scope, the row is read once on the pool, before the store is
+// opened, so that its directory can be checked against the scope
+// (InScope); a file outside the scope is ErrNotOwned with nothing begun.
+func (s *Store) RemoveFile(ctx context.Context, id string, version int64, stopAfter Step, scope Scope) (blobfs.File, error) {
+	label := "file " + id
+	if scope != (Scope{}) {
+		f, err := s.blobfs.File(ctx, s.db, id)
+		if err != nil {
+			return blobfs.File{}, fmt.Errorf("files: rm %s: %w", label, err)
+		}
+		if err := s.inScope(ctx, s.db, scope, f.DirectoryID); err != nil {
+			return blobfs.File{}, fmt.Errorf("files: rm %s: %w", label, err)
+		}
+	}
+	return s.deleteFile(ctx, label, id, version, stopAfter)
+}
+
+// deleteFile runs the steps of a file delete for the file with id, named
+// label in the messages, in three steps with two transaction boundaries,
+// the mirror of Put. First, in one transaction on its own: with a version
+// the row is held at it, then blobfs's begin step moves the row to
+// deleting through the variant, then the bookmark table is read for the
+// file, and the delete is refused with ErrBookmarked while any unit
+// bookmarks it, which rolls the begin back, so a bookmarked file's object
+// is never deleted; otherwise the transaction commits. Second, outside
+// any transaction, the object is deleted under the row's key; the store
+// treats a missing object as success, so the step repeats safely. Third,
+// on the pool, blobfs's complete step removes the row.
 //
 // The begin runs before the check because of the library's
 // reference-then-delete rule: AddBookmark holds the file's row through
@@ -67,12 +100,21 @@ func (s *Store) Remove(ctx context.Context, path string, stopAfter Step) (blobfs
 // it, and put refuses its name; the error says so, and an rm of the same
 // path resumes: the begin returns the deleting row unchanged, the object
 // delete finds nothing or the object, and the complete removes the row.
-func (s *Store) deleteFile(ctx context.Context, path, id string, stopAfter Step) (blobfs.File, error) {
+func (s *Store) deleteFile(ctx context.Context, label, id string, version int64, stopAfter Step) (blobfs.File, error) {
 	st, err := s.objects(ctx)
 	if err != nil {
-		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", path, err)
+		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", label, err)
 	}
 	f, err := s.db.Transact(ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+		if version != 0 {
+			// The hold takes the row's lock at the caller's version, so a
+			// row that moved on is refused before the begin. A deleting
+			// row is not holdable at any version and is let through: the
+			// begin returns it unchanged, and the rerun resumes.
+			if err := s.blobfs.HoldFile(ctx, tx, id, data.AtVersion(version)); err != nil && !errors.Is(err, blobfs.ErrDeleting) {
+				return blobfs.File{}, err
+			}
+		}
 		f, err := s.blobfs.BeginFileDelete(ctx, tx, id)
 		if err != nil {
 			return blobfs.File{}, err
@@ -87,23 +129,23 @@ func (s *Store) deleteFile(ctx context.Context, path, id string, stopAfter Step)
 		return f, nil
 	})
 	if err != nil {
-		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", path, err)
+		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", label, err)
 	}
 	if stopAfter == StepBegin {
-		return f, &StopError{Command: "rm", Step: StepBegin, Path: path, File: f}
+		return f, &StopError{Command: "rm", Step: StepBegin, Path: label, File: f}
 	}
 	if err := st.Delete(ctx, f.Key); err != nil {
-		return f, fmt.Errorf("files: rm %s: %w (the row stays deleting; rerun rm)", path, err)
+		return f, fmt.Errorf("files: rm %s: %w (the row stays deleting; rerun rm)", label, err)
 	}
 	if stopAfter == StepObject {
-		return f, &StopError{Command: "rm", Step: StepObject, Path: path, File: f}
+		return f, &StopError{Command: "rm", Step: StepObject, Path: label, File: f}
 	}
 	if err := s.blobfs.CompleteFileDelete(ctx, s.db, f.ID); err != nil {
 		err = classifyFileDelete(err)
 		if errors.Is(err, ErrBookmarked) {
-			return f, fmt.Errorf("files: rm %s: a bookmark references the file, inserted without holding it; the row stays deleting and its object is gone; remove the bookmark and rerun rm: %w", path, err)
+			return f, fmt.Errorf("files: rm %s: a bookmark references the file, inserted without holding it; the row stays deleting and its object is gone; remove the bookmark and rerun rm: %w", label, err)
 		}
-		return f, fmt.Errorf("files: rm %s: %w", path, err)
+		return f, fmt.Errorf("files: rm %s: %w", label, err)
 	}
 	return f, nil
 }
@@ -271,7 +313,7 @@ func (w *walker) empty(ctx context.Context, id, path string) error {
 		}
 		for _, f := range page.Rows {
 			filePath := path + "/" + f.Name
-			if _, err := w.store.deleteFile(ctx, filePath, f.ID, ""); err != nil {
+			if _, err := w.store.deleteFile(ctx, filePath, f.ID, 0, ""); err != nil {
 				return err
 			}
 			w.result.Files++

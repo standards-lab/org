@@ -16,9 +16,11 @@ var (
 	// so the message says which command applies it.
 	ErrVerify = errors.New("files: the database does not satisfy the statements; if the schema is not applied, run blobfs schema up")
 
-	// ErrNotOwned reports a listing refused because the unit named does not
-	// own the depth-one ancestor of the listed path: another unit owns it,
-	// or no unit does.
+	// ErrNotOwned reports an operation refused by the ownership check: the
+	// unit named does not own the depth-one ancestor of the listed path,
+	// or, for an id-keyed operation, the unit does not own the scope
+	// directory it named, or the target does not lie within that scope.
+	// Another unit owns the directory, or no unit does.
 	ErrNotOwned = errors.New("files: the unit does not own the directory")
 
 	// ErrUnitDepth reports a mkdir with --unit at a path that is not at

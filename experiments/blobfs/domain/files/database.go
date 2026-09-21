@@ -32,14 +32,15 @@ type Store struct {
 	openStorage func(context.Context) (*Storage, error)
 	storage     *Storage
 
-	createOwner      query.Statement
-	ownerOfDirectory query.Rows[DirectoryOwner]
-	ownedDirectories query.Projection[OwnedDirectory]
-	removeOwner      query.Statement
-	createBookmark   query.Statement
-	removeBookmark   query.Statement
-	bookmarks        query.Projection[BookmarkedFile]
-	bookmarkCount    query.Rows[bookmarkCount]
+	createOwner        query.Statement
+	ownerOfDirectory   query.Rows[DirectoryOwner]
+	ownedDirectories   query.Projection[OwnedDirectory]
+	removeOwner        query.Statement
+	createBookmark     query.Statement
+	removeBookmark     query.Statement
+	bookmarks          query.Projection[BookmarkedFile]
+	bookmarksWithPaths query.Projection[BookmarkedFile]
+	bookmarkCount      query.Rows[bookmarkCount]
 
 	blobfs *data.Store
 }
@@ -117,6 +118,7 @@ func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error), opt
 	s.createBookmark = stmts.Statement("create_bookmark")
 	s.removeBookmark = stmts.Statement("remove_bookmark")
 	s.bookmarks = stmts.Statement("bookmarks").Project(query.Scanner[BookmarkedFile]())
+	s.bookmarksWithPaths = stmts.Statement("bookmarks_with_paths").Project(query.Scanner[BookmarkedFile]())
 	s.bookmarkCount = stmts.Statement("file_bookmark_count").Scan(query.Scanner[bookmarkCount]())
 	return s, nil
 }
@@ -126,7 +128,7 @@ func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error), opt
 // applied or no longer matches the statements fails before a command does
 // any work. A failure wraps ErrVerify and the joined causes.
 func (s *Store) Verify(ctx context.Context) error {
-	if err := query.Verify(ctx, s.db, s.stmts, s.ownedDirectories, s.bookmarks, s.blobfs); err != nil {
+	if err := query.Verify(ctx, s.db, s.stmts, s.ownedDirectories, s.bookmarks, s.bookmarksWithPaths, s.blobfs); err != nil {
 		return fmt.Errorf("%w: %w", ErrVerify, err)
 	}
 	return nil

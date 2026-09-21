@@ -17,14 +17,16 @@
 //     them.
 //   - statements/ holds the consumer's SQL: the owner row's insert and
 //     read and removal, the owned_directories projection base, the
-//     bookmark's insert, delete, and per-file count, and the bookmarks
-//     projection base. The owner projection
-//     includes blobfs's published column list and joins directory_owner,
-//     so ls / --unit lists a unit's own top-level directories. The
-//     bookmark projection joins bookmark to blobfs_file and computes each
-//     row's path by a recursion correlated on the file's directory, so
-//     bookmark ls lists a unit's bookmarks with their full paths at a cost
-//     proportional to the unit's bookmark count times the depth.
+//     bookmark's insert, delete, and per-file count, and the two bookmark
+//     projection bases. The owner projection includes blobfs's published
+//     column list and joins directory_owner, so ls / --unit lists a
+//     unit's own top-level directories. The bookmarks projection joins
+//     bookmark to blobfs_file and carries the file's id and directory id,
+//     the handles a caller acts with, and no path; bookmarks_with_paths
+//     adds each row's path, computed by a recursion correlated on the
+//     file's directory at a cost proportional to the unit's bookmark
+//     count times the depth, and runs only when a listing asks for paths,
+//     as bookmark ls does.
 //   - database.go and the database_<concern>.go files are the only files
 //     that import sqlate/query. database.go builds the program's one
 //     pattern catalog, compiles the consumer's statements against it,
@@ -42,34 +44,48 @@
 //     validation over the provider's rules, maps the store's errors onto
 //     the domain's, and opens and starts the store from the environment
 //     for the composition root.
-//   - blobfs.go and the blobfs_<concern>.go files (read, write, move, and
-//     delete) compose Mkdir, List, Put, Stat, Open, Move, Remove,
-//     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
-//     ListBookmarks from the library's methods, the consumer's statements,
-//     and the object store. List and ListBookmarks each run in one
-//     read-only repeatable-read transaction. Put is the two-phase write:
-//     the pending row in a transaction of its own, the object write, and
-//     the completion on the pool. Remove is its mirror: the begin and
-//     then the bookmark check in a transaction of its own, the object
-//     delete, and the row's removal on the pool. Move resolves both paths and runs the
-//     library's move in one transaction, under the tree lock for a
-//     directory, and keeps every move under one top-level directory.
-//     RemoveDirectory removes the owner row and the directory in one
-//     transaction, and RemoveTree walks a tree through those two, children
-//     first. AddBookmark resolves the file, holds it through the
-//     library's HoldFile, and inserts the bookmark in one transaction, so
-//     it and Remove serialize on the file's row.
+//   - blobfs.go and the blobfs_<concern>.go files (read, write, move,
+//     delete, and scope) compose the operations from the library's
+//     methods, the consumer's statements, and the object store. Ids are
+//     the primary handle: ListDirectory, StatFile, OpenFile, PutFile,
+//     MoveEntry, and RemoveFile take directory and file ids, and the path
+//     forms List, Stat, Open, Put, Move, and Remove resolve their paths
+//     and then run the same steps, so a caller that holds an id from a
+//     listing acts without a resolution. Mkdir, RemoveDirectory,
+//     RemoveTree, AddBookmark, RemoveBookmark, and ListBookmarks take
+//     paths or a unit. List, ListDirectory, and ListBookmarks each run in
+//     one read-only repeatable-read transaction. Put and PutFile are the
+//     two-phase write: the pending row in a transaction of its own, the
+//     object write, and the completion on the pool. Remove and RemoveFile
+//     are its mirror: the begin and then the bookmark check in a
+//     transaction of its own, the object delete, and the row's removal on
+//     the pool; RemoveFile takes the version the caller read and holds the
+//     row at it first. Move and MoveEntry run the library's move in one
+//     transaction, under the tree lock for a directory, and keep every
+//     move under one top-level directory. RemoveDirectory removes the
+//     owner row and the directory in one transaction, and RemoveTree
+//     walks a tree through those two, children first. AddBookmark
+//     resolves the file, holds it through the library's HoldFile, and
+//     inserts the bookmark in one transaction, so it and Remove serialize
+//     on the file's row. InScope is the ownership check by id, which the
+//     id-keyed operations run when they are given a Scope.
 //   - commands.go builds the commands over a Store constructor and renders
-//     through output.
+//     through output. The commands call the path forms.
 //
 // The package imports no admin package.
 //
 // The ownership rehearsal has two grains. At the directory grain an owner
-// row binds a top-level directory to a unit, and a listing under --unit
-// checks that row once, at the top-level ancestor of the listed path,
-// never per row. At the file grain a bookmark row binds a file to a unit,
-// at most one of a unit's bookmarks is active under a partial unique
-// index, and the bookmark listing is the consumer-anchored read model:
-// a projection over the consumer's table joined to the library's, with
-// the path computed per row.
+// row binds a top-level directory to a unit. A listing under --unit
+// derives the scope from the path and checks that row once, at the
+// top-level ancestor of the listed path, never per row. An id-keyed
+// operation takes the scope from the caller as a Scope, the unit and the
+// directory it names as its scope root, and checks it by reading the
+// scope root's owner row and then running the library's IsWithin from the
+// target to the scope root; the named scope is an input to check, never
+// a fact to trust. At the file grain a bookmark row binds a file to a
+// unit, at most one of a unit's bookmarks is active under a partial
+// unique index, and the bookmark listing is the consumer-anchored read
+// model: a projection over the consumer's table joined to the library's,
+// carrying the file's ids, with the path computed per row only when the
+// listing asks for it.
 package files

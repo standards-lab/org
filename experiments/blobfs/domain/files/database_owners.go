@@ -43,6 +43,19 @@ func (s *Store) owner(ctx context.Context, sess sqlate.Session, directoryID stri
 	return o, true, nil
 }
 
+// ownedByUnit reports whether the unit with unitID owns the directory with
+// directoryID, through sess: one owner read. A directory with no owner
+// row, or one another unit owns, is not owned. It is the owner-row half
+// of the ownership check, shared by the path form, which runs it at the
+// depth-one ancestor of the path, and by the scope check by id.
+func (s *Store) ownedByUnit(ctx context.Context, sess sqlate.Session, directoryID, unitID string) (bool, error) {
+	o, owned, err := s.owner(ctx, sess, directoryID)
+	if err != nil {
+		return false, err
+	}
+	return owned && o.UnitID == unitID, nil
+}
+
 // ownedBy lists the directories the unit with unitID owns through sess:
 // one page of owned_directories under l, sorted by the terms the
 // directory half takes, filtered by unit_id. The projection always runs

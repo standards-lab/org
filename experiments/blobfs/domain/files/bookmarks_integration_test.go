@@ -29,9 +29,12 @@ func (e env) bookmark(t *testing.T, path, unit string, active bool) blobfs.File 
 	return f
 }
 
-// bookmarksOf lists a unit's bookmarks and fails the test on any error.
+// bookmarksOf lists a unit's bookmarks with their paths, as bookmark ls
+// does, and fails the test on any error. The default listing, which
+// computes no path, is proven by TestBookmarksByID.
 func (e env) bookmarksOf(t *testing.T, unit string, l files.Listing) files.Page[files.BookmarkedFile] {
 	t.Helper()
+	l.Paths = true
 	p, err := e.store.ListBookmarks(e.ctx, unit, l)
 	if err != nil {
 		t.Fatalf("ListBookmarks(%s, %+v): %v", unit, l, err)
@@ -248,6 +251,66 @@ func TestBookmarks(t *testing.T) {
 	_, err = e.db.ExecContext(e.ctx, "DELETE FROM blobfs_file WHERE id = $1", p.Rows[0].FileID)
 	if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != files.ConstraintForeignKeyBookmarkFile {
 		t.Errorf("deleting a bookmarked file violated %q, want fk_bookmark_file", name)
+	}
+}
+
+// TestBookmarksByID proves the bookmark read model as a caller by id
+// reads it: the default listing carries each file's id and directory id
+// and no path, in name order, and is the same set of bookmarks the
+// listing with paths reports in path order; a sort by path needs paths;
+// and a row's ids act through the id-keyed methods without a path.
+func TestBookmarksByID(t *testing.T) {
+	e := open(t)
+	unit := blobfs.NewID()
+	deep := e.mkdir(t, "/d1", "")
+	for _, p := range []string{"/d1/d2", "/d1/d2/d3"} {
+		deep = e.mkdir(t, p, "")
+	}
+	reports := e.mkdir(t, "/reports", "")
+	insertFile(e.ctx, t, e.db, deep.ID, "a.txt")
+	insertFile(e.ctx, t, e.db, reports.ID, "b.txt")
+	insertFile(e.ctx, t, e.db, blobfs.RootID, "c.txt")
+	for _, p := range []string{"/d1/d2/d3/a.txt", "/reports/b.txt", "/c.txt"} {
+		e.bookmark(t, p, unit, false)
+	}
+
+	byID, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10})
+	if err != nil {
+		t.Fatalf("ListBookmarks: %v", err)
+	}
+	withPaths := e.bookmarksOf(t, unit, files.Listing{Page: 1, Size: 10})
+	if byID.Total != 3 || len(byID.Rows) != 3 || withPaths.Total != 3 {
+		t.Fatalf("by id = %+v; with paths = %+v", byID, withPaths)
+	}
+	if !slices.Equal(paths(withPaths.Rows), []string{"/c.txt", "/d1/d2/d3/a.txt", "/reports/b.txt"}) {
+		t.Errorf("with paths = %v", paths(withPaths.Rows))
+	}
+	wantDirs := map[string]string{"a.txt": deep.ID, "b.txt": reports.ID, "c.txt": blobfs.RootID}
+	var listed []string
+	for _, b := range byID.Rows {
+		listed = append(listed, b.Name)
+		if b.Path != "" || b.FileID == "" || b.DirectoryID != wantDirs[b.Name] || b.UnitID != unit {
+			t.Errorf("row by id = %+v, want the ids, the directory of %s, and no path", b, b.Name)
+		}
+		f, err := e.store.StatFile(e.ctx, b.FileID, files.Scope{})
+		if err != nil || f.Name != b.Name || f.DirectoryID != b.DirectoryID {
+			t.Errorf("StatFile(%s) = %+v, %v; want the bookmarked row", b.FileID, f, err)
+		}
+	}
+	if !slices.Equal(listed, []string{"a.txt", "b.txt", "c.txt"}) {
+		t.Errorf("by id in name order = %v", listed)
+	}
+	for _, b := range withPaths.Rows {
+		if b.FileID == "" || b.DirectoryID != wantDirs[b.Name] {
+			t.Errorf("row with paths = %+v, want the ids too", b)
+		}
+	}
+	if _, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10, Sort: []files.Sort{{Field: "path"}}}); !errors.Is(err, query.ErrDirectives) {
+		t.Errorf("a sort by path without paths = %v, want ErrDirectives", err)
+	}
+	p, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 2, Size: 2, Sort: []files.Sort{{Field: "name", Descending: true}}})
+	if err != nil || len(p.Rows) != 1 || p.Rows[0].Name != "a.txt" || p.Total != 3 || p.More {
+		t.Errorf("page 2 of 2 by name desc = %+v, %v", p, err)
 	}
 }
 

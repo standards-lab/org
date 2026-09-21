@@ -91,6 +91,106 @@ func (s *Store) Move(ctx context.Context, src, dst string) (MoveResult, error) {
 	return res, nil
 }
 
+// MoveEntry moves the directory or file with req.ID into the directory
+// with req.DirectoryID, as req.Name or under its own name when req.Name
+// is empty, in one transaction: Move with both resolutions replaced by
+// ids. The row is read first, for its name, its parent, and its version;
+// req.Version, when not 0, guards the move instead of the version read,
+// so a caller that holds a version from a listing learns through
+// query.ErrVersionMismatch that the row moved on. The read is needed
+// whatever the caller holds, because the scope rule needs the source's
+// parent.
+//
+// The rules are Move's: a directory moves through the library's
+// MoveDirectory under the tree lock with the cycle check
+// (blobfs.ErrCycle), a file through MoveFile, a deleting file is
+// blobfs.ErrDeleting, and the move stays under one top-level directory
+// (ErrMoveAcrossScopes). By id that rule needs the paths of the source's
+// parent and of the destination, each computed by one upward walk
+// (DirectoryPath), before anything changes; those paths fill From and To
+// in the result, so a move by id reports the same result as a move by
+// path. With a scope, the source's parent and the destination must both
+// lie within it (InScope), checked after the read and before the paths
+// are computed; a scoped move of a top-level directory is therefore
+// refused, since its parent is the root.
+//
+// The root as a directory source is blobfs.ErrRootDirectory before any
+// I/O, and a kind other than EntryDirectory or EntryFile is refused
+// before any I/O. A source that does not exist, or a destination that
+// does not, is blobfs.ErrNotFound; a name already held in the destination
+// by an entry of the same kind is blobfs.ErrNameTaken.
+func (s *Store) MoveEntry(ctx context.Context, req MoveRequest, scope Scope) (MoveResult, error) {
+	switch req.Kind {
+	case EntryDirectory, EntryFile:
+	default:
+		return MoveResult{}, fmt.Errorf("files: mv %q %s: the kind is %s or %s", req.Kind, req.ID, EntryDirectory, EntryFile)
+	}
+	if req.Kind == EntryDirectory && req.ID == blobfs.RootID {
+		return MoveResult{}, fmt.Errorf("files: mv %s %s: %w", req.Kind, req.ID, blobfs.ErrRootDirectory)
+	}
+	res, err := s.db.Transact(ctx, func(tx *sqlate.Tx) (MoveResult, error) {
+		var parentID, srcName string
+		var version int64
+		switch req.Kind {
+		case EntryDirectory:
+			d, err := s.blobfs.Directory(ctx, tx, req.ID)
+			if err != nil {
+				return MoveResult{}, err
+			}
+			parentID, srcName, version = *d.ParentID, d.Name, d.Version
+		case EntryFile:
+			f, err := s.blobfs.File(ctx, tx, req.ID)
+			if err != nil {
+				return MoveResult{}, err
+			}
+			parentID, srcName, version = f.DirectoryID, f.Name, f.Version
+		}
+		if req.Version != 0 {
+			version = req.Version
+		}
+		name := req.Name
+		if name == "" {
+			name = srcName
+		}
+		if err := s.inScope(ctx, tx, scope, parentID, req.DirectoryID); err != nil {
+			return MoveResult{}, err
+		}
+		fromDir, err := s.blobfs.DirectoryPath(ctx, tx, parentID)
+		if err != nil {
+			return MoveResult{}, err
+		}
+		toDir, err := s.blobfs.DirectoryPath(ctx, tx, req.DirectoryID)
+		if err != nil {
+			return MoveResult{}, err
+		}
+		from := strings.TrimSuffix(fromDir, "/") + "/" + srcName
+		to := strings.TrimSuffix(toDir, "/") + "/" + name
+		if scopeOf(from) != scopeOf(to) {
+			return MoveResult{}, fmt.Errorf("%s is under %s and %s under %s: %w", from, scopePath(from), to, scopePath(to), ErrMoveAcrossScopes)
+		}
+		res := MoveResult{Kind: req.Kind, ID: req.ID, From: from}
+		switch req.Kind {
+		case EntryDirectory:
+			moved, err := s.blobfs.MoveDirectory(ctx, tx, req.ID, req.DirectoryID, name, version)
+			if err != nil {
+				return MoveResult{}, err
+			}
+			res.To = strings.TrimSuffix(toDir, "/") + "/" + moved.Name
+		case EntryFile:
+			moved, err := s.blobfs.MoveFile(ctx, tx, req.ID, req.DirectoryID, name, version)
+			if err != nil {
+				return MoveResult{}, err
+			}
+			res.To = strings.TrimSuffix(toDir, "/") + "/" + moved.Name
+		}
+		return res, nil
+	})
+	if err != nil {
+		return MoveResult{}, fmt.Errorf("files: mv %s %s into %s: %w", req.Kind, req.ID, req.DirectoryID, err)
+	}
+	return res, nil
+}
+
 // destination reads mv's destination through sess: the directory the
 // source moves into, that directory's path, and the name the source
 // takes there. dst names an existing directory, in which case the name

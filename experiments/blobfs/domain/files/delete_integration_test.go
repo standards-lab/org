@@ -442,7 +442,7 @@ func TestDeleteDuringTheBookmarkAddIsRefused(t *testing.T) {
 		if !e.objectHeld(t, st, g.Key) {
 			t.Error("the refused rm deleted the object")
 		}
-		page, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10})
+		page, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10, Paths: true})
 		if err != nil || len(page.Rows) != 1 || page.Rows[0].Status != blobfs.StatusAvailable || page.Rows[0].Path != "/b.txt" {
 			t.Errorf("bookmark ls = %+v, %v; want the bookmark of the available file", page.Rows, err)
 		}

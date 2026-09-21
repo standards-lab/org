@@ -121,23 +121,32 @@ func (s *Store) deleteBookmark(ctx context.Context, sess sqlate.Session, unitID,
 
 // bookmarksOf lists the bookmarks of the unit with unitID through sess:
 // one page of the bookmark read model under l, filtered by unit_id,
-// sorted by the caller's terms or by path when there are none, with
-// file_id appended by the projection as the tie-breaker. The projection
+// sorted by the caller's terms, with file_id appended by the projection
+// as the tie-breaker. The read model is the bookmarks projection, which
+// carries the file's id and directory id and computes no path; with
+// l.Paths it is bookmarks_with_paths, the same base with each row's path
+// computed by the per-row recursion, which is the one that declares the
+// path field a sort term may name. Without a sort term the page is in
+// name order, or in path order when paths were asked for. The projection
 // always runs its count statement, so under TotalNone the count is read
 // and dropped and the page reports NoTotal. More is derived from that
 // count in both modes, since the projection fetches exactly its page
 // size and no row beyond it.
 func (s *Store) bookmarksOf(ctx context.Context, sess sqlate.Session, unitID string, l Listing) (Page[BookmarkedFile], error) {
+	model, byDefault := s.bookmarks, "name"
+	if l.Paths {
+		model, byDefault = s.bookmarksWithPaths, "path"
+	}
 	sort := sortTerms(l.Sort, nil)
 	if len(sort) == 0 {
-		sort = []query.Sort{{Field: "path"}}
+		sort = []query.Sort{{Field: byDefault}}
 	}
 	d := query.Directives{
 		Page:    query.Page{Number: l.Page, Size: l.Size},
 		Sort:    sort,
 		Filters: []query.Filter{{Field: "unit_id", Op: query.OpEq, Value: unitID}},
 	}
-	rows, total, err := s.bookmarks.List(ctx, sess, d)
+	rows, total, err := model.List(ctx, sess, d)
 	if err != nil {
 		return Page[BookmarkedFile]{}, fmt.Errorf("files: bookmarks of %s: %w", unitID, err)
 	}
@@ -219,11 +228,15 @@ func (s *Store) RemoveBookmark(ctx context.Context, path, unit string) (blobfs.F
 }
 
 // ListBookmarks returns one page of the unit's bookmarks under l, each
-// with its file's path, through the consumer's bookmark read model
-// filtered by the unit. The read model pages by number only, so l.After
-// is ignored. Its total comes from a count statement separate from the
-// page, so the two run in one read-only repeatable-read transaction and
-// agree with each other. Without a sort term the page is in path order.
+// with its file's id and directory id, through the consumer's bookmark
+// read model filtered by the unit. Each row's path is computed only when
+// l.Paths asks for it, because the path is an upward walk per row; a
+// caller that acts on the rows by id needs none, and the default page
+// runs no recursion. The read model pages by number only, so l.After is
+// ignored. Its total comes from a count statement separate from the page,
+// so the two run in one read-only repeatable-read transaction and agree
+// with each other. Without a sort term the page is in name order, or in
+// path order when paths were asked for; a sort by path needs l.Paths.
 func (s *Store) ListBookmarks(ctx context.Context, unit string, l Listing) (Page[BookmarkedFile], error) {
 	return s.db.Transact(ctx, func(tx *sqlate.Tx) (Page[BookmarkedFile], error) {
 		return s.bookmarksOf(ctx, tx, unit, l)

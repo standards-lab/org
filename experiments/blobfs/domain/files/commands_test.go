@@ -451,7 +451,7 @@ func TestCommands_RenderBookmarks(t *testing.T) {
 
 	scripted = func() (*files.Store, error) {
 		resp := bookmarks(unit, "/reports/2026/plan.txt", "/notes.md")
-		resp.Rows[1][2] = true
+		resp.Rows[1][3] = true // active
 		s, _ := newStore(t, counted(7), resp)
 		return s, nil
 	}
