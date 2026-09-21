@@ -19,14 +19,19 @@
 // parameters of its own.
 //
 // The tree has one root, seeded by the schema with blobfs.RootID. Root,
-// Directory, Mkdir, EnsureDirectory, ResolveDirectory, and DirectoryPath
-// read and write directories; EnsureDirectory is the insert-or-find a
-// seeder runs, which looks the name up first and inserts only when it
-// found no row. ListFiles and Children are the listings: each is an
-// authored statement anchored on one directory, with the caller's filters,
-// sort, and page composed onto it in Go from the query library's clause
-// patterns, and with the total computed in the same statement by
-// COUNT(*) OVER () when the Listing asks for one. A page is reached by its
+// Directory, Mkdir, EnsureDirectory, ResolveDirectory,
+// ResolveDirectoryFrom, and DirectoryPath read and write directories;
+// EnsureDirectory is the insert-or-find a seeder runs, which looks the
+// name up first and inserts only when it found no row. Ids are the
+// primary handle: every operation takes a directory or file by id, and a
+// path is an entry point. ResolveDirectory resolves an absolute path from
+// the root, and ResolveDirectoryFrom resolves a relative path below a
+// directory the caller holds by id, so a consumer that has an id walks
+// from there instead of from the root. ListFiles and Children are the
+// listings: each is an authored statement anchored on one directory, with
+// the caller's filters, sort, and page composed onto it in Go from the
+// query library's clause patterns, and with the total computed in the same
+// statement by COUNT(*) OVER () when the Listing asks for one. A page is reached by its
 // number or continued from the keyset cursor of an earlier page, and both
 // walk the same order; every page reports whether rows remain after it,
 // with or without a total. No operation walks the whole tree; a path is

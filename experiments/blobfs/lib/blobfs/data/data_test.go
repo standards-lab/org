@@ -511,6 +511,93 @@ func TestResolveDirectoryPaths(t *testing.T) {
 	}
 }
 
+// TestResolveDirectoryFromPaths proves the relative form's checks run
+// before any SQL and match the absolute form's: a leading slash, an empty
+// segment, a trailing slash, and a segment ValidateName refuses (.., ., a
+// slash-free over-long name) are ErrInvalidPath, the refused segment
+// matches ErrInvalidName as well, and nothing reaches the driver.
+func TestResolveDirectoryFromPaths(t *testing.T) {
+	s := newStore(t)
+	pool, rec := sqltest.Open(t)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+	long := strings.Repeat("x", blobfs.MaxNameLength+1)
+	for _, rel := range []string{"/", "/a", "/a/b", "a//b", "a/", "..", "a/..", "../a", "./a", "a/.", long, "a/" + long} {
+		_, err := s.ResolveDirectoryFrom(context.Background(), db, blobfs.RootID, rel)
+		if !errors.Is(err, blobfs.ErrInvalidPath) {
+			t.Errorf("ResolveDirectoryFrom(%q) = %v, want ErrInvalidPath", rel, err)
+		}
+	}
+	for _, rel := range []string{"..", "a/..", "a/", long} {
+		if _, err := s.ResolveDirectoryFrom(context.Background(), db, blobfs.RootID, rel); !errors.Is(err, blobfs.ErrInvalidName) {
+			t.Errorf("ResolveDirectoryFrom(%q) = %v, want ErrInvalidName as well", rel, err)
+		}
+	}
+	if calls := rec.Calls(); len(calls) != 0 {
+		t.Errorf("path checks reached the driver with %d calls", len(calls))
+	}
+}
+
+// TestResolveDirectoryFromWalks proves the relative form's reads: the
+// start by id and then one directory_child read per segment, each bound to
+// the directory the previous read returned and the normalized name; the
+// empty path and . are the start read alone; a start that no directory
+// holds is ErrNotFound with no further read; and a missing segment is
+// ErrNotFound naming the prefix that failed.
+func TestResolveDirectoryFromWalks(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	pool, rec := sqltest.Open(t,
+		// a/b/café from A: the start, then three children.
+		directoryResponse("A", blobfs.RootID, "a", 1),
+		directoryResponse("B", "A", "b", 1),
+		directoryResponse("C", "B", "c", 1),
+		directoryResponse("D", "C", nfcName, 1),
+		// The empty path and . from A: the start alone, twice.
+		directoryResponse("A", blobfs.RootID, "a", 1),
+		directoryResponse("A", blobfs.RootID, "a", 1),
+		// A start no directory holds.
+		noDirectory(),
+		// b/missing/deeper from A: the start, b, then no row.
+		directoryResponse("A", blobfs.RootID, "a", 1),
+		directoryResponse("B", "A", "b", 1),
+		noDirectory(),
+	)
+	db := sqlate.Wrap(pool, sqltest.Dialect{})
+
+	d, err := s.ResolveDirectoryFrom(ctx, db, "A", "b/c/"+nfdName)
+	if err != nil || d.ID != "D" || d.Name != nfcName {
+		t.Fatalf("ResolveDirectoryFrom(A, b/c/café) = %+v, %v, want D", d, err)
+	}
+	for _, rel := range []string{"", "."} {
+		if d, err := s.ResolveDirectoryFrom(ctx, db, "A", rel); err != nil || d.ID != "A" {
+			t.Errorf("ResolveDirectoryFrom(A, %q) = %+v, %v, want the start", rel, d, err)
+		}
+	}
+	if _, err := s.ResolveDirectoryFrom(ctx, db, "F", "b"); !errors.Is(err, blobfs.ErrNotFound) {
+		t.Errorf("ResolveDirectoryFrom(F, b) = %v, want ErrNotFound", err)
+	}
+	_, err = s.ResolveDirectoryFrom(ctx, db, "A", "b/missing/deeper")
+	if !errors.Is(err, blobfs.ErrNotFound) || !strings.Contains(err.Error(), "from A at b/missing:") {
+		t.Errorf("ResolveDirectoryFrom(A, b/missing/deeper) = %v, want ErrNotFound naming the failing prefix", err)
+	}
+
+	calls := rec.Calls()
+	want := [][]any{
+		{"A"}, {"A", "b"}, {"B", "c"}, {"C", nfcName},
+		{"A"}, {"A"},
+		{"F"},
+		{"A"}, {"A", "b"}, {"B", "missing"},
+	}
+	if len(calls) != len(want) {
+		t.Fatalf("the resolutions ran %d queries, want %d", len(calls), len(want))
+	}
+	for i, args := range want {
+		if !slices.Equal(calls[i].Args, args) {
+			t.Errorf("query %d bound %v, want %v", i, calls[i].Args, args)
+		}
+	}
+}
+
 // TestMkdirInvalidNames proves Mkdir normalizes and validates before any
 // SQL: an empty name, a slash, a control character, and .. are
 // ErrInvalidName, and nothing reaches the driver. The empty name is the

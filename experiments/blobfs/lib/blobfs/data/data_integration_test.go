@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -271,6 +272,65 @@ func TestResolveDirectory(t *testing.T) {
 	_, err := e.store.ResolveDirectory(e.ctx, e.db, "/a/missing/deeper")
 	if err == nil || !strings.Contains(err.Error(), `at /a/missing`) {
 		t.Errorf("ResolveDirectory(/a/missing/deeper) = %v, want the failing prefix named", err)
+	}
+}
+
+// TestResolveDirectoryFrom proves relative resolution from a directory id
+// and its equivalence with the absolute form: /a/b/c resolved absolutely
+// is a/b/c from the root id and b/c from the id of /a, at one, two, and
+// three segments from the root and from a nested directory; the empty
+// path and . return the start; a decomposed segment resolves to the
+// composed row; a missing segment at any depth is ErrNotFound naming the
+// prefix that failed; a start that does not exist or is a file's id is
+// ErrNotFound; and the invalid forms are ErrInvalidPath.
+func TestResolveDirectoryFrom(t *testing.T) {
+	e := open(t)
+	a := e.mkdir(t, blobfs.RootID, "a")
+	b := e.mkdir(t, a.ID, "b")
+	c := e.mkdir(t, b.ID, composed)
+	fileID := insertFile(e.ctx, t, e.db, b.ID, "note.txt")
+
+	type from struct {
+		start, rel string
+	}
+	for path, starts := range map[string][]from{
+		"/":                {{blobfs.RootID, ""}, {blobfs.RootID, "."}},
+		"/a":               {{blobfs.RootID, "a"}, {a.ID, ""}, {a.ID, "."}},
+		"/a/b":             {{blobfs.RootID, "a/b"}, {a.ID, "b"}, {b.ID, ""}},
+		"/a/b/" + composed: {{blobfs.RootID, "a/b/" + composed}, {blobfs.RootID, "a/b/" + decomposed}, {a.ID, "b/" + composed}, {a.ID, "b/" + decomposed}, {b.ID, composed}, {b.ID, decomposed}, {c.ID, ""}},
+	} {
+		want, err := e.store.ResolveDirectory(e.ctx, e.db, path)
+		if err != nil {
+			t.Fatalf("ResolveDirectory(%q): %v", path, err)
+		}
+		for _, f := range starts {
+			got, err := e.store.ResolveDirectoryFrom(e.ctx, e.db, f.start, f.rel)
+			if err != nil || !reflect.DeepEqual(got, want) {
+				t.Errorf("ResolveDirectoryFrom(%s, %q) = %+v, %v, want %+v as ResolveDirectory(%q)", f.start, f.rel, got, err, want, path)
+			}
+		}
+	}
+
+	for _, f := range []from{{blobfs.RootID, "missing"}, {blobfs.RootID, "a/missing"}, {a.ID, "missing"}, {a.ID, "b/missing"}, {a.ID, "b/" + composed + "/d"}, {a.ID, "a"}, {blobfs.RootID, "b"}, {b.ID, "note.txt"}} {
+		if _, err := e.store.ResolveDirectoryFrom(e.ctx, e.db, f.start, f.rel); !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("ResolveDirectoryFrom(%s, %q) = %v, want ErrNotFound", f.start, f.rel, err)
+		}
+	}
+	_, err := e.store.ResolveDirectoryFrom(e.ctx, e.db, a.ID, "b/missing/deeper")
+	if err == nil || !strings.Contains(err.Error(), "from "+a.ID+" at b/missing:") {
+		t.Errorf("ResolveDirectoryFrom(a, b/missing/deeper) = %v, want the failing prefix named", err)
+	}
+	for _, start := range []string{blobfs.NewID(), fileID} {
+		for _, rel := range []string{"", "b"} {
+			if _, err := e.store.ResolveDirectoryFrom(e.ctx, e.db, start, rel); !errors.Is(err, blobfs.ErrNotFound) {
+				t.Errorf("ResolveDirectoryFrom(%s, %q) = %v, want ErrNotFound: the start is no directory", start, rel, err)
+			}
+		}
+	}
+	for _, rel := range []string{"/", "/a", "b/", "b//" + composed, "..", "b/..", "../a", "./b"} {
+		if _, err := e.store.ResolveDirectoryFrom(e.ctx, e.db, a.ID, rel); !errors.Is(err, blobfs.ErrInvalidPath) {
+			t.Errorf("ResolveDirectoryFrom(a, %q) = %v, want ErrInvalidPath", rel, err)
+		}
 	}
 }
 

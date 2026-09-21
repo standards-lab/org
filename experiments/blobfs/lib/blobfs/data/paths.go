@@ -22,7 +22,8 @@ import (
 // from the root. Standard SQL has no ordered array parameter, so the
 // segments cannot bind as one list and be walked by a single recursive
 // statement at the standard tier; the round trips are one per segment. A
-// native variant could resolve a path in one statement.
+// native variant could resolve a path in one statement. It walks the
+// way ResolveDirectoryFrom does, starting at blobfs.RootID.
 func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path string) (blobfs.Directory, error) {
 	segments, err := splitPath(path)
 	if err != nil {
@@ -32,10 +33,55 @@ func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path 
 	if err != nil {
 		return blobfs.Directory{}, err
 	}
+	dir, err = s.walk(ctx, sess, dir, segments, "/")
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q %w", path, err)
+	}
+	return dir, nil
+}
+
+// ResolveDirectoryFrom returns the directory at rel below the directory
+// with startID. A relative path is a/b: names separated by slashes with no
+// leading slash, each normalized before it is compared. The empty string
+// and . name the start directory itself. A path that starts with a slash
+// is absolute and is blobfs.ErrInvalidPath, as is one with an empty
+// segment, a trailing slash, or a segment ValidateName refuses, which
+// covers .. and so rules out upward navigation. A start that is not a
+// directory, including a file's id, is blobfs.ErrNotFound; a segment that
+// names no directory is blobfs.ErrNotFound naming the prefix that failed.
+//
+// Resolution is one directory_by_id read of the start and then one
+// directory_child read per segment, as ResolveDirectory walks from the
+// root; the session may be the pool or a transaction. A consumer that
+// holds a directory's id resolves below it without repeating the walk
+// from the root.
+func (s *Store) ResolveDirectoryFrom(ctx context.Context, sess sqlate.Session, startID, rel string) (blobfs.Directory, error) {
+	segments, err := splitRelativePath(rel)
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s: %w", rel, startID, err)
+	}
+	dir, err := s.directoryByID.One(ctx, sess, query.Args{"id": startID})
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s: %w", rel, startID, notFound(err))
+	}
+	dir, err = s.walk(ctx, sess, dir, segments, "")
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s %w", rel, startID, err)
+	}
+	return dir, nil
+}
+
+// walk resolves segments below dir, one directory_child read each, and
+// returns the last directory reached. A segment that names no directory is
+// blobfs.ErrNotFound. The error reads "at <prefix>: ...", where the prefix
+// is the segments walked so far joined by slashes after lead: / for an
+// absolute path and nothing for a relative one.
+func (s *Store) walk(ctx context.Context, sess sqlate.Session, dir blobfs.Directory, segments []string, lead string) (blobfs.Directory, error) {
 	for i, name := range segments {
+		var err error
 		dir, err = s.directoryChild.One(ctx, sess, query.Args{"parent_id": dir.ID, "name": name})
 		if err != nil {
-			return blobfs.Directory{}, fmt.Errorf("data: resolve %q at /%s: %w", path, strings.Join(segments[:i+1], "/"), notFound(err))
+			return blobfs.Directory{}, fmt.Errorf("at %s%s: %w", lead, strings.Join(segments[:i+1], "/"), notFound(err))
 		}
 	}
 	return dir, nil
@@ -79,7 +125,30 @@ func splitPath(path string) ([]string, error) {
 	if path == "/" {
 		return nil, nil
 	}
-	segments := strings.Split(path[1:], "/")
+	return splitSegments(path[1:])
+}
+
+// splitRelativePath checks that rel is relative and returns its
+// normalized, validated segments; the empty string and . have none. A
+// leading slash is an absolute path and is refused, and a trailing slash
+// is an empty segment and is refused.
+func splitRelativePath(rel string) ([]string, error) {
+	if strings.HasPrefix(rel, "/") {
+		return nil, fmt.Errorf("%w: %q starts with /", blobfs.ErrInvalidPath, rel)
+	}
+	if rel == "" || rel == "." {
+		return nil, nil
+	}
+	return splitSegments(rel)
+}
+
+// splitSegments splits names, one or more directory names joined by
+// slashes, and returns each normalized and validated in order. A segment
+// validName refuses, including an empty one, is blobfs.ErrInvalidPath
+// wrapping the name's error, so an absolute and a relative path accept and
+// refuse the same names.
+func splitSegments(names string) ([]string, error) {
+	segments := strings.Split(names, "/")
 	for i, segment := range segments {
 		name, err := validName(segment)
 		if err != nil {
