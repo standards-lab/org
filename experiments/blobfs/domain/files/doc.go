@@ -49,15 +49,16 @@
 //     and the object store. List and ListBookmarks each run in one
 //     read-only repeatable-read transaction. Put is the two-phase write:
 //     the pending row in a transaction of its own, the object write, and
-//     the completion on the pool. Remove is its mirror: the bookmark check
-//     and the begin in a transaction of its own, the object delete, and
-//     the row's removal on the pool. Move resolves both paths and runs the
+//     the completion on the pool. Remove is its mirror: the begin and
+//     then the bookmark check in a transaction of its own, the object
+//     delete, and the row's removal on the pool. Move resolves both paths and runs the
 //     library's move in one transaction, under the tree lock for a
 //     directory, and keeps every move under one top-level directory.
 //     RemoveDirectory removes the owner row and the directory in one
 //     transaction, and RemoveTree walks a tree through those two, children
-//     first. AddBookmark resolves the file and inserts the bookmark in one
-//     transaction.
+//     first. AddBookmark resolves the file, holds it through the
+//     library's HoldFile, and inserts the bookmark in one transaction, so
+//     it and Remove serialize on the file's row.
 //   - commands.go builds the commands over a Store constructor and renders
 //     through output.
 //

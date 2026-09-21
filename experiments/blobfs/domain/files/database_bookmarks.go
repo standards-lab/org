@@ -152,19 +152,22 @@ func (s *Store) bookmarksOf(ctx context.Context, sess sqlate.Session, unitID str
 // returns the file's row. With active, the bookmark becomes the unit's one
 // active bookmark, and the add is refused with ErrActiveBookmark while
 // another bookmark of the unit is active; the other one is left as it is.
-// The resolution of the path and the insert run in one transaction, the
-// consumer's pattern for a write that follows a read, and the transaction
-// is where a service would insert the bookmark beside the pending row of
-// its own upload.
+// The resolution of the path, the hold of the file, and the insert run in
+// one transaction, the consumer's pattern for a write that follows a
+// read, and the transaction is where a service would insert the bookmark
+// beside the pending row of its own upload.
 //
-// A file that does not exist, or a parent that does not, is
-// blobfs.ErrNotFound, and so is a file removed between its resolution and
-// the insert, which the foreign key reports. A pending file can be
-// bookmarked: a bookmark written beside a pending row is the shape a
-// service uses, and the listing shows the status. A deleting file is
-// refused with ErrNotAvailable, because its delete is under way and a new
-// bookmark would hold it. A file the unit has bookmarked already is
-// ErrAlreadyBookmarked, active or not.
+// The hold is the library's reference-then-delete rule: blobfs.HoldFile
+// locks the file's row until the transaction ends, so an rm that begins
+// meanwhile waits and then sees the bookmark, and an rm that began first
+// makes the hold refuse. A file that does not exist, or a parent that
+// does not, is blobfs.ErrNotFound, and so is a file removed between its
+// resolution and the hold. A pending file can be bookmarked: a bookmark
+// written beside a pending row is the shape a service uses, and the
+// listing shows the status. A deleting file is refused with
+// ErrNotAvailable over the library's blobfs.ErrDeleting, because its
+// delete is under way and a new bookmark would hold it. A file the unit
+// has bookmarked already is ErrAlreadyBookmarked, active or not.
 func (s *Store) AddBookmark(ctx context.Context, path, unit string, active bool) (blobfs.File, error) {
 	parent, name, _, err := splitParent(path)
 	if err != nil {
@@ -179,8 +182,11 @@ func (s *Store) AddBookmark(ctx context.Context, path, unit string, active bool)
 		if err != nil {
 			return blobfs.File{}, err
 		}
-		if f.Status == blobfs.StatusDeleting {
-			return blobfs.File{}, fmt.Errorf("the file is %s: %w", f.Status, ErrNotAvailable)
+		if err := s.blobfs.HoldFile(ctx, tx, f.ID); err != nil {
+			if errors.Is(err, blobfs.ErrDeleting) {
+				return blobfs.File{}, fmt.Errorf("%w: %w", ErrNotAvailable, err)
+			}
+			return blobfs.File{}, err
 		}
 		if err := s.insertBookmark(ctx, tx, unit, f.ID, active); err != nil {
 			return blobfs.File{}, err

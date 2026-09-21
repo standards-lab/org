@@ -221,6 +221,93 @@ func TestCompleteFileWrite(t *testing.T) {
 	}
 }
 
+// TestHoldFile proves the hold against the script: the pool is refused
+// with ErrTransactionRequired before any SQL; in a transaction the hold
+// is one exec of the self-assigning update bound to the id, with the
+// version predicate and its binding only under AtVersion, and a row
+// affected ends the call with no read; when no row is affected the row is
+// read once, and a missing row is ErrNotFound, a deleting row ErrDeleting
+// whatever its version, a row at another version under AtVersion
+// query.ErrVersionMismatch naming both versions, and any other row an
+// error naming its state.
+func TestHoldFile(t *testing.T) {
+	ctx := context.Background()
+	s, db, rec := openStore(t)
+	if err := s.HoldFile(ctx, db, "F"); !errors.Is(err, query.ErrTransactionRequired) {
+		t.Errorf("HoldFile on the pool = %v, want ErrTransactionRequired", err)
+	}
+	if err := s.HoldFile(ctx, db, "F", data.AtVersion(1)); !errors.Is(err, query.ErrTransactionRequired) {
+		t.Errorf("HoldFile at a version on the pool = %v, want ErrTransactionRequired", err)
+	}
+	if calls := rec.Calls(); len(calls) != 0 {
+		t.Errorf("the refusals reached the driver with %v", calls)
+	}
+
+	// inTx runs one hold of F inside a transaction over the scripted
+	// responses and returns its error and the recorder.
+	inTx := func(t *testing.T, responses []sqltest.Response, opts ...data.HoldOption) (*sqltest.Recorder, error) {
+		t.Helper()
+		s, db, rec := openStore(t, responses...)
+		_, err := db.Transact(ctx, func(tx *sqlate.Tx) (struct{}, error) {
+			return struct{}{}, s.HoldFile(ctx, tx, "F", opts...)
+		})
+		return rec, err
+	}
+
+	rec, err := inTx(t, []sqltest.Response{{Affected: 1}})
+	if err != nil {
+		t.Fatalf("HoldFile: %v", err)
+	}
+	if got := strings.Join(opNames(rec), " "); got != "begin exec commit" {
+		t.Errorf("ops = %q, want the one exec and no read", got)
+	}
+	update := rec.Calls()[1]
+	if update.SQL != "UPDATE blobfs_file\nSET updated_at = updated_at\nWHERE id = CAST($1 AS uuid) AND status <> 'deleting'" {
+		t.Errorf("the hold is not the self-assigning update:\n%s", update.SQL)
+	}
+	if args := update.Args; len(args) != 1 || args[0] != "F" {
+		t.Errorf("the hold bound %v, want the id alone", args)
+	}
+
+	rec, err = inTx(t, []sqltest.Response{{Affected: 1}}, data.AtVersion(4))
+	if err != nil {
+		t.Fatalf("HoldFile at a version: %v", err)
+	}
+	update = rec.Calls()[1]
+	if !strings.HasSuffix(update.SQL, "WHERE id = CAST($1 AS uuid) AND status <> 'deleting' AND version = CAST($2 AS bigint)") || strings.Contains(update.SQL, "version + 1") {
+		t.Errorf("the hold at a version is not the update with the version predicate and no advance:\n%s", update.SQL)
+	}
+	if args := update.Args; len(args) != 2 || args[0] != "F" || args[1] != int64(4) {
+		t.Errorf("the hold at a version bound %v, want the id and the version", args)
+	}
+
+	rec, err = inTx(t, []sqltest.Response{{Affected: 0}, {Columns: fileColumns}})
+	if !errors.Is(err, blobfs.ErrNotFound) {
+		t.Errorf("HoldFile of a missing row = %v, want ErrNotFound", err)
+	}
+	if got := strings.Join(opNames(rec), " "); got != "begin exec query rollback" {
+		t.Errorf("ops = %q, want the exec, one read, and the rollback", got)
+	}
+	if read := rec.Calls()[2]; !strings.HasPrefix(read.SQL, "SELECT f.id, f.directory_id") || len(read.Args) != 1 || read.Args[0] != "F" {
+		t.Errorf("the read is %s with %v, want file_by_id bound to the id", read.SQL, read.Args)
+	}
+
+	_, err = inTx(t, []sqltest.Response{{Affected: 0}, fileResponse("F", "a.txt", blobfs.StatusDeleting, 3)}, data.AtVersion(2))
+	if !errors.Is(err, blobfs.ErrDeleting) || errors.Is(err, query.ErrVersionMismatch) || !strings.Contains(err.Error(), "the row is deleting") {
+		t.Errorf("HoldFile of a deleting row at another version = %v, want ErrDeleting and no version mismatch", err)
+	}
+
+	_, err = inTx(t, []sqltest.Response{{Affected: 0}, fileResponse("F", "a.txt", blobfs.StatusAvailable, 3)}, data.AtVersion(2))
+	if !errors.Is(err, query.ErrVersionMismatch) || errors.Is(err, blobfs.ErrDeleting) || !strings.Contains(err.Error(), "expected 2, current 3") {
+		t.Errorf("HoldFile at a stale version = %v, want ErrVersionMismatch naming both versions", err)
+	}
+
+	_, err = inTx(t, []sqltest.Response{{Affected: 0}, fileResponse("F", "a.txt", blobfs.StatusAvailable, 2)}, data.AtVersion(2))
+	if err == nil || errors.Is(err, query.ErrVersionMismatch) || errors.Is(err, blobfs.ErrDeleting) || errors.Is(err, blobfs.ErrNotFound) || !strings.Contains(err.Error(), "available at version 2") {
+		t.Errorf("HoldFile that matched nothing over an available row at the version = %v, want an error naming the row's state", err)
+	}
+}
+
 // version scripts the guard's check answering one version.
 func version(v int64) sqltest.Response {
 	return sqltest.Response{Columns: []string{"version"}, Rows: [][]driver.Value{{v}}}

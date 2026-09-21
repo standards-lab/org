@@ -49,6 +49,8 @@ type Store struct {
 	fileByName         query.Rows[blobfs.File]
 	beginFileWrite     query.Statement
 	completeFileWrite  query.Guard
+	holdFile           query.Statement
+	holdFileAtVersion  query.Statement
 	removeFile         query.Statement
 	removeDirectory    query.Statement
 	directoryIsWithin  query.Rows[int64]
@@ -118,6 +120,8 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 		fileByName:         stmts.Statement("file_by_name").Scan(file),
 		beginFileWrite:     stmts.Statement("begin_file_write"),
 		completeFileWrite:  stmts.Statement("complete_file_write").Guarded(stmts.Statement("file_version"), "version"),
+		holdFile:           stmts.Statement("hold_file"),
+		holdFileAtVersion:  stmts.Statement("hold_file_at_version"),
 		removeFile:         stmts.Statement("remove_file"),
 		removeDirectory:    stmts.Statement("remove_directory"),
 		directoryIsWithin:  stmts.Statement("directory_is_within").Scan(query.Scalar[int64]),

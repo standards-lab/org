@@ -39,14 +39,26 @@ func (s *Store) Remove(ctx context.Context, path string, stopAfter Step) (blobfs
 
 // deleteFile runs the steps of a file delete for the file with id at
 // path, in three steps with two transaction boundaries, the mirror of
-// Put. First, in one transaction on its own: the bookmark table is read
-// for the file, and the delete is refused with ErrBookmarked while any
-// unit bookmarks it, so a bookmarked file's object is never deleted; then
-// blobfs's begin step moves the row to deleting through the variant, and
-// the transaction commits. Second, outside any transaction, the object is
-// deleted under the row's key; the store treats a missing object as
-// success, so the step repeats safely. Third, on the pool, blobfs's
-// complete step removes the row.
+// Put. First, in one transaction on its own: blobfs's begin step moves
+// the row to deleting through the variant, then the bookmark table is
+// read for the file, and the delete is refused with ErrBookmarked while
+// any unit bookmarks it, which rolls the begin back, so a bookmarked
+// file's object is never deleted; otherwise the transaction commits.
+// Second, outside any transaction, the object is deleted under the row's
+// key; the store treats a missing object as success, so the step repeats
+// safely. Third, on the pool, blobfs's complete step removes the row.
+//
+// The begin runs before the check because of the library's
+// reference-then-delete rule: AddBookmark holds the file's row through
+// blobfs.HoldFile before it inserts, and the begin takes the same lock,
+// so an add that holds first commits its bookmark before this check
+// reads the table, and an add that arrives after this begin waits and
+// then refuses the deleting row. Either way the two operations serialize
+// on the row, and a bookmark cannot reach a file whose object is being
+// deleted. The foreign key fk_bookmark_file still refuses the row's
+// removal in the third step should a bookmark be inserted without the
+// hold; that refusal is ErrBookmarked too, the row stays deleting with
+// its bookmark, and an rm after the bookmark is removed converges.
 //
 // The object store is opened before the first step, so a store that
 // cannot be reached fails the rm before the row is touched. A stop after
@@ -55,22 +67,16 @@ func (s *Store) Remove(ctx context.Context, path string, stopAfter Step) (blobfs
 // it, and put refuses its name; the error says so, and an rm of the same
 // path resumes: the begin returns the deleting row unchanged, the object
 // delete finds nothing or the object, and the complete removes the row.
-//
-// The bookmark check and the complete step are the two ends of one race:
-// a bookmark added between them (the add's own status check saw the row
-// before the begin committed) makes the foreign key fk_bookmark_file
-// refuse the row's removal after the object is gone. The refusal is
-// ErrBookmarked, the row stays deleting with its bookmark, bookmark ls
-// shows the status, and an rm after the bookmark is removed converges.
-// Closing the race would need the add and the rm to serialize on the
-// file row, which standard SQL cannot state without serializable
-// isolation on both.
 func (s *Store) deleteFile(ctx context.Context, path, id string, stopAfter Step) (blobfs.File, error) {
 	st, err := s.objects(ctx)
 	if err != nil {
 		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", path, err)
 	}
 	f, err := s.db.Transact(ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+		f, err := s.blobfs.BeginFileDelete(ctx, tx, id)
+		if err != nil {
+			return blobfs.File{}, err
+		}
 		n, err := s.bookmarksOfFile(ctx, tx, id)
 		if err != nil {
 			return blobfs.File{}, err
@@ -78,7 +84,7 @@ func (s *Store) deleteFile(ctx context.Context, path, id string, stopAfter Step)
 		if n > 0 {
 			return blobfs.File{}, fmt.Errorf("%d unit(s) bookmark the file; remove the bookmarks and rerun rm: %w", n, ErrBookmarked)
 		}
-		return s.blobfs.BeginFileDelete(ctx, tx, id)
+		return f, nil
 	})
 	if err != nil {
 		return blobfs.File{}, fmt.Errorf("files: rm %s: %w", path, err)
@@ -95,7 +101,7 @@ func (s *Store) deleteFile(ctx context.Context, path, id string, stopAfter Step)
 	if err := s.blobfs.CompleteFileDelete(ctx, s.db, f.ID); err != nil {
 		err = classifyFileDelete(err)
 		if errors.Is(err, ErrBookmarked) {
-			return f, fmt.Errorf("files: rm %s: a bookmark was added after the delete began; the row stays deleting and its object is gone; remove the bookmark and rerun rm: %w", path, err)
+			return f, fmt.Errorf("files: rm %s: a bookmark references the file, inserted without holding it; the row stays deleting and its object is gone; remove the bookmark and rerun rm: %w", path, err)
 		}
 		return f, fmt.Errorf("files: rm %s: %w", path, err)
 	}

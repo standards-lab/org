@@ -150,45 +150,57 @@ func TestListBookmarksLowersTheDirectives(t *testing.T) {
 }
 
 // TestAddBookmarkIsOneTransaction proves the transaction boundaries of a
-// bookmark add: one transaction holds the parent's resolution, the file's
-// lookup by name, and the insert, then commits; the insert binds the
-// unit, the file's id, and the active flag. A deleting file is refused
-// with ErrNotAvailable and a missing one with ErrNotFound, each after the
-// lookup and with the transaction rolled back; a pending file is
-// accepted; and a bad path is refused before any I/O.
+// bookmark add and the reference-then-delete rule: one transaction holds
+// the parent's resolution, the file's lookup by name, the hold of the
+// file's row (the library's self-assigning update bound to the id, with
+// no version predicate), and the insert, then commits; the insert binds
+// the unit, the file's id, and the active flag. A deleting file is
+// refused with ErrNotAvailable over blobfs.ErrDeleting, after the hold
+// matched nothing and the row was read once more, and a missing one with
+// ErrNotFound after the lookup, each with the transaction rolled back; a
+// pending file is held and accepted; and a bad path is refused before
+// any I/O.
 func TestAddBookmarkIsOneTransaction(t *testing.T) {
 	ctx := context.Background()
 	unit := blobfs.NewID()
-	s, rec := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), affected())
+	s, rec := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), affected(), affected())
 	f, err := s.AddBookmark(ctx, "/a.txt", unit, true)
 	if err != nil || f.ID != "F" {
 		t.Fatalf("AddBookmark = %+v, %v", f, err)
 	}
-	if got := ops(rec); got != "begin query query exec commit" {
+	if got := ops(rec); got != "begin query query exec exec commit" {
 		t.Errorf("ops = %q", got)
 	}
-	insert := rec.Calls()[3]
+	hold := rec.Calls()[3]
+	if hold.SQL != "UPDATE blobfs_file\nSET updated_at = updated_at\nWHERE id = CAST($1 AS uuid) AND status <> 'deleting'" {
+		t.Errorf("the first exec is not the hold of the file:\n%s", hold.SQL)
+	}
+	if args := hold.Args; len(args) != 1 || args[0] != "F" {
+		t.Errorf("the hold bound %v, want the file's id alone", args)
+	}
+	insert := rec.Calls()[4]
 	if !strings.HasPrefix(insert.SQL, "INSERT INTO bookmark (unit_id, file_id, active)") {
-		t.Errorf("the exec is not the bookmark insert:\n%s", insert.SQL)
+		t.Errorf("the second exec is not the bookmark insert:\n%s", insert.SQL)
 	}
 	if args := insert.Args; len(args) != 3 || args[0] != unit || args[1] != "F" || args[2] != true {
 		t.Errorf("the insert bound %v, want the unit, the file, and active", args)
 	}
 
-	s, rec = newStore(t, root(), file("P", "a.txt", blobfs.StatusPending, 1), affected())
+	s, rec = newStore(t, root(), file("P", "a.txt", blobfs.StatusPending, 1), affected(), affected())
 	if f, err := s.AddBookmark(ctx, "/a.txt", unit, false); err != nil || f.Status != blobfs.StatusPending {
 		t.Errorf("AddBookmark of a pending file = %+v, %v; want the pending row bookmarked", f, err)
 	}
-	if args := rec.Calls()[3].Args; args[2] != false {
+	if args := rec.Calls()[4].Args; args[2] != false {
 		t.Errorf("the insert bound active %v without --active", args[2])
 	}
 
-	s, rec = newStore(t, root(), file("D", "a.txt", blobfs.StatusDeleting, 1))
-	if _, err := s.AddBookmark(ctx, "/a.txt", unit, false); !errors.Is(err, files.ErrNotAvailable) || !strings.Contains(err.Error(), "deleting") {
-		t.Errorf("AddBookmark of a deleting file = %v, want ErrNotAvailable naming the status", err)
+	s, rec = newStore(t, root(), file("D", "a.txt", blobfs.StatusDeleting, 1), sqltest.Response{Affected: 0}, file("D", "a.txt", blobfs.StatusDeleting, 1))
+	_, err = s.AddBookmark(ctx, "/a.txt", unit, false)
+	if !errors.Is(err, files.ErrNotAvailable) || !errors.Is(err, blobfs.ErrDeleting) || !strings.Contains(err.Error(), "deleting") {
+		t.Errorf("AddBookmark of a deleting file = %v, want ErrNotAvailable over ErrDeleting naming the status", err)
 	}
-	if got := ops(rec); got != "begin query query rollback" {
-		t.Errorf("ops after the deleting refusal = %q", got)
+	if got := ops(rec); got != "begin query query exec query rollback" {
+		t.Errorf("ops after the deleting refusal = %q, want the hold, the read that classifies it, and the rollback", got)
 	}
 
 	s, rec = newStore(t, root(), noFile())
@@ -215,8 +227,8 @@ func TestAddBookmarkIsOneTransaction(t *testing.T) {
 // primary key is ErrAlreadyBookmarked, the partial unique index is
 // ErrActiveBookmark, and the foreign key is blobfs.ErrNotFound, each with
 // the sqlate.ConstraintError still reachable and the transaction rolled
-// back. A constraint the mapping does not name, or a named one reported
-// under another class, passes through unclassified.
+// back, the hold included. A constraint the mapping does not name, or a
+// named one reported under another class, passes through unclassified.
 func TestAddBookmarkClassifiesTheConstraints(t *testing.T) {
 	ctx := context.Background()
 	unit := blobfs.NewID()
@@ -229,7 +241,7 @@ func TestAddBookmarkClassifiesTheConstraints(t *testing.T) {
 		{files.ConstraintUniqueBookmarkActive, sqlate.ErrUniqueViolation, files.ErrActiveBookmark},
 		{files.ConstraintForeignKeyBookmarkFile, sqlate.ErrForeignKeyViolation, blobfs.ErrNotFound},
 	} {
-		s, rec := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), violation(tc.constraint, tc.class))
+		s, rec := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), affected(), violation(tc.constraint, tc.class))
 		_, err := s.AddBookmark(ctx, "/a.txt", unit, true)
 		if !errors.Is(err, tc.want) {
 			t.Errorf("%s: AddBookmark = %v, want %v", tc.constraint, err, tc.want)
@@ -245,7 +257,7 @@ func TestAddBookmarkClassifiesTheConstraints(t *testing.T) {
 		if !strings.HasSuffix(err.Error(), tc.want.Error()+" (constraint "+tc.constraint+")") || strings.Contains(err.Error(), "driver") {
 			t.Errorf("%s: message = %q, want it to end with the sentinel and the constraint and to hide the driver's text", tc.constraint, err)
 		}
-		if got := ops(rec); got != "begin query query exec rollback" {
+		if got := ops(rec); got != "begin query query exec exec rollback" {
 			t.Errorf("%s: ops = %q", tc.constraint, got)
 		}
 	}
@@ -257,7 +269,7 @@ func TestAddBookmarkClassifiesTheConstraints(t *testing.T) {
 		{"an unnamed constraint", "cc_bookmark_other", sqlate.ErrCheckViolation},
 		{"a named constraint under another class", files.ConstraintPrimaryKeyBookmark, sqlate.ErrForeignKeyViolation},
 	} {
-		s, _ := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), violation(tc.constraint, tc.class))
+		s, _ := newStore(t, root(), file("F", "a.txt", blobfs.StatusAvailable, 2), affected(), violation(tc.constraint, tc.class))
 		_, err := s.AddBookmark(ctx, "/a.txt", unit, true)
 		for _, sentinel := range []error{files.ErrAlreadyBookmarked, files.ErrActiveBookmark, blobfs.ErrNotFound} {
 			if errors.Is(err, sentinel) {

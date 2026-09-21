@@ -251,12 +251,13 @@ func TestBookmarks(t *testing.T) {
 	}
 }
 
-// TestAddBookmarkOfAFileRemovedMeanwhile proves the foreign key's
-// classification on the engine: a second connection holds an uncommitted
-// delete of the file, the add resolves the file (the delete is not
-// visible yet) and blocks on the foreign key check, and once the delete
-// commits the insert fails under fk_bookmark_file, which reaches the
-// caller as blobfs.ErrNotFound with the constraint error reachable.
+// TestAddBookmarkOfAFileRemovedMeanwhile proves the hold's refusal of a
+// file that goes away on the engine: a second connection holds an
+// uncommitted delete of the file's row, the add resolves the file (the
+// delete is not visible yet) and blocks on the row at its hold, and once
+// the delete commits the hold matches nothing, reads the row gone, and
+// refuses with blobfs.ErrNotFound before the insert runs, so the foreign
+// key fk_bookmark_file is never reached and no bookmark is written.
 func TestAddBookmarkOfAFileRemovedMeanwhile(t *testing.T) {
 	e := open(t)
 	unit := blobfs.NewID()
@@ -294,8 +295,9 @@ func TestAddBookmarkOfAFileRemovedMeanwhile(t *testing.T) {
 	if !errors.Is(err, blobfs.ErrNotFound) {
 		t.Errorf("AddBookmark of the file removed meanwhile = %v, want ErrNotFound", err)
 	}
-	if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != files.ConstraintForeignKeyBookmarkFile {
-		t.Errorf("the add violated %q, want fk_bookmark_file", name)
+	var ce *sqlate.ConstraintError
+	if errors.As(err, &ce) {
+		t.Errorf("the add reached the foreign key (%s); the hold refuses it first", ce.Constraint)
 	}
 	if n := e.count(t, "SELECT COUNT(*) FROM bookmark"); n != 0 {
 		t.Errorf("%d bookmarks exist after the refusal", n)

@@ -7,12 +7,12 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/standards-lab/sqlate"
 	"github.com/standards-lab/sqlate/query"
 
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
-	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
@@ -56,25 +56,92 @@ func perVariant(t *testing.T, f func(t *testing.T, e env, v variant)) {
 	}
 }
 
-// bookmarking is a variant that opens the race the bookmark check cannot
-// close: it inserts a bookmark right after the begin, inside the begin's
-// own transaction, so the bookmark commits together with the deleting
-// status and after the check saw none. It does so once; a later begin
-// passes through, so a rerun converges over the same store.
-type bookmarking struct {
+// pausing is a variant that pauses the consumer's rm inside the begin's
+// transaction, once: after the base begin has run, and so after the row
+// lock is taken, it reports begun and waits for release while the
+// transaction holds the lock, which is where a bookmark add has to
+// queue. A later begin passes through, so the finishing rm converges.
+type pausing struct {
 	data.Variant
-	unit string
-	done bool
+	begun   chan struct{}
+	release chan struct{}
+	done    bool
 }
 
-func (b *bookmarking) BeginFileDelete(ctx context.Context, sess sqlate.Session, id string) (blobfs.File, error) {
-	f, err := b.Variant.BeginFileDelete(ctx, sess, id)
-	if err != nil || b.done {
+func (p *pausing) BeginFileDelete(ctx context.Context, sess sqlate.Session, id string) (blobfs.File, error) {
+	f, err := p.Variant.BeginFileDelete(ctx, sess, id)
+	if err != nil || p.done {
 		return f, err
 	}
-	b.done = true
-	_, err = sess.ExecContext(ctx, "INSERT INTO bookmark (unit_id, file_id, active) VALUES ($1, $2, false)", b.unit, id)
-	return f, err
+	p.done = true
+	close(p.begun)
+	<-p.release
+	return f, nil
+}
+
+// library builds the persistence package's store over the test's
+// database, as a service that follows the reference-then-delete rule
+// would hold one, so a test can hold a file and insert a row that
+// references it in a transaction of its own.
+func (e env) library(t *testing.T) *data.Store {
+	t.Helper()
+	c, err := query.NewCatalog(query.Patterns(), data.Patterns())
+	if err != nil {
+		t.Fatalf("NewCatalog: %v", err)
+	}
+	s, err := data.New(c, e.db.Dialect())
+	if err != nil {
+		t.Fatalf("data.New: %v", err)
+	}
+	return s
+}
+
+// awaitLockWait returns once a session of the test's database waits on
+// a lock inside a statement whose text contains text, which is how a
+// test observes that the other side of an interleaving has queued on
+// the row, and fails the test when none does within a bound.
+func (e env) awaitLockWait(t *testing.T, text string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		n := e.count(t, "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE $1", "%"+text+"%")
+		if n > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("no session waits on a lock in a statement containing %q", text)
+}
+
+// removal is what an rm on a goroutine reports.
+type removal struct {
+	file blobfs.File
+	err  error
+}
+
+// remove runs Remove on a goroutine and reports its result on the
+// channel.
+func (e env) remove(path string, stopAfter files.Step) <-chan removal {
+	done := make(chan removal, 1)
+	go func() {
+		f, err := e.store.Remove(e.ctx, path, stopAfter)
+		done <- removal{file: f, err: err}
+	}()
+	return done
+}
+
+// await returns what the channel reports, failing the test when nothing
+// arrives within a bound.
+func await[T any](t *testing.T, done <-chan T, what string) T {
+	t.Helper()
+	select {
+	case v := <-done:
+		return v
+	case <-time.After(10 * time.Second):
+		t.Fatalf("%s did not return", what)
+		var zero T
+		return zero
+	}
 }
 
 // status reads a file row's status straight from the database, or "" when
@@ -199,12 +266,11 @@ func TestRemoveConvergesAtEachStep(t *testing.T) {
 
 // TestRemoveMeetsABookmark is the third gate item, per variant: an rm of
 // a bookmarked file is refused before anything is touched, with
-// ErrBookmarked, and converges once the bookmark is removed. Then the race
-// the check cannot close: a bookmark that arrives after the begin
-// committed is caught by the foreign key at the row's removal, after the
-// object is gone; the refusal is ErrBookmarked over the library's
-// ErrReferenced with the constraint reachable, the row stays deleting
-// with its bookmark, and an rm after the bookmark is removed converges.
+// ErrBookmarked and the begin rolled back, and converges once the
+// bookmark is removed. Then a rerun's check: the delete began and
+// stopped, a bookmark was inserted without the hold (the rule bypassed
+// through plain SQL), and the rerun is refused by the count before the
+// object delete, so a deleting row's object is protected too.
 func TestRemoveMeetsABookmark(t *testing.T) {
 	perVariant(t, func(t *testing.T, e env, _ variant) {
 		unit := blobfs.NewID()
@@ -259,57 +325,149 @@ func TestRemoveMeetsABookmark(t *testing.T) {
 	})
 }
 
-// TestRemoveMeetsABookmarkAfterTheBegin is the race the check cannot
-// close, opened deterministically through the variant seam: the
-// bookmarking variant inserts a bookmark inside the begin's transaction,
-// after the check saw none. The foreign key then refuses the row's
-// removal, after the object is gone; the refusal is ErrBookmarked over
-// the library's ErrReferenced with the constraint's name reachable, the
-// row stays deleting with its bookmark, bookmark ls shows the status, and
-// an rm after the bookmark is removed converges.
-func TestRemoveMeetsABookmarkAfterTheBegin(t *testing.T) {
+// TestBookmarkAddedDuringTheDeleteIsRefused is the first interleaving of
+// the reference-then-delete rule on the engine, per variant: the rm's
+// first transaction has begun the delete and holds the row lock (the
+// pausing variant keeps it open), a bookmark add starts, resolves the
+// file, and queues on the row at its hold, and once the rm's transaction
+// commits the deleting status the add is refused with ErrNotAvailable
+// over blobfs.ErrDeleting and writes no bookmark. The rm, stopped after
+// its begin, then finishes on a rerun with nothing in its way.
+func TestBookmarkAddedDuringTheDeleteIsRefused(t *testing.T) {
 	for _, v := range variants {
 		t.Run(v.name, func(t *testing.T) {
 			unit := blobfs.NewID()
-			racing := &bookmarking{unit: unit}
+			paused := &pausing{begun: make(chan struct{}), release: make(chan struct{})}
 			e := openWith(t, files.WithVariant(func(c *query.Catalog, d sqlate.Dialect) (data.Variant, error) {
 				base, err := v.build(c, d)
-				racing.Variant = base
-				return racing, err
+				paused.Variant = base
+				return paused, err
 			}))
 			st := e.storage(t)
 			g := e.put(t, "/b.txt", "text/plain", "raced").File
-			_, err := e.store.Remove(e.ctx, "/b.txt", "")
-			if !errors.Is(err, files.ErrBookmarked) || !errors.Is(err, blobfs.ErrReferenced) {
-				t.Fatalf("rm with a bookmark added after the begin = %v, want ErrBookmarked over ErrReferenced", err)
+
+			removed := e.remove("/b.txt", files.StepBegin)
+			<-paused.begun
+			added := make(chan error, 1)
+			go func() {
+				_, err := e.store.AddBookmark(e.ctx, "/b.txt", unit, true)
+				added <- err
+			}()
+			e.awaitLockWait(t, "SET updated_at = updated_at")
+			select {
+			case err := <-added:
+				t.Fatalf("the add returned %v while the delete's transaction held the row", err)
+			default:
 			}
-			if name := livetest.Constraint(t, err, sqlate.ErrForeignKeyViolation); name != files.ConstraintForeignKeyBookmarkFile {
-				t.Errorf("the refusal names %q, want fk_bookmark_file", name)
+			close(paused.release)
+
+			r := await(t, removed, "the rm")
+			var stop *files.StopError
+			if !errors.As(r.err, &stop) || stop.Step != files.StepBegin || r.file.Status != blobfs.StatusDeleting {
+				t.Fatalf("Remove --fail-after begin = %+v, %v", r.file, r.err)
 			}
-			if !strings.Contains(err.Error(), "the row stays deleting and its object is gone") {
-				t.Errorf("the message %q does not say what state the file is in", err)
+			err := await(t, added, "the add")
+			if !errors.Is(err, files.ErrNotAvailable) || !errors.Is(err, blobfs.ErrDeleting) {
+				t.Errorf("the add after the delete began = %v, want ErrNotAvailable over ErrDeleting", err)
 			}
-			if got := e.status(t, g.ID); got != "deleting" {
-				t.Errorf("after the refusal the row is %q, want deleting", got)
+			if n := e.count(t, "SELECT COUNT(*) FROM bookmark"); n != 0 {
+				t.Errorf("%d bookmarks exist after the refused add", n)
 			}
-			if e.objectHeld(t, st, g.Key) {
-				t.Error("the object survived the refused complete step; it is deleted before the row")
-			}
-			page, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10})
-			if err != nil || len(page.Rows) != 1 || page.Rows[0].Status != blobfs.StatusDeleting || page.Rows[0].Path != "/b.txt" {
-				t.Errorf("bookmark ls = %+v, %v; want the bookmark of the deleting file", page.Rows, err)
-			}
-			if _, err := e.store.RemoveBookmark(e.ctx, "/b.txt", unit); err != nil {
-				t.Fatalf("RemoveBookmark: %v", err)
+			if got := e.status(t, g.ID); got != "deleting" || !e.objectHeld(t, st, g.Key) {
+				t.Errorf("after the stop the row is %q and the object held is %v; want deleting with its object", got, e.objectHeld(t, st, g.Key))
 			}
 			if _, err := e.store.Remove(e.ctx, "/b.txt", ""); err != nil {
-				t.Fatalf("rm after the racing bookmark went: %v", err)
+				t.Fatalf("the finishing rm: %v", err)
 			}
-			if e.status(t, g.ID) != "" {
-				t.Error("the row remains after the converging rm")
+			if e.status(t, g.ID) != "" || e.objectHeld(t, st, g.Key) {
+				t.Error("after the finishing rm the row or the object remains")
 			}
 		})
 	}
+}
+
+// TestDeleteDuringTheBookmarkAddIsRefused is the second interleaving on
+// the engine, per variant: a transaction has held the file through the
+// library's HoldFile and inserted its bookmark, as AddBookmark does, and
+// has not committed; an rm starts and its begin queues on the row; once
+// the holder commits, the rm's check sees the bookmark and refuses with
+// ErrBookmarked from the count, not the foreign key, rolling its begin
+// back, so the row is available at its version and the object is held.
+// When the holder rolls back instead, the rm proceeds and finishes.
+func TestDeleteDuringTheBookmarkAddIsRefused(t *testing.T) {
+	perVariant(t, func(t *testing.T, e env, _ variant) {
+		unit := blobfs.NewID()
+		lib := e.library(t)
+		holder := e.second(t)
+		st := e.storage(t)
+		g := e.put(t, "/b.txt", "text/plain", "held").File
+
+		// hold holds the file at the version put returned and inserts the
+		// unit's bookmark, in a transaction left open.
+		hold := func(t *testing.T, f blobfs.File) *sqlate.Tx {
+			t.Helper()
+			tx, err := holder.Begin(e.ctx)
+			if err != nil {
+				t.Fatalf("Begin: %v", err)
+			}
+			if err := lib.HoldFile(e.ctx, tx, f.ID, data.AtVersion(f.Version)); err != nil {
+				_ = tx.Rollback()
+				t.Fatalf("HoldFile: %v", err)
+			}
+			if _, err := tx.ExecContext(e.ctx, "INSERT INTO bookmark (unit_id, file_id, active) VALUES ($1, $2, false)", unit, f.ID); err != nil {
+				_ = tx.Rollback()
+				t.Fatalf("the bookmark under the hold: %v", err)
+			}
+			return tx
+		}
+
+		tx := hold(t, g)
+		removed := e.remove("/b.txt", "")
+		e.awaitLockWait(t, "SET status = 'deleting'")
+		select {
+		case r := <-removed:
+			t.Fatalf("the rm returned (%+v, %v) while the hold's transaction was open", r.file, r.err)
+		default:
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Commit: %v", err)
+		}
+		r := await(t, removed, "the rm")
+		if !errors.Is(r.err, files.ErrBookmarked) || errors.Is(r.err, blobfs.ErrReferenced) || !strings.Contains(r.err.Error(), "1 unit(s) bookmark the file") {
+			t.Fatalf("the rm after the bookmark committed = %v, want ErrBookmarked from the check, not the key", r.err)
+		}
+		if row, err := e.store.Stat(e.ctx, "/b.txt"); err != nil || row.Status != blobfs.StatusAvailable || row.Version != g.Version {
+			t.Errorf("after the refusal the row is %+v, %v; want it available at version %d", row, err, g.Version)
+		}
+		if !e.objectHeld(t, st, g.Key) {
+			t.Error("the refused rm deleted the object")
+		}
+		page, err := e.store.ListBookmarks(e.ctx, unit, files.Listing{Page: 1, Size: 10})
+		if err != nil || len(page.Rows) != 1 || page.Rows[0].Status != blobfs.StatusAvailable || page.Rows[0].Path != "/b.txt" {
+			t.Errorf("bookmark ls = %+v, %v; want the bookmark of the available file", page.Rows, err)
+		}
+		if _, err := e.store.RemoveBookmark(e.ctx, "/b.txt", unit); err != nil {
+			t.Fatalf("RemoveBookmark: %v", err)
+		}
+		if _, err := e.store.Remove(e.ctx, "/b.txt", ""); err != nil || e.status(t, g.ID) != "" {
+			t.Errorf("the rm after the bookmark went = %v; the row remains: %v", err, e.status(t, g.ID) != "")
+		}
+
+		// The holder rolls back: the rm waits the same way and then finishes.
+		h := e.put(t, "/c.txt", "text/plain", "released").File
+		tx = hold(t, h)
+		removed = e.remove("/c.txt", "")
+		e.awaitLockWait(t, "SET status = 'deleting'")
+		if err := tx.Rollback(); err != nil {
+			t.Fatalf("Rollback: %v", err)
+		}
+		if r := await(t, removed, "the rm"); r.err != nil || r.file.ID != h.ID {
+			t.Fatalf("the rm after the hold rolled back = %+v, %v", r.file, r.err)
+		}
+		if e.status(t, h.ID) != "" || e.objectHeld(t, st, h.Key) || e.count(t, "SELECT COUNT(*) FROM bookmark") != 0 {
+			t.Error("after the rm the row, the object, or a bookmark remains")
+		}
+	})
 }
 
 // TestRemoveDirectory proves rmdir on the engine: an owned top-level

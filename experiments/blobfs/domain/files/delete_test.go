@@ -61,7 +61,7 @@ func TestRemoveIsThreeStepsWithTwoBoundaries(t *testing.T) {
 	opens := 0
 	s, rec, fake := writeStore(t, &opens,
 		root(), file("F", "a.txt", blobfs.StatusAvailable, 1),
-		bookmarkTotal(0), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2),
+		affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0),
 		affected(),
 	)
 	stored(t, fake, "F/a.txt")
@@ -72,15 +72,15 @@ func TestRemoveIsThreeStepsWithTwoBoundaries(t *testing.T) {
 	if f.ID != "F" || f.Status != blobfs.StatusDeleting || f.Version != 2 {
 		t.Errorf("Remove returned %+v, want the deleting row the begin returned", f)
 	}
-	if got := ops(rec); got != "query query begin query exec query commit exec" {
+	if got := ops(rec); got != "query query begin exec query query commit exec" {
 		t.Errorf("ops = %q", got)
 	}
 	execs := rec.SQL(sqltest.OpExec)
 	if !strings.HasPrefix(execs[0], "UPDATE blobfs_file") || !strings.HasPrefix(execs[1], "DELETE FROM blobfs_file") {
 		t.Errorf("execs = %q, want the begin's update and the removal", execs)
 	}
-	if queries := rec.SQL(sqltest.OpQuery); !strings.Contains(queries[2], "FROM bookmark") {
-		t.Errorf("the transaction's first read is %q, want the bookmark count", queries[2])
+	if queries := rec.SQL(sqltest.OpQuery); !strings.HasPrefix(queries[2], "SELECT f.id, f.directory_id") || !strings.Contains(queries[3], "FROM bookmark") {
+		t.Errorf("the transaction's reads are %q, want the begin's read-back and then the bookmark count", queries[2:])
 	}
 	if held(t, fake, "F/a.txt") {
 		t.Error("the object is still in the store after the rm")
@@ -99,7 +99,7 @@ func TestRemoveIsThreeStepsWithTwoBoundaries(t *testing.T) {
 func TestRemoveStopsAfterTheStepNamed(t *testing.T) {
 	ctx := context.Background()
 	opens := 0
-	s, rec, fake := writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), bookmarkTotal(0), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2))
+	s, rec, fake := writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0))
 	stored(t, fake, "F/a.txt")
 	f, err := s.Remove(ctx, "/a.txt", files.StepBegin)
 	var stop *files.StopError
@@ -109,14 +109,14 @@ func TestRemoveStopsAfterTheStepNamed(t *testing.T) {
 	if f.Status != blobfs.StatusDeleting || !held(t, fake, "F/a.txt") {
 		t.Errorf("after the stop the result is %+v and the object held is %v", f, held(t, fake, "F/a.txt"))
 	}
-	if got := ops(rec); got != "query query begin query exec query commit" {
+	if got := ops(rec); got != "query query begin exec query query commit" {
 		t.Errorf("ops = %q, want the committed first step and nothing more", got)
 	}
 	if !strings.Contains(err.Error(), "rm /a.txt") || !strings.Contains(err.Error(), "deleting (id F)") || !strings.Contains(err.Error(), "rerun rm") {
 		t.Errorf("the message %q does not say how to finish", err)
 	}
 
-	s, rec, fake = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2))
+	s, rec, fake = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusDeleting, 2), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0))
 	stored(t, fake, "F/a.txt")
 	_, err = s.Remove(ctx, "/a.txt", files.StepObject)
 	if !errors.As(err, &stop) || stop.Step != files.StepObject {
@@ -125,44 +125,45 @@ func TestRemoveStopsAfterTheStepNamed(t *testing.T) {
 	if held(t, fake, "F/a.txt") {
 		t.Error("after the stop after object the object is still held")
 	}
-	if got := ops(rec); got != "query query begin query exec query commit" {
+	if got := ops(rec); got != "query query begin exec query query commit" {
 		t.Errorf("ops = %q, want no removal after the stop", got)
 	}
 
-	s, rec, fake = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), bookmarkTotal(0), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2))
+	s, rec, fake = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0))
 	fake.Down.Store(true)
 	_, err = s.Remove(ctx, "/a.txt", "")
 	if !errors.Is(err, files.ErrStorageUnavailable) || !strings.Contains(err.Error(), "the row stays deleting") {
 		t.Errorf("Remove during an outage = %v, want ErrStorageUnavailable and the row's state named", err)
 	}
-	if got := ops(rec); got != "query query begin query exec query commit" {
+	if got := ops(rec); got != "query query begin exec query query commit" {
 		t.Errorf("ops = %q, want the committed first step and no removal", got)
 	}
 }
 
-// TestRemoveRefusesABookmarkedFile proves the bookmark check sits before
-// the begin: a file any unit bookmarks is ErrBookmarked, the transaction
-// rolls back with no update run, and the object is untouched. A bookmark
-// the foreign key reports at the removal, after the object is gone, is
-// ErrBookmarked too, with the sqlate.ConstraintError reachable and the
-// message saying the row stays deleting.
+// TestRemoveRefusesABookmarkedFile proves the bookmark check sits after
+// the begin in the same transaction: a file any unit bookmarks is
+// ErrBookmarked, the transaction rolls back, which undoes the begin's
+// update, and the object is untouched. A bookmark the foreign key reports
+// at the removal, after the object is gone, is ErrBookmarked too, with
+// the sqlate.ConstraintError reachable and the message saying the row
+// stays deleting.
 func TestRemoveRefusesABookmarkedFile(t *testing.T) {
 	ctx := context.Background()
 	opens := 0
-	s, rec, fake := writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), bookmarkTotal(2))
+	s, rec, fake := writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(2))
 	stored(t, fake, "F/a.txt")
 	_, err := s.Remove(ctx, "/a.txt", "")
 	if !errors.Is(err, files.ErrBookmarked) || !strings.Contains(err.Error(), "2 unit(s) bookmark the file") {
 		t.Fatalf("Remove of a bookmarked file = %v, want ErrBookmarked naming the count", err)
 	}
-	if got := ops(rec); got != "query query begin query rollback" {
-		t.Errorf("ops = %q, want the check and a rollback with no update", got)
+	if got := ops(rec); got != "query query begin exec query query rollback" {
+		t.Errorf("ops = %q, want the begin, the check, and a rollback", got)
 	}
 	if !held(t, fake, "F/a.txt") {
 		t.Error("the refused rm deleted the object")
 	}
 
-	s, rec, _ = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), bookmarkTotal(0), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), refusedBy(files.ConstraintForeignKeyBookmarkFile))
+	s, rec, _ = writeStore(t, &opens, root(), file("F", "a.txt", blobfs.StatusAvailable, 1), affected(), file("F", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0), refusedBy(files.ConstraintForeignKeyBookmarkFile))
 	_, err = s.Remove(ctx, "/a.txt", "")
 	var ce *sqlate.ConstraintError
 	if !errors.Is(err, files.ErrBookmarked) || !errors.Is(err, blobfs.ErrReferenced) || !errors.As(err, &ce) || ce.Constraint != files.ConstraintForeignKeyBookmarkFile {
@@ -174,7 +175,7 @@ func TestRemoveRefusesABookmarkedFile(t *testing.T) {
 	if !strings.HasSuffix(err.Error(), "files: the file is bookmarked (constraint fk_bookmark_file)") || strings.Contains(err.Error(), "driver") {
 		t.Errorf("the message %q does not end with the consumer's sentinel and the constraint, or carries the driver's text", err)
 	}
-	if got := ops(rec); got != "query query begin query exec query commit exec" {
+	if got := ops(rec); got != "query query begin exec query query commit exec" {
 		t.Errorf("ops = %q", got)
 	}
 }
@@ -271,7 +272,7 @@ func TestRemoveTreeWalksChildrenFirst(t *testing.T) {
 		// sub: no directories, one file, then no more; then sub is removed.
 		listing(directoryColumns, true, 0),
 		listing(fileColumns, true, 1, "a.txt"),
-		bookmarkTotal(0), affected(), file("id-a.txt", "a.txt", blobfs.StatusDeleting, 2), affected(),
+		affected(), file("id-a.txt", "a.txt", blobfs.StatusDeleting, 2), bookmarkTotal(0), affected(),
 		listing(fileColumns, true, 0),
 		sqltest.Response{Affected: 0}, affected(),
 		// docs again: no directories, no files; then docs is removed.

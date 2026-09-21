@@ -224,6 +224,79 @@ func (s *Store) CompleteFileWrite(ctx context.Context, sess sqlate.Session, id s
 	return f, nil
 }
 
+// HoldOption configures one call of HoldFile beyond its required
+// arguments.
+type HoldOption func(*holdOptions)
+
+// holdOptions collects what the hold options set.
+type holdOptions struct {
+	version    int64
+	hasVersion bool
+}
+
+// AtVersion makes HoldFile match the row only at version, the value the
+// caller read from a listing or an earlier read, so a caller that acts on
+// a row it has not read inside its transaction learns that the row moved
+// on. A row at another version is query.ErrVersionMismatch.
+func AtVersion(version int64) HoldOption {
+	return func(o *holdOptions) {
+		o.version = version
+		o.hasVersion = true
+	}
+}
+
+// HoldFile locks the row of the file with id for the rest of the
+// caller's transaction, so that no delete of the file begins before the
+// transaction ends: the first half of the reference-then-delete rule. A
+// consumer calls it before it inserts a row that references the file, in
+// the same transaction as the insert, and the delete protocol's begin
+// step, which takes the same lock, waits for that transaction and then
+// sees the reference. The hold is an update that assigns a column to
+// itself: it changes no value and advances no version, so other holders
+// of the row's version stay valid. Only a row that is not deleting is
+// held, because a file whose delete has begun must take no new
+// reference; a pending row is held like an available one.
+//
+// The session must be a transaction, and any other is
+// query.ErrTransactionRequired, refused before any SQL: on the pool the
+// lock would be released as the statement ends and hold nothing. A file
+// that does not exist is blobfs.ErrNotFound. A row that is deleting is
+// blobfs.ErrDeleting, whatever its version, since no version will make
+// it holdable. With AtVersion, a row that is not deleting and sits at
+// another version is query.ErrVersionMismatch, with the expected and
+// current versions in the text. When the hold matches no row, the row is
+// read once more, in the same transaction, to classify.
+func (s *Store) HoldFile(ctx context.Context, sess sqlate.Session, id string, opts ...HoldOption) error {
+	var o holdOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	args := query.Args{"id": id}
+	hold := s.holdFile
+	if o.hasVersion {
+		args["version"] = o.version
+		hold = s.holdFileAtVersion
+	}
+	n, err := hold.Exec(ctx, sess, args)
+	if err != nil {
+		return fmt.Errorf("data: hold file %s: %w", id, err)
+	}
+	if n > 0 {
+		return nil
+	}
+	// No row was held: the row is gone, deleting, or at another version.
+	f, err := s.fileByID.One(ctx, sess, args)
+	switch {
+	case err != nil:
+		return fmt.Errorf("data: hold file %s: %w", id, notFound(err))
+	case f.Status == blobfs.StatusDeleting:
+		return fmt.Errorf("data: hold file %s: the row is %s: %w", id, f.Status, blobfs.ErrDeleting)
+	case o.hasVersion && f.Version != o.version:
+		return fmt.Errorf("data: hold file %s: %w: expected %d, current %d", id, query.ErrVersionMismatch, o.version, f.Version)
+	}
+	return fmt.Errorf("data: hold file %s: the hold matched no row, yet the row is %s at version %d", id, f.Status, f.Version)
+}
+
 // CompleteFileDelete is the last step of a file delete: it removes the
 // row with id, after the caller has deleted the object under the row's
 // Key. Only a deleting row is removed. A row that is already gone is

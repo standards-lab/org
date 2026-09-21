@@ -6,7 +6,9 @@
 -- file that does not exist; database.go maps each name to its sentinel.
 -- The timestamps take the table's defaults. The statement accepts the
 -- pool and composes into a caller's transaction alike: the consumer runs
--- it in the transaction that resolved the file, and a service would run
--- it beside the pending row of its own upload.
+-- it in the transaction that resolved and held the file (blobfs's
+-- reference-then-delete rule, so no delete of the file begins before the
+-- bookmark commits), and a service would run it beside the pending row
+-- of its own upload.
 INSERT INTO bookmark (unit_id, file_id, active)
 VALUES ({{unit_id:uuid}}, {{file_id:uuid}}, {{active:boolean}})

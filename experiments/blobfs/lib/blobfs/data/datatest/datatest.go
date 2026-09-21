@@ -44,17 +44,23 @@ import (
 // and the directory move's through the lock (the sequential contract on
 // every variant, then two opposing concurrent moves, which leave no
 // cycle and refuse one of the two when the store serializes, and form a
-// cycle when it does not, which the suite asserts and then repairs). db
-// is a migrated throwaway database and store was built over the variant
-// under test with db's dialect. The move group builds a second store of
-// its own, over a wrapper of the store's variant that pauses each move
-// after its lock, so the two moves interleave deterministically.
+// cycle when it does not, which the suite asserts and then repairs); and
+// the hold's against the variant's begin (the pool refused, the held row
+// unchanged, a deleting row and a stale version refused, and the two
+// interleavings serialized on the row: a hold makes the begin wait until
+// the holder's transaction ends, and a begin makes the hold wait and then
+// refuse once the begin commits, or succeed once it rolls back). db is a
+// migrated throwaway database and store was built over the variant under
+// test with db's dialect. The move group builds a second store of its
+// own, over a wrapper of the store's variant that pauses each move after
+// its lock, so the two moves interleave deterministically.
 func Run(t *testing.T, db *sqlate.DB, store *data.Store) {
 	t.Helper()
 	ctx := context.Background()
 	s := suite{t: t, ctx: ctx, db: db, store: store}
 	t.Run("BeginFileDelete", s.beginFileDelete)
 	t.Run("FileDelete", s.fileDelete)
+	t.Run("HoldFile", s.holdFile)
 	t.Run("LockTree", s.lockTree)
 	t.Run("MoveDirectory", s.moveDirectory)
 }
@@ -65,6 +71,9 @@ type suite struct {
 	ctx   context.Context
 	db    *sqlate.DB
 	store *data.Store
+	// referenced records that createReference ran, so the groups that
+	// need the reference table share one.
+	referenced bool
 }
 
 // beginFileDelete checks the file-delete begin against its contract.
@@ -211,6 +220,215 @@ func (s *suite) fileDelete(t *testing.T) {
 		s.complete(t, id)
 		s.wantGone(t, id)
 	})
+}
+
+// holdFile checks the hold against its contract and against the variant's
+// begin: the two must take the same row lock, whatever statement the
+// variant's begin runs.
+func (s *suite) holdFile(t *testing.T) {
+	dir := s.mkdir(t, "hold-"+t.Name())
+
+	t.Run("PoolRefused", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "pool.txt", blobfs.StatusAvailable)
+		before := s.file(t, id)
+		if err := s.store.HoldFile(s.ctx, s.db, id); !errors.Is(err, query.ErrTransactionRequired) {
+			t.Errorf("HoldFile on the pool = %v, want ErrTransactionRequired", err)
+		}
+		if after := s.file(t, id); !equalFile(before, after) {
+			t.Errorf("the refused hold changed the row to\n%+v\nfrom\n%+v", after, before)
+		}
+	})
+	t.Run("HeldRowIsUnchanged", func(t *testing.T) {
+		for _, status := range []blobfs.Status{blobfs.StatusAvailable, blobfs.StatusPending} {
+			id := s.insertFile(t, dir.ID, "held-"+status.String()+".txt", status)
+			before := s.file(t, id)
+			if _, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+				return struct{}{}, s.store.HoldFile(s.ctx, tx, id)
+			}); err != nil {
+				t.Fatalf("HoldFile of a %s row: %v", status, err)
+			}
+			if _, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+				return struct{}{}, s.store.HoldFile(s.ctx, tx, id, data.AtVersion(before.Version))
+			}); err != nil {
+				t.Fatalf("HoldFile of a %s row at its version: %v", status, err)
+			}
+			if after := s.file(t, id); !equalFile(before, after) {
+				t.Errorf("the holds changed the %s row to\n%+v\nfrom\n%+v", status, after, before)
+			}
+		}
+	})
+	t.Run("StaleVersionRefused", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "stale.txt", blobfs.StatusAvailable)
+		before := s.file(t, id)
+		_, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+			return struct{}{}, s.store.HoldFile(s.ctx, tx, id, data.AtVersion(before.Version+1))
+		})
+		if !errors.Is(err, query.ErrVersionMismatch) || errors.Is(err, blobfs.ErrDeleting) {
+			t.Errorf("HoldFile at a stale version = %v, want ErrVersionMismatch", err)
+		}
+		if after := s.file(t, id); !equalFile(before, after) {
+			t.Errorf("the refused hold changed the row to\n%+v\nfrom\n%+v", after, before)
+		}
+	})
+	t.Run("DeletingRefused", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "deleting.txt", blobfs.StatusAvailable)
+		before := s.file(t, id)
+		deleting := s.begin(t, id)
+		for _, opts := range [][]data.HoldOption{nil, {data.AtVersion(before.Version)}, {data.AtVersion(deleting.Version)}} {
+			_, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+				return struct{}{}, s.store.HoldFile(s.ctx, tx, id, opts...)
+			})
+			if !errors.Is(err, blobfs.ErrDeleting) || errors.Is(err, query.ErrVersionMismatch) {
+				t.Errorf("HoldFile of a deleting row with %d options = %v, want ErrDeleting and no version mismatch", len(opts), err)
+			}
+		}
+		if after := s.file(t, id); !equalFile(deleting, after) {
+			t.Errorf("the refused holds changed the row to\n%+v\nfrom\n%+v", after, deleting)
+		}
+	})
+	t.Run("MissingIsNotFound", func(t *testing.T) {
+		_, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (struct{}, error) {
+			return struct{}{}, s.store.HoldFile(s.ctx, tx, blobfs.NewID())
+		})
+		if !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("HoldFile(missing) = %v, want ErrNotFound", err)
+		}
+	})
+	t.Run("HoldMakesTheBeginWait", func(t *testing.T) {
+		// The holder inserts its reference under the hold; the begin waits
+		// for the holder to commit and then runs, and the reference is
+		// there for the delete's own check to see.
+		s.createReference(t)
+		id := s.insertFile(t, dir.ID, "held-then-deleted.txt", blobfs.StatusAvailable)
+		holder := s.beginTx(t)
+		ended := false
+		defer func() {
+			if !ended {
+				_ = holder.Rollback()
+			}
+		}()
+		if err := s.store.HoldFile(s.ctx, holder, id); err != nil {
+			t.Fatalf("HoldFile: %v", err)
+		}
+		if _, err := holder.ExecContext(s.ctx, "INSERT INTO datatest_reference (file_id) VALUES ("+s.db.Dialect().Placeholder(1)+")", id); err != nil {
+			t.Fatalf("reference under the hold: %v", err)
+		}
+		begun := s.beginIn(id)
+		select {
+		case r := <-begun:
+			t.Fatalf("the begin returned (%+v, %v) while the hold's transaction was open", r.file, r.err)
+		case <-time.After(500 * time.Millisecond):
+		}
+		ended = true
+		if err := holder.Commit(); err != nil {
+			t.Fatalf("Commit: %v", err)
+		}
+		r := s.await(t, begun)
+		if r.err != nil || r.file.Status != blobfs.StatusDeleting {
+			t.Fatalf("the begin after the hold committed = %+v, %v; want the deleting row", r.file, r.err)
+		}
+		if n := s.references(t, id); n != 1 {
+			t.Errorf("%d references exist after the begin, want the one the holder committed", n)
+		}
+		s.unreference(t, id)
+		s.complete(t, id)
+		s.wantGone(t, id)
+	})
+	t.Run("BeginMakesTheHoldWait", func(t *testing.T) {
+		// The begin runs first and the hold waits; a commit of the begin
+		// leaves the hold refusing the deleting row, and a rollback leaves
+		// it holding the row.
+		for _, end := range []struct {
+			name string
+			end  func(*sqlate.Tx) error
+			want error
+		}{
+			{"Commit", (*sqlate.Tx).Commit, blobfs.ErrDeleting},
+			{"Rollback", (*sqlate.Tx).Rollback, nil},
+		} {
+			t.Run(end.name, func(t *testing.T) {
+				id := s.insertFile(t, dir.ID, "begun-then-held-"+end.name+".txt", blobfs.StatusAvailable)
+				deleter := s.beginTx(t)
+				ended := false
+				defer func() {
+					if !ended {
+						_ = deleter.Rollback()
+					}
+				}()
+				if _, err := s.store.BeginFileDelete(s.ctx, deleter, id); err != nil {
+					t.Fatalf("BeginFileDelete: %v", err)
+				}
+				holder := s.beginTx(t)
+				defer func() { _ = holder.Rollback() }()
+				held := make(chan error, 1)
+				go func() { held <- s.store.HoldFile(s.ctx, holder, id) }()
+				select {
+				case err := <-held:
+					t.Fatalf("the hold returned (%v) while the begin's transaction was open", err)
+				case <-time.After(500 * time.Millisecond):
+				}
+				ended = true
+				if err := end.end(deleter); err != nil {
+					t.Fatalf("ending the begin's transaction: %v", err)
+				}
+				select {
+				case err := <-held:
+					if !errors.Is(err, end.want) {
+						t.Errorf("the hold after the begin's %s = %v, want %v", end.name, err, end.want)
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("the hold still blocks after the begin's transaction ended")
+				}
+			})
+		}
+	})
+}
+
+// beginResult is what a begin on a goroutine reports.
+type beginResult struct {
+	file blobfs.File
+	err  error
+}
+
+// beginIn runs BeginFileDelete in a transaction of its own on a
+// goroutine, commits it, and reports the result on the channel.
+func (s *suite) beginIn(id string) <-chan beginResult {
+	done := make(chan beginResult, 1)
+	go func() {
+		f, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+			return s.store.BeginFileDelete(s.ctx, tx, id)
+		})
+		done <- beginResult{file: f, err: err}
+	}()
+	return done
+}
+
+// await returns the begin's result, failing the test when it does not
+// arrive within a bound.
+func (s *suite) await(t *testing.T, begun <-chan beginResult) beginResult {
+	t.Helper()
+	select {
+	case r := <-begun:
+		return r
+	case <-time.After(5 * time.Second):
+		t.Fatal("the begin still blocks after the hold's transaction ended")
+		return beginResult{}
+	}
+}
+
+// references counts the rows that reference the file with id.
+func (s *suite) references(t *testing.T, id string) int {
+	t.Helper()
+	rows, err := s.db.QueryContext(s.ctx, "SELECT COUNT(*) FROM datatest_reference WHERE file_id = "+s.db.Dialect().Placeholder(1), id)
+	if err != nil {
+		t.Fatalf("count references of %s: %v", id, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var n int
+	if !rows.Next() || rows.Scan(&n) != nil {
+		t.Fatalf("count references of %s: no row: %v", id, rows.Err())
+	}
+	return n
 }
 
 // lockTree checks the tree lock against its contract, by what Serializes
@@ -835,11 +1053,16 @@ func (s *suite) wantGone(t *testing.T, id string) {
 // blobfs_file, which stands in for a consumer's.
 const referenceConstraint = "datatest_fk_reference_file"
 
-// createReference creates the suite's reference table: one column of the
-// same type as blobfs_file.id, taken from the migrated table so the DDL
-// names no engine type, under a foreign key to blobfs_file.
+// createReference creates the suite's reference table, once per run: one
+// column of the same type as blobfs_file.id, taken from the migrated
+// table so the DDL names no engine type, under a foreign key to
+// blobfs_file.
 func (s *suite) createReference(t *testing.T) {
 	t.Helper()
+	if s.referenced {
+		return
+	}
+	s.referenced = true
 	for _, text := range []string{
 		"CREATE TABLE datatest_reference AS SELECT f.id AS file_id FROM blobfs_file f WHERE 1 = 0",
 		"ALTER TABLE datatest_reference ADD CONSTRAINT " + referenceConstraint + " FOREIGN KEY (file_id) REFERENCES blobfs_file (id)",

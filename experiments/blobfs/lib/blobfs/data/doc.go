@@ -63,6 +63,17 @@
 // cascade and no recursive delete, and a consumer that wants one walks
 // the tree, files and then directories, deepest first.
 //
+// A consumer's row that references a file, such as a bookmark, follows
+// the reference-then-delete rule: the consumer calls HoldFile inside the
+// transaction that inserts the row, before the insert, and a file delete
+// runs its begin step before it reads the consumer's table, in one
+// transaction. HoldFile locks the file's row without changing it, and it
+// refuses a deleting file; the begin step takes the same lock. So the two
+// transactions serialize on the row: an insert that holds first commits
+// its reference before the delete reads the table and refuses, and a
+// delete that begins first makes the hold refuse. The rule is standard
+// SQL, so it holds on every engine and through every variant's begin.
+//
 // Two operations are variation points, where an engine may do better than
 // standard SQL: the tree lock that serializes directory moves, and the
 // first step of a file delete. The Variant interface names them, Standard
@@ -77,11 +88,12 @@
 //
 // Every method takes the session as an argument and passes it through
 // unwrapped, so a call runs against the pool or inside the caller's
-// transaction, and a statement headed transaction: required refuses a
-// session that is not a *sqlate.Tx. A violation of one of blobfs's own
-// constraints becomes blobfs.ErrNameTaken, blobfs.ErrIDTaken,
-// blobfs.ErrNotFound, blobfs.ErrRootDirectory, or, on a delete,
-// blobfs.ErrNotEmpty. A
+// transaction, and a statement headed transaction: required (the
+// baseline's delete begin, the directory move's update, and the hold)
+// refuses a session that is not a *sqlate.Tx. A violation of one of
+// blobfs's own constraints becomes blobfs.ErrNameTaken,
+// blobfs.ErrIDTaken, blobfs.ErrNotFound, blobfs.ErrRootDirectory, or, on
+// a delete, blobfs.ErrNotEmpty. A
 // violation of a constraint blobfs does not own returns unclassified on a
 // write, wrapped with the operation's context; on a delete a foreign key
 // blobfs does not own is a consumer's row that references the one being

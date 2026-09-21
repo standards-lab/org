@@ -68,10 +68,11 @@ var (
 	ErrStopped = errors.New("files: stopped as requested")
 
 	// ErrBookmarked reports a file delete refused because a unit bookmarks
-	// the file: rm checks the bookmark table before it begins the delete,
-	// and the foreign key fk_bookmark_file refuses the row's removal
-	// should a bookmark arrive after the check. The caller removes the
-	// bookmarks and reruns rm.
+	// the file: rm checks the bookmark table in the transaction that
+	// begins the delete, after the begin has locked the row, and the
+	// foreign key fk_bookmark_file refuses the row's removal should a
+	// bookmark be inserted without holding the file. The caller removes
+	// the bookmarks and reruns rm.
 	ErrBookmarked = errors.New("files: the file is bookmarked")
 
 	// ErrTreeBusy reports a recursive delete that stopped because a

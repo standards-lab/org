@@ -437,7 +437,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 // line; and a refused add returns the sentinel's message unrendered.
 func TestCommands_RenderBookmarks(t *testing.T) {
 	scripted := func() (*files.Store, error) {
-		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), affected())
+		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), affected(), affected())
 		return s, nil
 	}
 	out, err := run(t, scripted, "bookmark", "add", "/a.txt", "--unit", strings.ToUpper(unit), "--active")
@@ -483,7 +483,7 @@ func TestCommands_RenderBookmarks(t *testing.T) {
 	}
 
 	scripted = func() (*files.Store, error) {
-		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), violation(files.ConstraintUniqueBookmarkActive, sqlate.ErrUniqueViolation))
+		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), affected(), violation(files.ConstraintUniqueBookmarkActive, sqlate.ErrUniqueViolation))
 		return s, nil
 	}
 	out, err = run(t, scripted, "bookmark", "add", "/a.txt", "--unit", unit, "--active")
