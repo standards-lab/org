@@ -58,6 +58,45 @@ var (
 	// ErrStopped reports a put that stopped after the step --fail-after
 	// named, as asked. A StopError carries the step and the pending row.
 	ErrStopped = errors.New("files: stopped as requested")
+
+	// ErrAlreadyBookmarked reports a bookmark add of a file the unit has
+	// bookmarked already, active or not: the violation of the bookmark
+	// table's primary key. A bookmark is added once and removed once; there
+	// is no activation of an existing one.
+	ErrAlreadyBookmarked = errors.New("files: the unit has bookmarked the file already")
+
+	// ErrActiveBookmark reports a bookmark add with --active while another
+	// bookmark of the unit is active: the violation of the partial unique
+	// index uq_bookmark_active, which allows one active bookmark per unit.
+	// The other bookmark is left as it is; the caller removes it first.
+	ErrActiveBookmark = errors.New("files: the unit has an active bookmark already")
+
+	// ErrNoBookmark reports a bookmark rm of a file the unit has not
+	// bookmarked. The file exists; the bookmark does not.
+	ErrNoBookmark = errors.New("files: the unit has no bookmark of the file")
+)
+
+// The names of the constraints and the unique index the consumer's
+// bookmark migration declares and database.go maps to the sentinels
+// above. They are the consumer's own names, in the workspace's scheme
+// <kind>_<table>_<detail> without the blobfs_ prefix, so a violation of a
+// consumer constraint is told from one of blobfs's. The consumer's
+// migration tests check that every constant names an object in the DDL.
+const (
+	// ConstraintPrimaryKeyBookmark is the primary key on bookmark
+	// (unit_id, file_id). A violation on an add is ErrAlreadyBookmarked.
+	ConstraintPrimaryKeyBookmark = "pk_bookmark"
+
+	// ConstraintForeignKeyBookmarkFile is the foreign key from
+	// bookmark.file_id to blobfs_file.id. A violation on an add is
+	// blobfs.ErrNotFound: the file was removed between its resolution and
+	// the insert.
+	ConstraintForeignKeyBookmarkFile = "fk_bookmark_file"
+
+	// ConstraintUniqueBookmarkActive is the partial unique index on
+	// bookmark (unit_id) WHERE active. A violation on an add is
+	// ErrActiveBookmark.
+	ConstraintUniqueBookmarkActive = "uq_bookmark_active"
 )
 
 // StopError reports a put that --fail-after stopped between the steps of

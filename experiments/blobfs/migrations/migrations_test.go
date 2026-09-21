@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/standards-lab/org/experiments/blobfs/domain/files"
 	"github.com/standards-lab/org/experiments/blobfs/migrations"
 )
 
@@ -39,6 +40,37 @@ func TestMigrations(t *testing.T) {
 			if strings.HasPrefix(match[1], "blobfs_") {
 				t.Errorf("version %d %s creates %q, a name reserved for blobfs", m.Version, m.Name, match[1])
 			}
+		}
+	}
+}
+
+// TestConstraintConstants proves that every constraint-name constant the
+// consumer's domain exports for the bookmark table names a constraint or
+// a unique index the consumer's DDL declares, so the domain's error
+// mapping cannot drift from the schema, and that none carries the
+// blobfs_ prefix. The scan is over the embedded up texts and needs no
+// engine.
+func TestConstraintConstants(t *testing.T) {
+	set, err := migrations.Migrations()
+	if err != nil {
+		t.Fatalf("Migrations: %v", err)
+	}
+	declared := map[string]bool{}
+	for _, m := range set {
+		for _, match := range objectName.FindAllStringSubmatch(m.Up, -1) {
+			declared[match[1]] = true
+		}
+	}
+	for _, name := range []string{
+		files.ConstraintPrimaryKeyBookmark,
+		files.ConstraintForeignKeyBookmarkFile,
+		files.ConstraintUniqueBookmarkActive,
+	} {
+		if strings.HasPrefix(name, "blobfs_") {
+			t.Errorf("constant %q carries the prefix reserved for blobfs", name)
+		}
+		if !declared[name] {
+			t.Errorf("constant %q names no constraint or index in the consumer's DDL", name)
 		}
 	}
 }

@@ -129,3 +129,31 @@ func TestCopy_StreamsTheBytesAsTheyAre(t *testing.T) {
 		t.Errorf("stdout = %q", got)
 	}
 }
+
+// A bookmark listing writes the entries with the active marker and one
+// line for the page, in the form a directory listing's halves use.
+func TestBookmarks_WritesEntriesThenOneLine(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	out := output.New(&stdout, &stderr)
+	size := int64(42)
+	at := time.Date(2026, 9, 20, 10, 30, 0, 0, time.UTC)
+	out.Bookmarks([]output.BookmarkEntry{
+		{Path: "/reports/2026/plan.txt", Size: &size, Status: "available", Active: true, Updated: at},
+		{Path: "/draft.bin", Status: "pending", Updated: at},
+	}, output.Page{Number: 1, Size: 20, Listed: 2, Total: 2, Counted: true})
+	want := "PATH                    SIZE  STATUS     ACTIVE  UPDATED\n" +
+		"/reports/2026/plan.txt  42    available  active  2026-09-20 10:30:00\n" +
+		"/draft.bin              -     pending    -       2026-09-20 10:30:00\n" +
+		"bookmarks: 2 on page 1 of size 20, total 2\n"
+	if stdout.String() != want {
+		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("stderr = %q, want nothing", stderr.String())
+	}
+	stdout.Reset()
+	out.Bookmarks(nil, output.Page{Number: 1, Size: 20, Counted: false})
+	if want := "PATH  SIZE  STATUS  ACTIVE  UPDATED\nbookmarks: 0 on page 1 of size 20, total not counted\n"; stdout.String() != want {
+		t.Errorf("an empty listing without a total =\n%s\nwant\n%s", stdout.String(), want)
+	}
+}

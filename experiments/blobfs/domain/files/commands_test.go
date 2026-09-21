@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/standards-lab/go-storage"
 	"github.com/standards-lab/go-storage/storagetest"
+	"github.com/standards-lab/sqlate"
 
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
 	"github.com/standards-lab/org/experiments/blobfs/output"
@@ -50,8 +51,21 @@ func TestCommands_MountsMkdirAndLs(t *testing.T) {
 		names = append(names, c.Name())
 	}
 	slices.Sort(names)
-	if got := strings.Join(names, ","); got != "cat,ls,mkdir,put,stat" {
-		t.Errorf("Commands() = %s, want cat,ls,mkdir,put,stat", got)
+	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,put,stat" {
+		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,put,stat", got)
+	}
+	for _, c := range cmds {
+		if c.Name() != "bookmark" {
+			continue
+		}
+		var subs []string
+		for _, s := range c.Commands() {
+			subs = append(subs, s.Name())
+		}
+		slices.Sort(subs)
+		if got := strings.Join(subs, ","); got != "add,ls,rm" {
+			t.Errorf("bookmark's subcommands = %s, want add,ls,rm", got)
+		}
 	}
 }
 
@@ -77,6 +91,15 @@ func TestCommands_ValidateBeforeConstructingTheStore(t *testing.T) {
 		{[]string{"put", "/a.txt"}, `accepts 2 arg`},
 		{[]string{"cat"}, `accepts 1 arg`},
 		{[]string{"stat", "/a", "/b"}, `accepts 1 arg`},
+		{[]string{"bookmark", "add", "/a.txt"}, `required flag(s) "unit" not set`},
+		{[]string{"bookmark", "add", "/a.txt", "--unit", "nope"}, `--unit "nope" is not a UUID`},
+		{[]string{"bookmark", "add", "--unit", unit}, `accepts 1 arg`},
+		{[]string{"bookmark", "ls"}, `required flag(s) "unit" not set`},
+		{[]string{"bookmark", "ls", "--unit", unit, "--total", "some"}, `the mode is exact or none`},
+		{[]string{"bookmark", "ls", "--unit", unit, "--sort", "path:up"}, `the direction is asc or desc`},
+		{[]string{"bookmark", "ls", "/a", "--unit", unit}, `unknown command "/a"`},
+		{[]string{"bookmark", "rm", "/a.txt"}, `required flag(s) "unit" not set`},
+		{[]string{"bookmark", "rm", "--unit", unit}, `accepts 1 arg`},
 	} {
 		out, err := run(t, counting(&calls), tc.args...)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -104,6 +127,9 @@ func TestCommands_ReturnTheConstructorsError(t *testing.T) {
 		{"put", "-", "/a.txt"},
 		{"cat", "/a.txt"},
 		{"stat", "/a.txt"},
+		{"bookmark", "add", "/a.txt", "--unit", unit, "--active"},
+		{"bookmark", "ls", "--unit", unit, "--page", "2", "--size", "5", "--sort", "path:desc", "--total", "none"},
+		{"bookmark", "rm", "/a.txt", "--unit", unit},
 	} {
 		out, err := run(t, failing, args...)
 		if !errors.Is(err, want) {
@@ -372,5 +398,66 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	_, err = run(t, scripted, "ls", "/", "--after-files", "nonsense")
 	if err == nil || !strings.Contains(err.Error(), "not one this listing issued") {
 		t.Errorf("ls --after-files nonsense = %v, want the cursor refusal", err)
+	}
+}
+
+// TestCommands_RenderBookmarks proves the bookmark commands render: add
+// prints one result line naming the path, the file, the unit in canonical
+// form, and whether the bookmark is active; ls prints the entries as
+// aligned columns with the active marker and one line stating the page
+// and the total, or its absence under --total none; rm prints one result
+// line; and a refused add returns the sentinel's message unrendered.
+func TestCommands_RenderBookmarks(t *testing.T) {
+	scripted := func() (*files.Store, error) {
+		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), affected())
+		return s, nil
+	}
+	out, err := run(t, scripted, "bookmark", "add", "/a.txt", "--unit", strings.ToUpper(unit), "--active")
+	if err != nil || out != "bookmark add: /a.txt (file F, unit "+unit+", active)\n" {
+		t.Errorf("bookmark add --active = %q, %v", out, err)
+	}
+	out, err = run(t, scripted, "bookmark", "add", "/a.txt", "--unit", unit)
+	if err != nil || out != "bookmark add: /a.txt (file F, unit "+unit+", inactive)\n" {
+		t.Errorf("bookmark add = %q, %v", out, err)
+	}
+
+	scripted = func() (*files.Store, error) {
+		resp := bookmarks(unit, "/reports/2026/plan.txt", "/notes.md")
+		resp.Rows[1][2] = true
+		s, _ := newStore(t, counted(7), resp)
+		return s, nil
+	}
+	out, err = run(t, scripted, "bookmark", "ls", "--unit", unit, "--page", "2", "--size", "2")
+	if err != nil {
+		t.Fatalf("bookmark ls: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) != 4 || !strings.HasPrefix(lines[0], "PATH") || !strings.HasPrefix(lines[1], "/reports/2026/plan.txt  1     available  -") || !strings.HasPrefix(lines[2], "/notes.md               2     available  active") {
+		t.Errorf("stdout =\n%s", out)
+	}
+	if lines[3] != "bookmarks: 2 on page 2 of size 2, total 7" {
+		t.Errorf("the page line = %q", lines[3])
+	}
+	out, err = run(t, scripted, "bookmark", "ls", "--unit", unit, "--total", "none")
+	if err != nil || !strings.HasSuffix(out, "bookmarks: 2 on page 1 of size 20, total not counted\n") {
+		t.Errorf("bookmark ls --total none rendered %q, %v", out, err)
+	}
+
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), affected())
+		return s, nil
+	}
+	out, err = run(t, scripted, "bookmark", "rm", "/a.txt", "--unit", unit)
+	if err != nil || out != "bookmark rm: /a.txt (file F, unit "+unit+")\n" {
+		t.Errorf("bookmark rm = %q, %v", out, err)
+	}
+
+	scripted = func() (*files.Store, error) {
+		s, _ := newStore(t, root(), file("F", "a.txt", "available", 2), violation(files.ConstraintUniqueBookmarkActive, sqlate.ErrUniqueViolation))
+		return s, nil
+	}
+	out, err = run(t, scripted, "bookmark", "add", "/a.txt", "--unit", unit, "--active")
+	if !errors.Is(err, files.ErrActiveBookmark) || out != "" {
+		t.Errorf("a refused add = %q, %v; want ErrActiveBookmark and no result line", out, err)
 	}
 }

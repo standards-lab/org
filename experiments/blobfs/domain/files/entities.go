@@ -48,6 +48,29 @@ func (o OwnedDirectory) Directory() blobfs.Directory {
 	return blobfs.Directory{ID: o.ID, ParentID: o.ParentID, Name: &name, Version: o.Version, CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt}
 }
 
+// BookmarkedFile is one row of the consumer's bookmark read model,
+// bookmarks: a unit's bookmark of a file, the file's columns the listing
+// shows, and the file's full path, computed by the read model from the
+// file's directory upward. It is what bookmark ls lists. Active says the
+// bookmark is the unit's one active bookmark. Size is nil for a file whose
+// write has not completed. CreatedAt and UpdatedAt are the bookmark's, not
+// the file's. The fields are flat, as in OwnedDirectory, because the
+// struct-tag mapper does not flatten an embedded struct; the read model
+// restates the library columns it uses and no others. The json tags are
+// the scan contract: the projection's columns carry the same names.
+type BookmarkedFile struct {
+	UnitID      string        `json:"unit_id"`
+	FileID      string        `json:"file_id"`
+	Active      bool          `json:"active"`
+	Path        string        `json:"path"`
+	Name        string        `json:"name"`
+	Status      blobfs.Status `json:"status"`
+	Size        *int64        `json:"size"`
+	ContentType string        `json:"content_type"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+}
+
 // TotalMode says whether a listing asks for its total.
 type TotalMode int
 

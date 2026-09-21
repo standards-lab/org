@@ -16,7 +16,7 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 10 are committed: the single-root schema, the consumer's `directory_owner` and
+Stages 1 to 11 are committed: the single-root schema, the consumer's `directory_owner` and
 `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
@@ -25,11 +25,16 @@ two-phase write in the persistence package (`FileByName`, `BeginFileWrite`, `Com
 over four new standard-tier statements), the one-method key-validation interface, the storage
 adapter in `domain/files/storage.go` over `go-storage` and `azureblob`, the object store opened
 by the composition root on the first file command, and the `put`, `cat`, and `stat` commands with
-`put --fail-after insert|write`. The binary serves `schema up|down`, `mkdir <path> [--unit]`,
-`ls <path>` with `--page`, `--size`, `--sort`, `--total none`, `--after-dirs`, `--after-files`,
-and `--unit`, and the three file commands; it builds its store over the baseline. `mise run
-evidence` writes `evidence/read-model.txt`, the cost of the shipped listing. The bookmark
-commands, deleting, and moving are later stages.
+`put --fail-after insert|write`. Stage 11 added the bookmark commands
+(`bookmark add|ls|rm`, each under `--unit`), the consumer's bookmark read model (`bookmarks`, a
+projection over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion
+correlated on the file's directory), the classification of the bookmark table's three
+constraints into consumer sentinels, and the second evidence transcript. The binary serves
+`schema up|down`, `mkdir <path> [--unit]`, `ls <path>` with `--page`, `--size`, `--sort`,
+`--total none`, `--after-dirs`, `--after-files`, and `--unit`, the three file commands, and the
+three bookmark commands; it builds its store over the baseline. `mise run evidence` writes
+`evidence/read-model.txt`, the cost of the shipped listing, and `evidence/bookmarks.txt`, the
+cost of the bookmark read model. Deleting and moving are later stages.
 
 ## Running it
 
@@ -41,6 +46,84 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 11 decisions the plan did not spell out
+
+- **What is shipped: the projection, with the recursion correlated per row.** The plan
+  described the read model as a projection whose recursion is anchored on the bookmarked
+  files' directories, and noted that a projection base cannot bind the unit. Built that way
+  (a top-level `WITH RECURSIVE` anchored on every bookmarked file, the unit as a filter
+  directive outside the derived table), the walk starts from every bookmark of every unit
+  before the filter discards the rest: 165 ms and 3,023 buffers for a unit with 10 bookmarks
+  among 53,110, and the same for 1,000. The shipped base instead computes each row's path by
+  a scalar subquery containing the recursion, correlated on the file's directory. That base is
+  a plain join the planner pulls up, so the unit filter reaches the bookmark index first and
+  the walk runs once per row the filter keeps: 0.27 ms and 245 buffers for 10 bookmarks. It
+  stays a `query.Projection`, so `--page`, `--size`, `--sort`, and `--total` come from the
+  query library. The anchored plain statement (the unit bound inside the recursion, the shape
+  a parameterized base would give) was measured beside it and not shipped: it is slower for a
+  small unit (4.1 ms, 886 buffers for 10 bookmarks, because the planner hashes the whole
+  directory table per recursion level) and about equal for a large one (14 ms against 17 ms
+  for 1,000, with JIT off). Both hand-written shapes live in the evidence test only.
+- **`add` of a file the unit has bookmarked already is refused**, with `ErrAlreadyBookmarked`
+  mapped from the primary key `pk_bookmark`, active or not. An idempotent activation was
+  rejected: it would turn the add into an update that must also obey the partial index, and
+  the gate asks for the primary key's violation to reach the caller classified. A bookmark is
+  added once and removed once, like a directory name.
+- **`--active` makes the bookmark the unit's one active bookmark and is refused while another
+  is active**, with `ErrActiveBookmark` mapped from `uq_bookmark_active`. The other bookmark is
+  left as it is; there is no `--replace-active`. The refusal is the gate, and a swap is two
+  commands (`rm` then `add --active`), which is one round trip more than a flag and no new
+  statement.
+- **`rm` of the active bookmark is allowed.** The partial index bounds how many bookmarks are
+  active, not whether the active one may go; a unit with no active bookmark is a legal state
+  (it is the state before the first `add --active`), and the next `add --active` fills it.
+  `rm` of a bookmark the unit does not hold is `ErrNoBookmark` (zero rows affected); a missing
+  file is `blobfs.ErrNotFound`.
+- **A pending file can be bookmarked; a deleting file cannot.** The bookmark written beside a
+  pending row is the `v1.storage` shape: the service inserts the pending row and its own row
+  in one transaction, then uploads. `stat` and `bookmark ls` show the status. A deleting file
+  is refused with `ErrNotAvailable` naming the status, because a new bookmark would hold a
+  delete that is under way through the foreign key.
+- **The foreign key's violation is `blobfs.ErrNotFound`.** `fk_bookmark_file` fails when the
+  file was removed between its resolution and the insert. `TestAddBookmarkOfAFileRemovedMeanwhile`
+  reaches it on the engine: a second connection holds an uncommitted delete, the add resolves
+  the file and blocks on the foreign key check, and the commit fails the insert. The mapping
+  is the consumer's (`bookmarkSentinels` in `database.go`), keyed on the consumer's constraint
+  names, which `errors.go` exports as constants and the migrations test checks against the DDL.
+- **The constraint names were already explicit.** `pk_bookmark`, `fk_bookmark_file`, and
+  `uq_bookmark_active` follow `<kind>_<table>_<detail>` without the `blobfs_` prefix, so the
+  consumer migration was not amended and no hash moved.
+- **The transaction boundaries.** `AddBookmark` runs the parent's resolution, the file's
+  lookup, and the insert in one transaction, the pattern of `Put`'s first step and of `mkdir
+  --unit`; `create_bookmark` carries no `transaction: required` header, because one insert is
+  correct on the pool too and a service composes it into its own transaction.
+  `RemoveBookmark` runs on the pool: the delete is keyed by the unit and the file's id, so
+  nothing needs the resolution and the delete to share a snapshot. `ListBookmarks` runs the
+  projection's count and page in one read-only repeatable-read transaction, as `ls` does.
+- **The key and the default sort.** The key is `file_id`, the default sort is `path`. Within
+  one unit, which every read filters by, a file is bookmarked at most once, so any sort
+  followed by `file_id` is total; over the unfiltered base the unique key is the pair
+  `(unit_id, file_id)`, which a projection's one-field key cannot state (ledger). `path` is
+  what a reader wants, and it costs the unit's bookmark count times the depth, because the
+  sort needs every row's path; `--sort file_id` is the bookmark index's own order and costs
+  the page's rows times the depth (0.23 ms and 493 buffers for 1,000 bookmarks against 17 ms
+  and 21,940 by path). The evidence records both.
+- **`--total none` on the bookmark listing reads the count and drops it**, as `ls / --unit`
+  does: `Projection.List` always runs its count twin. The count is cheap here (the planner
+  drops the path subquery from a count over the pulled-up base: 0.06 ms and 35 buffers for 10
+  bookmarks, 0.93 ms and 3,012 for 1,000), so the flag saves nothing measurable.
+- **An empty later page keeps the exact total.** The projection's count is a statement of its
+  own, so page 4 of a five-row listing reports total 5 where the library's window count
+  reports `NoTotal`. The engine test pins the difference.
+- **The evidence test is in the package itself.** `TestBookmarkCost` is `package files`, not
+  `files_test`, so it can run the unexported `bookmarksOf` through a recording session and
+  capture the SQL the projection composes; the hand-written comparison forms are constants in
+  the test. `mise run evidence` runs it after the library's `TestListingCost` and writes
+  `evidence/bookmarks.txt`.
+- **The paging flags are shared.** `pageFlags` (`--page`, `--size`, `--sort`, `--total`) is the
+  flag set both `ls` and `bookmark ls` bind; `listingFlags` embeds it and adds the cursors and
+  the unit. `bookmark ls` takes `--unit` as a required flag and no positional argument.
 
 ### 2026-09-20: stage 10 decisions the plan did not spell out
 
@@ -544,6 +627,57 @@ owner and no unit.
   `Port:` by convention. An `sqlint` report, or a `query.Statements` method that lists native
   statements and their declarations, would turn the port notes into the work list the ledger
   says they are.
+- **The parameterized projection base, measured (stage 11).** The bookmark read model as the
+  plan described it, a projection whose base is a top-level `WITH RECURSIVE` anchored on the
+  bookmarked files' directories, cannot bind the unit, so the recursion walks upward from every
+  bookmark of every unit and the unit filter, applied outside the derived table, discards the
+  rest afterward: 165 ms and 3,023 buffers for a unit with 10 bookmarks among 53,110 (156 ms
+  with JIT off), and the same order for 1,000. The anchored plain statement with the unit bound
+  in the recursion's anchor, the shape a parameterized base would give, costs 4.1 ms and 886
+  buffers for 10 and 14 ms and 6,472 for 1,000. So a parameterized base turns a cost
+  proportional to every unit's bookmarks into one proportional to the unit's. The experiment
+  did not need it for this read model, because the recursion can be moved into a scalar
+  subquery correlated on each row's directory; the base is then a plain join the planner pulls
+  up, the unit directive reaches the bookmark index, and the page costs 0.27 ms and 245
+  buffers for 10 bookmarks and 17 ms and 21,940 for 1,000 (JIT off). The parameterized base
+  stays motivated by the two cases the correlated form cannot take: a base whose recursion must
+  be a top-level common table expression (a downward walk, or a walk shared by several output
+  columns), and the directory-anchored listing of stage 6.
+- **A correlated recursion inside a projection base is pulled up; a top-level one is not
+  (stage 11).** The query library's collection and count patterns wrap the base as a derived
+  table. A base with a `WITH RECURSIVE` at its top level is planned as its own unit, so the
+  outer filter runs after it (the finding of stage 8 for the sort, seen again for the filter).
+  A base whose recursion sits in a scalar subquery of the select list is a simple subquery, and
+  the planner pulls it up: the outer `WHERE` becomes an index condition on `bookmark`, the
+  count twin drops the subquery altogether (0.06 ms and 35 buffers for 10 bookmarks, 0.93 ms
+  and 3,012 for 1,000, against 4.6 ms and 877 for the anchored form's count, which must run its
+  recursion), and a sort by the key evaluates the subquery for the page's rows only (0.23 ms
+  and 493 buffers for 1,000 bookmarks). The authored base decides whether the projection's
+  directives can reach an index; the library's documentation should say so.
+- **The correlated recursion trips the planner's JIT threshold (stage 11).** The planner costs
+  the recursive subquery at about 720 units per row, so a page over a unit with more than about
+  140 bookmarks crosses `jit_above_cost` (100,000) on a server with the default settings and is
+  JIT-compiled: 139 ms for 1,000 bookmarks with JIT on against 17 ms with it off, and the
+  compile is more than the walk. A sort by the key stays under the threshold (the `Limit` bounds
+  the estimate), and the anchored form's estimate is 9,000. A consumer that ships this shape
+  either sets `jit_above_cost` for the session (a native form the standard tier cannot state) or
+  accepts it; the transcript's section f records both settings.
+- **A projection's key is one field (stage 11).** `--| key:` names one field, and the
+  projection appends it as the tie-breaker. The bookmark read model's unique key over the
+  unfiltered base is the pair `(unit_id, file_id)`; the experiment declares `file_id` and
+  relies on every read filtering by the unit. A composite key, or a key declared per filter,
+  would let the header state the truth.
+- **The count twin gives an empty later page its total (stage 11).** Unlike the window count,
+  which travels on rows, the projection's separate count reports the exact total for a page
+  past the end. The two read models the consumer ships therefore differ on that edge, and
+  `output` renders both (`total 5` against `total unknown (the page is empty)`).
+- **A consumer's constraints classify in the consumer (stage 11).** `blobfs`'s write mapping
+  returns a violation of a consumer constraint as it came, with the `sqlate.ConstraintError`
+  reachable, and the consumer keeps its own table from its constraint names to its sentinels
+  (`bookmarkSentinels`), keyed on the names its migration declares and its tests check. The
+  two mappings never overlap, because the names carry the owner's prefix or the lack of it.
+  `sqlate` itself gives everything this needs; the finding is that the classification is
+  per-owner and per-operation, and a library cannot classify a constraint it does not own.
 
 ### The library
 
@@ -649,6 +783,20 @@ owner and no unit.
   provider's rule enforces its own length in runes, and `MaxNameLength` keeps every key at 292
   runes or fewer, so the interface's length was unreachable against any real provider. The
   concept's "key validation and a maximum key length" becomes "key validation".
+- **The consumer-anchored read model costs the unit's bookmarks times the depth (stage 11).**
+  `bookmarks.sql` is one projection base: `bookmark` joined to `blobfs_file`, with the path
+  computed per row by a recursion from the file's directory to the root, names joined with
+  slashes as the walk climbs and the root contributing nothing. The measurement: the page by
+  path costs 0.27 ms and 245 buffers for 10 bookmarks, 1.0 ms and 2,371 for 100, and 17 ms and
+  21,940 for 1,000 (JIT off); buffers grow with the depth (14,349 at mean depth 3.0 against
+  23,349 at depth 6.0 for 1,000 bookmarks); and nothing grows with the size of the tree
+  (10,003 directories, 100,000 files) or of the bookmark table (53,110 rows). The path is a
+  read-time computation, as settled, and the consumer stores none.
+- **The bookmark's foreign key holds the file (stage 11).** A raw delete of a bookmarked file
+  fails under `fk_bookmark_file`, so stage 12's `rm` meets a classifiable error from the
+  consumer's constraint, which `blobfs` leaves unclassified and the consumer maps. The
+  bookmark row is the consumer's, so the consumer decides whether `rm` removes the bookmark
+  first or refuses.
 - **The consumer's `List` is one transaction and two library listings (stage 7).**
   `TestListRunsInOneReadOnlyRepeatableReadTransaction` proves one begin with both options, the
   root read, the two halves, and the commit, and nothing else; `TestListHalvesAgreeUnderConcurrentWrites`
@@ -714,6 +862,22 @@ owner and no unit.
   `storage.go` may import go-storage. A service whose composition root owns the storage store
   would build the adapter in the domain the same way and keep the store itself in its
   infrastructure; the type crossing is the cost of keeping the provider import in one file.
+- File-grain ownership as built (stage 11): the `bookmark` row binds a file to a unit, at most
+  one active per unit under the partial unique index `uq_bookmark_active`, and the three
+  constraints (`pk_bookmark`, `fk_bookmark_file`, `uq_bookmark_active`) reach the service as
+  its own sentinels through one table in its database file. The `org_image` case maps onto it
+  directly: the organization is the unit, the image row is the bookmark, "one logo per
+  organization" is the partial index, and the refusal of a second active row is a classified
+  error the handler turns into a conflict response. The service writes the row beside the
+  pending file row in the upload's first transaction (a pending file can be bookmarked), and
+  the delete of a file the row references fails under the foreign key until the row goes.
+- The service's listing of a unit's files with their paths is a projection over its own table
+  joined to `blobfs_file`, with the path computed per row by a recursion correlated on the
+  file's directory, and it pages, sorts, and counts through `query.Projection` unchanged. The
+  count and the page run in one read-only repeatable-read transaction so they agree. The cost
+  is the unit's row count times the depth; a sort by the row's key costs the page's rows
+  instead. A unit with more than a few hundred rows pays a JIT compile on a default Postgres
+  unless the session lowers `jit_above_cost`.
 
 ## Evidence: the cost of the shipped listing (proof V3, measured 2026-09-20, PostgreSQL 18.4)
 
@@ -787,6 +951,61 @@ What the measurement shows, and the answers to the V3 questions as far as it sup
   count twin goes from 2434 buffers to an index-only 109 after `VACUUM`. The shipped window total
   is unaffected, because it travels in the page statement, which reads the rows.
 
+## Evidence: the cost of the bookmark read model (stage 11, measured 2026-09-20, PostgreSQL 18.4)
+
+The measurement is `evidence/bookmarks.txt`, written by `mise run evidence` from
+`domain/files/evidence_integration_test.go` (`TestBookmarkCost`, gated by `BLOBFS_EVIDENCE=1`
+and the `integration` tag) against the shipped schema and the shipped projection as the store
+composes it. The fixture is 100,000 file rows and 10,003 directories in three trees under the
+root to depth six, 50 background units with 1,000 bookmarks each, and the measured units: 10,
+100, and 1,000 bookmarks of random files (mean directory depth about 5.5), and 1,000 bookmarks
+of files at depth three ("shallow", the least depth holding a thousand files) and at depth six
+("deep"). The three tables were `VACUUM ANALYZE`d after seeding. The numbers are medians of five
+`EXPLAIN (ANALYZE, BUFFERS)` runs in milliseconds, over pgx's simple protocol; plan shapes and
+buffer counts are the durable facts. JIT is the server's default (on) except in section f.
+
+| Section | Query | 10 bookmarks | 100 | 1,000 |
+|---------|-------|--------------|-----|-------|
+| a | Shipped projection, count twin | 0.06 ms, 35 buffers | 0.26 ms, 306 | 0.93 ms, 3,012 |
+| a | Shipped projection, page 1 by path | 0.27 ms, 245 | 1.0 ms, 2,371 | 139 ms, 21,940 (JIT) |
+| b | Shipped projection, page 1 by `file_id` | 0.15 ms, 245 | | 0.23 ms, 493 |
+| c | Projection over a top-level recursion, count and page | 165 and 167 ms, 3,023 and 3,032 | | 167 and 170 ms, 6,000 and 7,009 |
+| d | Anchored plain statement, count and page | 4.6 and 4.1 ms, 877 and 886 | | 13.8 and 14.3 ms, 5,463 and 6,472 |
+| d | Anchored plain statement, page wrapped as a derived table | | | 14.5 ms, 6,472 |
+| e | Shipped page by path, shallow (depth 3.0) and deep (depth 6.0) | | | 134 and 138 ms, 14,349 and 23,349 (JIT) |
+| e | Anchored page, shallow and deep | | | 13.3 and 14.1 ms, 6,475 and 6,476 |
+| f | Shipped page by path, JIT off | | 1.6 ms, 2,371 | 16.9 ms, 21,940 |
+| f | Shipped page by path, JIT off, shallow and deep | | | 13.9 and 17.4 ms, 14,349 and 23,349 |
+| f | Top-level recursion, JIT off, count and page | 156 and 158 ms | | 160 and 160 ms |
+
+What the measurement shows:
+
+- **The shipped shape costs the unit's bookmarks times the depth.** From 10 to 100 to 1,000
+  bookmarks the page by path reads 245, 2,371, and 21,940 buffers, about 22 per bookmark at a
+  mean depth of 5.5, and from depth 3.0 to 6.0 it reads 14,349 against 23,349 for the same
+  1,000 bookmarks. Nothing in it scales with the 53,110 bookmarks of the other units or with the
+  tree's 10,003 directories.
+- **The top-level recursion costs every unit's bookmarks.** Section c is the shape the plan
+  described and the only one a projection base can take when the recursion is a top-level
+  common table expression: 165 ms for a unit with 10 bookmarks and 167 ms for one with 1,000,
+  because the walk starts from all 53,110 bookmarks before the unit filter runs. That is the
+  cost a parameterized projection base removes, and the finding the ledger records with these
+  numbers.
+- **The anchored plain statement is what a parameterized base would give**, and it is not
+  better than the correlated form: 4.1 ms and 886 buffers for 10 bookmarks (the planner hashes
+  the whole directory table on every recursion level, so the small unit pays for the tree) and
+  14 ms for 1,000, against 0.27 ms and 17 ms (JIT off) for the shipped shape. Its count twin
+  must run the recursion (4.6 ms for 10 bookmarks) where the shipped count drops the path
+  subquery (0.06 ms). The wrap costs nothing here (14.5 against 14.3 ms) because the sort is by
+  a computed column and no index order is lost.
+- **JIT dominates the shipped page at a thousand bookmarks.** 139 ms with the default settings
+  against 17 ms with `jit = off`; the planner's estimate of the correlated recursion crosses
+  `jit_above_cost` at about 140 rows. The sort by the key stays under the threshold and reads
+  only the page's rows (0.23 ms and 493 buffers for 1,000 bookmarks), so a consumer with large
+  units sorts by the key or lowers the threshold for the session.
+- **The path stays a read-time computation.** The read model stores nothing, and its cost is
+  bounded by what the unit holds.
+
 ### Earlier evidence: read-model cost by form (proof V1, 2026-09-20, volume-era schema)
 
 The record is `evidence/v1-read-model.txt`, produced by a test deleted with the volume package
@@ -810,5 +1029,4 @@ was never vacuumed; section 0 of the V3 measurement settles that caveat.
 
 Authorization, which needs `go-auth` and is proven under `v1.auth`. The migration path through
 `go-web-service`'s admin surface, which `v1.storage.service` proves. The remaining stages answer
-proofs 2 to 7 and the variant seam, and stage 11 adds the bookmark read model's cost to the
-evidence.
+proofs 2 to 7 and the variant seam; the bookmark read model's cost is in the evidence.

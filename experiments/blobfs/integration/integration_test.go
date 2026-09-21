@@ -448,3 +448,125 @@ func TestWriteCommands(t *testing.T) {
 	}
 	refused(t, bin, tg, "at most 255 characters", "put", local, "/docs/"+name+"\u00e9")
 }
+
+// bookmarkPaths returns the first column of every entry line of a
+// bookmark listing: the paths, in the order printed.
+func bookmarkPaths(out string) []string {
+	var paths []string
+	for _, line := range lines(out) {
+		if strings.HasPrefix(line, "/") {
+			paths = append(paths, strings.Fields(line)[0])
+		}
+	}
+	return paths
+}
+
+// TestBookmarkCommands is the scripted run of the bookmark commands
+// through the built binary: add at depth six and at the root, the active
+// bookmark and the refusal of a second one, the duplicate add, the
+// missing file, ls with its full paths, the active marker, the pending
+// file, paging, sorting, --total none, and the unit filter, then rm of
+// the active bookmark and the refusals rm renders.
+func TestBookmarkCommands(t *testing.T) {
+	db, tg := open(t)
+	bin := build(t)
+	unit, other := blobfs.NewID(), blobfs.NewID()
+	ok(t, bin, tg, "schema", "up")
+	local := filepath.Join(t.TempDir(), "plan.txt")
+	if err := os.WriteFile(local, []byte("plan\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := ""
+	for _, name := range []string{"d1", "d2", "d3", "d4", "d5", "d6"} {
+		dir += "/" + name
+		ok(t, bin, tg, "mkdir", dir)
+	}
+	ok(t, bin, tg, "mkdir", "/reports")
+	deep := dir + "/plan.txt"
+	ok(t, bin, tg, "put", local, deep)
+	ok(t, bin, tg, "put", local, "/root.txt")
+	ok(t, bin, tg, "put", local, "/reports/x.txt")
+	ok(t, bin, tg, "put", local, "/reports/y.txt")
+	if _, errOut, code := run(t, bin, tg, "put", local, "/reports/draft.bin", "--fail-after", "insert"); code != 1 {
+		t.Fatalf("put --fail-after insert exited %d: %s", code, errOut)
+	}
+	_ = db
+
+	// add: the result line, the active bookmark, and the refusals.
+	out := ok(t, bin, tg, "bookmark", "add", deep, "--unit", unit)
+	if !strings.HasPrefix(out, "bookmark add: "+deep+" (file ") || !strings.HasSuffix(out, ", unit "+unit+", inactive)\n") {
+		t.Errorf("bookmark add stdout = %q", out)
+	}
+	if out := ok(t, bin, tg, "bookmark", "add", "/reports/x.txt", "--unit", unit, "--active"); !strings.HasSuffix(out, ", unit "+unit+", active)\n") {
+		t.Errorf("bookmark add --active stdout = %q", out)
+	}
+	ok(t, bin, tg, "bookmark", "add", "/root.txt", "--unit", unit)
+	ok(t, bin, tg, "bookmark", "add", "/reports/draft.bin", "--unit", unit)
+	ok(t, bin, tg, "bookmark", "add", "/reports/x.txt", "--unit", other, "--active")
+	refused(t, bin, tg, "has an active bookmark already", "bookmark", "add", "/reports/y.txt", "--unit", unit, "--active")
+	refused(t, bin, tg, "has bookmarked the file already", "bookmark", "add", "/root.txt", "--unit", unit)
+	refused(t, bin, tg, "not found", "bookmark", "add", "/reports/missing.txt", "--unit", unit)
+	refused(t, bin, tg, "not found", "bookmark", "add", "/reports", "--unit", unit)
+	refused(t, bin, tg, `required flag(s) "unit" not set`, "bookmark", "add", "/root.txt")
+	refused(t, bin, tg, "is not a UUID", "bookmark", "add", "/root.txt", "--unit", "nope")
+
+	// ls: full paths in path order, the active marker, the pending file
+	// with its status, the total; then paging, sorting, --total none, and
+	// the other unit's own listing.
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", unit)
+	if got := bookmarkPaths(out); strings.Join(got, " ") != deep+" /reports/draft.bin /reports/x.txt /root.txt" {
+		t.Errorf("bookmark ls paths = %v", got)
+	}
+	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total 4\n") {
+		t.Errorf("bookmark ls stdout:\n%s", out)
+	}
+	for _, line := range lines(out) {
+		f := strings.Fields(line)
+		switch {
+		case strings.HasPrefix(line, "/reports/x.txt") && (f[2] != "available" || f[3] != "active"):
+			t.Errorf("the active bookmark's line = %q", line)
+		case strings.HasPrefix(line, "/reports/draft.bin") && (f[1] != "-" || f[2] != "pending" || f[3] != "-"):
+			t.Errorf("the pending file's line = %q", line)
+		case strings.HasPrefix(line, deep) && (f[1] != "5" || f[3] != "-"):
+			t.Errorf("the deep file's line = %q", line)
+		}
+	}
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", unit, "--page", "2", "--size", "3", "--sort", "path:desc")
+	if got := bookmarkPaths(out); strings.Join(got, " ") != deep {
+		t.Errorf("bookmark ls page 2 of 3 by path desc = %v", got)
+	}
+	if !strings.Contains(out, "bookmarks: 1 on page 2 of size 3, total 4\n") {
+		t.Errorf("bookmark ls page 2 stdout:\n%s", out)
+	}
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", unit, "--total", "none")
+	if !strings.Contains(out, "bookmarks: 4 on page 1 of size 20, total not counted\n") {
+		t.Errorf("bookmark ls --total none stdout:\n%s", out)
+	}
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", other)
+	if got := bookmarkPaths(out); strings.Join(got, " ") != "/reports/x.txt" {
+		t.Errorf("bookmark ls of the other unit = %v", got)
+	}
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", blobfs.NewID())
+	if !strings.Contains(out, "bookmarks: 0 on page 1 of size 20, total 0\n") {
+		t.Errorf("bookmark ls of a unit with none:\n%s", out)
+	}
+	refused(t, bin, tg, "unknown sort field", "bookmark", "ls", "--unit", unit, "--sort", "key")
+	refused(t, bin, tg, `required flag(s) "unit" not set`, "bookmark", "ls")
+
+	// rm: the active bookmark goes, another can become active, and the
+	// refusals.
+	out = ok(t, bin, tg, "bookmark", "rm", "/reports/x.txt", "--unit", unit)
+	if !strings.HasPrefix(out, "bookmark rm: /reports/x.txt (file ") || !strings.HasSuffix(out, ", unit "+unit+")\n") {
+		t.Errorf("bookmark rm stdout = %q", out)
+	}
+	ok(t, bin, tg, "bookmark", "add", "/reports/y.txt", "--unit", unit, "--active")
+	refused(t, bin, tg, "has no bookmark of the file", "bookmark", "rm", "/reports/x.txt", "--unit", unit)
+	refused(t, bin, tg, "not found", "bookmark", "rm", "/reports/missing.txt", "--unit", unit)
+	out = ok(t, bin, tg, "bookmark", "ls", "--unit", unit)
+	if got := bookmarkPaths(out); strings.Join(got, " ") != deep+" /reports/draft.bin /reports/y.txt /root.txt" {
+		t.Errorf("bookmark ls after rm = %v", got)
+	}
+	if got := bookmarkPaths(ok(t, bin, tg, "bookmark", "ls", "--unit", other)); strings.Join(got, " ") != "/reports/x.txt" {
+		t.Errorf("the other unit's bookmark after the unit's rm = %v", got)
+	}
+}

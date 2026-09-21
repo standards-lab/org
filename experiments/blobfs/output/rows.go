@@ -102,6 +102,38 @@ func (o *Output) page(half, label string, p Page) {
 	}
 }
 
+// BookmarkEntry is one line of a bookmark listing: a file the unit
+// bookmarked, at its full path. Size is nil for a file whose size is not
+// known yet, and Active marks the unit's one active bookmark.
+type BookmarkEntry struct {
+	Path    string
+	Size    *int64
+	Status  string
+	Active  bool
+	Updated time.Time
+}
+
+// Bookmarks writes a bookmark listing to stdout: the entries as aligned
+// columns in the order given, then one line saying what the page holds
+// and the total or its absence, in the form the halves of a directory
+// listing use. The read model pages by number only, so no cursor line is
+// written.
+func (o *Output) Bookmarks(entries []BookmarkEntry, p Page) {
+	rows := make([][]string, 0, len(entries))
+	for _, e := range entries {
+		size, active := "-", "-"
+		if e.Size != nil {
+			size = strconv.FormatInt(*e.Size, 10)
+		}
+		if e.Active {
+			active = "active"
+		}
+		rows = append(rows, []string{e.Path, size, e.Status, active, e.Updated.UTC().Format("2006-01-02 15:04:05")})
+	}
+	o.Rows([]string{"PATH", "SIZE", "STATUS", "ACTIVE", "UPDATED"}, rows)
+	o.page("bookmarks", "next", p)
+}
+
 // Field is one line of a record: a label and its value.
 type Field struct {
 	Name  string

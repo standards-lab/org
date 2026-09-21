@@ -84,7 +84,7 @@ func (e env) insertFile(t *testing.T, dir, name string) string {
 // advisoryLocks counts the advisory locks the connected database holds.
 func (e env) advisoryLocks(t *testing.T) int {
 	t.Helper()
-	rows, err := e.db.QueryContext(e.ctx, "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND granted")
+	rows, err := e.db.QueryContext(e.ctx, "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND granted AND database = (SELECT oid FROM pg_database WHERE datname = current_database())")
 	if err != nil {
 		t.Fatalf("pg_locks: %v", err)
 	}

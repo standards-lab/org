@@ -104,17 +104,17 @@ func TestNew(t *testing.T) {
 }
 
 // TestVerify proves Verify prepares the whole inventory, the consumer's
-// three statements and one projection and blobfs's fourteen statements
-// and six listing renderings (four offset, two cursor), twenty-four
-// prepares,
-// and wraps a failure in ErrVerify with the failing statement named.
+// six statements and two projections and blobfs's fourteen statements
+// and six listing renderings (four offset, two cursor), twenty-eight
+// prepares, and wraps a failure in ErrVerify with the failing statement
+// named.
 func TestVerify(t *testing.T) {
 	s, rec := newStore(t)
 	if err := s.Verify(context.Background()); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if n := len(rec.SQL(sqltest.OpPrepare)); n != 24 {
-		t.Errorf("Verify prepared %d statements, want 24", n)
+	if n := len(rec.SQL(sqltest.OpPrepare)); n != 28 {
+		t.Errorf("Verify prepared %d statements, want 28", n)
 	}
 
 	s, rec = newStore(t)
@@ -129,6 +129,25 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("Verify against a missing table = %v, want ErrVerify", err)
 	}
 	for _, want := range []string{"blobfs schema up", "owned_directories", "create_directory_owner", "owner_of_directory"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("Verify's error lacks %q:\n%v", want, err)
+		}
+	}
+
+	// The bookmark statements and the bookmark projection are in the
+	// inventory too: a failure to prepare any of them names it.
+	s, rec = newStore(t)
+	rec.FailPrepare = func(q string) error {
+		if strings.Contains(q, "bookmark") {
+			return errors.New(`relation "bookmark" does not exist`)
+		}
+		return nil
+	}
+	err = s.Verify(context.Background())
+	if !errors.Is(err, files.ErrVerify) {
+		t.Fatalf("Verify against a missing bookmark table = %v, want ErrVerify", err)
+	}
+	for _, want := range []string{"create_bookmark", "remove_bookmark", "bookmarks: field contract"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("Verify's error lacks %q:\n%v", want, err)
 		}

@@ -26,8 +26,8 @@ several isolated trees runs several configurations, each with its own database a
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
 | `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
 | `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
-| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its owner read model (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`), `database.go` as the sole importer of `sqlate/query`, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, and `stat` commands. In a later stage it gains the bookmark commands. |
-| `evidence/` | The transcripts the measurements write: `read-model.txt` is proof V3, the cost of the shipped listing (`mise run evidence` regenerates it); `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
+| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, and `bookmark` commands. |
+| `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates both): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
@@ -87,9 +87,10 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   imports what its layer may not.
 - `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
   its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given.
-- `mise run evidence` runs the listing cost measurement (`TestListingCost` in `lib/blobfs/data`,
-  skipped unless `BLOBFS_EVIDENCE=1`) against the compose stack in a throwaway database and
-  writes the transcript to `evidence/read-model.txt`.
+- `mise run evidence` runs the two cost measurements against the compose stack, each in a
+  throwaway database, and writes their transcripts: `TestListingCost` in `lib/blobfs/data` to
+  `evidence/read-model.txt`, and `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`.
+  Both are skipped unless `BLOBFS_EVIDENCE=1`, which the task sets.
 
 The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
 and key are the emulator's published development credentials. The object store is configured by
@@ -144,6 +145,26 @@ id is a UUID and stands in for the auth strategy's unit.
 - `stat <path>` prints the file's row, one field per line: path, id, name, status, size,
   content type, etag, key, version, and the timestamps. A `pending` file shows `-` for its size
   and etag. The object store is not consulted.
+
+The bookmark commands are the file-grain ownership rehearsal: a `bookmark` row binds a file to a
+unit, and a partial unique index allows one active bookmark per unit.
+
+- `bookmark add <path> --unit <uuid> [--active]` records that the unit bookmarks the file at the
+  path and prints the file's id. With `--active` the bookmark becomes the unit's one active
+  bookmark; while another is active the add is refused, and the other is left as it is. A file
+  the unit has bookmarked already is refused, active or not; a file whose delete is under way
+  is refused; a `pending` file can be bookmarked. The resolution of the path and the insert run
+  in one transaction.
+- `bookmark ls --unit <uuid>` lists the unit's bookmarks with their files' full paths, one page,
+  in path order, with the size, the status, an `active` marker, and one line stating the page
+  and the total. `--page`, `--size`, `--sort <field>[:desc]` (over `path`, `name`, `status`,
+  `size`, `content_type`, `active`, `created_at`, `updated_at`, `file_id`, `unit_id`), and
+  `--total none` work as for `ls`. The listing is the consumer's bookmark projection: its total
+  comes from a count statement of its own, run in the same read-only repeatable-read transaction
+  as the page, so the two agree; under `--total none` the count still runs and is dropped. The
+  listing pages by number only.
+- `bookmark rm <path> --unit <uuid>` removes the unit's bookmark of the file, active or not. A
+  file the unit has not bookmarked is refused.
 
 A run against a database whose schema is not applied fails before any work and names
 `schema up`.

@@ -28,7 +28,7 @@ type deps struct {
 }
 
 // Commands builds the domain's root-level commands: mkdir, ls, put, cat,
-// and stat. A leaf's
+// stat, and bookmark with its add, ls, and rm subcommands. A leaf's
 // RunE calls newStore when it runs, never when the tree is built: the
 // composition root closes newStore over its persistent flags, which cobra
 // parses during execution, so the DSN is unknown until then. The store is
@@ -38,7 +38,7 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat()}
+	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.bookmark()}
 }
 
 // store constructs the store and verifies it against the database, so a
@@ -240,6 +240,142 @@ func (d deps) stat() *cobra.Command {
 	}
 }
 
+// bookmark is the bookmark command group: add, ls, and rm, each under a
+// unit, the file-grain ownership rehearsal.
+func (d deps) bookmark() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "bookmark",
+		Short: "Bookmark files for a unit: add, ls, rm",
+		Long: "bookmark records which files a unit bookmarks, at most one of them active. add\n" +
+			"bookmarks a file at an absolute path, ls lists the unit's bookmarks with their\n" +
+			"paths, and rm removes one. Every subcommand takes --unit.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	cmd.AddCommand(d.bookmarkAdd(), d.bookmarkList(), d.bookmarkRemove())
+	return cmd
+}
+
+// bookmarkAdd is bookmark add <path> --unit <uuid> [--active]: the unit's
+// bookmark of the file at the path, active when asked, and refused when
+// another bookmark of the unit is active.
+func (d deps) bookmarkAdd() *cobra.Command {
+	var unit string
+	var active bool
+	cmd := &cobra.Command{
+		Use:   "add <path> --unit <uuid>",
+		Short: "Bookmark the file at a path for a unit",
+		Long: "add records that the unit bookmarks the file at an absolute path such as\n" +
+			"/reports/2026/plan.txt. With --active the bookmark becomes the unit's one active\n" +
+			"bookmark, and the add is refused while another is active; remove that one\n" +
+			"first. A file bookmarked by the unit already is refused, and so is a file whose\n" +
+			"delete is under way. A pending file can be bookmarked.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			unit, err := parseUnit(unit)
+			if err != nil {
+				return err
+			}
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			f, err := s.AddBookmark(cmd.Context(), args[0], unit, active)
+			if err != nil {
+				return err
+			}
+			state := "inactive"
+			if active {
+				state = "active"
+			}
+			d.out.Line(fmt.Sprintf("bookmark add: %s (file %s, unit %s, %s)", args[0], f.ID, unit, state))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&unit, "unit", "", "the id of the unit that bookmarks the file, a UUID")
+	cmd.Flags().BoolVar(&active, "active", false, "make this bookmark the unit's one active bookmark")
+	_ = cmd.MarkFlagRequired("unit")
+	return cmd
+}
+
+// bookmarkList is bookmark ls --unit <uuid>: the unit's bookmarks with
+// their files' paths, one page, and a line stating the page and the total.
+func (d deps) bookmarkList() *cobra.Command {
+	var f pageFlags
+	var unit string
+	cmd := &cobra.Command{
+		Use:   "ls --unit <uuid>",
+		Short: "List a unit's bookmarks with their files' paths, one page",
+		Long: "ls lists the files the unit bookmarks, each at its full path, in path order unless\n" +
+			"--sort says otherwise, one page at a time. The total comes from a count statement\n" +
+			"run in the same read-only snapshot as the page, so the two agree; --total none\n" +
+			"omits it from the output. The listing pages by number only.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			unit, err := parseUnit(unit)
+			if err != nil {
+				return err
+			}
+			l, err := f.listing()
+			if err != nil {
+				return err
+			}
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			p, err := s.ListBookmarks(cmd.Context(), unit, l)
+			if err != nil {
+				return err
+			}
+			entries := make([]output.BookmarkEntry, 0, len(p.Rows))
+			for _, b := range p.Rows {
+				entries = append(entries, output.BookmarkEntry{Path: b.Path, Size: b.Size, Status: string(b.Status), Active: b.Active, Updated: b.UpdatedAt})
+			}
+			d.out.Bookmarks(entries, pageOf(l, "", p))
+			return nil
+		},
+	}
+	f.bind(cmd)
+	cmd.Flags().StringVar(&unit, "unit", "", "the id of the unit whose bookmarks to list, a UUID")
+	_ = cmd.MarkFlagRequired("unit")
+	return cmd
+}
+
+// bookmarkRemove is bookmark rm <path> --unit <uuid>: the unit's bookmark
+// of the file at the path removed, active or not.
+func (d deps) bookmarkRemove() *cobra.Command {
+	var unit string
+	cmd := &cobra.Command{
+		Use:   "rm <path> --unit <uuid>",
+		Short: "Remove a unit's bookmark of the file at a path",
+		Long: "rm removes the unit's bookmark of the file at an absolute path, whether or not\n" +
+			"it is the active one. A file the unit has not bookmarked is refused.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			unit, err := parseUnit(unit)
+			if err != nil {
+				return err
+			}
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			f, err := s.RemoveBookmark(cmd.Context(), args[0], unit)
+			if err != nil {
+				return err
+			}
+			d.out.Line(fmt.Sprintf("bookmark rm: %s (file %s, unit %s)", args[0], f.ID, unit))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&unit, "unit", "", "the id of the unit whose bookmark to remove, a UUID")
+	_ = cmd.MarkFlagRequired("unit")
+	return cmd
+}
+
 // fileRecord lays a file row out as the fields stat prints, in order.
 func fileRecord(path string, f blobfs.File) []output.Field {
 	size := "-"
@@ -327,36 +463,26 @@ func pageOf[T any](l Listing, after string, p Page[T]) output.Page {
 	return out
 }
 
-// listingFlags is the flag set ls takes: the page and its size, the
-// repeatable sort term, the total mode, the cursor of each half, and the
-// unit.
-type listingFlags struct {
-	page, size            int
-	sort                  []string
-	total                 string
-	afterDirs, afterFiles string
-	unit                  string
+// pageFlags is the flag set every paged listing takes: the page and its
+// size, the repeatable sort term, and the total mode.
+type pageFlags struct {
+	page, size int
+	sort       []string
+	total      string
 }
 
-// bind registers the listing flags on cmd.
-func (f *listingFlags) bind(cmd *cobra.Command) {
+// bind registers the paging flags on cmd.
+func (f *pageFlags) bind(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&f.page, "page", 1, "the 1-based page to list")
-	cmd.Flags().IntVar(&f.size, "size", 20, "the number of rows per page, for each half")
+	cmd.Flags().IntVar(&f.size, "size", 20, "the number of rows per page")
 	cmd.Flags().StringArrayVar(&f.sort, "sort", nil, "a sort term, <field> or <field>:desc; repeatable, applied in order")
-	cmd.Flags().StringVar(&f.total, "total", "exact", "exact to count every page's total in the page statement, none to omit it")
-	cmd.Flags().StringVar(&f.afterDirs, "after-dirs", "", "continue the directory half after this cursor, from an earlier next-dirs: line")
-	cmd.Flags().StringVar(&f.afterFiles, "after-files", "", "continue the file half after this cursor, from an earlier next-files: line")
-	cmd.Flags().StringVar(&f.unit, "unit", "", "list as the unit with this id, a UUID; it must own the path's top-level directory")
+	cmd.Flags().StringVar(&f.total, "total", "exact", "exact to count the total, none to omit it")
 }
 
-// listing builds the Listing the flags state, validating the unit and
-// the total mode and parsing each sort term.
-func (f *listingFlags) listing() (Listing, error) {
-	unit, err := parseUnit(f.unit)
-	if err != nil {
-		return Listing{}, err
-	}
-	l := Listing{Page: f.page, Size: f.size, Unit: unit, After: After{Directories: f.afterDirs, Files: f.afterFiles}}
+// listing builds the Listing the paging flags state, validating the
+// total mode and parsing each sort term.
+func (f *pageFlags) listing() (Listing, error) {
+	l := Listing{Page: f.page, Size: f.size}
 	switch f.total {
 	case "exact":
 		l.Total = TotalExact
@@ -372,6 +498,38 @@ func (f *listingFlags) listing() (Listing, error) {
 		}
 		l.Sort = append(l.Sort, s)
 	}
+	return l, nil
+}
+
+// listingFlags is the flag set ls takes: the paging flags, the cursor of
+// each half, and the unit.
+type listingFlags struct {
+	pageFlags
+	afterDirs, afterFiles string
+	unit                  string
+}
+
+// bind registers the listing flags on cmd.
+func (f *listingFlags) bind(cmd *cobra.Command) {
+	f.pageFlags.bind(cmd)
+	cmd.Flags().StringVar(&f.afterDirs, "after-dirs", "", "continue the directory half after this cursor, from an earlier next-dirs: line")
+	cmd.Flags().StringVar(&f.afterFiles, "after-files", "", "continue the file half after this cursor, from an earlier next-files: line")
+	cmd.Flags().StringVar(&f.unit, "unit", "", "list as the unit with this id, a UUID; it must own the path's top-level directory")
+}
+
+// listing builds the Listing the flags state, validating the unit and
+// the total mode and parsing each sort term.
+func (f *listingFlags) listing() (Listing, error) {
+	unit, err := parseUnit(f.unit)
+	if err != nil {
+		return Listing{}, err
+	}
+	l, err := f.pageFlags.listing()
+	if err != nil {
+		return Listing{}, err
+	}
+	l.Unit = unit
+	l.After = After{Directories: f.afterDirs, Files: f.afterFiles}
 	return l, nil
 }
 

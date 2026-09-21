@@ -282,6 +282,82 @@ func (s *Store) Open(ctx context.Context, path string) (io.ReadCloser, blobfs.Fi
 	return body, f, nil
 }
 
+// AddBookmark records that the unit bookmarks the file at path and
+// returns the file's row. With active, the bookmark becomes the unit's one
+// active bookmark, and the add is refused with ErrActiveBookmark while
+// another bookmark of the unit is active; the other one is left as it is.
+// The resolution of the path and the insert run in one transaction, the
+// consumer's pattern for a write that follows a read, and the transaction
+// is where a service would insert the bookmark beside the pending row of
+// its own upload.
+//
+// A file that does not exist, or a parent that does not, is
+// blobfs.ErrNotFound, and so is a file removed between its resolution and
+// the insert, which the foreign key reports. A pending file can be
+// bookmarked: a bookmark written beside a pending row is the shape a
+// service uses, and the listing shows the status. A deleting file is
+// refused with ErrNotAvailable, because its delete is under way and a new
+// bookmark would hold it. A file the unit has bookmarked already is
+// ErrAlreadyBookmarked, active or not.
+func (s *Store) AddBookmark(ctx context.Context, path, unit string, active bool) (blobfs.File, error) {
+	parent, name, _, err := splitParent(path)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("files: bookmark add %s: %w", path, err)
+	}
+	f, err := s.db.Transact(ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+		dir, err := s.blobfs.ResolveDirectory(ctx, tx, parent)
+		if err != nil {
+			return blobfs.File{}, err
+		}
+		f, err := s.blobfs.FileByName(ctx, tx, dir.ID, name)
+		if err != nil {
+			return blobfs.File{}, err
+		}
+		if f.Status == blobfs.StatusDeleting {
+			return blobfs.File{}, fmt.Errorf("the file is %s: %w", f.Status, ErrNotAvailable)
+		}
+		if err := s.insertBookmark(ctx, tx, unit, f.ID, active); err != nil {
+			return blobfs.File{}, err
+		}
+		return f, nil
+	})
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("files: bookmark add %s as unit %s: %w", path, unit, err)
+	}
+	return f, nil
+}
+
+// RemoveBookmark removes the unit's bookmark of the file at path, active
+// or not, and returns the file's row. The path is resolved and the row
+// deleted on the pool: nothing needs the two to share a snapshot, since
+// the delete is keyed by the unit and the file's id. A file that does not
+// exist is blobfs.ErrNotFound; a file the unit has not bookmarked is
+// ErrNoBookmark. Removing the active bookmark is allowed: the one-active
+// rule bounds how many bookmarks are active, and removing one leaves the
+// unit with none, which any later add with active may fill.
+func (s *Store) RemoveBookmark(ctx context.Context, path, unit string) (blobfs.File, error) {
+	f, err := s.Stat(ctx, path)
+	if err != nil {
+		return blobfs.File{}, err
+	}
+	if err := s.deleteBookmark(ctx, s.db, unit, f.ID); err != nil {
+		return blobfs.File{}, fmt.Errorf("files: bookmark rm %s as unit %s: %w", path, unit, err)
+	}
+	return f, nil
+}
+
+// ListBookmarks returns one page of the unit's bookmarks under l, each
+// with its file's path, through the consumer's bookmark read model
+// filtered by the unit. The read model pages by number only, so l.After
+// is ignored. Its total comes from a count statement separate from the
+// page, so the two run in one read-only repeatable-read transaction and
+// agree with each other. Without a sort term the page is in path order.
+func (s *Store) ListBookmarks(ctx context.Context, unit string, l Listing) (Page[BookmarkedFile], error) {
+	return s.db.Transact(ctx, func(tx *sqlate.Tx) (Page[BookmarkedFile], error) {
+		return s.bookmarksOf(ctx, tx, unit, l)
+	}, sqlate.ReadOnly(), sqlate.Isolation(sql.LevelRepeatableRead))
+}
+
 // splitParent splits the path of a directory or file to create into its
 // parent's path, the name of the new row, and the new row's depth (1 for
 // a top-level directory). The root itself is blobfs.ErrRootDirectory, a
