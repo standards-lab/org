@@ -101,9 +101,22 @@ func TestBeginFileWrite(t *testing.T) {
 			class = sqlate.ErrForeignKeyViolation
 		}
 		s, db, _ := openStore(t, sqltest.Response{Err: &sqlate.ConstraintError{Constraint: constraint, Class: class, Err: cause}})
-		if _, err := s.BeginFileWrite(ctx, db, accepting{}, blobfs.RootID, "ok.txt", "text/plain"); !errors.Is(err, want) {
+		_, err := s.BeginFileWrite(ctx, db, accepting{}, blobfs.RootID, "ok.txt", "text/plain")
+		if !errors.Is(err, want) {
 			t.Errorf("BeginFileWrite under %s = %v, want %v", constraint, err, want)
 		}
+		var ve *blobfs.ViolationError
+		if !errors.As(err, &ve) || ve.Constraint != constraint || !strings.HasSuffix(err.Error(), want.Error()+" (constraint "+constraint+")") || strings.Contains(err.Error(), cause.Error()) {
+			t.Errorf("BeginFileWrite under %s = %q, want the sentinel and the constraint named and the driver's text hidden", constraint, err)
+		}
+	}
+	// A check violation is no constraint the write mapping names, so it
+	// passes through as the driver reported it.
+	s, db, _ = openStore(t, sqltest.Response{Err: &sqlate.ConstraintError{Constraint: "blobfs_cc_file_name", Class: sqlate.ErrCheckViolation, Err: cause}})
+	_, err = s.BeginFileWrite(ctx, db, accepting{}, blobfs.RootID, "ok.txt", "text/plain")
+	var ve *blobfs.ViolationError
+	if !errors.Is(err, sqlate.ErrCheckViolation) || errors.As(err, &ve) || !strings.Contains(err.Error(), cause.Error()) {
+		t.Errorf("BeginFileWrite under a check violation = %v, want the driver's error unclassified", err)
 	}
 }
 

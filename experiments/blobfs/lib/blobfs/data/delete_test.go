@@ -78,6 +78,9 @@ func TestCompleteFileDelete(t *testing.T) {
 		if errors.Is(err, blobfs.ErrNotEmpty) || errors.Is(err, blobfs.ErrNotFound) {
 			t.Errorf("a consumer's key classified as blobfs's own: %v", err)
 		}
+		if want := "data: complete delete of file F: blobfs: the row is referenced by a consumer's row (constraint fk_bookmark_file)"; err.Error() != want {
+			t.Errorf("message = %q, want %q", err, want)
+		}
 	})
 }
 
@@ -123,6 +126,9 @@ func TestRemoveDirectory(t *testing.T) {
 		var ce *sqlate.ConstraintError
 		if !errors.Is(err, c.want) || !errors.As(err, &ce) || ce.Constraint != c.constraint {
 			t.Errorf("RemoveDirectory under %s = %v, want %v with the constraint reachable", c.constraint, err, c.want)
+		}
+		if want := "data: remove directory D: " + c.want.Error() + " (constraint " + c.constraint + ")"; err.Error() != want {
+			t.Errorf("RemoveDirectory under %s = %q, want %q", c.constraint, err, want)
 		}
 	}
 }

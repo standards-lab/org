@@ -40,7 +40,9 @@ var bookmarkSentinels = map[string]bookmarkMapping{
 
 // classifyBookmark maps a constraint violation from a bookmark insert to
 // the consumer's sentinel when the violated constraint is one
-// bookmarkSentinels lists under the class reported, keeping the
+// bookmarkSentinels lists under the class reported. The result is a
+// blobfs.ViolationError, the library's own wrapper, whose message names
+// the sentinel and the constraint and which keeps the
 // sqlate.ConstraintError reachable through errors.As. Any other error is
 // returned as it came.
 func classifyBookmark(err error) error {
@@ -52,7 +54,7 @@ func classifyBookmark(err error) error {
 	if !ok || !errors.Is(ce.Class, m.class) {
 		return err
 	}
-	return fmt.Errorf("%w: %w", m.sentinel, err)
+	return &blobfs.ViolationError{Sentinel: m.sentinel, Constraint: ce.Constraint, Err: err}
 }
 
 // insertBookmark writes the bookmark of the file with fileID for the unit
@@ -77,8 +79,11 @@ var fileDeleteSentinels = map[string]bookmarkMapping{
 
 // classifyFileDelete maps a refusal of a file's removal to the consumer's
 // sentinel when the violated constraint is one fileDeleteSentinels lists
-// under the class reported, keeping the sqlate.ConstraintError reachable
-// through errors.As. Any other error is returned as it came.
+// under the class reported. The result is a blobfs.ViolationError over
+// the library's error, so blobfs.ErrReferenced and the
+// sqlate.ConstraintError stay reachable through errors.Is and errors.As
+// while the message names the consumer's sentinel and the constraint.
+// Any other error is returned as it came.
 func classifyFileDelete(err error) error {
 	var ce *sqlate.ConstraintError
 	if !errors.As(err, &ce) {
@@ -88,7 +93,7 @@ func classifyFileDelete(err error) error {
 	if !ok || !errors.Is(ce.Class, m.class) {
 		return err
 	}
-	return fmt.Errorf("%w: %w", m.sentinel, err)
+	return &blobfs.ViolationError{Sentinel: m.sentinel, Constraint: ce.Constraint, Err: err}
 }
 
 // bookmarksOfFile returns how many units bookmark the file with fileID,

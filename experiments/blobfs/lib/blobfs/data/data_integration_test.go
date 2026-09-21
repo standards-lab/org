@@ -183,6 +183,15 @@ func TestMkdir(t *testing.T) {
 		if !errors.Is(err, blobfs.ErrNameTaken) {
 			t.Errorf("Mkdir(%q) again = %v, want ErrNameTaken", name, err)
 		}
+		// The engine's text stays beneath the wrapper: the message names
+		// the sentinel and the constraint and nothing the driver said.
+		if want := "blobfs: name taken (constraint " + blobfs.ConstraintUniqueDirectoryParentName + ")"; !strings.HasSuffix(err.Error(), want) || strings.Contains(err.Error(), "SQLSTATE") || strings.Contains(err.Error(), "duplicate key") {
+			t.Errorf("Mkdir(%q) again = %q, want a message ending with %q and no driver text", name, err, want)
+		}
+		var ce *sqlate.ConstraintError
+		if !errors.As(err, &ce) || !errors.Is(ce.Class, sqlate.ErrUniqueViolation) || !strings.Contains(ce.Err.Error(), "SQLSTATE 23505") {
+			t.Errorf("Mkdir(%q) again does not keep the driver's unique violation reachable: %v", name, err)
+		}
 	}
 	if _, err := e.store.Mkdir(e.ctx, e.db, blobfs.RootID, "no/slash"); !errors.Is(err, blobfs.ErrInvalidName) {
 		t.Errorf("Mkdir(no/slash) = %v, want ErrInvalidName", err)
@@ -194,6 +203,9 @@ func TestMkdir(t *testing.T) {
 	var ce *sqlate.ConstraintError
 	if !errors.As(err, &ce) || ce.Constraint != blobfs.ConstraintForeignKeyDirectoryParent {
 		t.Errorf("Mkdir under a missing parent does not carry the foreign key: %v", err)
+	}
+	if want := "blobfs: not found (constraint " + blobfs.ConstraintForeignKeyDirectoryParent + ")"; !strings.HasSuffix(err.Error(), want) || strings.Contains(err.Error(), "SQLSTATE") {
+		t.Errorf("Mkdir under a missing parent = %q, want a message ending with %q and no driver text", err, want)
 	}
 	e.mkdir(t, docs.ID, "docs")
 	d, err := e.store.Directory(e.ctx, e.db, docs.ID)

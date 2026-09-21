@@ -3,7 +3,6 @@ package data
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/standards-lab/sqlate"
 
@@ -35,9 +34,11 @@ var writeSentinels = map[string]writeMapping{
 
 // classifyWrite maps a constraint violation from an insert or an update to
 // blobfs's sentinel when the violated constraint is one blobfs owns and
-// writeSentinels lists under the class reported, keeping the
-// sqlate.ConstraintError reachable through errors.As. Any other error, a
-// violation of a consumer's constraint included, is returned as it came.
+// writeSentinels lists under the class reported. The result is a
+// blobfs.ViolationError, whose message names the sentinel and the
+// constraint and which keeps the sqlate.ConstraintError reachable through
+// errors.As. Any other error, a violation of a consumer's constraint
+// included, is returned as it came.
 func classifyWrite(err error) error {
 	var ce *sqlate.ConstraintError
 	if !errors.As(err, &ce) {
@@ -47,7 +48,7 @@ func classifyWrite(err error) error {
 	if !ok || !errors.Is(ce.Class, m.class) {
 		return err
 	}
-	return fmt.Errorf("%w: %w", m.sentinel, err)
+	return &blobfs.ViolationError{Sentinel: m.sentinel, Constraint: ce.Constraint, Err: err}
 }
 
 // deleteSentinels maps the constraints a delete can violate to the
@@ -62,12 +63,13 @@ var deleteSentinels = map[string]writeMapping{
 }
 
 // classifyDelete maps a constraint violation from a delete to blobfs's
-// sentinel, keeping the sqlate.ConstraintError reachable through
-// errors.As. A foreign key blobfs owns, under the class it reports, is
-// blobfs.ErrNotEmpty. Any other foreign-key violation is a constraint
-// blobfs does not own: a consumer's key that references the row being
-// removed, which blobfs cannot name but can classify by class as
-// blobfs.ErrReferenced, so the consumer matches the constraint's name
+// sentinel as a blobfs.ViolationError, whose message names the sentinel
+// and the constraint and which keeps the sqlate.ConstraintError reachable
+// through errors.As. A foreign key blobfs owns, under the class it
+// reports, is blobfs.ErrNotEmpty. Any other foreign-key violation is a
+// constraint blobfs does not own: a consumer's key that references the
+// row being removed, which blobfs cannot name but can classify by class
+// as blobfs.ErrReferenced, so the consumer matches the constraint's name
 // against its own. Any other error is returned as it came.
 func classifyDelete(err error) error {
 	var ce *sqlate.ConstraintError
@@ -75,10 +77,10 @@ func classifyDelete(err error) error {
 		return err
 	}
 	if m, ok := deleteSentinels[ce.Constraint]; ok && errors.Is(ce.Class, m.class) {
-		return fmt.Errorf("%w: %w", m.sentinel, err)
+		return &blobfs.ViolationError{Sentinel: m.sentinel, Constraint: ce.Constraint, Err: err}
 	}
 	if errors.Is(ce.Class, sqlate.ErrForeignKeyViolation) {
-		return fmt.Errorf("%w: %w", blobfs.ErrReferenced, err)
+		return &blobfs.ViolationError{Sentinel: blobfs.ErrReferenced, Constraint: ce.Constraint, Err: err}
 	}
 	return err
 }

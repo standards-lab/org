@@ -1,10 +1,14 @@
 package blobfs
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // The sentinels the persistence layer maps its outcomes onto. A database
 // violation of one of blobfs's own documented constraints becomes one of
-// these; a violation of a consumer's constraint is left unclassified.
+// these, carried by a ViolationError; a violation of a consumer's
+// constraint is left unclassified.
 var (
 	// ErrNotFound reports a directory or file that does not exist, including
 	// a parent or directory id that an insert or move referenced.
@@ -62,3 +66,34 @@ var (
 	// directory's own subtree, the directory itself included.
 	ErrCycle = errors.New("blobfs: move would create a cycle")
 )
+
+// ViolationError reports a database constraint violation that a classifier
+// mapped to a sentinel: the sentinel it means, the name of the violated
+// constraint, and the error the database reported as the cause. The
+// persistence layer builds one for each constraint blobfs owns, and a
+// consumer builds one for its own constraints with its own sentinels. The
+// message prints the sentinel and the constraint name and never the
+// driver's text. Unwrap yields the sentinel and the cause, so errors.Is
+// matches the sentinel and errors.As reaches the sqlate.ConstraintError
+// beneath, for a caller that imports sqlate and wants the class.
+type ViolationError struct {
+	Sentinel   error
+	Constraint string
+	Err        error
+}
+
+func (e *ViolationError) Error() string {
+	if e.Constraint == "" {
+		return e.Sentinel.Error()
+	}
+	return fmt.Sprintf("%v (constraint %s)", e.Sentinel, e.Constraint)
+}
+
+// Unwrap returns the sentinel and the cause, so errors.Is matches the
+// sentinel and errors.As finds the cause's types.
+func (e *ViolationError) Unwrap() []error {
+	if e.Err == nil {
+		return []error{e.Sentinel}
+	}
+	return []error{e.Sentinel, e.Err}
+}

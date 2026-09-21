@@ -171,6 +171,9 @@ func TestRemoveRefusesABookmarkedFile(t *testing.T) {
 	if !strings.Contains(err.Error(), "the row stays deleting and its object is gone") {
 		t.Errorf("the message %q does not say what state the file is in", err)
 	}
+	if !strings.HasSuffix(err.Error(), "files: the file is bookmarked (constraint fk_bookmark_file)") || strings.Contains(err.Error(), "driver") {
+		t.Errorf("the message %q does not end with the consumer's sentinel and the constraint, or carries the driver's text", err)
+	}
 	if got := ops(rec); got != "query query begin query exec query commit exec" {
 		t.Errorf("ops = %q", got)
 	}

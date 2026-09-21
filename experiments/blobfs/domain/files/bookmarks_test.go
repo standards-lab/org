@@ -238,6 +238,13 @@ func TestAddBookmarkClassifiesTheConstraints(t *testing.T) {
 		if !errors.As(err, &ce) || ce.Constraint != tc.constraint {
 			t.Errorf("%s: the constraint error is not reachable: %v", tc.constraint, err)
 		}
+		var ve *blobfs.ViolationError
+		if !errors.As(err, &ve) || ve.Sentinel != tc.want || ve.Constraint != tc.constraint {
+			t.Errorf("%s: the wrapper is not reachable or does not carry the sentinel and the constraint: %v", tc.constraint, err)
+		}
+		if !strings.HasSuffix(err.Error(), tc.want.Error()+" (constraint "+tc.constraint+")") || strings.Contains(err.Error(), "driver") {
+			t.Errorf("%s: message = %q, want it to end with the sentinel and the constraint and to hide the driver's text", tc.constraint, err)
+		}
 		if got := ops(rec); got != "begin query query exec rollback" {
 			t.Errorf("%s: ops = %q", tc.constraint, got)
 		}

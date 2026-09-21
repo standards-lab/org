@@ -197,6 +197,20 @@ func refused(t *testing.T, tg target, want string, args ...string) {
 	}
 }
 
+// refusedByConstraint is refused for a refusal the database's constraint
+// reported: stderr names the sentinel and the constraint, as want spells
+// them, and carries none of the driver's text.
+func refusedByConstraint(t *testing.T, tg target, want string, args ...string) {
+	t.Helper()
+	refused(t, tg, want, args...)
+	_, errOut, _ := run(t, tg, args...)
+	for _, text := range []string{"SQLSTATE", "duplicate key", "violates"} {
+		if strings.Contains(errOut, text) {
+			t.Errorf("%v: stderr = %q, want no driver text (%q)", args, errOut, text)
+		}
+	}
+}
+
 // putContent runs put from stdin with content as the file at path and
 // returns its stdout.
 func putContent(t *testing.T, tg target, content, path string, flags ...string) string {
@@ -480,7 +494,7 @@ func (s *script) directories(t *testing.T) {
 	ok(t, s.tg, "mkdir", "/archive/old")
 	ok(t, s.tg, "mkdir", "/theirs", "--unit", other)
 	refused(t, s.tg, "top-level directory only", "mkdir", "/reports/2024", "--unit", unit)
-	refused(t, s.tg, "name taken", "mkdir", "/reports")
+	refusedByConstraint(t, s.tg, "blobfs: name taken (constraint blobfs_uq_directory_parent_name)", "mkdir", "/reports")
 	refused(t, s.tg, "not found", "mkdir", "/missing/child")
 	refused(t, s.tg, "the root directory", "mkdir", "/")
 	refused(t, s.tg, "is not a UUID", "mkdir", "/x", "--unit", "nope")
@@ -858,7 +872,7 @@ func (s *script) deletes(t *testing.T) {
 	refused(t, s.tg, "not found", "stat", "/trash/abandoned.txt")
 
 	// rmdir: the refusals, then an empty directory and an owned one.
-	refused(t, s.tg, "not empty", "rmdir", "/trash")
+	refusedByConstraint(t, s.tg, "blobfs: directory not empty (constraint blobfs_fk_", "rmdir", "/trash")
 	refused(t, s.tg, "the root directory", "rmdir", "/")
 	refused(t, s.tg, "not found", "rmdir", "/missing")
 	refused(t, s.tg, "the step is begin or object", "rm", "/trash/x.txt", "--fail-after", "complete")
@@ -959,7 +973,7 @@ func (s *script) moves(t *testing.T) {
 	refused(t, s.tg, "stays under one top-level directory", "mv", "/renamed", "/b/renamed")
 	ok(t, s.tg, "mkdir", "/a/held")
 	ok(t, s.tg, "mkdir", "/a/y/held")
-	refused(t, s.tg, "name taken", "mv", "/a/held", "/a/y")
+	refusedByConstraint(t, s.tg, "blobfs: name taken (constraint blobfs_uq_directory_parent_name)", "mv", "/a/held", "/a/y")
 	refused(t, s.tg, "not found", "mv", "/a/missing", "/a/y")
 	refused(t, s.tg, "not found", "mv", "/a/held", "/a/nope/held")
 
