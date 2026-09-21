@@ -18,11 +18,12 @@ import (
 )
 
 // env is one test's throwaway database with blobfs's migration set
-// applied, and two stores over it: one over the Postgres variant and one
-// over the baseline, compiled against the same catalog.
+// applied, its DSN, and two stores over it: one over the Postgres variant
+// and one over the baseline, compiled against the same catalog.
 type env struct {
 	ctx      context.Context
 	db       *sqlate.DB
+	dsn      string
 	native   *data.Store
 	standard *data.Store
 }
@@ -32,7 +33,7 @@ type env struct {
 func open(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
-	db := livetest.Open(t)
+	db, dsn := livetest.OpenDSN(t)
 	set, err := postgres.Migrations()
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
@@ -63,7 +64,7 @@ func open(t *testing.T) env {
 	if err != nil {
 		t.Fatalf("data.New over the baseline: %v", err)
 	}
-	return env{ctx: ctx, db: db, native: native, standard: standard}
+	return env{ctx: ctx, db: db, dsn: dsn, native: native, standard: standard}
 }
 
 // insertFile inserts an available file row of three bytes directly and
