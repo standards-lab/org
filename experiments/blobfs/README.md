@@ -24,14 +24,14 @@ several isolated trees runs several configurations, each with its own database a
 | Directory | Contents |
 |-----------|----------|
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
-| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
-| `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
+| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. Its `domain.go` chooses the `blobfs` variant the file commands run over, from `--variant` or `BLOBFS_VARIANT`, and is the one application file that names `lib/blobfs/data/pgnative`. |
+| `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, a throwaway Azurite container per test, and the reads that check what a run left behind (a database's existence, a container's blobs). |
 | `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `mv`, `rm`, `rmdir`, and `bookmark` commands. |
 | `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates the first three): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `sort-index.txt` is the stage 14 measurement, what the `created_at` index of the rehearsal migration buys a sorted listing; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which reports, applies, reverts, and resets the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
-| `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
+| `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. `TestScript` is one ordered script over every command family, run once per variant in its own database and container; `TestIsolation` runs two configurations side by side and shows neither sees the other. Every run logs its command line and its output, so `go test -v` prints the transcript. |
 | `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
 | `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, the directory removal, the cycle check, and the directory and file moves), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
@@ -46,6 +46,10 @@ The persistence package runs on any engine `sqlate` has a dialect for, and two o
 may be replaced by an engine's own statements through the `data.Variant` interface. `data.New`
 runs the standard baseline unless it is given a variant with `data.WithVariant`, and a consumer
 that wants a different behavior for one operation embeds a variant and overrides that method.
+The consumer's `files.New` takes `files.WithVariant(constructor)` the same way, and the binary
+chooses the variant from `--variant standard|pgnative`, or `BLOBFS_VARIANT` when the flag is not
+given; the default is `standard`. The schema commands are the same on either variant, because the
+migrations are.
 
 - **The tree lock** (`LockTree`, `Serializes`). A directory move takes the lock inside its
   transaction, before its cycle check, so two opposing moves run one after the other. The Postgres
@@ -144,10 +148,14 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   also drops the data.
 - `mise run test` runs the hermetic tests. `mise run integration` runs the tests that need the
   services, behind the `integration` build tag; each one creates and drops its own database.
+- `mise run demo` builds the binary and runs the scripted end-to-end run of `integration/`
+  (`TestScript`) verbosely, once per variant, printing every command line and its output: the
+  transcript to read before running the binary by hand.
 - `mise run lint` runs `golangci-lint` and `sqlint`. `mise run split-check` fails when a package
   imports what its layer may not.
 - `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
-  its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given.
+  its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given,
+  and the variant from `--variant`, or from `BLOBFS_VARIANT`, or `standard` when neither is set.
 - `mise run evidence` runs the three cost measurements against the compose stack, each in a
   throwaway database, and writes their transcripts: `TestListingCost` in `lib/blobfs/data` to
   `evidence/read-model.txt`, `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`,
@@ -253,4 +261,16 @@ unit, and a partial unique index allows one active bookmark per unit.
   file the unit has not bookmarked is refused.
 
 A run against a database whose schema is not applied fails before any work and names
-`schema up`.
+`schema up`. A file command under a `--variant` or `BLOBFS_VARIANT` that is neither `standard`
+nor `pgnative` fails before any I/O and names both. The variant shows in one place from the
+outside: a directory move on `pgnative` waits for the tree lock while another transaction holds
+it, and on `standard` it does not.
+
+## Two configurations
+
+An install is one database and one container, and a second isolated tree is a second
+configuration: another `BLOBFS_DSN` and another `BLOBFS_STORAGE_CONTAINER`. Nothing in the
+library or the consumer names another database or container, so two configurations share
+nothing: `TestIsolation` builds `/docs/a.txt` in both with different bytes and shows each
+configuration lists, reads, deletes, and resets its own tree only, each database holds exactly
+its own `blobfs_file` rows, and each container exactly its own objects.

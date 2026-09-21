@@ -12,13 +12,17 @@
 // persistent flags, the infrastructure over the config, the domain and
 // admin layers over the infrastructure, and mounts each layer's commands
 // on the root.
-// The value the layers depend on, the DSN, is a persistent flag with an
-// environment variable behind it, and cobra parses flags during execution,
-// after the tree is built. So the infrastructure opens the database on
-// demand rather than at New, and each layer closes a client constructor
-// over it that a subcommand's RunE calls when it runs. Nothing below the
-// root reads a flag or the environment before then, and a constructor that
-// finds no DSN fails, with the error reaching the RunE that called it.
+// The values the layers depend on, the DSN and the variant name, are
+// persistent flags with environment variables behind them, and cobra parses
+// flags during execution, after the tree is built. So the infrastructure
+// opens the database on demand rather than at New, and each layer closes a
+// client constructor over it that a subcommand's RunE calls when it runs.
+// Nothing below the root reads a flag or the environment before then, and a
+// constructor that finds no DSN, or a variant name it does not know, fails,
+// with the error reaching the RunE that called it. The variant is the
+// domain layer's choice alone: domain.go maps the name to the option
+// files.New takes, and is the one application file that names the Postgres
+// variant.
 //
 // Run is the hot start: it executes the tree under ctx, closes what the
 // infrastructure opened, renders the error a command returns, and returns

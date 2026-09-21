@@ -29,6 +29,10 @@ run = "go test -race ./..."
 description = "Run the integration tier against the compose stack (BLOBFS_DSN, BLOBFS_STORAGE_*)"
 run = "go test -race -tags integration -count=1 ./..."
 
+[tasks.demo]
+description = "Run the scripted end-to-end run of the built binary, once per variant, printing every command line and its output (the transcript the review reads)"
+run = "go test -tags integration -count=1 -timeout 10m -v -run '^TestScript$' ./integration"
+
 [tasks.evidence]
 description = "Run the cost measurements against the compose stack: the listing (proof V3) into evidence/read-model.txt, the bookmark read model (stage 11) into evidence/bookmarks.txt, and the created_at index (stage 14) into evidence/sort-index.txt"
 run = '''
@@ -189,6 +193,11 @@ names "$cobra" '^(internal/app/|cmd/|output/|(domain|admin)/[^/]+/commands\.go$)
 # client registers the library's pattern namespace in the catalog it builds and lowers the
 # consumer's listing to the library's, which is the one place the query library is named.
 names "$module/lib/blobfs/data\"" '^(lib/|domain/files/(blobfs|database)\.go$)' "an application file other than domain/files/blobfs.go or database.go names lib/blobfs/data"
+
+# 10. Among the application packages, only internal/app/domain.go names the Postgres variant:
+# the variant is a composition choice (--variant, BLOBFS_VARIANT), and no domain or admin
+# package makes it.
+names "$module/lib/blobfs/data/pgnative\"" '^(lib/|internal/app/domain\.go$)' "an application file other than internal/app/domain.go names lib/blobfs/data/pgnative"
 
 [ "$fail" -eq 0 ] && echo "split-check: ok"
 exit "$fail"

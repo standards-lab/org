@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
 	"github.com/standards-lab/org/experiments/blobfs/output"
 )
 
@@ -20,17 +21,41 @@ type Domain struct {
 // newDomain wires the domain layer over infra, each domain package's store
 // constructor closed over the infrastructure's database and its object
 // store's opener, which the store calls when a file command first needs
-// an object.
+// an object. The files store is built over the variant the run chose,
+// resolved before the database opens so an unknown name is refused before
+// any I/O.
 func newDomain(infra *Infrastructure) *Domain {
 	return &Domain{
 		Files: func() (*files.Store, error) {
+			opts, err := variantOptions(infra.cfg)
+			if err != nil {
+				return nil, err
+			}
 			db, err := infra.Database()
 			if err != nil {
 				return nil, err
 			}
-			return files.New(db, infra.Storage)
+			return files.New(db, infra.Storage, opts...)
 		},
 	}
+}
+
+// variantOptions returns the options that make files.New build blobfs's
+// store over the variant cfg resolves. The standard baseline is what
+// files.New builds without an option, compiled once with the store's own
+// statements, so it maps to none; the Postgres variant maps to
+// files.WithVariant over pgnative.New. This is the one file of the
+// application that names the Postgres variant: the variant is a
+// composition choice, and no domain or admin package makes it.
+func variantOptions(cfg *Config) ([]files.Option, error) {
+	name, err := cfg.variant()
+	if err != nil {
+		return nil, err
+	}
+	if name == variantPGNative {
+		return []files.Option{files.WithVariant(pgnative.New)}, nil
+	}
+	return nil, nil
 }
 
 // mountDomain builds the domain layer's commands, one list per domain

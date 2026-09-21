@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,6 +86,36 @@ func OpenDSN(t testing.TB) (*sqlate.DB, string) {
 		t.Fatalf("ping %s: %v", name, err)
 	}
 	return sqlate.Wrap(pool, postgres.Dialect{}), testDSN
+}
+
+// DatabaseName returns the database a DSN names: the name a throwaway
+// database's DSN carries, for a test that checks the database is gone
+// after its cleanup.
+func DatabaseName(t testing.TB, dsn string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parse %s: %v", dsn, err)
+	}
+	return strings.TrimPrefix(u.Path, "/")
+}
+
+// DatabaseExists reports whether the server BLOBFS_DSN names holds a
+// database with the name, through a read of pg_database on an admin
+// connection of its own, the same connection Open creates and drops the
+// throwaway databases over.
+func DatabaseExists(ctx context.Context, t testing.TB, name string) bool {
+	t.Helper()
+	admin, err := sql.Open("pgx", os.Getenv("BLOBFS_DSN"))
+	if err != nil {
+		t.Fatalf("open the admin connection: %v", err)
+	}
+	defer func() { _ = admin.Close() }()
+	var exists bool
+	if err := admin.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", name).Scan(&exists); err != nil {
+		t.Fatalf("pg_database for %s: %v", name, err)
+	}
+	return exists
 }
 
 // suffix returns eight random hex characters, so parallel packages never

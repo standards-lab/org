@@ -72,7 +72,11 @@ func newRoot(cfg *Config) *cobra.Command {
 			"its row, and rm deletes it, or with -r a whole directory tree; mv moves or\n" +
 			"renames a directory or a file; all at absolute paths such as\n" +
 			"/reports/2026/q1.pdf. The database comes from --dsn or BLOBFS_DSN and the\n" +
-			"object store from the BLOBFS_STORAGE_* variables.",
+			"object store from the BLOBFS_STORAGE_* variables. The file commands run\n" +
+			"over the blobfs variant --variant or BLOBFS_VARIANT names: standard, the\n" +
+			"baseline every engine runs, or pgnative, the Postgres variant whose\n" +
+			"directory move takes a tree lock; the schema commands are the same on\n" +
+			"either.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

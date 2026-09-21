@@ -30,9 +30,9 @@ func TestRun_PrintsUsageForHelp(t *testing.T) {
 		if code != 0 {
 			t.Errorf("%v exited %d: %s", args, code, errOut)
 		}
-		wants := []string{"Usage:", "schema", "mkdir", "ls", "mv", "--dsn"}
+		wants := []string{"Usage:", "schema", "mkdir", "ls", "mv", "--dsn", "--variant", "standard or pgnative"}
 		if len(args) == 1 && args[0] == "schema" {
-			wants = []string{"Usage:", "schema", "--dsn"}
+			wants = []string{"Usage:", "schema", "--dsn", "--variant"}
 		}
 		for _, want := range wants {
 			if !strings.Contains(out, want) {
@@ -86,6 +86,50 @@ func TestRun_RefusesSchemaUpWithoutADSN(t *testing.T) {
 		if !strings.Contains(errOut, "BLOBFS_DSN") || !strings.Contains(errOut, "--dsn") {
 			t.Errorf("%v: stderr = %q, want an error naming --dsn and BLOBFS_DSN", args, errOut)
 		}
+	}
+}
+
+// The variant is resolved when the files store is constructed, from the
+// flag or the environment, before the database opens: a name that is
+// neither standard nor pgnative fails with no DSN set and names both
+// accepted names and both routes. The schema commands never resolve it.
+func TestRun_RefusesAnUnknownVariantBeforeAnyIO(t *testing.T) {
+	t.Setenv("BLOBFS_DSN", "")
+	t.Setenv("BLOBFS_VARIANT", "")
+	for _, tc := range []struct {
+		env  string
+		args []string
+	}{
+		{"", []string{"--variant", "bogus", "ls", "/"}},
+		{"bogus", []string{"ls", "/"}},
+		{"bogus", []string{"put", "-", "/x.txt"}},
+	} {
+		t.Setenv("BLOBFS_VARIANT", tc.env)
+		out, errOut, code := execute(t, tc.args...)
+		if code != 1 {
+			t.Errorf("%v (env %q) exited %d, want 1", tc.args, tc.env, code)
+		}
+		if out != "" {
+			t.Errorf("%v: stdout = %q, want nothing", tc.args, out)
+		}
+		for _, want := range []string{`unknown variant "bogus"`, "--variant", "BLOBFS_VARIANT", "standard or pgnative"} {
+			if !strings.Contains(errOut, want) {
+				t.Errorf("%v (env %q): stderr = %q, want %q", tc.args, tc.env, errOut, want)
+			}
+		}
+	}
+	// An accepted name gets past the variant to the missing DSN, so the
+	// variant is resolved first and the standard default needs no flag.
+	t.Setenv("BLOBFS_VARIANT", "")
+	for _, args := range [][]string{{"ls", "/"}, {"--variant", "pgnative", "ls", "/"}, {"--variant", "standard", "ls", "/"}} {
+		_, errOut, code := execute(t, args...)
+		if code != 1 || !strings.Contains(errOut, "BLOBFS_DSN") {
+			t.Errorf("%v exited %d with %q, want the missing DSN", args, code, errOut)
+		}
+	}
+	t.Setenv("BLOBFS_VARIANT", "bogus")
+	if _, errOut, _ := execute(t, "schema", "up"); strings.Contains(errOut, "variant") {
+		t.Errorf("schema up resolved the variant: %q", errOut)
 	}
 }
 

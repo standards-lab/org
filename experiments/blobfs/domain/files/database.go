@@ -62,16 +62,29 @@ type options struct {
 
 // VariantConstructor builds the data.Variant blobfs's store forwards its
 // variation points to, against the program's catalog and the database's
-// dialect: the shape of pgnative.New and of data.NewStandard, wrapped to
-// return the interface.
+// dialect: the shape of pgnative.New and of data.NewStandard, with the
+// result as the interface.
 type VariantConstructor func(catalog *query.Catalog, dialect sqlate.Dialect) (data.Variant, error)
 
 // WithVariant makes New build blobfs's store over the variant that build
 // returns, compiled against the same catalog as the store's own
-// statements, instead of the standard baseline. The composition root
-// chooses the variant; the tests run the consumer over each.
-func WithVariant(build VariantConstructor) Option {
-	return func(o *options) { o.variant = build }
+// statements, instead of the standard baseline. build is any constructor
+// whose result implements data.Variant, so pgnative.New passes as it is:
+// Go does not convert a function that returns *pgnative.Variant to one
+// that returns the interface, and the type parameter does that wrapping
+// here, where the query library's types are named already. The
+// composition root chooses the variant; the tests run the consumer over
+// each.
+func WithVariant[V data.Variant](build func(catalog *query.Catalog, dialect sqlate.Dialect) (V, error)) Option {
+	return func(o *options) {
+		o.variant = func(catalog *query.Catalog, dialect sqlate.Dialect) (data.Variant, error) {
+			v, err := build(catalog, dialect)
+			if err != nil {
+				return nil, err
+			}
+			return v, nil
+		}
+	}
 }
 
 // New builds the catalog from the query library's patterns and blobfs's

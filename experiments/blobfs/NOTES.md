@@ -16,7 +16,7 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-21)
 
-Stages 1 to 14 are committed. Stages 1 to 13 hold: the single-root schema, the consumer's
+Stages 1 to 15 are committed. Stages 1 to 13 hold: the single-root schema, the consumer's
 `directory_owner` and `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
@@ -67,6 +67,15 @@ The gate is proved by `lib/migrator/migrator_integration_test.go`: fresh replay,
 restart, reset order across the bookmark and owner foreign keys with the wrong order failing,
 and two concurrent starters serialized on the outer lock.
 
+Stage 15 added the binary's choice of variant: it chooses its variant from `--variant
+standard|pgnative` or `BLOBFS_VARIANT` in the composition root (`internal/app/domain.go`, the one
+application file that names `pgnative`, held there by `split-check` rule 10), and
+`files.WithVariant` takes a type parameter so `pgnative.New` passes as it is. The integration
+tier is one ordered script (`integration.TestScript`) over every command family, run once per
+variant in its own database and container, with the tree-lock step showing the variant from the
+outside, and `TestIsolation`, which runs two configurations side by side. Every run logs its
+command line and output; `mise run demo` prints the script's transcript.
+
 ## Running it
 
 `mise run up` starts Postgres on port 5434 and Azurite on port 10000. `mise run test` runs the
@@ -77,6 +86,68 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-21: stage 15 decisions the plan did not spell out
+
+- **The variant is a root persistent flag with an environment variable behind it, resolved
+  where the DSN is.** `--variant standard|pgnative` and `BLOBFS_VARIANT` mirror `--dsn` and
+  `BLOBFS_DSN`: `Config.variant()` reads the flag, then the variable, then defaults to
+  `standard`, and the domain's store constructor calls it before `infra.Database()`, so an
+  unknown name is refused before any I/O with a message naming both routes and both names. The
+  resolution happens when the files store is built, not at flag parse, so the schema commands
+  never read it: the migrations are the same on every variant, and `schema up` under a wrong
+  `BLOBFS_VARIANT` succeeds. No `PersistentPreRunE` was added for a parse-time refusal, because
+  the composition root's rule is that nothing reads a flag before a constructor runs.
+- **`domain.go` maps the name to the option, and it is the one application file that names
+  `pgnative`.** `standard` maps to no option, because `files.New` builds the baseline without
+  one and compiles it once with the store's own statements (stage 9); `pgnative` maps to
+  `files.WithVariant(pgnative.New)`. `split-check` rule 10 holds the naming of
+  `lib/blobfs/data/pgnative` to `internal/app/domain.go` among the application files, proved by
+  two temporary violations (an import from `domain/files` and one from a second file of
+  `internal/app`). No existing rule had to change: rules 7 and 9 forbid `internal/app` from
+  naming `sqlate/query` and `lib/blobfs/data`, which is what forced the next decision.
+- **`files.WithVariant` takes a type parameter.** The composition root cannot write the wrapper
+  `func(c *query.Catalog, d sqlate.Dialect) (data.Variant, error) { return pgnative.New(c, d) }`
+  without naming the two packages rules 7 and 9 reserve for `database.go`, and Go does not
+  convert a function returning `*pgnative.Variant` to one returning the interface. So
+  `WithVariant[V data.Variant](build func(*query.Catalog, sqlate.Dialect) (V, error))` wraps the
+  result in `database.go`, where the types are named already, and `pgnative.New` passes as it
+  is. The tests' hand-written wrappers (`standardVariant`, `postgresVariant`) still compile,
+  because `V` may be the interface itself. `VariantConstructor` stays as the internal shape.
+- **One script per variant, eight ordered steps, stopping at the first failure.** `TestScript`
+  runs a subtest per variant, each over its own database and container with `BLOBFS_VARIANT` in
+  the child's environment, and inside it eight step subtests in order: `schema-up`,
+  `directories`, `writes`, `bookmarks`, `deletes`, `moves`, `tree-lock`, `schema-down`. A step
+  that fails stops the script (`t.Run` reports it), so a failure names
+  `TestScript/<variant>/<step>` and later steps do not fail against a broken tree. The six
+  family tests of stages 7 to 14 became the steps with their assertions kept; each step uses
+  its own top-level directories (`/reports`, `/docs`, `/library`, `/trash`, `/a`, `/locked`) so
+  the one tree carries them all, and the files the directory step sorts by size are put from
+  stdin instead of inserted by SQL, so the transcript is commands only. The binary is built
+  once, in `TestMain`. The variant subtests run one after the other, not in parallel, so the
+  `-v` transcript reads in order; the package takes about 11 s with the race detector.
+- **The transcript is `t.Log` of the shell line and the output.** `run` logs `$ blobfs <args>`
+  with the stdout under it, or `exit <code>: <stderr>` when the run failed, and `go test -v`
+  prints it under the step's name. `mise run demo` is that command over `TestScript` alone,
+  without the race detector.
+- **What the binary shows about its variant, and what it cannot.** No output names the variant:
+  the schema is variant independent, so `schema status` was not extended, and the tool has no
+  `--version`. The one difference observable from outside is the tree lock, and the `tree-lock`
+  step shows it: the test holds `pg_advisory_xact_lock(pgnative.TreeLockKey)` in a transaction of
+  its own and runs two moves; a file move completes on both variants, and a directory move
+  completes on `standard` while the lock is held and on `pgnative` is still waiting after two
+  seconds and completes once the test's transaction ends. The other differences are not
+  observable through the binary: two `mv` processes racing into a cycle need an interleaving
+  the consumer-level suite controls through a gated variant, and the one-statement against
+  two-statement delete begin has the same effect. Those stay covered by the consumer's tests
+  that already run per variant (`domain/files`, stages 12 and 13) and by the conformance suite.
+- **The isolation test runs on the default variant only.** Isolation is configuration (one
+  database and one container per install), not a property of a variant, so `TestIsolation`
+  runs once, over the standard baseline, with two configurations labelled `A` and `B` in the
+  transcript. Its check that nothing remains after the teardown is a cleanup registered before
+  the two configurations open, so it runs after their databases are dropped and their
+  containers deleted, and reads `pg_database` and the container listing through `livetest`
+  (`DatabaseExists`, `Blobs`).
 
 ### 2026-09-21: stage 14 decisions the plan did not spell out
 
@@ -1276,6 +1347,78 @@ owner and no unit.
   parent. Every command but `mv` resolves one kind, so the ambiguity never reached a command
   before; `mv` resolves the directory first and says so.
 
+- **Proof 8, the awkward call sites (stage 15).** The places where the consumer, or the library
+  as a consumer of `sqlate` and `go-storage`, had to work around what it was given, consolidated
+  from the ledger. Each names the entry that holds the evidence.
+  - The listing composer renders the clause patterns itself with its own copy of the slot
+    regex, because `Catalog.render` is unexported (stage 6, "The catalog exposes its inventory
+    and not its renderer").
+  - Every listing statement aliases its table as `q` to match the clause patterns' fixed
+    correlation name (stage 6, "The clause patterns fix the correlation name `q`").
+  - The composer keeps a scan of its own because `Scanner` refuses the window total's column
+    (stage 6, "`Scanner` refuses a column with no field").
+  - The composer takes the dialect from `New` because a `Statement` does not expose the one it
+    compiled against (stage 6, "The composer needs the dialect").
+  - `ls` and `bookmark ls` open the read-only repeatable-read transaction themselves, because
+    `sqlate.Session` cannot begin one (stage 7, "The transaction options compose as needed").
+  - `OwnedDirectory` and `BookmarkedFile` restate every column of the library entity, because
+    the scanner does not flatten embedded structs (stage 7, "The scanner rule reaches the
+    consumer's read model").
+  - The consumer restates the field set the two listing halves share to route sort terms, and
+    pins it by a test (stage 7, "A listing's declared fields are reachable only through the
+    statement inventory").
+  - The scope check resolves `/first` and then the full path, and `mv` resolves four times from
+    the root (stage 7, "`ResolveDirectory` resolves from the root only"; stage 13,
+    "`ResolveDirectory` from the root, again").
+  - `ls / --unit --total none` runs the count and drops it (stage 7, "A projection cannot skip
+    its count").
+  - `ls / --unit` refuses a cursor (stage 8, "`Projection` has no keyset paging").
+  - `CompleteFileWrite` and `MoveFile` read the row after a guard mismatch to tell a status
+    refusal from a version conflict (stage 10, "`query.Guard` cannot carry a second predicate";
+    stage 13, "The guard's single predicate, again").
+  - The bookmark read model moved its recursion into a correlated scalar subquery because a
+    projection base cannot bind the unit (stage 11, "The parameterized projection base,
+    measured").
+  - The consumer keeps its own table from constraint names to sentinels (`bookmarkSentinels`)
+    and maps `fk_bookmark_file` at the delete (stage 11, "A consumer's constraints classify in
+    the consumer"; stage 12, "`ConstraintError` carries no table name").
+  - A retry on a serialization failure recognizes it through the driver's `SQLState()` (stage
+    13, "`postgres.Dialect.MapError` leaves SQLSTATE 40001 unmapped").
+  - The migrator shim repeats `migrate`'s default table name, runs `DROP TABLE` itself, and pins
+    a connection of its own beside each inner migrator's (stage 14, "The hooks the multi-set
+    shim needs").
+  - The composition root names the domain's `files.Storage` type, because only the domain's
+    `storage.go` may import `go-storage` (`v1.storage` incorporation, stage 10).
+  - The container has no flag beside `--dsn`, because the storage configuration reads its own
+    environment (`go-storage` and `azureblob`, "The storage configuration reads its own
+    environment").
+  - `livetest` deletes a container and lists its blobs through the Azure SDK, because
+    `go-storage` has neither operation (`go-storage` and `azureblob`, "go-storage has no
+    container delete"; stage 15 added the listing for the isolation test).
+  - `files.WithVariant` needed a type parameter so the composition root could pass
+    `pgnative.New` without naming the query library's types; before it, every caller wrote the
+    interface-returning wrapper by hand (stage 15 decisions).
+  In sum: eleven of the nineteen sit in `sqlate` (the ledger's adjustment list has each), three
+  in `go-storage`, four in the library's own layout rules (path resolution from the root, the
+  field set, the storage type crossing, the variant constructor), and one in the consumer's own
+  mapping of its constraints, which is where it belongs.
+- **Isolation is configuration, proved at the binary (stage 15).** `TestIsolation` runs two
+  configurations of the binary, each a `BLOBFS_DSN` and a `BLOBFS_STORAGE_CONTAINER` of its
+  own, over the same binary and the same environment otherwise. Both build `/docs/a.txt` with
+  different bytes; `ls /` in each shows its own entries only, `cat /docs/a.txt` returns each
+  configuration's bytes, a unit's directory and active bookmark in A are absent in B (`ls /
+  --unit` and `bookmark ls --unit` return total 0, `bookmark rm` is refused), each database holds
+  exactly its own `blobfs_file`, `bookmark`, and `directory_owner` rows, and each container
+  exactly its own objects under the keys `stat` reports. `rm -r /docs` in A leaves B's row and
+  object, `schema reset --yes` in A leaves B's tables and rows, and after both are torn down
+  neither database nor container exists. Nothing in the library or the consumer names a second
+  database or container, so the proof is that a configuration is the whole boundary: no
+  `volume_id`, no key prefix, no schema qualifier. One observation for the review: the object
+  keys are `<file id>/<name>` and carry no mark of the configuration, so two configurations
+  sharing one container would not collide (the ids are UUIDv7), but the design keeps one
+  container per configuration, and a container-level operation (a listing, a delete of the
+  container) then belongs to exactly one tree.
+
 ### `go-storage` and `azureblob`
 
 - `Put` returns the caller's content type, while `Stat` and `Get` return the server's.
@@ -1309,6 +1452,12 @@ owner and no unit.
 
 - One install per configuration and per database. The fixed table names make a second isolated
   tree a second database.
+- Isolation as built (stage 15): a service that serves several isolated trees runs one
+  configuration per tree, a DSN and a container each, and `TestIsolation` is the evidence that
+  the two share nothing. The variant is chosen by the composition root the same way the DSN is,
+  from a flag with an environment variable behind it, and reaches only the files store; a
+  service that runs on Postgres passes `files.WithVariant(pgnative.New)`, and the schema step is
+  the same either way.
 - Directory-grain ownership: a consumer table keyed on a depth-one directory, checked once at the
   ancestor, rehearses the document hierarchy per organization.
 - Directory-grain ownership as built (stage 7): the scope check is one read of the owner row for
