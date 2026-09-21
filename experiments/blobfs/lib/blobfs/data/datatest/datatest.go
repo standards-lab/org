@@ -9,8 +9,10 @@
 //
 // The suite takes the database from the caller: a throwaway database with
 // blobfs's migration set applied, opened however the caller's test tier
-// opens one. It seeds directories through the store and file rows through
-// plain SQL, since the write path is a later stage.
+// opens one, and Run is called once per database. It seeds directories
+// through the store and file rows through plain SQL, so it needs no key
+// validator, and it creates one table of its own that references
+// blobfs_file, to stand in for a consumer's foreign key.
 package datatest
 
 import (
@@ -31,16 +33,21 @@ import (
 // Run runs the suite as subtests of t: the file-delete begin's contract
 // (the row returned and left deleting, the version advanced once, a retry
 // converging, a rollback undoing it, a missing file as
-// blobfs.ErrNotFound) and the tree lock's (a pool session refused, and the
-// lock held to commit and to rollback when the store serializes, or a
-// documented no-op that never blocks when it does not). db is a migrated
-// throwaway database and store was built over the variant under test with
-// db's dialect.
+// blobfs.ErrNotFound); the whole delete protocol through the variant's
+// begin and the shared complete step (the deleting row removed, a retry
+// of every step converging, a pending row deletable, a row that is not
+// deleting refused, and a row a consumer's foreign key references left
+// deleting until the reference goes); and the tree lock's (a pool session
+// refused, and the lock held to commit and to rollback when the store
+// serializes, or a documented no-op that never blocks when it does not).
+// db is a migrated throwaway database and store was built over the
+// variant under test with db's dialect.
 func Run(t *testing.T, db *sqlate.DB, store *data.Store) {
 	t.Helper()
 	ctx := context.Background()
 	s := suite{t: t, ctx: ctx, db: db, store: store}
 	t.Run("BeginFileDelete", s.beginFileDelete)
+	t.Run("FileDelete", s.fileDelete)
 	t.Run("LockTree", s.lockTree)
 }
 
@@ -115,6 +122,86 @@ func (s *suite) beginFileDelete(t *testing.T) {
 		if !errors.Is(err, blobfs.ErrNotFound) {
 			t.Errorf("BeginFileDelete(missing) = %v, want ErrNotFound", err)
 		}
+	})
+}
+
+// fileDelete checks the delete protocol end to end: the variant's begin
+// followed by the shared complete step, and the idempotence that lets a
+// retry finish after a stop at any step.
+func (s *suite) fileDelete(t *testing.T) {
+	dir := s.mkdir(t, "protocol-"+t.Name())
+
+	t.Run("CompleteRemovesTheDeletingRow", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "available.txt", blobfs.StatusAvailable)
+		s.begin(t, id)
+		s.complete(t, id)
+		s.wantGone(t, id)
+	})
+	t.Run("PendingIsDeletable", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "pending.txt", blobfs.StatusPending)
+		if f := s.begin(t, id); f.Status != blobfs.StatusDeleting {
+			t.Fatalf("begin from pending left the row %s", f.Status)
+		}
+		s.complete(t, id)
+		s.wantGone(t, id)
+	})
+	t.Run("RetryAtEachStepConverges", func(t *testing.T) {
+		id := s.insertFile(t, dir.ID, "retried.txt", blobfs.StatusAvailable)
+		// A stop after the begin: the retry begins again and sees the same
+		// row, then completes.
+		once := s.begin(t, id)
+		again := s.begin(t, id)
+		if !equalFile(once, again) {
+			t.Errorf("the retried begin returned\n%+v\nwant the same row\n%+v", again, once)
+		}
+		// A stop after the object delete: the complete step runs once, and
+		// a retry that runs it again finds the row gone and succeeds.
+		s.complete(t, id)
+		s.complete(t, id)
+		s.wantGone(t, id)
+		// A retry that begins again after the complete step reports the
+		// file gone, which is how a caller learns the delete finished.
+		_, err := s.db.Transact(s.ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+			return s.store.BeginFileDelete(s.ctx, tx, id)
+		})
+		if !errors.Is(err, blobfs.ErrNotFound) {
+			t.Errorf("a begin after the complete = %v, want ErrNotFound", err)
+		}
+		// A complete of an id that never existed is the same success.
+		s.complete(t, blobfs.NewID())
+	})
+	t.Run("NotDeletingIsRefused", func(t *testing.T) {
+		for _, status := range []blobfs.Status{blobfs.StatusAvailable, blobfs.StatusPending} {
+			id := s.insertFile(t, dir.ID, "untouched-"+status.String()+".txt", status)
+			before := s.file(t, id)
+			err := s.store.CompleteFileDelete(s.ctx, s.db, id)
+			if !errors.Is(err, blobfs.ErrNotDeleting) || !strings.Contains(err.Error(), status.String()) {
+				t.Errorf("CompleteFileDelete of a %s row = %v, want ErrNotDeleting naming the status", status, err)
+			}
+			if after := s.file(t, id); !equalFile(before, after) {
+				t.Errorf("the refused complete changed the %s row to\n%+v\nfrom\n%+v", status, after, before)
+			}
+		}
+	})
+	t.Run("ReferencedRowStaysDeleting", func(t *testing.T) {
+		s.createReference(t)
+		id := s.insertFile(t, dir.ID, "referenced.txt", blobfs.StatusAvailable)
+		s.reference(t, id)
+		deleting := s.begin(t, id)
+		err := s.store.CompleteFileDelete(s.ctx, s.db, id)
+		var ce *sqlate.ConstraintError
+		if !errors.Is(err, blobfs.ErrReferenced) || !errors.As(err, &ce) || !errors.Is(ce.Class, sqlate.ErrForeignKeyViolation) || ce.Constraint != referenceConstraint {
+			t.Fatalf("CompleteFileDelete of a referenced row = %v, want ErrReferenced over the consumer's constraint %q", err, referenceConstraint)
+		}
+		if errors.Is(err, blobfs.ErrNotEmpty) {
+			t.Errorf("the consumer's key classified as blobfs's own: %v", err)
+		}
+		if after := s.file(t, id); !equalFile(deleting, after) {
+			t.Errorf("the refused complete changed the row to\n%+v\nfrom\n%+v", after, deleting)
+		}
+		s.unreference(t, id)
+		s.complete(t, id)
+		s.wantGone(t, id)
 	})
 }
 
@@ -214,6 +301,58 @@ func (s *suite) begin(t *testing.T, id string) blobfs.File {
 		t.Fatalf("BeginFileDelete(%s): %v", id, err)
 	}
 	return f
+}
+
+// complete runs CompleteFileDelete on the pool and fails the test on any
+// error.
+func (s *suite) complete(t *testing.T, id string) {
+	t.Helper()
+	if err := s.store.CompleteFileDelete(s.ctx, s.db, id); err != nil {
+		t.Fatalf("CompleteFileDelete(%s): %v", id, err)
+	}
+}
+
+// wantGone checks that no row with id exists.
+func (s *suite) wantGone(t *testing.T, id string) {
+	t.Helper()
+	if f, err := s.store.File(s.ctx, s.db, id); !errors.Is(err, blobfs.ErrNotFound) {
+		t.Errorf("after the complete step the row is %+v, %v; want it gone", f, err)
+	}
+}
+
+// referenceConstraint is the name of the suite's own foreign key into
+// blobfs_file, which stands in for a consumer's.
+const referenceConstraint = "datatest_fk_reference_file"
+
+// createReference creates the suite's reference table: one column of the
+// same type as blobfs_file.id, taken from the migrated table so the DDL
+// names no engine type, under a foreign key to blobfs_file.
+func (s *suite) createReference(t *testing.T) {
+	t.Helper()
+	for _, text := range []string{
+		"CREATE TABLE datatest_reference AS SELECT f.id AS file_id FROM blobfs_file f WHERE 1 = 0",
+		"ALTER TABLE datatest_reference ADD CONSTRAINT " + referenceConstraint + " FOREIGN KEY (file_id) REFERENCES blobfs_file (id)",
+	} {
+		if _, err := s.db.ExecContext(s.ctx, text); err != nil {
+			t.Fatalf("%s: %v", text, err)
+		}
+	}
+}
+
+// reference inserts a row that references the file with id.
+func (s *suite) reference(t *testing.T, id string) {
+	t.Helper()
+	if _, err := s.db.ExecContext(s.ctx, "INSERT INTO datatest_reference (file_id) VALUES ("+s.db.Dialect().Placeholder(1)+")", id); err != nil {
+		t.Fatalf("reference file %s: %v", id, err)
+	}
+}
+
+// unreference removes the rows that reference the file with id.
+func (s *suite) unreference(t *testing.T, id string) {
+	t.Helper()
+	if _, err := s.db.ExecContext(s.ctx, "DELETE FROM datatest_reference WHERE file_id = "+s.db.Dialect().Placeholder(1), id); err != nil {
+		t.Fatalf("unreference file %s: %v", id, err)
+	}
 }
 
 // wantDeleting checks got against before: the same row moved to deleting,

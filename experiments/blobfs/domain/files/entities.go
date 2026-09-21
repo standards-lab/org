@@ -130,11 +130,13 @@ type Page[T any] struct {
 	Next  string
 }
 
-// Step names a step of the two-phase write that put may stop after, for
-// --fail-after: insert, once the pending row is committed and before the
-// object is stored, and write, once the object is stored and before the
-// row is completed. There is no stop after complete, because nothing
-// follows it.
+// Step names a step of a two-phase command that --fail-after may stop
+// after. For put: insert, once the pending row is committed and before
+// the object is stored, and write, once the object is stored and before
+// the row is completed. For rm: begin, once the row is committed as
+// deleting and before the object is deleted, and object, once the object
+// is deleted and before the row is removed. There is no stop after the
+// last step of either, because nothing follows it.
 type Step string
 
 const (
@@ -143,10 +145,17 @@ const (
 
 	// StepWrite is the object's write to the store.
 	StepWrite Step = "write"
+
+	// StepBegin is the file delete's begin, committed on its own with the
+	// bookmark check that precedes it.
+	StepBegin Step = "begin"
+
+	// StepObject is the object's delete from the store.
+	StepObject Step = "object"
 )
 
-// ParseStep reads a --fail-after value: insert, write, or empty for no
-// stop.
+// ParseStep reads put's --fail-after value: insert, write, or empty for
+// no stop.
 func ParseStep(s string) (Step, error) {
 	switch Step(s) {
 	case "", StepInsert, StepWrite:
@@ -154,6 +163,50 @@ func ParseStep(s string) (Step, error) {
 	}
 	return "", fmt.Errorf("--fail-after %q: the step is insert or write", s)
 }
+
+// ParseRemoveStep reads rm's --fail-after value: begin, object, or empty
+// for no stop.
+func ParseRemoveStep(s string) (Step, error) {
+	switch Step(s) {
+	case "", StepBegin, StepObject:
+		return Step(s), nil
+	}
+	return "", fmt.Errorf("--fail-after %q: the step is begin or object", s)
+}
+
+// TreeRemoval is what rm -r returns: how many files and directories it
+// removed, the target directory included when it was removed. On an error
+// the counts are what was removed before it.
+type TreeRemoval struct {
+	Files       int
+	Directories int
+}
+
+// RemovalEvent is one step of a recursive delete, reported to the
+// observer rm -r takes as it happens: a file removed, a directory
+// removed, or a directory found empty and about to be removed. Path is
+// the entry's path; ID is the row's id, empty for the emptied event.
+type RemovalEvent struct {
+	Kind RemovalKind
+	Path string
+	ID   string
+}
+
+// RemovalKind names what a RemovalEvent reports.
+type RemovalKind string
+
+const (
+	// RemovedFile reports a file removed through the full delete steps.
+	RemovedFile RemovalKind = "file"
+
+	// RemovedDirectory reports a directory removed after its contents.
+	RemovedDirectory RemovalKind = "directory"
+
+	// DirectoryEmptied reports a directory whose listing came back empty,
+	// before its own removal runs. The removal is refused if a row was
+	// inserted meanwhile, and the walk then empties the directory again.
+	DirectoryEmptied RemovalKind = "emptied"
+)
 
 // PutRequest is one upload as the command line states it: the file's
 // path, the content type to declare, the body and its length when known

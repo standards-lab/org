@@ -47,6 +47,17 @@ var (
 	// a move or rename, or a status change out of deleting.
 	ErrDeleting = errors.New("blobfs: row is deleting")
 
+	// ErrNotDeleting reports the complete step of a file delete refused
+	// because the row exists and is not deleting: its delete has not
+	// begun. The caller runs the begin step first.
+	ErrNotDeleting = errors.New("blobfs: the file is not deleting")
+
+	// ErrReferenced reports a delete refused by a foreign key blobfs does
+	// not own: a consumer's row still references the file or directory.
+	// The sqlate.ConstraintError stays reachable, so the consumer matches
+	// the constraint's name against its own and classifies further.
+	ErrReferenced = errors.New("blobfs: the row is referenced by a consumer's row")
+
 	// ErrCycle reports a directory move whose new parent sits inside the
 	// directory's own subtree, the directory itself included.
 	ErrCycle = errors.New("blobfs: move would create a cycle")

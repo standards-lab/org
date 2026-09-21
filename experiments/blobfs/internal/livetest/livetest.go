@@ -55,13 +55,16 @@ func OpenDSN(t testing.TB) (*sqlate.DB, string) {
 		t.Fatalf("create database %s: %v", name, err)
 	}
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
 		// WITH (FORCE) terminates the database's other sessions, and under load the
-		// engine can report that one is still closing. A short retry lets it finish.
+		// engine can report that one is still closing or stall while every session
+		// absorbs the drop. Each attempt gets its own deadline, so one long stall
+		// does not use up the retries.
 		var err error
-		for attempt := 0; attempt < 10; attempt++ {
-			if _, err = admin.ExecContext(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err == nil {
+		for attempt := 0; attempt < 4; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err = admin.ExecContext(ctx, "DROP DATABASE "+name+" WITH (FORCE)")
+			cancel()
+			if err == nil {
 				break
 			}
 			time.Sleep(200 * time.Millisecond)

@@ -51,8 +51,8 @@ func TestCommands_MountsMkdirAndLs(t *testing.T) {
 		names = append(names, c.Name())
 	}
 	slices.Sort(names)
-	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,put,stat" {
-		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,put,stat", got)
+	if got := strings.Join(names, ","); got != "bookmark,cat,ls,mkdir,put,rm,rmdir,stat" {
+		t.Errorf("Commands() = %s, want bookmark,cat,ls,mkdir,put,rm,rmdir,stat", got)
 	}
 	for _, c := range cmds {
 		if c.Name() != "bookmark" {
@@ -91,6 +91,10 @@ func TestCommands_ValidateBeforeConstructingTheStore(t *testing.T) {
 		{[]string{"put", "/a.txt"}, `accepts 2 arg`},
 		{[]string{"cat"}, `accepts 1 arg`},
 		{[]string{"stat", "/a", "/b"}, `accepts 1 arg`},
+		{[]string{"rm"}, `accepts 1 arg`},
+		{[]string{"rm", "/a.txt", "--fail-after", "complete"}, `the step is begin or object`},
+		{[]string{"rm", "-r", "/a", "--fail-after", "begin"}, `rm -r takes no step`},
+		{[]string{"rmdir", "/a", "/b"}, `accepts 1 arg`},
 		{[]string{"bookmark", "add", "/a.txt"}, `required flag(s) "unit" not set`},
 		{[]string{"bookmark", "add", "/a.txt", "--unit", "nope"}, `--unit "nope" is not a UUID`},
 		{[]string{"bookmark", "add", "--unit", unit}, `accepts 1 arg`},
@@ -127,6 +131,10 @@ func TestCommands_ReturnTheConstructorsError(t *testing.T) {
 		{"put", "-", "/a.txt"},
 		{"cat", "/a.txt"},
 		{"stat", "/a.txt"},
+		{"rm", "/a.txt"},
+		{"rm", "-r", "/a"},
+		{"rm", "/a.txt", "--fail-after", "object"},
+		{"rmdir", "/a"},
 		{"bookmark", "add", "/a.txt", "--unit", unit, "--active"},
 		{"bookmark", "ls", "--unit", unit, "--page", "2", "--size", "5", "--sort", "path:desc", "--total", "none"},
 		{"bookmark", "rm", "/a.txt", "--unit", unit},

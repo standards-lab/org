@@ -40,6 +40,13 @@ type env struct {
 // overridden for the test.
 func open(t *testing.T) env {
 	t.Helper()
+	return openWith(t)
+}
+
+// openWith is open with options for the store's constructor: the delete
+// tests pass the variant, so the consumer runs over each.
+func openWith(t *testing.T, opts ...files.Option) env {
+	t.Helper()
 	ctx := context.Background()
 	db, dsn := livetest.OpenDSN(t)
 	t.Setenv("BLOBFS_STORAGE_CONTAINER", livetest.Container(t))
@@ -63,7 +70,7 @@ func open(t *testing.T) env {
 	}
 	s, err := files.New(db, func(ctx context.Context) (*files.Storage, error) {
 		return files.OpenStorage(ctx, "blobfs")
-	})
+	}, opts...)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

@@ -26,14 +26,14 @@ several isolated trees runs several configurations, each with its own database a
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
 | `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
 | `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
-| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, and `bookmark` commands. |
+| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `rm`, `rmdir`, and `bookmark` commands. |
 | `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates both): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, and the two steps of the file write), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
+| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, and the directory removal), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
 | `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
 | `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
@@ -59,7 +59,34 @@ that wants a different behavior for one operation embeds a variant and overrides
   the row. A retry returns the same row; a missing file is `blobfs.ErrNotFound`. The Postgres
   variant is one `UPDATE ... RETURNING`. The baseline is an update and a read-back, which must run
   in one transaction so the read sees the row the update locked; it refuses the pool with
-  `query.ErrTransactionRequired`.
+  `query.ErrTransactionRequired`. The complete step (`CompleteFileDelete`) is the same standard
+  statement on every variant: it removes the row, and only a `deleting` row.
+
+## The delete path
+
+A file is deleted in two steps around the object delete, which `blobfs` never makes, and `rm`
+mirrors `put`. First, in one transaction of its own, `rm` reads the consumer's bookmark table for
+the file and refuses the delete while any unit bookmarks it (`files.ErrBookmarked`), then runs
+`blobfs`'s begin step through the variant, which marks the row `deleting`, and commits. Second,
+outside any transaction, it deletes the object under the row's key; the provider treats a missing
+object as success, so the step repeats safely. Third, on the pool, it runs `blobfs`'s complete
+step, which removes the row. A stop between the steps leaves the row `deleting`, where `ls` and
+`stat` show it, `cat` refuses it, and `put` refuses its name; an `rm` of the same path resumes at
+the step that stopped, because the begin is idempotent on a `deleting` row and the complete
+succeeds on a row already gone. The `deleting` status is what lets a retry finish once the object
+is gone: without it a row whose object was removed would read as `available`.
+
+The library removes a directory only when it is empty: the two foreign keys into
+`blobfs_directory` refuse the removal otherwise and reach the caller as `blobfs.ErrNotEmpty`, and
+there is no cascade. A foreign key `blobfs` does not own, such as the consumer's `fk_bookmark_file`
+or `fk_directory_owner_directory`, reaches the caller as `blobfs.ErrReferenced` with the constraint
+name reachable, and the consumer maps the name to its own sentinel. `rmdir` removes the consumer's
+owner row and the directory in one transaction. `rm -r` is the consumer's recursive delete: it
+lists each directory a page at a time and removes what it lists, files through the delete steps
+and directories after their contents, until a page comes back empty, then removes the directory;
+it takes no lock, and a row inserted meanwhile is either removed by a later pass or refuses the
+directory's removal, in which case the walk empties the directory again a bounded number of
+times before it reports `blobfs.ErrNotEmpty`. A rerun continues from wherever it stopped.
 
 ## The write path
 
@@ -72,7 +99,7 @@ insert. Last, on the pool, it completes the row as `available` with the size, en
 content type the store reported, guarded by the version read from the pending row. A stop
 between the steps leaves the row `pending`, where `ls` and `stat` show it and `cat` refuses it,
 and a `put` of the same path resumes the row: it stores the object again and completes it. There
-is no failed status; an abandoned write is removed through the delete steps of a later stage.
+is no failed status; an abandoned write is removed through the delete steps (`rm` of the path).
 
 ## Running it
 
@@ -145,6 +172,19 @@ id is a UUID and stands in for the auth strategy's unit.
 - `stat <path>` prints the file's row, one field per line: path, id, name, status, size,
   content type, etag, key, version, and the timestamps. A `pending` file shows `-` for its size
   and etag. The object store is not consulted.
+- `rm <path>` deletes the file at the path through the three steps above and prints the path and
+  the id. A file any unit bookmarks is refused before anything is touched. `--fail-after begin`
+  stops once the row is committed as `deleting`, and `--fail-after object` once the object is
+  deleted, each with exit code 1 and a message naming the deleting row; an `rm` of the same path
+  then finishes the delete. A `pending` file (an abandoned `put`) is deleted the same way, and a
+  finished path reports not found.
+- `rmdir <path>` removes an empty directory and prints the path and the id, with the directory's
+  `directory_owner` row when it has one, in one transaction. A directory that still has
+  directories or files under it is refused as not empty, and so is the root.
+- `rm -r <path>` removes the directory at the path and everything under it, printing one
+  `rm:` or `rmdir:` line per removal, children before their parent and the target last, and a
+  summary line with the counts. A bookmarked file under the tree stops the walk, which is
+  rerun after the bookmark is removed. The root is refused, and `--fail-after` does not apply.
 
 The bookmark commands are the file-grain ownership rehearsal: a `bookmark` row binds a file to a
 unit, and a partial unique index allows one active bookmark per unit.

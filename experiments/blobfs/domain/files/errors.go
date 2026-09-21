@@ -55,9 +55,30 @@ var (
 	// one. stat shows the status; cat refuses.
 	ErrNotAvailable = errors.New("files: the file is not available")
 
-	// ErrStopped reports a put that stopped after the step --fail-after
-	// named, as asked. A StopError carries the step and the pending row.
+	// ErrContainerMissing reports an object delete that found the store's
+	// container gone. The provider reports it apart from a missing object,
+	// which is the idempotent success a delete wants, because a missing
+	// container says the configured target is gone rather than that this
+	// object is; the delete refuses the step and leaves the row deleting.
+	ErrContainerMissing = errors.New("files: the object store's container is missing")
+
+	// ErrStopped reports a put or an rm that stopped after the step
+	// --fail-after named, as asked. A StopError carries the command, the
+	// step, and the row as it was left.
 	ErrStopped = errors.New("files: stopped as requested")
+
+	// ErrBookmarked reports a file delete refused because a unit bookmarks
+	// the file: rm checks the bookmark table before it begins the delete,
+	// and the foreign key fk_bookmark_file refuses the row's removal
+	// should a bookmark arrive after the check. The caller removes the
+	// bookmarks and reruns rm.
+	ErrBookmarked = errors.New("files: the file is bookmarked")
+
+	// ErrTreeBusy reports a recursive delete that stopped because a
+	// directory it was emptying received rows at least as fast as they
+	// were removed: a pass over the directory's listing left its total
+	// no smaller than before. Nothing is inconsistent; a rerun continues.
+	ErrTreeBusy = errors.New("files: the directory keeps receiving rows while it is being removed")
 
 	// ErrAlreadyBookmarked reports a bookmark add of a file the unit has
 	// bookmarked already, active or not: the violation of the bookmark
@@ -99,19 +120,21 @@ const (
 	ConstraintUniqueBookmarkActive = "uq_bookmark_active"
 )
 
-// StopError reports a put that --fail-after stopped between the steps of
-// the write, before the row was completed: the step it stopped after and
-// the row it left pending. It matches ErrStopped under errors.Is. The
-// message says how to finish the write: a put of the same path resumes
-// the pending row.
+// StopError reports a put or an rm that --fail-after stopped between its
+// steps, before the row was completed or removed: the command, the step
+// it stopped after, and the row as it was left, pending after a put and
+// deleting after an rm. It matches ErrStopped under errors.Is. The
+// message says how to finish: a rerun of the same command at the same
+// path resumes the row.
 type StopError struct {
-	Step Step
-	Path string
-	File blobfs.File
+	Command string
+	Step    Step
+	Path    string
+	File    blobfs.File
 }
 
 func (e *StopError) Error() string {
-	return fmt.Sprintf("files: put %s: stopped after step %s as requested; the row is pending (id %s); rerun put to complete it", e.Path, e.Step, e.File.ID)
+	return fmt.Sprintf("files: %s %s: stopped after step %s as requested; the row is %s (id %s); rerun %s to complete it", e.Command, e.Path, e.Step, e.File.Status, e.File.ID, e.Command)
 }
 
 // Unwrap returns ErrStopped, so errors.Is matches the sentinel.

@@ -42,6 +42,18 @@
 // is no fail step: an abandoned write is removed through the delete steps,
 // which a pending row already allows.
 //
+// A file delete is two steps around the object delete the package never
+// makes. BeginFileDelete moves the row to deleting and returns it, so the
+// caller deletes the object under the row's key; CompleteFileDelete then
+// removes the row, and only a deleting row. The begin is idempotent on a
+// row already deleting and the complete succeeds on a row already gone,
+// so a retry after a stop at any step finishes the delete. The deleting
+// status is the durable marker that makes the retry possible once the
+// object is gone: without it a row whose object was removed would read
+// as available. RemoveDirectory removes one empty directory; there is no
+// cascade and no recursive delete, and a consumer that wants one walks
+// the tree, files and then directories, deepest first.
+//
 // Two operations are variation points, where an engine may do better than
 // standard SQL: the tree lock that serializes directory moves, and the
 // first step of a file delete. The Variant interface names them, Standard
@@ -58,7 +70,12 @@
 // unwrapped, so a call runs against the pool or inside the caller's
 // transaction, and a statement headed transaction: required refuses a
 // session that is not a *sqlate.Tx. A violation of one of blobfs's own
-// constraints becomes blobfs.ErrNameTaken, blobfs.ErrNotFound, or
-// blobfs.ErrRootDirectory; a violation of a constraint blobfs does not own
-// returns unclassified, wrapped with the operation's context.
+// constraints becomes blobfs.ErrNameTaken, blobfs.ErrNotFound,
+// blobfs.ErrRootDirectory, or, on a delete, blobfs.ErrNotEmpty. A
+// violation of a constraint blobfs does not own returns unclassified on a
+// write, wrapped with the operation's context; on a delete a foreign key
+// blobfs does not own is a consumer's row that references the one being
+// removed, which the package reports as blobfs.ErrReferenced by the
+// violation's class, with the constraint's name reachable for the
+// consumer to match.
 package data

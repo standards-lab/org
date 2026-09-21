@@ -570,3 +570,128 @@ func TestBookmarkCommands(t *testing.T) {
 		t.Errorf("the other unit's bookmark after the unit's rm = %v", got)
 	}
 }
+
+// TestDeleteCommands is the scripted run of the delete commands through
+// the built binary against Postgres and Azurite: rm --fail-after at each
+// step, the deleting row that stat and ls show and cat and put refuse,
+// the rm that finishes it, the bookmark that refuses an rm until it is
+// removed, rm of an abandoned put, rmdir of an empty and of a non-empty
+// directory and of an owned one, the root refusals, and rm -r over a
+// tree with its per-entry lines and its summary.
+func TestDeleteCommands(t *testing.T) {
+	ctx := context.Background()
+	db, tg := open(t)
+	bin := build(t)
+	unit := blobfs.NewID()
+	ok(t, bin, tg, "schema", "up")
+	local := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(local, []byte("note\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ok(t, bin, tg, "mkdir", "/docs")
+	ok(t, bin, tg, "mkdir", "/docs/sub")
+	ok(t, bin, tg, "put", local, "/docs/a.txt")
+	ok(t, bin, tg, "put", local, "/docs/b.txt")
+	ok(t, bin, tg, "put", local, "/docs/sub/c.txt")
+
+	// --fail-after begin: the row is deleting and visible, and the retry
+	// finishes the delete.
+	_, errOut, code := run(t, bin, tg, "rm", "/docs/a.txt", "--fail-after", "begin")
+	if code != 1 || !strings.Contains(errOut, "stopped after step begin") || !strings.Contains(errOut, "the row is deleting") || !strings.Contains(errOut, "rerun rm") {
+		t.Fatalf("rm --fail-after begin exited %d: %s", code, errOut)
+	}
+	if out := ok(t, bin, tg, "stat", "/docs/a.txt"); field(out, "status") != "deleting" || field(out, "version") != "3" {
+		t.Errorf("stat after the stop:\n%s", out)
+	}
+	listed := false
+	for _, line := range lines(ok(t, bin, tg, "ls", "/docs")) {
+		if f := strings.Fields(line); len(f) > 3 && f[1] == "a.txt" {
+			listed = f[3] == "deleting"
+		}
+	}
+	if !listed {
+		t.Errorf("ls after the stop does not show a.txt deleting")
+	}
+	refused(t, bin, tg, "the file is deleting", "cat", "/docs/a.txt")
+	refused(t, bin, tg, "name taken", "put", local, "/docs/a.txt")
+	if out := ok(t, bin, tg, "rm", "/docs/a.txt"); !strings.HasPrefix(out, "rm: /docs/a.txt (id ") {
+		t.Errorf("the finishing rm stdout = %q", out)
+	}
+	refused(t, bin, tg, "not found", "stat", "/docs/a.txt")
+	refused(t, bin, tg, "not found", "rm", "/docs/a.txt")
+
+	// --fail-after object: the object is gone, the row stays deleting, and
+	// the retry removes it.
+	_, errOut, code = run(t, bin, tg, "rm", "/docs/b.txt", "--fail-after", "object")
+	if code != 1 || !strings.Contains(errOut, "stopped after step object") {
+		t.Fatalf("rm --fail-after object exited %d: %s", code, errOut)
+	}
+	if out := ok(t, bin, tg, "stat", "/docs/b.txt"); field(out, "status") != "deleting" {
+		t.Errorf("stat after the stop after object:\n%s", out)
+	}
+	ok(t, bin, tg, "rm", "/docs/b.txt")
+	refused(t, bin, tg, "not found", "stat", "/docs/b.txt")
+	rows, err := db.QueryContext(ctx, "SELECT COUNT(*) FROM blobfs_file WHERE name IN ('a.txt', 'b.txt')")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var remaining int
+	if !rows.Next() || rows.Scan(&remaining) != nil || remaining != 0 {
+		t.Errorf("%d rows of the removed files remain", remaining)
+	}
+	_ = rows.Close()
+
+	// A bookmark refuses the rm until it is removed.
+	ok(t, bin, tg, "bookmark", "add", "/docs/sub/c.txt", "--unit", unit)
+	refused(t, bin, tg, "the file is bookmarked", "rm", "/docs/sub/c.txt")
+	if out := ok(t, bin, tg, "stat", "/docs/sub/c.txt"); field(out, "status") != "available" {
+		t.Errorf("stat after the refused rm:\n%s", out)
+	}
+	ok(t, bin, tg, "bookmark", "rm", "/docs/sub/c.txt", "--unit", unit)
+	ok(t, bin, tg, "rm", "/docs/sub/c.txt")
+
+	// An abandoned put is removed the same way.
+	if _, errOut, code := run(t, bin, tg, "put", local, "/docs/abandoned.txt", "--fail-after", "insert"); code != 1 {
+		t.Fatalf("put --fail-after insert exited %d: %s", code, errOut)
+	}
+	ok(t, bin, tg, "rm", "/docs/abandoned.txt")
+	refused(t, bin, tg, "not found", "stat", "/docs/abandoned.txt")
+
+	// rmdir: the refusals, then an empty directory and an owned one.
+	refused(t, bin, tg, "not empty", "rmdir", "/docs")
+	refused(t, bin, tg, "the root directory", "rmdir", "/")
+	refused(t, bin, tg, "not found", "rmdir", "/missing")
+	refused(t, bin, tg, "the step is begin or object", "rm", "/docs/x.txt", "--fail-after", "complete")
+	refused(t, bin, tg, "rm -r takes no step", "rm", "-r", "/docs", "--fail-after", "begin")
+	if out := ok(t, bin, tg, "rmdir", "/docs/sub"); !strings.HasPrefix(out, "rmdir: /docs/sub (id ") {
+		t.Errorf("rmdir stdout = %q", out)
+	}
+	ok(t, bin, tg, "mkdir", "/owned", "--unit", unit)
+	ok(t, bin, tg, "rmdir", "/owned")
+	if got := column(ok(t, bin, tg, "ls", "/", "--unit", unit)); len(got) != 0 {
+		t.Errorf("ls / as the unit after the rmdir = %v, want nothing", got)
+	}
+
+	// rm -r: a tree with files at two levels, the per-entry lines, the
+	// summary, and the root refusal.
+	ok(t, bin, tg, "mkdir", "/docs/x")
+	ok(t, bin, tg, "mkdir", "/docs/x/y")
+	ok(t, bin, tg, "put", local, "/docs/x/y/deep.txt")
+	ok(t, bin, tg, "put", local, "/docs/top.txt")
+	refused(t, bin, tg, "the root directory", "rm", "-r", "/")
+	out := ok(t, bin, tg, "rm", "-r", "/docs")
+	got := lines(out)
+	want := []string{"rm: /docs/x/y/deep.txt", "rmdir: /docs/x/y", "rmdir: /docs/x", "rm: /docs/top.txt", "rmdir: /docs", "rm -r: /docs (2 files, 3 directories)"}
+	if len(got) != len(want) {
+		t.Fatalf("rm -r printed %d lines:\n%s", len(got), out)
+	}
+	for i, line := range got {
+		if !strings.HasPrefix(line, want[i]) {
+			t.Errorf("rm -r line %d = %q, want it to start with %q", i+1, line, want[i])
+		}
+	}
+	if got := column(ok(t, bin, tg, "ls", "/")); len(got) != 0 {
+		t.Errorf("ls / after rm -r = %v, want nothing", got)
+	}
+	refused(t, bin, tg, "not found", "rm", "-r", "/docs")
+}

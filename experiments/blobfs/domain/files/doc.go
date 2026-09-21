@@ -3,7 +3,7 @@
 // schema seeds. It owns the directory_owner and bookmark tables the
 // consumer's migration set creates, the consumer's read models over them,
 // the adapter over the object store, and the mkdir, ls, put, cat, stat,
-// and bookmark commands. The consumer uses blobfs.Directory and
+// rm, rmdir, and bookmark commands. The consumer uses blobfs.Directory and
 // blobfs.File as the library defines them and does not restate them,
 // except in the read models, where the scanner's rules force it to.
 //
@@ -16,8 +16,9 @@
 //     names of the bookmark table's constraints, which database.go maps to
 //     them.
 //   - statements/ holds the consumer's SQL: the owner row's insert and
-//     read, the owned_directories projection base, the bookmark's insert
-//     and delete, and the bookmarks projection base. The owner projection
+//     read and removal, the owned_directories projection base, the
+//     bookmark's insert, delete, and per-file count, and the bookmarks
+//     projection base. The owner projection
 //     includes blobfs's published column list and joins directory_owner,
 //     so ls / --unit lists a unit's own top-level directories. The
 //     bookmark projection joins bookmark to blobfs_file and computes each
@@ -28,21 +29,28 @@
 //     program's one pattern catalog, compiles the consumer's statements
 //     against it, binds the typed handles, converts a Listing to the
 //     library's listing and to the query library's directives, maps the
-//     bookmark table's constraint violations to the consumer's sentinels,
-//     and verifies every statement against the database.
+//     bookmark table's constraint violations to the consumer's sentinels
+//     (one table for the insert, one for the file delete the foreign key
+//     refuses), takes the option that chooses blobfs's variant, and
+//     verifies every statement against the database.
 //   - storage.go is the only application file that imports go-storage and
 //     its Azure Blob provider. It adapts the storage store to the object
 //     operations the file commands make, implements blobfs's key
 //     validation over the provider's rules, maps the store's errors onto
 //     the domain's, and opens and starts the store from the environment
 //     for the composition root.
-//   - blobfs.go composes Mkdir, List, Put, Stat, Open, AddBookmark,
-//     RemoveBookmark, and ListBookmarks from the library's methods, the
-//     consumer's statements, and the object store. List and ListBookmarks
-//     each run in one read-only repeatable-read transaction. Put is the
-//     two-phase write: the pending row in a transaction of its own, the
-//     object write, and the completion on the pool. AddBookmark resolves
-//     the file and inserts the bookmark in one transaction.
+//   - blobfs.go composes Mkdir, List, Put, Stat, Open, Remove,
+//     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
+//     ListBookmarks from the library's methods, the consumer's statements,
+//     and the object store. List and ListBookmarks each run in one
+//     read-only repeatable-read transaction. Put is the two-phase write:
+//     the pending row in a transaction of its own, the object write, and
+//     the completion on the pool. Remove is its mirror: the bookmark check
+//     and the begin in a transaction of its own, the object delete, and
+//     the row's removal on the pool. RemoveDirectory removes the owner row
+//     and the directory in one transaction, and RemoveTree walks a tree
+//     through those two, children first. AddBookmark resolves the file and
+//     inserts the bookmark in one transaction.
 //   - commands.go builds the commands over a Store constructor and renders
 //     through output.
 //

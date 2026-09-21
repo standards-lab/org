@@ -121,3 +121,49 @@ func (s *Store) CompleteFileWrite(ctx context.Context, sess sqlate.Session, id s
 	}
 	return f, nil
 }
+
+// CompleteFileDelete is the last step of a file delete: it removes the
+// row with id, after the caller has deleted the object under the row's
+// Key. Only a deleting row is removed. A row that is already gone is
+// success, because the step's postcondition is the row's absence and a
+// retry after a crash cannot tell its own earlier completion from a row
+// that never existed; a caller that wants to report a missing file
+// resolves it before the begin step. A row that exists and is not
+// deleting is blobfs.ErrNotDeleting and is left as it is: the delete has
+// not begun, so the object may still be wanted.
+//
+// A foreign key from a consumer's table that references the row refuses
+// the removal as blobfs.ErrReferenced, with the sqlate.ConstraintError
+// reachable, so the consumer matches the constraint's name against its
+// own; the row stays deleting, and a retry after the consumer's row is
+// gone converges. One statement removes the row, so the session may be
+// the pool or a transaction, and the statement is the same for every
+// variant.
+func (s *Store) CompleteFileDelete(ctx context.Context, sess sqlate.Session, id string) error {
+	n, err := s.removeFile.Exec(ctx, sess, query.Args{"id": id})
+	if err != nil {
+		return fmt.Errorf("data: complete delete of file %s: %w", id, classifyDelete(err))
+	}
+	if n > 0 {
+		return nil
+	}
+	// No row was removed: the row is gone, which is success, or it exists
+	// in a status the removal refuses.
+	f, err := s.File(ctx, sess, id)
+	switch {
+	case errors.Is(err, blobfs.ErrNotFound):
+		return nil
+	case err != nil:
+		return fmt.Errorf("data: complete delete of file %s: %w", id, err)
+	case f.Status == blobfs.StatusDeleting:
+		// A concurrent begin moved the row to deleting between the removal
+		// and this read. The removal is repeated once; a row that is
+		// deleting never leaves that status except by removal, so the
+		// second attempt removes it or finds it gone.
+		if _, err := s.removeFile.Exec(ctx, sess, query.Args{"id": id}); err != nil {
+			return fmt.Errorf("data: complete delete of file %s: %w", id, classifyDelete(err))
+		}
+		return nil
+	}
+	return fmt.Errorf("data: complete delete of file %s: the row is %s: %w", id, f.Status, blobfs.ErrNotDeleting)
+}

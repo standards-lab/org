@@ -49,6 +49,8 @@ type Store struct {
 	fileByName         query.Rows[blobfs.File]
 	beginFileWrite     query.Statement
 	completeFileWrite  query.Guard
+	removeFile         query.Statement
+	removeDirectory    query.Statement
 	files              listing[blobfs.File]
 	children           listing[blobfs.Directory]
 }
@@ -112,6 +114,8 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 		fileByName:         stmts.Statement("file_by_name").Scan(file),
 		beginFileWrite:     stmts.Statement("begin_file_write"),
 		completeFileWrite:  stmts.Statement("complete_file_write").Guarded(stmts.Statement("file_version"), "version"),
+		removeFile:         stmts.Statement("remove_file"),
+		removeDirectory:    stmts.Statement("remove_directory"),
 		files:              files,
 		children:           children,
 	}, nil

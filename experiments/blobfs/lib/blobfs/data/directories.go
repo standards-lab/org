@@ -51,6 +51,32 @@ func (s *Store) Mkdir(ctx context.Context, sess sqlate.Session, parentID, name s
 	return d, nil
 }
 
+// RemoveDirectory removes the directory with id. The root is refused
+// with blobfs.ErrRootDirectory before any SQL, and the statement itself
+// never removes a row without a parent. A directory that still has child
+// directories or files is blobfs.ErrNotEmpty, reported by the foreign
+// keys blobfs_fk_directory_parent and blobfs_fk_file_directory, since
+// there is no cascade; a consumer removes the contents first, deepest
+// first. A consumer's own foreign key into blobfs_directory refuses the
+// removal as blobfs.ErrReferenced, with the sqlate.ConstraintError
+// reachable. A directory that does not exist is blobfs.ErrNotFound. One
+// statement, so the session may be the pool or a transaction; a consumer
+// that keeps a row of its own about the directory removes both in one
+// transaction.
+func (s *Store) RemoveDirectory(ctx context.Context, sess sqlate.Session, id string) error {
+	if id == blobfs.RootID {
+		return fmt.Errorf("data: remove directory %s: %w", id, blobfs.ErrRootDirectory)
+	}
+	n, err := s.removeDirectory.Exec(ctx, sess, query.Args{"id": id})
+	if err != nil {
+		return fmt.Errorf("data: remove directory %s: %w", id, classifyDelete(err))
+	}
+	if n == 0 {
+		return fmt.Errorf("data: remove directory %s: %w", id, blobfs.ErrNotFound)
+	}
+	return nil
+}
+
 // Children lists the directories whose parent is parentID: one page under
 // l, sorted and filtered by the declared fields id, parent_id, name,
 // version, created_at, and updated_at, with the total under the same

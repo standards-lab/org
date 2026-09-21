@@ -16,7 +16,7 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 11 are committed: the single-root schema, the consumer's `directory_owner` and
+Stages 1 to 12 are committed: the single-root schema, the consumer's `directory_owner` and
 `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
@@ -34,7 +34,15 @@ constraints into consumer sentinels, and the second evidence transcript. The bin
 `--total none`, `--after-dirs`, `--after-files`, and `--unit`, the three file commands, and the
 three bookmark commands; it builds its store over the baseline. `mise run evidence` writes
 `evidence/read-model.txt`, the cost of the shipped listing, and `evidence/bookmarks.txt`, the
-cost of the bookmark read model. Deleting and moving are later stages.
+cost of the bookmark read model.
+
+Stage 12 added the complete step of the file delete (`CompleteFileDelete`
+over `remove_file`, the same standard statement on every variant), the directory removal
+(`RemoveDirectory` over `remove_directory`), the delete mapping with `blobfs.ErrReferenced` for
+a foreign key the library does not own, the delete protocol in the conformance suite, the
+adapter's object delete, and the `rm`, `rmdir`, and `rm -r` commands with `rm --fail-after
+begin|object`. `files.New` takes `WithVariant`, and the consumer's delete tests run over both
+variants. Moving is stage 13.
 
 ## Running it
 
@@ -46,6 +54,129 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 12 decisions the plan did not spell out
+
+- **The complete step's guard and idempotence.** `CompleteFileDelete` runs one standard
+  statement, `remove_file` (`DELETE FROM blobfs_file WHERE id = ? AND status = 'deleting'`), the
+  same on every variant; only the begin varies. When the statement removes nothing the step reads
+  the row once and classifies: a row that is gone is success, because the step's postcondition is
+  the row's absence and a retry after a crash cannot tell its own earlier completion from an id
+  that never existed; a row that exists and is not deleting is `blobfs.ErrNotDeleting`, a new
+  sentinel, and the row is left as it is; a row that became deleting between the removal and the
+  read (a concurrent begin) has the removal repeated once, since nothing leaves that status but
+  removal. The consumer never reaches `ErrNotDeleting`, because `rm` always begins first, and it
+  reports a finished path as `blobfs.ErrNotFound` on the rerun because it resolves the path before
+  the begin. The retry rule per step: the begin returns a deleting row unchanged, the object
+  delete succeeds on a missing object, and the complete succeeds on a missing row; a stop after
+  any step leaves a state the next run finishes. Proved per variant by `datatest.Run`'s
+  `FileDelete` group (`CompleteRemovesTheDeletingRow`, `RetryAtEachStepConverges`,
+  `PendingIsDeletable`, `NotDeletingIsRefused`, `ReferencedRowStaysDeleting`) on
+  `TestStandardConformance` and `TestConformance`, and end to end by the consumer's
+  `TestRemoveConvergesAtEachStep` over both variants and the binary's `TestDeleteCommands`.
+- **Whether `deleting` is needed (proof 6): yes.** It is the durable marker that lets a retry
+  finish once the object is gone. Without it a row whose object was deleted would read as
+  `available`: a rerun of `rm` could not tell "resume the delete" from "delete a live file",
+  `cat` would report a missing object as a store fault, and `bookmark add` would accept a file
+  with no object. The status also keeps the `(directory_id, name)` slot until the row goes, so a
+  `put` of the same name during the delete is `ErrNameTaken` rather than a second row under a
+  name whose object is being removed, and `rmdir` of the directory is `ErrNotEmpty` until the row
+  goes (`TestRemoveDirectoryOnTheEngine`, `TestRemoveDirectory`). The cost is the status column
+  the write path already has and one predicate on the removal.
+- **Whether `blobfs` classifies a consumer's constraint (proof 6): by class, never by name.**
+  A `DELETE` of a `blobfs_file` row can violate only a foreign key that references
+  `blobfs_file`, and `blobfs`'s own DDL declares none, so any foreign-key violation on the file's
+  removal is a consumer's constraint by construction. A `DELETE` of a `blobfs_directory` row can
+  violate `blobfs`'s two keys (not empty) or a consumer's. The delete mapping
+  (`deleteSentinels`, `classifyDelete` in `lib/blobfs/data/errors.go`) therefore maps the two
+  keys it owns to `blobfs.ErrNotEmpty` and any other foreign-key violation to the new
+  `blobfs.ErrReferenced`, with the `sqlate.ConstraintError` reachable, so the consumer matches
+  the constraint's name against its own (`fileDeleteSentinels` in `domain/files/database.go`
+  maps `fk_bookmark_file` to `files.ErrBookmarked`). The library never names a consumer
+  constraint. Returning the raw error was the alternative; it costs the same in the library and
+  was set aside because every consumer would then have to know that a foreign key can refuse a
+  delete, where the sentinel states it in the library's vocabulary. The hermetic truth table is
+  `TestClassifyDelete`; the engine proof with a real consumer key is the suite's
+  `ReferencedRowStaysDeleting` (a reference table the suite creates) and
+  `TestRemoveDirectoryOnTheEngine` (a consumer key into `blobfs_directory`).
+- **Where the bookmark check sits, and the race accepted.** `rm` reads
+  `file_bookmark_count` in the transaction that begins the delete, before the begin, and refuses
+  with `files.ErrBookmarked` while the count is not zero, so a bookmarked file's object is never
+  deleted and the row is untouched. The ordering follows from what cannot be reversed: the object
+  must go before the row, because a row removed first would leave an object with nothing to find
+  it by if the object delete then failed; so the check must run before the object delete, and the
+  earliest place is before the begin, where it also keeps the row untouched. The foreign key
+  `fk_bookmark_file` is the backstop for the one interleaving the check cannot see: a bookmark
+  add whose status check read the row before the begin committed and whose insert ran after the
+  count. Then the row's removal fails after the object is gone; `rm` classifies it as
+  `ErrBookmarked` over `blobfs.ErrReferenced` with the constraint reachable and says so in its
+  message; the row stays `deleting` with its bookmark, `bookmark ls` shows the status, and
+  `bookmark rm` followed by `rm` converges. The race is opened deterministically through the
+  variant seam, not a production hook: `TestRemoveMeetsABookmarkAfterTheBegin` wraps each
+  variant's begin in one that inserts the bookmark inside the begin's own transaction. A rerun's
+  check also protects a deleting row's object: a bookmark added after a stop refuses the rerun
+  before the object delete (`TestRemoveMeetsABookmark`). Closing the race at the standard tier
+  would take serializable isolation on both the add's and the rm's first transaction, with a
+  retry on serialization failure; a row lock (`SELECT ... FOR SHARE`) is native. Neither was
+  built.
+- **`rmdir` of an owned directory removes the owner row in the same transaction.** The
+  alternative, a `files.ErrOwned` mapped from `fk_directory_owner_directory`, was rejected: the
+  owner row is the consumer's record of the directory and has no life of its own, and no command
+  removes it otherwise, so classifying would make an owned directory undeletable. The bookmark
+  is different, a unit's own record that must not go silently. `remove_directory_owner` is headed
+  `transaction: required`, and `rmdir` runs it and the library's removal in one transaction, so a
+  refused removal rolls the owner row back (`TestRemoveDirectory`). The consumer's key is
+  therefore unreachable from `rmdir`; if it were reached it would surface as `ErrReferenced` with
+  the name.
+- **`rm -r` converges by passes, refuses `/`, and takes no lock.** The walk lists each
+  directory one page (100 rows) at a time, directories then files, and removes what the page
+  holds until a page comes back empty; then it removes the directory. A row inserted during the
+  walk is listed by a later pass (`TestRemoveTreeRacesAnInsertBetweenPasses`). A row inserted
+  after the empty page refuses the directory's removal through the library's foreign key, and the
+  walk empties the directory again, up to three rounds, then reports `blobfs.ErrNotEmpty` with
+  the tree consistent and a rerun converging (`TestRemoveTreeRacesAnInsert`, which inserts at the
+  observer's `DirectoryEmptied` event once and then at every pass). A directory that receives
+  rows at least as fast as the walk removes them, three passes in a row whose listing total is
+  no smaller, is `files.ErrTreeBusy`; one stalled pass is tolerated, because one insert into a
+  one-file directory looked like a sustained writer under the first rule. `rm -r /` is
+  `ErrRootDirectory` before any I/O: the recursive delete never empties the root. No tree lock:
+  a delete removes rows the foreign keys guard, no cycle can form from a removal, and a move
+  racing a delete is refused by one key or the other (the parent must exist for the move, the
+  directory must be empty for the removal). A bookmarked file stops the walk with
+  `ErrBookmarked` and the rest stays consistent. `RemoveTree` takes an observer
+  (`RemovalEvent`), which is how the command prints a line per removal and how the tests make
+  the interleavings deterministic.
+- **`--fail-after` on `rm` names `begin` and `object`.** `begin` stops once the row is committed
+  as deleting, `object` once the object is deleted; there is no stop after the complete because
+  nothing follows it, and `rm -r` refuses the flag. `StopError` gained a `Command` field and
+  reports the row's status, so `put` and `rm` share it.
+- **A missing object is success; a missing container is not.** `Storage.Delete` passes the
+  provider's answer through: `azureblob` swallows `BlobNotFound`, as the storage contract asks,
+  and the adapter cannot tell a missing key from a present one. A missing container reaches the
+  adapter as `storage.ErrNotFound`, and the adapter maps it to `files.ErrContainerMissing`
+  rather than count the object gone, since the configured target is missing and the object may
+  exist elsewhere; the row stays deleting. The fake behaves the same on both (`TestStorageDelete`).
+- **The delete's transaction boundaries.** The path resolves on the pool, the bookmark count
+  and the begin run in one transaction, the object delete runs outside any transaction, and the
+  complete runs on the pool: three steps, two boundaries, the mirror of `put`
+  (`TestRemoveIsThreeStepsWithTwoBoundaries`). The store is opened before the begin, so an
+  unreachable store fails `rm` before the row is touched; `rm -r` over a tree with no files never
+  opens it. On `pgnative` the begin would accept the pool; the consumer passes a transaction
+  because the check must share it.
+- **`files.New` takes options, and `WithVariant` takes a constructor.** The variant must compile
+  against the store's own catalog, which `New` builds, so the option carries a
+  `VariantConstructor` (the shape of `pgnative.New` and `data.NewStandard`, wrapped to return
+  the interface) rather than a built variant. No flag was added to the binary; the composition
+  root chooses the variant in stage 15. `domain/files` names `pgnative` only in
+  `delete_integration_test.go`: `split-check`'s rule 9 greps non-test files and rule 2 uses
+  `go list -deps`, which excludes test imports, so no rule changed and none needed proving.
+- **The conformance suite creates a reference table of its own.** `datatest_reference` is
+  created with `CREATE TABLE ... AS SELECT f.id AS file_id FROM blobfs_file f WHERE 1 = 0` and
+  an `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY`, so the suite's DDL names no engine type,
+  and `Run` is documented as once per database.
+- **`rm` treats a pending and an available row alike.** Both go through the same steps; the
+  object delete of a pending row whose object was never stored is the missing-object success.
+  `rm` of a row already deleting is the retry.
 
 ### 2026-09-20: stage 11 decisions the plan did not spell out
 
@@ -671,6 +802,11 @@ owner and no unit.
   which travels on rows, the projection's separate count reports the exact total for a page
   past the end. The two read models the consumer ships therefore differ on that edge, and
   `output` renders both (`total 5` against `total unknown (the page is empty)`).
+- **`ConstraintError` carries no table name (stage 12).** On a foreign-key violation from a
+  delete, Postgres reports the referencing table (`bookmark`) beside the constraint name;
+  `sqlate` exposes the name and the class only. A `Table` field would let the library's
+  `ErrReferenced` message say which consumer table holds the reference without the consumer's
+  help. The experiment did not need it, because the consumer maps the name.
 - **A consumer's constraints classify in the consumer (stage 11).** `blobfs`'s write mapping
   returns a violation of a consumer constraint as it came, with the `sqlate.ConstraintError`
   reachable, and the consumer keeps its own table from its constraint names to its sentinels
@@ -805,6 +941,24 @@ owner and no unit.
   before the path resolves further, and that neither listing statement carries an owner
   predicate.
 
+- **The delete path is two standard statements and no third variation point (stage 12).**
+  `remove_file` and `remove_directory` are one statement each; the complete step has nothing to
+  read back, so `RETURNING` would buy nothing, and the directory removal's outcome is the
+  affected count or a constraint. The variation points stay the tree lock and the file-delete
+  begin. `TestNew` counts sixteen statements and `Verify` twenty-two prepares; the consumer's
+  inventory is thirty-two.
+- **The library classifies a consumer's foreign key by class on a delete (stage 12).** The
+  stage 11 finding that a library cannot classify a constraint it does not own holds for the
+  name; the class is the library's to state, because a delete of the library's row can meet a
+  foreign key only from a table that references it. `blobfs.ErrReferenced` is that statement,
+  with the name reachable for the consumer.
+- **The delete needs no lock and no cascade (stage 12).** The two foreign keys into
+  `blobfs_directory` are the whole guard: a directory goes only when empty, and the consumer
+  walks the tree. A recursive delete is not atomic and can loop under sustained writes, as the
+  concept says; the experiment bounds the loop (three rounds of emptying after a refused
+  removal, three stalled passes over one listing) and reports a classifiable error with the
+  tree consistent.
+
 ### `go-storage` and `azureblob`
 
 - `Put` returns the caller's content type, while `Stat` and `Get` return the server's.
@@ -825,6 +979,11 @@ owner and no unit.
   for the Azure SDK's container client to remove it (`internal/livetest/storage.go`). A
   `DeleteContainer` on the provider, or on `storagetest`, would keep the SDK out of a
   consumer's test support.
+- `Delete`'s missing-key success is the provider's, not the adapter's: `azureblob` swallows
+  `BlobNotFound`, so the adapter cannot tell a missing key from a present one, which is what the
+  delete step wants. A missing container is `storage.ErrNotFound` from `Delete`, as the ledger
+  recorded; the adapter maps it to `files.ErrContainerMissing` and refuses the step (stage 12).
+  The `storagetest` fake matches the provider on both.
 - The storage configuration reads its own environment (`Config.Finalize(prefix)`), so a consumer
   that wants a flag for the container, as it has `--dsn` for the database, has to set the
   variable itself or bypass `Finalize`; the experiment kept the variables.
@@ -871,6 +1030,17 @@ owner and no unit.
   error the handler turns into a conflict response. The service writes the row beside the
   pending file row in the upload's first transaction (a pending file can be bookmarked), and
   the delete of a file the row references fails under the foreign key until the row goes.
+- The delete as built (stage 12): the service deletes a file in three steps, the mirror of its
+  upload. In one transaction it checks its own rows that reference the file (the `org_image`
+  analog: the bookmark count) and refuses while any exist, then runs the begin step; it deletes
+  the object; it runs the complete step on the pool. The service's foreign key into
+  `blobfs_file` is the backstop for a reference that arrives after the check, and the service
+  maps that key's name to its own error at the complete step. A sweeper for abandoned deletes
+  lists `status = 'deleting'` under `updated_at < threshold` and runs the same three steps,
+  which are idempotent. A directory removal removes the service's own rows about the directory
+  (the owner row) in the same transaction as the library's removal, and a recursive removal is
+  the service's walk, children first, with the library's foreign keys refusing a directory that
+  received a row meanwhile.
 - The service's listing of a unit's files with their paths is a projection over its own table
   joined to `blobfs_file`, with the path computed per row by a recursion correlated on the
   file's directory, and it pages, sorts, and counts through `query.Projection` unchanged. The

@@ -37,11 +37,41 @@ type Store struct {
 	createOwner      query.Statement
 	ownerOfDirectory query.Rows[DirectoryOwner]
 	ownedDirectories query.Projection[OwnedDirectory]
+	removeOwner      query.Statement
 	createBookmark   query.Statement
 	removeBookmark   query.Statement
 	bookmarks        query.Projection[BookmarkedFile]
+	bookmarkCount    query.Rows[bookmarkCount]
 
 	blobfs *data.Store
+}
+
+// bookmarkCount is the one row of file_bookmark_count: how many units
+// bookmark a file.
+type bookmarkCount struct {
+	Bookmarks int64 `json:"bookmarks"`
+}
+
+// Option configures New beyond its required arguments.
+type Option func(*options)
+
+// options collects what the options set.
+type options struct {
+	variant VariantConstructor
+}
+
+// VariantConstructor builds the data.Variant blobfs's store forwards its
+// variation points to, against the program's catalog and the database's
+// dialect: the shape of pgnative.New and of data.NewStandard, wrapped to
+// return the interface.
+type VariantConstructor func(catalog *query.Catalog, dialect sqlate.Dialect) (data.Variant, error)
+
+// WithVariant makes New build blobfs's store over the variant that build
+// returns, compiled against the same catalog as the store's own
+// statements, instead of the standard baseline. The composition root
+// chooses the variant; the tests run the consumer over each.
+func WithVariant(build VariantConstructor) Option {
+	return func(o *options) { o.variant = build }
 }
 
 // New builds the catalog from the query library's patterns and blobfs's
@@ -55,14 +85,19 @@ type Store struct {
 // it, so they run without the store's configuration and without the
 // store reachable. A nil openStorage builds a store with no object store,
 // whose file operations fail with ErrNoStorage; the hermetic tests of the
-// directory commands do that.
-func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error)) (*Store, error) {
+// directory commands do that. The options choose blobfs's variant; without
+// WithVariant the store runs the standard baseline.
+func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error), opts ...Option) (*Store, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
 	if err != nil {
 		return nil, fmt.Errorf("files: %w", err)
 	}
 	s := &Store{db: db, catalog: catalog, openStorage: openStorage}
-	if err := s.compileLibrary(); err != nil {
+	if err := s.compileLibrary(o.variant); err != nil {
 		return nil, err
 	}
 	stmts, err := catalog.Compile(statementFiles, "statements", db.Dialect())
@@ -73,9 +108,11 @@ func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error)) (*S
 	s.createOwner = stmts.Statement("create_directory_owner")
 	s.ownerOfDirectory = stmts.Statement("owner_of_directory").Scan(query.Scanner[DirectoryOwner]())
 	s.ownedDirectories = stmts.Statement("owned_directories").Project(query.Scanner[OwnedDirectory]())
+	s.removeOwner = stmts.Statement("remove_directory_owner")
 	s.createBookmark = stmts.Statement("create_bookmark")
 	s.removeBookmark = stmts.Statement("remove_bookmark")
 	s.bookmarks = stmts.Statement("bookmarks").Project(query.Scanner[BookmarkedFile]())
+	s.bookmarkCount = stmts.Statement("file_bookmark_count").Scan(query.Scanner[bookmarkCount]())
 	return s, nil
 }
 
@@ -138,6 +175,41 @@ func (s *Store) insertBookmark(ctx context.Context, sess sqlate.Session, unitID,
 	return nil
 }
 
+// fileDeleteSentinels maps the consumer's constraints a file's removal can
+// violate to the sentinel each one means there: the bookmark table's
+// foreign key means a unit still bookmarks the file. The library reports
+// the violation as blobfs.ErrReferenced by class and leaves the name to
+// the consumer; the same key means a missing file on a bookmark insert.
+var fileDeleteSentinels = map[string]bookmarkMapping{
+	ConstraintForeignKeyBookmarkFile: {sqlate.ErrForeignKeyViolation, ErrBookmarked},
+}
+
+// classifyFileDelete maps a refusal of a file's removal to the consumer's
+// sentinel when the violated constraint is one fileDeleteSentinels lists
+// under the class reported, keeping the sqlate.ConstraintError reachable
+// through errors.As. Any other error is returned as it came.
+func classifyFileDelete(err error) error {
+	var ce *sqlate.ConstraintError
+	if !errors.As(err, &ce) {
+		return err
+	}
+	m, ok := fileDeleteSentinels[ce.Constraint]
+	if !ok || !errors.Is(ce.Class, m.class) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", m.sentinel, err)
+}
+
+// bookmarksOfFile returns how many units bookmark the file with fileID,
+// through sess.
+func (s *Store) bookmarksOfFile(ctx context.Context, sess sqlate.Session, fileID string) (int64, error) {
+	c, err := s.bookmarkCount.One(ctx, sess, query.Args{"file_id": fileID})
+	if err != nil {
+		return 0, fmt.Errorf("files: bookmarks of file %s: %w", fileID, err)
+	}
+	return c.Bookmarks, nil
+}
+
 // deleteBookmark removes the bookmark of the file with fileID for the
 // unit with unitID through sess. No row affected is ErrNoBookmark.
 func (s *Store) deleteBookmark(ctx context.Context, sess sqlate.Session, unitID, fileID string) error {
@@ -183,6 +255,16 @@ func (s *Store) insertOwner(ctx context.Context, tx *sqlate.Tx, directoryID, uni
 	_, err := s.createOwner.Exec(ctx, tx, query.Args{"directory_id": directoryID, "unit_id": unitID})
 	if err != nil {
 		return fmt.Errorf("files: create owner of %s: %w", directoryID, err)
+	}
+	return nil
+}
+
+// deleteOwner removes the ownership row of a directory inside tx, if the
+// directory has one; none affected is not an error. The statement
+// requires a transaction, so a pool session is refused.
+func (s *Store) deleteOwner(ctx context.Context, tx *sqlate.Tx, directoryID string) error {
+	if _, err := s.removeOwner.Exec(ctx, tx, query.Args{"directory_id": directoryID}); err != nil {
+		return fmt.Errorf("files: remove owner of %s: %w", directoryID, err)
 	}
 	return nil
 }

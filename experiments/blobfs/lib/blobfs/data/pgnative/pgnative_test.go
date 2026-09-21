@@ -82,7 +82,7 @@ func must(c *query.Catalog, err error) *query.Catalog {
 
 // TestStoreOverTheVariant proves the store built with WithVariant lists
 // the variant's statements after its own and verifies them in the same
-// pass: sixteen statements listed and twenty-two prepares.
+// pass: eighteen statements listed and twenty-four prepares.
 func TestStoreOverTheVariant(t *testing.T) {
 	v := newVariant(t)
 	s, err := data.New(catalog(t), sqltest.Dialect{}, data.WithVariant(v))
@@ -93,20 +93,20 @@ func TestStoreOverTheVariant(t *testing.T) {
 		t.Errorf("Variant() = %T, want the pgnative variant", s.Variant())
 	}
 	stmts := s.Statements()
-	if len(stmts) != 16 || stmts[14].Name() != "begin_file_delete" || stmts[15].Name() != "lock_tree" {
+	if len(stmts) != 18 || stmts[16].Name() != "begin_file_delete" || stmts[17].Name() != "lock_tree" {
 		var names []string
 		for _, st := range stmts {
 			names = append(names, st.Name()+":"+string(st.Tier()))
 		}
-		t.Errorf("Statements = %v, want the package's fourteen then the variant's two", names)
+		t.Errorf("Statements = %v, want the package's sixteen then the variant's two", names)
 	}
 	pool, rec := sqltest.Open(t)
 	if err := s.Verify(context.Background(), sqlate.Wrap(pool, sqltest.Dialect{})); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
 	prepared := rec.SQL(sqltest.OpPrepare)
-	if len(prepared) != 22 {
-		t.Errorf("Verify prepared %d, want 22 (20 for the store, 2 for the variant)", len(prepared))
+	if len(prepared) != 24 {
+		t.Errorf("Verify prepared %d, want 24 (22 for the store, 2 for the variant)", len(prepared))
 	}
 	native := 0
 	for _, text := range prepared {

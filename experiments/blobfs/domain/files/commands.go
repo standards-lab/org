@@ -28,7 +28,7 @@ type deps struct {
 }
 
 // Commands builds the domain's root-level commands: mkdir, ls, put, cat,
-// stat, and bookmark with its add, ls, and rm subcommands. A leaf's
+// stat, rm, rmdir, and bookmark with its add, ls, and rm subcommands. A leaf's
 // RunE calls newStore when it runs, never when the tree is built: the
 // composition root closes newStore over its persistent flags, which cobra
 // parses during execution, so the DSN is unknown until then. The store is
@@ -38,7 +38,7 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.bookmark()}
+	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.remove(), d.removeDirectory(), d.bookmark()}
 }
 
 // store constructs the store and verifies it against the database, so a
@@ -235,6 +235,99 @@ func (d deps) stat() *cobra.Command {
 				return err
 			}
 			d.out.Record(fileRecord(args[0], f))
+			return nil
+		},
+	}
+}
+
+// remove is rm <path> [--fail-after <step>] and rm -r <path>: a file
+// deleted through the three steps, or a directory tree removed, files
+// and then directories, deepest first, with a line per removal.
+// --fail-after stops the file delete after the named step with a
+// non-zero exit, leaving the row deleting for a later rm of the same
+// path to finish.
+func (d deps) remove() *cobra.Command {
+	var recursive bool
+	var failAfter string
+	cmd := &cobra.Command{
+		Use:   "rm <path>",
+		Short: "Delete a file, or with -r a directory and everything under it",
+		Long: "rm deletes the file at an absolute path such as /reports/2026/q1.pdf. The delete\n" +
+			"is two steps around the object delete: the row is marked deleting and committed,\n" +
+			"the object is deleted from the store, and the row is removed. A file a unit has\n" +
+			"bookmarked is refused before anything is touched. --fail-after begin or object\n" +
+			"stops after that step and exits non-zero; ls and stat then show the row deleting,\n" +
+			"and an rm of the same path finishes the delete. A pending file (an abandoned\n" +
+			"put) is deleted the same way.\n" +
+			"\n" +
+			"rm -r removes the directory at the path and everything under it: each file\n" +
+			"through the same steps and each directory once it is empty, deepest first, the\n" +
+			"target last, printing a line per removal. It takes no lock; a row inserted\n" +
+			"meanwhile is removed by a later pass or refuses the directory's removal, and a\n" +
+			"rerun continues. The root cannot be removed.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			step, err := ParseRemoveStep(failAfter)
+			if err != nil {
+				return err
+			}
+			if recursive && step != "" {
+				return errors.New("--fail-after applies to a single file's delete; rm -r takes no step")
+			}
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if !recursive {
+				f, err := s.Remove(cmd.Context(), args[0], step)
+				if err != nil {
+					return err
+				}
+				d.out.Line(fmt.Sprintf("rm: %s (id %s)", args[0], f.ID))
+				return nil
+			}
+			res, err := s.RemoveTree(cmd.Context(), args[0], func(ev RemovalEvent) {
+				switch ev.Kind {
+				case RemovedFile:
+					d.out.Line(fmt.Sprintf("rm: %s (id %s)", ev.Path, ev.ID))
+				case RemovedDirectory:
+					d.out.Line(fmt.Sprintf("rmdir: %s (id %s)", ev.Path, ev.ID))
+				}
+			})
+			if err != nil {
+				return err
+			}
+			d.out.Line(fmt.Sprintf("rm -r: %s (%d files, %d directories)", args[0], res.Files, res.Directories))
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "remove the directory at the path and everything under it")
+	cmd.Flags().StringVar(&failAfter, "fail-after", "", "stop after this step of a file's delete, begin or object, and exit non-zero")
+	return cmd
+}
+
+// removeDirectory is rmdir <path>: an empty directory removed, with its
+// ownership row when it has one. A directory that still has contents is
+// refused, and so is the root.
+func (d deps) removeDirectory() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rmdir <path>",
+		Short: "Remove an empty directory",
+		Long: "rmdir removes the directory at an absolute path such as /reports/2026, which must\n" +
+			"be empty: a directory that still has directories or files under it is refused,\n" +
+			"and rm -r removes a whole tree. A top-level directory owned by a unit goes with\n" +
+			"its ownership row, in one transaction. The root cannot be removed.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			dir, err := s.RemoveDirectory(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			d.out.Line(fmt.Sprintf("rmdir: %s (id %s)", args[0], dir.ID))
 			return nil
 		},
 	}

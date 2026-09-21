@@ -52,7 +52,7 @@ func fileRow(id, name string) []driver.Value {
 
 // TestNew proves the catalog builds with the two sources, every statement
 // compiles and both listings construct, and reports the inventory the tier
-// proof counts: fourteen statements, all standard tier, the baseline's
+// proof counts: sixteen statements, all standard tier, the baseline's
 // file-delete begin the only one requiring a transaction. The default
 // variant is the baseline, and it adds no statements of its own to the
 // inventory.
@@ -73,6 +73,7 @@ func TestNew(t *testing.T) {
 		"begin_file_delete", "begin_file_write", "children_of_directory", "children_of_directory_with_total",
 		"complete_file_write", "create_directory", "directory_ancestors", "directory_by_id", "directory_child",
 		"file_by_id", "file_by_name", "file_version", "files_in_directory", "files_in_directory_with_total",
+		"remove_directory", "remove_file",
 	}
 	if _, ok := s.Variant().(*data.Standard); !ok {
 		t.Errorf("the default variant is %T, want *data.Standard", s.Variant())
@@ -128,7 +129,7 @@ func TestNewWithoutPatterns(t *testing.T) {
 }
 
 // TestVerify proves Verify prepares every statement as authored and the
-// canonical renderings per listing: twenty prepares against the
+// canonical renderings per listing: twenty-two prepares against the
 // scripted driver, none of which consumes a response. Four offset
 // renderings carry every declared field as a predicate and a sort term
 // and the paging clause, the two counted ones the window count; and two
@@ -144,8 +145,8 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("Verify: %v", err)
 	}
 	prepared := rec.SQL(sqltest.OpPrepare)
-	if len(prepared) != 20 {
-		t.Fatalf("Verify prepared %d statements, want 20 (14 statements, 4 offset renderings, 2 cursor renderings)", len(prepared))
+	if len(prepared) != 22 {
+		t.Fatalf("Verify prepared %d statements, want 22 (16 statements, 4 offset renderings, 2 cursor renderings)", len(prepared))
 	}
 	renderings, counted, cursors := 0, 0, 0
 	for _, text := range prepared {

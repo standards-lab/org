@@ -129,6 +129,25 @@ func (s *Storage) Stat(ctx context.Context, key string) (blobfs.Object, error) {
 	return object(obj), nil
 }
 
+// Delete removes the object at key. A key with no object is success: the
+// provider answers a missing object with success, as the storage
+// contract asks, so the step can be repeated after a stop. A missing
+// container is not swallowed: the provider reports it as the store's
+// not-found error, and the adapter maps it to ErrContainerMissing rather
+// than count the object gone, since the configured target is gone and
+// the object may well exist elsewhere. A store that cannot be reached is
+// ErrStorageUnavailable.
+func (s *Storage) Delete(ctx context.Context, key string) error {
+	err := s.store.Delete(ctx, key)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, storage.ErrNotFound):
+		return fmt.Errorf("files: delete object %s: %w: %w", key, ErrContainerMissing, err)
+	}
+	return fmt.Errorf("files: delete object %s: %w", key, storageError(err))
+}
+
 // object narrows the store's Object to the facts a file row keeps.
 func object(o storage.Object) blobfs.Object {
 	return blobfs.Object{Size: o.Size, ContentType: o.ContentType, ETag: o.ETag}
