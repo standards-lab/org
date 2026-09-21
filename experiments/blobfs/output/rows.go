@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -99,4 +100,28 @@ func (o *Output) page(half, label string, p Page) {
 	if p.Next != "" {
 		_, _ = fmt.Fprintf(o.stdout, "%s: %s\n", label, p.Next)
 	}
+}
+
+// Field is one line of a record: a label and its value.
+type Field struct {
+	Name  string
+	Value string
+}
+
+// Record writes one record to stdout as aligned label and value lines,
+// one per field in the order given, the label followed by a colon. It is
+// how a command shows one row, where a listing would show many.
+func (o *Output) Record(fields []Field) {
+	w := tabwriter.NewWriter(o.stdout, 0, 0, 1, ' ', 0)
+	for _, f := range fields {
+		_, _ = fmt.Fprintf(w, "%s:\t%s\n", f.Name, f.Value)
+	}
+	_ = w.Flush()
+}
+
+// Copy writes r's bytes to stdout as they are, with nothing added, and
+// returns the count written. It is how a command streams a file's
+// content.
+func (o *Output) Copy(r io.Reader) (int64, error) {
+	return io.Copy(o.stdout, r)
 }

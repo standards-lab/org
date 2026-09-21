@@ -1,6 +1,8 @@
 package files
 
 import (
+	"fmt"
+	"io"
 	"time"
 
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
@@ -103,6 +105,51 @@ type Page[T any] struct {
 	Rows  []T
 	Total int
 	Next  string
+}
+
+// Step names a step of the two-phase write that put may stop after, for
+// --fail-after: insert, once the pending row is committed and before the
+// object is stored, and write, once the object is stored and before the
+// row is completed. There is no stop after complete, because nothing
+// follows it.
+type Step string
+
+const (
+	// StepInsert is the pending row's insert, committed on its own.
+	StepInsert Step = "insert"
+
+	// StepWrite is the object's write to the store.
+	StepWrite Step = "write"
+)
+
+// ParseStep reads a --fail-after value: insert, write, or empty for no
+// stop.
+func ParseStep(s string) (Step, error) {
+	switch Step(s) {
+	case "", StepInsert, StepWrite:
+		return Step(s), nil
+	}
+	return "", fmt.Errorf("--fail-after %q: the step is insert or write", s)
+}
+
+// PutRequest is one upload as the command line states it: the file's
+// path, the content type to declare, the body and its length when known
+// (0 asserts nothing), and the step to stop after, empty for a full write.
+type PutRequest struct {
+	Path        string
+	ContentType string
+	Body        io.Reader
+	Size        int64
+	StopAfter   Step
+}
+
+// PutResult is what a put returns: the row as it stands when the put
+// returned, available after a full write and pending after a stop, and
+// whether the put resumed a pending row an earlier put left instead of
+// inserting one.
+type PutResult struct {
+	File    blobfs.File
+	Resumed bool
 }
 
 // Contents is what ls returns for one directory: the path it listed, the

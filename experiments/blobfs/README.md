@@ -24,16 +24,16 @@ several isolated trees runs several configurations, each with its own database a
 | Directory | Contents |
 |-----------|----------|
 | `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
-| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver. |
-| `internal/livetest/` | The throwaway-database helper the integration-tagged tests share. |
-| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its owner read model (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`), `database.go` as the sole importer of `sqlate/query`, `blobfs.go` as the translation over the library, and the `mkdir` and `ls` commands. In later stages it gains the storage adapter, the file commands, and the bookmark commands. |
+| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. |
+| `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, and a throwaway Azurite container per test. |
+| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its owner read model (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`), `database.go` as the sole importer of `sqlate/query`, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, and `stat` commands. In a later stage it gains the bookmark commands. |
 | `evidence/` | The transcripts the measurements write: `read-model.txt` is proof V3, the cost of the shipped listing (`mise run evidence` regenerates it); `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
 | `admin/schema/` | The schema administration layer: the `schema` command, which applies and reverts the two migration sets in canonical order. |
 | `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
 | `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
 | `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. |
 | `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session`, and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
+| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, and the two steps of the file write), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
 | `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
 | `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table. |
@@ -61,6 +61,19 @@ that wants a different behavior for one operation embeds a variant and overrides
   in one transaction so the read sees the row the update locked; it refuses the pool with
   `query.ErrTransactionRequired`.
 
+## The write path
+
+A file is written in two steps around the object write, which `blobfs` never makes. `put` first
+resolves the parent, looks the name up, and inserts the row as `pending`, all in one transaction
+that commits before any byte reaches the store; that transaction is where a consumer writes its
+own rows beside the pending row. It then stores the object under the row's key, built from the
+row's id and the sanitized name and validated against the provider's key rules before the
+insert. Last, on the pool, it completes the row as `available` with the size, entity tag, and
+content type the store reported, guarded by the version read from the pending row. A stop
+between the steps leaves the row `pending`, where `ls` and `stat` show it and `cat` refuses it,
+and a `put` of the same path resumes the row: it stores the object again and completes it. There
+is no failed status; an abandoned write is removed through the delete steps of a later stage.
+
 ## Running it
 
 The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-lint`.
@@ -79,7 +92,10 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   writes the transcript to `evidence/read-model.txt`.
 
 The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
-and key are the emulator's published development credentials.
+and key are the emulator's published development credentials. The object store is configured by
+`BLOBFS_STORAGE_ENDPOINT`, `BLOBFS_STORAGE_CONTAINER`, `BLOBFS_STORAGE_ACCOUNT`, and
+`BLOBFS_STORAGE_KEY` (the storage library's own configuration under the `blobfs` prefix), and it
+is opened by the first file command that needs it: `mkdir` and `ls` never read those variables.
 
 ## The commands so far
 
@@ -114,6 +130,20 @@ id is a UUID and stands in for the auth strategy's unit.
   path's top-level directory, checked once at that ancestor, and is refused otherwise. At `/`
   the listing is the unit's own top-level directories, read through the consumer's owner
   projection, and no files.
+
+- `put <local-file|-> <path>` uploads a local file, or stdin for `-`, as the file at the path,
+  whose parent must exist. `--content-type` sets the media type; without it the type comes from
+  the local file's extension, or `application/octet-stream`. The result line names the path,
+  the id, the size, and the entity tag. A name held by an `available` or `deleting` file is
+  refused as taken; a name held by a `pending` file is resumed, and the result line says so.
+  `--fail-after insert` stops once the pending row is committed, and `--fail-after write` once
+  the object is stored, each with exit code 1 and a message naming the pending row; a `put` of
+  the same path then completes it.
+- `cat <path>` streams the file's content to stdout as it is. A `pending` or `deleting` file is
+  refused with its status named.
+- `stat <path>` prints the file's row, one field per line: path, id, name, status, size,
+  content type, etag, key, version, and the timestamps. A `pending` file shows `-` for its size
+  and etag. The object store is not consulted.
 
 A run against a database whose schema is not applied fails before any work and names
 `schema up`.

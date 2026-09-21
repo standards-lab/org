@@ -102,3 +102,30 @@ func TestListing_WritesTheCursorLines(t *testing.T) {
 		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
 	}
 }
+
+func TestRecord_AlignsValuesAfterTheLabels(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	out := output.New(&stdout, &stderr)
+	out.Record([]output.Field{{Name: "path", Value: "/a/b.txt"}, {Name: "content-type", Value: "text/plain"}, {Name: "size", Value: "-"}})
+	want := "path:         /a/b.txt\n" +
+		"content-type: text/plain\n" +
+		"size:         -\n"
+	if stdout.String() != want {
+		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("stderr = %q, want nothing", stderr.String())
+	}
+}
+
+func TestCopy_StreamsTheBytesAsTheyAre(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	out := output.New(&stdout, &stderr)
+	n, err := out.Copy(bytes.NewReader([]byte("no newline\x00\xff")))
+	if err != nil || n != 12 {
+		t.Fatalf("Copy = %d, %v", n, err)
+	}
+	if got := stdout.String(); got != "no newline\x00\xff" {
+		t.Errorf("stdout = %q", got)
+	}
+}

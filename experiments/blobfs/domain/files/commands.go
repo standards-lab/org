@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 	"uuid"
 
 	"github.com/spf13/cobra"
 
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/output"
 )
 
@@ -20,7 +27,8 @@ type deps struct {
 	out      *output.Output
 }
 
-// Commands builds the domain's root-level commands, mkdir and ls. A leaf's
+// Commands builds the domain's root-level commands: mkdir, ls, put, cat,
+// and stat. A leaf's
 // RunE calls newStore when it runs, never when the tree is built: the
 // composition root closes newStore over its persistent flags, which cobra
 // parses during execution, so the DSN is unknown until then. The store is
@@ -30,7 +38,7 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list()}
+	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat()}
 }
 
 // store constructs the store and verifies it against the database, so a
@@ -129,6 +137,179 @@ func (d deps) list() *cobra.Command {
 	}
 	f.bind(cmd)
 	return cmd
+}
+
+// put is put <local-file|-> <path> [--content-type <type>] [--fail-after
+// <step>]: the local file, or stdin for -, uploaded as the file at the
+// path. The content type comes from the flag, else from the local file's
+// extension, else application/octet-stream. --fail-after stops the write
+// after the named step with a non-zero exit, leaving the pending row for
+// a later put of the same path to complete.
+func (d deps) put() *cobra.Command {
+	var contentType, failAfter string
+	cmd := &cobra.Command{
+		Use:   "put <local-file|-> <path>",
+		Short: "Upload a local file, or stdin, as the file at a path",
+		Long: "put uploads a local file (or stdin, for -) as the file at an absolute path such\n" +
+			"as /reports/2026/q1.pdf, whose parent must exist. The write is two steps around\n" +
+			"the upload: the row is inserted as pending and committed, the object is stored,\n" +
+			"and the row is completed as available. --fail-after insert or write stops after\n" +
+			"that step and exits non-zero; ls and stat then show the row pending, and a put\n" +
+			"of the same path resumes it. A name held by an available file is refused.",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			step, err := ParseStep(failAfter)
+			if err != nil {
+				return err
+			}
+			body, size, closeBody, err := openLocal(cmd.InOrStdin(), args[0])
+			if err != nil {
+				return err
+			}
+			defer closeBody()
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			req := PutRequest{Path: args[1], ContentType: declaredType(contentType, args[0]), Body: body, Size: size, StopAfter: step}
+			res, err := s.Put(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			f := res.File
+			line := fmt.Sprintf("put: %s (id %s, %d bytes, etag %s)", args[1], f.ID, sizeOf(f), etagOf(f))
+			if res.Resumed {
+				line = fmt.Sprintf("put: %s (id %s, %d bytes, etag %s, resumed the pending row)", args[1], f.ID, sizeOf(f), etagOf(f))
+			}
+			d.out.Line(line)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&contentType, "content-type", "", "the media type to store with the object; the default is derived from the local file's extension")
+	cmd.Flags().StringVar(&failAfter, "fail-after", "", "stop after this step of the write, insert or write, and exit non-zero")
+	return cmd
+}
+
+// cat is cat <path>: the file's content streamed to stdout as it is.
+func (d deps) cat() *cobra.Command {
+	return &cobra.Command{
+		Use:   "cat <path>",
+		Short: "Write a file's content to stdout",
+		Long: "cat streams the content of the file at an absolute path to stdout. A pending or\n" +
+			"deleting file has no content to read and is refused.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			body, _, err := s.Open(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			defer func() { _ = body.Close() }()
+			if _, err := d.out.Copy(body); err != nil {
+				return fmt.Errorf("cat %s: %w", args[0], err)
+			}
+			return nil
+		},
+	}
+}
+
+// stat is stat <path>: the file's row, one field per line.
+func (d deps) stat() *cobra.Command {
+	return &cobra.Command{
+		Use:   "stat <path>",
+		Short: "Show a file's row: status, size, content type, etag, and timestamps",
+		Long: "stat prints the row of the file at an absolute path, whatever its status: a\n" +
+			"pending file shows as pending with no size or etag. The object store is not\n" +
+			"consulted.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := d.store(cmd.Context())
+			if err != nil {
+				return err
+			}
+			f, err := s.Stat(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			d.out.Record(fileRecord(args[0], f))
+			return nil
+		},
+	}
+}
+
+// fileRecord lays a file row out as the fields stat prints, in order.
+func fileRecord(path string, f blobfs.File) []output.Field {
+	size := "-"
+	if f.Size != nil {
+		size = strconv.FormatInt(*f.Size, 10)
+	}
+	return []output.Field{
+		{Name: "path", Value: path},
+		{Name: "id", Value: f.ID},
+		{Name: "name", Value: f.Name},
+		{Name: "status", Value: string(f.Status)},
+		{Name: "size", Value: size},
+		{Name: "content-type", Value: f.ContentType},
+		{Name: "etag", Value: etagOf(f)},
+		{Name: "key", Value: f.Key},
+		{Name: "version", Value: strconv.FormatInt(f.Version, 10)},
+		{Name: "created", Value: f.CreatedAt.UTC().Format(time.RFC3339)},
+		{Name: "updated", Value: f.UpdatedAt.UTC().Format(time.RFC3339)},
+	}
+}
+
+// sizeOf returns a file's size, 0 when the row has none.
+func sizeOf(f blobfs.File) int64 {
+	if f.Size == nil {
+		return 0
+	}
+	return *f.Size
+}
+
+// etagOf returns a file's etag, or - when the row has none.
+func etagOf(f blobfs.File) string {
+	if f.ETag == nil {
+		return "-"
+	}
+	return *f.ETag
+}
+
+// openLocal opens the body a put uploads: stdin for -, with its length
+// unknown, or the local file named, with its length from the file system
+// so the store can hold the body to it. The close function releases what
+// was opened.
+func openLocal(stdin io.Reader, name string) (body io.Reader, size int64, closeBody func(), err error) {
+	if name == "-" {
+		return stdin, 0, func() {}, nil
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, 0, nil, err
+	}
+	return file, info.Size(), func() { _ = file.Close() }, nil
+}
+
+// declaredType is the content type a put declares: the flag when given,
+// else the type registered for the local file's extension, else
+// application/octet-stream, which is also what stdin gets.
+func declaredType(flag, local string) string {
+	if flag != "" {
+		return flag
+	}
+	if local != "-" {
+		if t := mime.TypeByExtension(filepath.Ext(local)); t != "" {
+			return t
+		}
+	}
+	return "application/octet-stream"
 }
 
 // pageOf describes one half's page for the output: the request's page and

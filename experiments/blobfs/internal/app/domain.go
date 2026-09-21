@@ -18,7 +18,9 @@ type Domain struct {
 }
 
 // newDomain wires the domain layer over infra, each domain package's store
-// constructor closed over the infrastructure's database.
+// constructor closed over the infrastructure's database and its object
+// store's opener, which the store calls when a file command first needs
+// an object.
 func newDomain(infra *Infrastructure) *Domain {
 	return &Domain{
 		Files: func() (*files.Store, error) {
@@ -26,7 +28,7 @@ func newDomain(infra *Infrastructure) *Domain {
 			if err != nil {
 				return nil, err
 			}
-			return files.New(db)
+			return files.New(db, infra.Storage)
 		},
 	}
 }

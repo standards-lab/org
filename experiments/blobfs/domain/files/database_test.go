@@ -23,7 +23,7 @@ import (
 func newStore(t *testing.T, responses ...sqltest.Response) (*files.Store, *sqltest.Recorder) {
 	t.Helper()
 	pool, rec := sqltest.Open(t, responses...)
-	s, err := files.New(sqlate.Wrap(pool, sqltest.Dialect{}))
+	s, err := files.New(sqlate.Wrap(pool, sqltest.Dialect{}), nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -104,16 +104,17 @@ func TestNew(t *testing.T) {
 }
 
 // TestVerify proves Verify prepares the whole inventory, the consumer's
-// three statements and one projection and blobfs's ten statements and
-// six listing renderings (four offset, two cursor), twenty prepares,
+// three statements and one projection and blobfs's fourteen statements
+// and six listing renderings (four offset, two cursor), twenty-four
+// prepares,
 // and wraps a failure in ErrVerify with the failing statement named.
 func TestVerify(t *testing.T) {
 	s, rec := newStore(t)
 	if err := s.Verify(context.Background()); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if n := len(rec.SQL(sqltest.OpPrepare)); n != 20 {
-		t.Errorf("Verify prepared %d statements, want 20", n)
+	if n := len(rec.SQL(sqltest.OpPrepare)); n != 24 {
+		t.Errorf("Verify prepared %d statements, want 24", n)
 	}
 
 	s, rec = newStore(t)

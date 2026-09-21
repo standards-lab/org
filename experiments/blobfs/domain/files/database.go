@@ -16,10 +16,11 @@ import (
 //go:embed statements/*.sql
 var statementFiles embed.FS
 
-// Store is the domain's SQL client. It holds the program's one pattern
+// Store is the domain's client. It holds the program's one pattern
 // catalog, the consumer's statements compiled against that catalog and
-// bound to typed handles, and blobfs's persistence compiled against the
-// same catalog. Its methods are the domain's operations. This file is the
+// bound to typed handles, blobfs's persistence compiled against the same
+// catalog, and the object store, opened on the first file command that
+// needs it. Its methods are the domain's operations. This file is the
 // only one in the package that imports the query library: it converts a
 // Listing to the library's listing and to the query library's directives,
 // and it wraps each consumer statement in a typed method, so blobfs.go
@@ -28,6 +29,9 @@ type Store struct {
 	db      *sqlate.DB
 	catalog *query.Catalog
 	stmts   *query.Statements
+
+	openStorage func(context.Context) (*Storage, error)
+	storage     *Storage
 
 	createOwner      query.Statement
 	ownerOfDirectory query.Rows[DirectoryOwner]
@@ -41,12 +45,19 @@ type Store struct {
 // against it for db's dialect, and binds the handles. A compile failure is
 // returned as the loader reports it; no I/O happens here. The database is
 // verified separately, by Verify, when a command first uses the store.
-func New(db *sqlate.DB) (*Store, error) {
+//
+// openStorage opens the object store, and the store calls it once, on the
+// first operation that needs an object: the directory commands never open
+// it, so they run without the store's configuration and without the
+// store reachable. A nil openStorage builds a store with no object store,
+// whose file operations fail with ErrNoStorage; the hermetic tests of the
+// directory commands do that.
+func New(db *sqlate.DB, openStorage func(context.Context) (*Storage, error)) (*Store, error) {
 	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
 	if err != nil {
 		return nil, fmt.Errorf("files: %w", err)
 	}
-	s := &Store{db: db, catalog: catalog}
+	s := &Store{db: db, catalog: catalog, openStorage: openStorage}
 	if err := s.compileLibrary(); err != nil {
 		return nil, err
 	}

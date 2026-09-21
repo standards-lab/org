@@ -20,6 +20,14 @@ type Config struct {
 // errNoDSN reports a run that names no database by either route.
 var errNoDSN = errors.New("no database: set --dsn or BLOBFS_DSN")
 
+// storageEnvPrefix is the prefix the object store's configuration reads
+// its environment under: BLOBFS_STORAGE_ENDPOINT, BLOBFS_STORAGE_CONTAINER,
+// BLOBFS_STORAGE_ACCOUNT, and BLOBFS_STORAGE_KEY, and the optional limits
+// the storage package documents. The store has no flag: it is opened by
+// the first file command that needs it, and the directory commands never
+// read these variables.
+const storageEnvPrefix = "blobfs"
+
 // bind registers the persistent flags on f. The DSN's default is left empty
 // here rather than read from the environment, so New reads nothing outside
 // the process; dsn consults BLOBFS_DSN when a constructor runs.

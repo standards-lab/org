@@ -33,12 +33,16 @@ type env struct {
 }
 
 // open applies blobfs's set and then the consumer's through the migrator,
-// as schema up does, builds the store, and proves Verify against the
-// migrated schema on the way.
+// as schema up does, builds the store over an object store opener that
+// targets a container of the test's own, and proves Verify against the
+// migrated schema on the way. The opener is the composition root's:
+// OpenStorage over the BLOBFS_STORAGE_* variables, with the container
+// overridden for the test.
 func open(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	db, dsn := livetest.OpenDSN(t)
+	t.Setenv("BLOBFS_STORAGE_CONTAINER", livetest.Container(t))
 	blobfsSet, err := blobfsmigrations.Migrations(db.Dialect())
 	if err != nil {
 		t.Fatalf("blobfs Migrations: %v", err)
@@ -57,7 +61,9 @@ func open(t *testing.T) env {
 	if err := m.Up(ctx); err != nil {
 		t.Fatalf("Up: %v", err)
 	}
-	s, err := files.New(db)
+	s, err := files.New(db, func(ctx context.Context) (*files.Storage, error) {
+		return files.OpenStorage(ctx, "blobfs")
+	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

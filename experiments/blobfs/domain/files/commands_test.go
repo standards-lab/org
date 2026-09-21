@@ -2,12 +2,17 @@ package files_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/standards-lab/go-storage"
+	"github.com/standards-lab/go-storage/storagetest"
 
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
 	"github.com/standards-lab/org/experiments/blobfs/output"
@@ -45,8 +50,8 @@ func TestCommands_MountsMkdirAndLs(t *testing.T) {
 		names = append(names, c.Name())
 	}
 	slices.Sort(names)
-	if got := strings.Join(names, ","); got != "ls,mkdir" {
-		t.Errorf("Commands() = %s, want ls,mkdir", got)
+	if got := strings.Join(names, ","); got != "cat,ls,mkdir,put,stat" {
+		t.Errorf("Commands() = %s, want cat,ls,mkdir,put,stat", got)
 	}
 }
 
@@ -67,6 +72,11 @@ func TestCommands_ValidateBeforeConstructingTheStore(t *testing.T) {
 		{[]string{"ls"}, `accepts 1 arg`},
 		{[]string{"mkdir"}, `accepts 1 arg`},
 		{[]string{"mkdir", "/a", "/b"}, `accepts 1 arg`},
+		{[]string{"put", "-", "/a.txt", "--fail-after", "complete"}, `the step is insert or write`},
+		{[]string{"put", "/no/such/local/file", "/a.txt"}, `no such file`},
+		{[]string{"put", "/a.txt"}, `accepts 2 arg`},
+		{[]string{"cat"}, `accepts 1 arg`},
+		{[]string{"stat", "/a", "/b"}, `accepts 1 arg`},
 	} {
 		out, err := run(t, counting(&calls), tc.args...)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -91,6 +101,9 @@ func TestCommands_ReturnTheConstructorsError(t *testing.T) {
 		{"mkdir", "/docs", "--unit", unit},
 		{"ls", "/"},
 		{"ls", "/docs", "--unit", unit, "--sort", "name:desc", "--page", "2", "--size", "5", "--total", "none"},
+		{"put", "-", "/a.txt"},
+		{"cat", "/a.txt"},
+		{"stat", "/a.txt"},
 	} {
 		out, err := run(t, failing, args...)
 		if !errors.Is(err, want) {
@@ -180,6 +193,88 @@ func TestCommands_RenderMkdir(t *testing.T) {
 	out, err = run(t, scripted, "mkdir", "/docs", "--unit", strings.ToUpper(unit))
 	if err != nil || out != "mkdir: /docs (id A, unit "+unit+")\n" {
 		t.Errorf("mkdir --unit = %q, %v; want the unit in canonical form", out, err)
+	}
+}
+
+// TestCommands_RenderStat proves stat prints the row as one field per
+// line, with - for a size or etag the row lacks.
+func TestCommands_RenderStat(t *testing.T) {
+	scripted := func() (*files.Store, error) {
+		s, _ := newStore(t, root(), file("P", "a.txt", "pending", 1))
+		return s, nil
+	}
+	out, err := run(t, scripted, "stat", "/a.txt")
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	for _, want := range []string{"path:         /a.txt\n", "id:           P\n", "status:       pending\n", "size:         -\n", "etag:         -\n", "content-type: text/plain\n", "key:          P/a.txt\n", "version:      1\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stat rendered:\n%s\nwant a line %q", out, want)
+		}
+	}
+}
+
+// TestCommands_RenderPutAndCat proves put reads its local file, declares
+// the type its extension registers, prints one result line with the id,
+// the size, and the etag, and says when it resumed a pending row; and
+// that cat streams the object as it is.
+func TestCommands_RenderPutAndCat(t *testing.T) {
+	local := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(local, []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	opens := 0
+	var fake *storagetest.Fake
+	scripted := func() (*files.Store, error) {
+		var s *files.Store
+		s, _, fake = writeStore(t, &opens, root(), noFile(), affected(), file("F", "note.txt", "pending", 1), affected(), file("F", "note.txt", "available", 2))
+		return s, nil
+	}
+	out, err := run(t, scripted, "put", local, "/note.txt")
+	if err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	if !strings.HasPrefix(out, "put: /note.txt (id F, 5 bytes, etag \"") || strings.Contains(out, "resumed") {
+		t.Errorf("put rendered %q", out)
+	}
+	if opts, n := fake.LastPut(); !strings.HasPrefix(opts.ContentType, "text/plain") || opts.Size != 5 || n != 5 {
+		t.Errorf("put declared %+v and the store read %d bytes", opts, n)
+	}
+
+	scripted = func() (*files.Store, error) {
+		var s *files.Store
+		s, _, fake = writeStore(t, &opens, root(), file("F", "note.txt", "pending", 1), affected(), file("F", "note.txt", "available", 2))
+		return s, nil
+	}
+	out, err = run(t, scripted, "put", local, "/note.txt", "--content-type", "text/markdown")
+	if err != nil || !strings.HasSuffix(out, ", resumed the pending row)\n") {
+		t.Errorf("put over a pending row rendered %q, %v", out, err)
+	}
+	if opts, _ := fake.LastPut(); opts.ContentType != "text/markdown" {
+		t.Errorf("put declared %+v, want the flag's type", opts)
+	}
+
+	scripted = func() (*files.Store, error) {
+		var s *files.Store
+		s, _, fake = writeStore(t, &opens, root(), noFile(), affected(), file("F", "note.txt", "pending", 1))
+		return s, nil
+	}
+	out, err = run(t, scripted, "put", local, "/note.txt", "--fail-after", "insert")
+	if !errors.Is(err, files.ErrStopped) || out != "" {
+		t.Errorf("put --fail-after insert = %q, %v; want the stop and no result line", out, err)
+	}
+
+	scripted = func() (*files.Store, error) {
+		var s *files.Store
+		s, _, fake = writeStore(t, &opens, root(), file("A", "note.txt", "available", 2))
+		if _, err := fake.Put(context.Background(), "A/note.txt", strings.NewReader("stored\x00bytes"), storage.PutOptions{}); err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+	out, err = run(t, scripted, "cat", "/note.txt")
+	if err != nil || out != "stored\x00bytes" {
+		t.Errorf("cat = %q, %v", out, err)
 	}
 }
 

@@ -46,6 +46,9 @@ type Store struct {
 	directoryChild     query.Rows[blobfs.Directory]
 	directoryAncestors query.Rows[ancestor]
 	fileByID           query.Rows[blobfs.File]
+	fileByName         query.Rows[blobfs.File]
+	beginFileWrite     query.Statement
+	completeFileWrite  query.Guard
 	files              listing[blobfs.File]
 	children           listing[blobfs.Directory]
 }
@@ -85,6 +88,7 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 		return nil, fmt.Errorf("data: %w", err)
 	}
 	directory := query.Scanner[blobfs.Directory]()
+	file := query.Scanner[blobfs.File]()
 	files, err := newListing[blobfs.File](clauses, stmts.Statement("files_in_directory"), stmts.Statement("files_in_directory_with_total"))
 	if err != nil {
 		return nil, err
@@ -104,7 +108,10 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 		directoryByID:      stmts.Statement("directory_by_id").Scan(directory),
 		directoryChild:     stmts.Statement("directory_child").Scan(directory),
 		directoryAncestors: stmts.Statement("directory_ancestors").Scan(query.Scanner[ancestor]()),
-		fileByID:           stmts.Statement("file_by_id").Scan(query.Scanner[blobfs.File]()),
+		fileByID:           stmts.Statement("file_by_id").Scan(file),
+		fileByName:         stmts.Statement("file_by_name").Scan(file),
+		beginFileWrite:     stmts.Statement("begin_file_write"),
+		completeFileWrite:  stmts.Statement("complete_file_write").Guarded(stmts.Statement("file_version"), "version"),
 		files:              files,
 		children:           children,
 	}, nil

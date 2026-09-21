@@ -49,10 +49,12 @@ func (s Status) Mutable() bool {
 // stays idempotent under retry. No transition leaves deleting except the
 // row's removal, which is not a status.
 //
-// Open decision: the table has no row for a failed write. Whether failing a
-// write is a status of its own or a delete of the pending row is answered by
-// the write-path stage; until then the table expresses only what the concept
-// states.
+// The table has no row for a failed write, by decision: a write that stops
+// after the pending row is inserted leaves the row pending, where a query
+// finds it and a retry of the same write completes it, and a write that is
+// abandoned is removed through the delete steps, which pending already
+// allows. A fourth status would name a state the delete path already
+// handles.
 var transitions = map[Status]map[Status]bool{
 	StatusPending: {
 		StatusAvailable: true,

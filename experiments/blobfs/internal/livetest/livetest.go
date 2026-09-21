@@ -57,7 +57,16 @@ func OpenDSN(t testing.TB) (*sqlate.DB, string) {
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if _, err := admin.ExecContext(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
+		// WITH (FORCE) terminates the database's other sessions, and under load the
+		// engine can report that one is still closing. A short retry lets it finish.
+		var err error
+		for attempt := 0; attempt < 10; attempt++ {
+			if _, err = admin.ExecContext(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err == nil {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if err != nil {
 			t.Errorf("drop database %s: %v", name, err)
 		}
 		_ = admin.Close()

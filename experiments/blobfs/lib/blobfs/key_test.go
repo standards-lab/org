@@ -2,6 +2,7 @@ package blobfs_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"unicode"
@@ -16,8 +17,6 @@ import (
 // in ".". Invalid UTF-8 is rejected here too, which azureblob does not do
 // and blobfs's sanitizer must therefore prevent on its own.
 type azureRules struct{}
-
-func (azureRules) MaxKeyLength() int { return 1024 }
 
 func (azureRules) ValidateKey(key string) error {
 	switch {
@@ -45,16 +44,20 @@ func (azureRules) ValidateKey(key string) error {
 }
 
 // limited is a KeyValidator with a configurable rune limit and no rules of
-// its own beyond the limit, so a test can isolate the length check.
+// its own beyond the limit, so a test can isolate the length check the
+// store applies.
 type limited int
 
-func (l limited) MaxKeyLength() int      { return int(l) }
-func (limited) ValidateKey(string) error { return nil }
+func (l limited) ValidateKey(key string) error {
+	if n := utf8.RuneCountInString(key); n > int(l) {
+		return fmt.Errorf("%d characters exceeds the limit of %d", n, int(l))
+	}
+	return nil
+}
 
 // refusing is a KeyValidator that refuses every key with a fixed error.
 type refusing struct{ err error }
 
-func (refusing) MaxKeyLength() int          { return 1024 }
 func (r refusing) ValidateKey(string) error { return r.err }
 
 func TestSanitizeFilename(t *testing.T) {
@@ -122,9 +125,10 @@ func TestNewKey(t *testing.T) {
 	}
 }
 
-// TestNewKeyCountsRunes fixes the rune-boundary rule: a key whose rune count
-// fits the limit is accepted even when its byte count exceeds it, and one
-// rune over is refused.
+// TestNewKeyCountsRunes fixes the rune-boundary rule as the store applies
+// it: a key whose rune count fits the limit is accepted even when its byte
+// count exceeds it, and one rune over is refused, through ValidateKey
+// alone, since the interface carries no length of its own.
 func TestNewKeyCountsRunes(t *testing.T) {
 	const id = "id"
 	const limit = 50

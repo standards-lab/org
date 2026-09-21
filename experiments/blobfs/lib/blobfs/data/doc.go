@@ -27,6 +27,20 @@
 // number or continued from the keyset cursor of an earlier page, and both
 // walk the same order. No operation walks the whole tree; a path is
 // resolved one segment per round trip and computed by one upward walk.
+// File and FileByName read one file row, by id or by directory and name.
+//
+// A file write is two steps around the object write the package never
+// makes. BeginFileWrite validates the name, mints the id, builds the key
+// and validates it against the caller's blobfs.KeyValidator, and inserts
+// the row as pending; it runs on the pool or inside the caller's
+// transaction, beside the caller's own rows. The caller stores the object
+// under the row's key and then calls CompleteFileWrite with the row's id
+// and version and what the store reported, which moves the row to
+// available under the query library's version guard. A stop between the
+// steps leaves the row pending, where a listing finds it and a retry of
+// the same write, having found it through FileByName, completes it. There
+// is no fail step: an abandoned write is removed through the delete steps,
+// which a pending row already allows.
 //
 // Two operations are variation points, where an engine may do better than
 // standard SQL: the tree lock that serializes directory moves, and the

@@ -4,21 +4,22 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 // KeyValidator is what blobfs asks of the object store: whether it accepts
 // a key. A consumer wires its store's key validation to this interface at
 // its composition root, so blobfs validates a key before it stores the key
 // in a pending row and never imports the store's package.
+//
+// The interface carries no maximum key length. The store's own validation
+// enforces its limit, counted the way the store counts, and MaxNameLength
+// keeps every key blobfs builds far below the limits of the providers it
+// targets (a key of the longest name is 292 runes), so a second length
+// check in blobfs never fires against a real store.
 type KeyValidator interface {
 	// ValidateKey returns a non-nil error that says why when the store
 	// refuses key.
 	ValidateKey(key string) error
-
-	// MaxKeyLength returns the longest key the store accepts, counted in
-	// runes. NewKey checks the length before it calls ValidateKey.
-	MaxKeyLength() int
 }
 
 // fallbackSegment stands in for a name the sanitizer emptied out, such as a
@@ -52,14 +53,10 @@ func SanitizeFilename(name string) string {
 }
 
 // NewKey builds a file's key from its id and display name and validates it
-// against the store. The key is id, a slash, and SanitizeFilename(name).
-// The length check runs first, in runes, against MaxKeyLength; the store's
-// own ValidateKey runs second. A refusal is a KeyError.
+// against the store. The key is id, a slash, and SanitizeFilename(name). A
+// refusal is a KeyError carrying the store's reason.
 func NewKey(store KeyValidator, id, name string) (string, error) {
 	key := id + "/" + SanitizeFilename(name)
-	if n, limit := utf8.RuneCountInString(key), store.MaxKeyLength(); n > limit {
-		return "", &KeyError{Key: key, Err: fmt.Errorf("%d characters exceeds the store's limit of %d", n, limit)}
-	}
 	if err := store.ValidateKey(key); err != nil {
 		return "", &KeyError{Key: key, Err: err}
 	}

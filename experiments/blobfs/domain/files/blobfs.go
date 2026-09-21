@@ -3,7 +3,9 @@ package files
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/standards-lab/sqlate"
@@ -164,10 +166,126 @@ func (s *Store) topLevel(ctx context.Context, sess sqlate.Session, l Listing) (C
 	return Contents{Path: "/", Directories: dirs, Files: files}, nil
 }
 
-// splitParent splits the path of a directory to create into its parent's
-// path, the name of the new directory, and the new directory's depth (1
-// for a top-level directory). The root itself is blobfs.ErrRootDirectory,
-// a relative path or one ending with a slash blobfs.ErrInvalidPath. The
+// Put is the two-phase write as the consumer sequences it, in three steps
+// with two transaction boundaries. First, in one transaction on its own:
+// the parent directory is resolved, the name is looked up, and either the
+// pending row is inserted through blobfs's begin step or, when a pending
+// row already holds the name, that row is taken up again (Resumed); the
+// transaction commits, so the pending row is durable before any byte
+// reaches the store, and it is where a consumer would write its own rows
+// beside the pending row. Second, outside any transaction, the object is
+// stored under the row's key with the declared content type. Third, on the
+// pool, blobfs's complete step moves the row to available with what the
+// store reported, guarded by the version read in the first step.
+//
+// A stop after the first or the second step (StopAfter, or a failure of
+// the object write) leaves the row pending, where ls and stat show it;
+// the error says so, and a put of the same path resumes the row: it
+// stores the object again, which replaces one an earlier attempt left,
+// and completes. A name held by an available or a deleting row is
+// blobfs.ErrNameTaken, since the consumer has no content replacement, and
+// a parent that does not exist is blobfs.ErrNotFound. The object store is
+// opened before the first step, so a store that cannot be reached fails
+// the put before any row is inserted; the key is validated against it in
+// the begin step, before the insert.
+func (s *Store) Put(ctx context.Context, req PutRequest) (PutResult, error) {
+	parent, name, _, err := splitParent(req.Path)
+	if err != nil {
+		return PutResult{}, fmt.Errorf("files: put %s: %w", req.Path, err)
+	}
+	st, err := s.objects(ctx)
+	if err != nil {
+		return PutResult{}, fmt.Errorf("files: put %s: %w", req.Path, err)
+	}
+	resumed := false
+	f, err := s.db.Transact(ctx, func(tx *sqlate.Tx) (blobfs.File, error) {
+		dir, err := s.blobfs.ResolveDirectory(ctx, tx, parent)
+		if err != nil {
+			return blobfs.File{}, err
+		}
+		existing, err := s.blobfs.FileByName(ctx, tx, dir.ID, name)
+		switch {
+		case err == nil && existing.Status == blobfs.StatusPending:
+			resumed = true
+			return existing, nil
+		case err == nil:
+			return blobfs.File{}, fmt.Errorf("a file named %q is %s: %w", existing.Name, existing.Status, blobfs.ErrNameTaken)
+		case !errors.Is(err, blobfs.ErrNotFound):
+			return blobfs.File{}, err
+		}
+		return s.blobfs.BeginFileWrite(ctx, tx, st, dir.ID, name, req.ContentType)
+	})
+	if err != nil {
+		return PutResult{}, fmt.Errorf("files: put %s: %w", req.Path, err)
+	}
+	result := PutResult{File: f, Resumed: resumed}
+	if req.StopAfter == StepInsert {
+		return result, &StopError{Step: StepInsert, Path: req.Path, File: f}
+	}
+	obj, err := st.Put(ctx, f.Key, req.Body, req.ContentType, req.Size)
+	if err != nil {
+		return result, fmt.Errorf("files: put %s: %w (the row stays pending; a put of the same path retries)", req.Path, err)
+	}
+	if req.StopAfter == StepWrite {
+		return result, &StopError{Step: StepWrite, Path: req.Path, File: f}
+	}
+	done, err := s.blobfs.CompleteFileWrite(ctx, s.db, f.ID, f.Version, obj)
+	if err != nil {
+		return result, fmt.Errorf("files: put %s: %w", req.Path, err)
+	}
+	result.File = done
+	return result, nil
+}
+
+// Stat returns the row of the file at path, whatever its status: the
+// parent directory is resolved and the last segment looked up among its
+// files, on the pool. A file that does not exist, or a parent that does
+// not, is blobfs.ErrNotFound. The object store is not consulted.
+func (s *Store) Stat(ctx context.Context, path string) (blobfs.File, error) {
+	parent, name, _, err := splitParent(path)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("files: stat %s: %w", path, err)
+	}
+	dir, err := s.blobfs.ResolveDirectory(ctx, s.db, parent)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("files: stat %s: %w", path, err)
+	}
+	f, err := s.blobfs.FileByName(ctx, s.db, dir.ID, name)
+	if err != nil {
+		return blobfs.File{}, fmt.Errorf("files: stat %s: %w", path, err)
+	}
+	return f, nil
+}
+
+// Open opens the content of the file at path for reading and returns the
+// row with it; the caller closes the reader. Only an available file has
+// content to read: a pending file's object has not been written and a
+// deleting file's is being removed, and either is ErrNotAvailable, with
+// the status in the message, before the store is asked. An available row
+// whose object the store does not hold is ErrObjectMissing.
+func (s *Store) Open(ctx context.Context, path string) (io.ReadCloser, blobfs.File, error) {
+	f, err := s.Stat(ctx, path)
+	if err != nil {
+		return nil, blobfs.File{}, err
+	}
+	if f.Status != blobfs.StatusAvailable {
+		return nil, blobfs.File{}, fmt.Errorf("files: cat %s: the file is %s: %w", path, f.Status, ErrNotAvailable)
+	}
+	st, err := s.objects(ctx)
+	if err != nil {
+		return nil, blobfs.File{}, fmt.Errorf("files: cat %s: %w", path, err)
+	}
+	body, err := st.Get(ctx, f.Key)
+	if err != nil {
+		return nil, blobfs.File{}, fmt.Errorf("files: cat %s: %w", path, err)
+	}
+	return body, f, nil
+}
+
+// splitParent splits the path of a directory or file to create into its
+// parent's path, the name of the new row, and the new row's depth (1 for
+// a top-level directory). The root itself is blobfs.ErrRootDirectory, a
+// relative path or one ending with a slash blobfs.ErrInvalidPath. The
 // parent's segments are validated when the parent is resolved and the
 // name when the row is written.
 func splitParent(path string) (parent, name string, depth int, err error) {

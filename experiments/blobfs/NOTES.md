@@ -16,15 +16,20 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-20)
 
-Stages 1 to 9 are committed: the single-root schema, the consumer's `directory_owner` and
+Stages 1 to 10 are committed: the single-root schema, the consumer's `directory_owner` and
 `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
 `domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
 two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
-and the conformance suite in `lib/blobfs/data/datatest`. The binary serves `schema up|down`, `mkdir <path> [--unit]`, and
+and the conformance suite in `lib/blobfs/data/datatest`. Stage 10 added the
+two-phase write in the persistence package (`FileByName`, `BeginFileWrite`, `CompleteFileWrite`
+over four new standard-tier statements), the one-method key-validation interface, the storage
+adapter in `domain/files/storage.go` over `go-storage` and `azureblob`, the object store opened
+by the composition root on the first file command, and the `put`, `cat`, and `stat` commands with
+`put --fail-after insert|write`. The binary serves `schema up|down`, `mkdir <path> [--unit]`,
 `ls <path>` with `--page`, `--size`, `--sort`, `--total none`, `--after-dirs`, `--after-files`,
-and `--unit`; it builds its store over the baseline. `mise run evidence` writes
-`evidence/read-model.txt`, the cost of the shipped listing. The write path, the file commands,
-and the bookmark commands are later stages.
+and `--unit`, and the three file commands; it builds its store over the baseline. `mise run
+evidence` writes `evidence/read-model.txt`, the cost of the shipped listing. The bookmark
+commands, deleting, and moving are later stages.
 
 ## Running it
 
@@ -36,6 +41,99 @@ runs `golangci-lint` and `sqlint`, and `mise run split-check` enforces the impor
 ## Decisions log
 
 Newest first.
+
+### 2026-09-20: stage 10 decisions the plan did not spell out
+
+- **Fail-write has no representation, by choice.** Of the three options (delete the pending
+  row, a fourth `failed` status, or no fail step), the write path ships no fail step. A stop
+  between the steps leaves the row `pending`, which is the queryable state the gate asks for,
+  and a retry of the same write completes it; a `failed` status would name a state the delete
+  path already handles, since `BeginFileDelete` is allowed from `pending`, and a delete of the
+  pending row would erase the state a retry needs. What a caller does with an abandoned write:
+  it retries (a `put` of the same path), or it removes the row through the delete steps (stage
+  12's `rm`), whose object delete tolerates a missing key. A sweeper that lists `pending` rows
+  older than a threshold and runs the delete steps is the consumer's, as the concept says. The
+  transition table is unchanged, and its comment records the decision.
+- **How a retry resumes.** `put` looks the name up in the parent before it inserts. A `pending`
+  row under the name is taken up at its id, key, and version: the object is stored again under
+  the same key, which replaces an object an earlier attempt left, and the complete step runs at
+  the version read. An `available` or `deleting` row under the name is `blobfs.ErrNameTaken`
+  with the status in the message, because the consumer has no content replacement. Refusing a
+  pending name with `ErrNameTaken` was rejected: the gate says a retry completes the row, and a
+  user who sees `pending` in `stat` needs one command to finish it.
+- **The transaction boundaries of `put`.** Three steps, two boundaries. The first step is one
+  transaction: resolve the parent, look the name up, insert the pending row, read it back, and
+  commit. It commits before any byte reaches the store, so the row is durable, and it is the
+  transaction a consumer extends with its own rows. The second step, the object write, runs
+  outside any transaction. The third step runs on the pool: the guarded update and the
+  read-back. `TestPutIsThreeStepsWithTwoBoundaries` pins the driver operations, and
+  `TestFileWriteComposesIntoTheCallersTransaction` proves the begin step inside a consumer's
+  `Transact` beside a consumer table that references `blobfs_file`: a rollback leaves neither
+  row, a commit both. The object store is opened and started before the first transaction, so
+  an unreachable store fails the put before any row is inserted.
+- **The step methods take `sqlate.Session`, not `*sqlate.Tx`** (proof 3). `begin_file_write`
+  carries no `transaction: required` header: one insert and its read-back are correct on the pool
+  as `Mkdir` is, and a consumer that wants the row beside its own passes its transaction.
+  `complete_file_write` is one guarded statement and runs on the pool. Nothing in the write path
+  needs the header.
+- **The key-validation interface has one method.** `blobfs.KeyValidator` lost `MaxKeyLength`,
+  and `NewKey` runs the store's `ValidateKey` alone. Proof 7's measurement: `azureblob`'s
+  `ValidateKey` enforces its 1,024-rune limit itself (`keys.go`), the storage fake's default does
+  the same, and go-storage's `Capabilities` contract reads that way; and `MaxNameLength` (255
+  runes) keeps every key blobfs builds at 292 runes at most, so a length check in blobfs never
+  fires against a real provider. The adapter is one method over `store.Capabilities().ValidateKey`.
+  The rune-boundary proofs: `TestBeginFileWriteKeyBoundary` (a validator with a 60-rune limit,
+  a key of exactly 60 runes and 83 bytes accepted, one rune over refused before any SQL),
+  `TestNewKeyCountsRunes` in the root package, and end to end `TestPutNameAtTheRuneBoundary`
+  and the binary's `TestWriteCommands`: a name of 255 `é` (a key of 292 runes, 546 bytes) is
+  stored in Azurite and read back, and 256 is `ErrInvalidName`.
+- **The validator is a parameter of the begin step.** `BeginFileWrite(ctx, sess, keys, ...)`
+  takes the `blobfs.KeyValidator` per call instead of `data.New` taking it as an option, so the
+  persistence package builds without the object store and the store can be opened lazily by the
+  consumer; the tests also swap validators without rebuilding the store. A store-level option
+  is the alternative if the review prefers one wiring point.
+- **The complete step stores what `Put` returned.** `blobfs.Object{Size, ContentType, ETag}` is
+  built from the store's answer to the put: the size the provider counted, the entity tag the
+  service assigned, and the content type as sent, which is the ledger's finding that `Put`
+  echoes the caller's type. A second round trip (`Stat` after `Put`) to read the server's type
+  was not added; `TestPut` proves the row's size, etag, and content type equal the service's
+  `Stat` of the object on Azurite, so the two agree for what the consumer declares.
+- **The declared content type.** `put --content-type` sets it; without the flag it is the type
+  registered for the local file's extension (`mime.TypeByExtension`, so `.txt` declares
+  `text/plain; charset=utf-8`), or `application/octet-stream`, which stdin always gets.
+- **The steps `--fail-after` names.** `insert` (the pending row is committed, nothing reached
+  the store) and `write` (the object is stored, the row is not completed). There is no stop
+  after complete, because nothing follows it; `complete` is refused before the store is
+  constructed. The stop is a `files.StopError` matching `ErrStopped`, exit code 1, with the
+  pending row's id and the instruction to rerun `put`. A failed object write leaves the same
+  state as a stop after `insert`, and its message says the row stays pending.
+- **`cat` of a `pending` or `deleting` file.** Refused with `files.ErrNotAvailable` and the
+  status in the message, before the store is asked: a pending file's object may not exist and a
+  deleting file's is being removed. `stat` shows any status and never consults the store. An
+  `available` row whose object the store does not hold is `files.ErrObjectMissing`.
+- **The object store is opened lazily, by the composition root.** `Infrastructure.Storage(ctx)`
+  opens and starts the store on its first call, as `Database` opens the pool, and `Close` shuts
+  it down; `files.New(db, opener)` receives the opener and calls it on the first file operation.
+  `mkdir` and `ls` therefore never read `BLOBFS_STORAGE_*` and run with Azurite down. The
+  configuration is the storage package's own `Config.Finalize("blobfs")`, so the variable names
+  are the library's, not the experiment's.
+- **`Start` at the composition root, not in the adapter.** `files.OpenStorage` finalizes the
+  config, builds the `azureblob` client and the `storage.Store`, and calls `Start` (container
+  ensured, provider probed) before it returns, so a rejected credential or an unreachable
+  endpoint fails the first file command as `ErrStorageUnavailable` before any row is written.
+- **The adapter's error mapping.** `storage.ErrNotFound` is `files.ErrObjectMissing`,
+  `storage.ErrUnavailable` and `storage.ErrNotReady` are `files.ErrStorageUnavailable`, and
+  `storage.ErrTooLarge` is `files.ErrObjectTooLarge`, each with the store's sentinel still
+  reachable; a failure of the body passes through unclassified, as the provider documents.
+- **A per-test Azurite container.** `livetest.Container(t)` names a container
+  `blobfs-test-<suffix>` and deletes it when the test ends, through the Azure SDK's container
+  client, because go-storage has no container delete. The store's `Start` creates it, so the
+  tests drive the binary's own path. The integration package passes the name to the child
+  through `BLOBFS_STORAGE_CONTAINER`; the domain's tests set it with `t.Setenv`.
+- **`split-check` is unchanged.** Rule 6 already named `domain/files/storage.go`; the helper
+  in `internal/livetest/storage.go` names the Azure SDK and not go-storage, so no rule moved
+  and none needed proving. The rule-6 grep was exercised by the new file itself: it is the one
+  application file matching `"github.com/standards-lab/go-storage`.
 
 ### 2026-09-20: stage 9 decisions the plan did not spell out
 
@@ -424,6 +522,23 @@ owner and no unit.
   lint's. A per-directory `tier` requirement (every file in this directory must declare native,
   or must declare standard) would let the configuration state the layout rule the experiment
   follows by convention.
+- **`query.Guard` cannot carry a second predicate (stage 10).** `complete_file_write` includes
+  `guard_where` and `guard_set` and adds `AND status = 'pending'`. When the status predicate
+  refuses the row, the guard affects nothing, runs its check, finds the expected version, and
+  reports `ErrVersionMismatch: expected 1, current 1`, which is false. `CompleteFileWrite`
+  therefore reads the row after a mismatch and reclassifies: the expected version with another
+  status is a `blobfs.TransitionError` (matching `ErrDeleting` for a deleting row), and only a
+  moved version is the guard's conflict. A guard whose check returns the row, or a check the
+  caller can extend with the same extra predicate, would remove the third statement.
+- **The guard's check ignores extra arguments, and that is what makes one map work (stage
+  10).** `Guard.Run` passes the command's `Args` to the check, and `Args` ignores an extra
+  name, so the size, content type, and etag bound for the update do not fail the version read.
+  The documentation says so for a "narrower check"; the write path relies on it.
+- **A parameter inside a published pattern takes no cast (stage 10).** `sql.guard_where` binds
+  `{{id}}` without a type, so `complete_file_write` sends the id as an untyped parameter and
+  Postgres infers `uuid` from the column; the experiment's own statements cast every uuid
+  (`{{id:uuid}}`) for `Verify`'s sake. A pattern with typed slots, or a way for the including
+  statement to state the type, would make the two forms one.
 - **`Statement.Native()` is the only reader of the port note (stage 9).** No tool lists the
   native statements of a program with their ports; `pgnative`'s test asserts each note contains
   `Port:` by convention. An `sqlint` report, or a `query.Statements` method that lists native
@@ -516,6 +631,24 @@ owner and no unit.
   version). A consumer that wants an optimistic begin composes `guard_where` into a statement of
   its own and reads the row back, and the ledger's earlier finding holds: the guard's check
   reports only a version mismatch, so a refusal for status needs its own read.
+- **The write path is four standard statements and no variation point (stage 10).**
+  `begin_file_write` (the insert), `file_by_id` (its read-back), `complete_file_write` (the
+  guarded update), and `file_version` (the guard's check), plus `file_by_name` for the retry
+  and for `stat`. None needs a native form: the insert takes the pool, the update is one
+  statement, and `RETURNING` would save one read-back per step, which stage 9's delete begin
+  already measured at one round trip. `TestNew` counts fourteen statements, all standard tier,
+  and `Verify` twenty prepares.
+- **Both steps take the pool and compose into a transaction (stage 10, proof 3).** The begin
+  step ran inside a consumer's `Transact` beside a consumer row that references `blobfs_file`
+  through a foreign key, and the foreign key held against the pending row inside the
+  transaction; a rollback removed both rows, a commit kept both. The complete step is one
+  guarded statement on the pool. Failure is not a state: the pending row is the state, and the
+  delete path is the fail step.
+- **The key-validation wiring is one method (stage 10, proof 7).** `Storage.ValidateKey` is
+  `store.Capabilities().ValidateKey(key)`, and `blobfs.KeyValidator` has no `MaxKeyLength`: the
+  provider's rule enforces its own length in runes, and `MaxNameLength` keeps every key at 292
+  runes or fewer, so the interface's length was unreachable against any real provider. The
+  concept's "key validation and a maximum key length" becomes "key validation".
 - **The consumer's `List` is one transaction and two library listings (stage 7).**
   `TestListRunsInOneReadOnlyRepeatableReadTransaction` proves one begin with both options, the
   root read, the two halves, and the commit, and nothing else; `TestListHalvesAgreeUnderConcurrentWrites`
@@ -533,6 +666,20 @@ owner and no unit.
 - `Store.Start` wraps every failure as `ErrUnavailable`, including rejected credentials.
 - No Azurite compose file existed in the workspace, and the image defines no health check. The
   experiment's file uses `nc -z` on the blob port.
+- Azurite accepted a key of 1,024 runes (2,048 bytes) and one of 1,025 runes put straight
+  through `storage.Store.Put`, which validates no key, and served both back (stage 10,
+  `TestAzuriteAndTheKeyLimit`). Only `azureblob`'s `ValidateKey` refuses the longer one, so the
+  provider's rule is the whole defense and the emulator proves nothing about the limit.
+- `Put`'s returned `Object` agrees with `Stat`'s on Azurite for the size, the etag, and the
+  content type when the caller declares one (stage 10, `TestPut`); the ledger's difference
+  shows only when the caller declares none and the service defaults the type.
+- go-storage has no container delete, so a test that creates a container of its own reaches
+  for the Azure SDK's container client to remove it (`internal/livetest/storage.go`). A
+  `DeleteContainer` on the provider, or on `storagetest`, would keep the SDK out of a
+  consumer's test support.
+- The storage configuration reads its own environment (`Config.Finalize(prefix)`), so a consumer
+  that wants a flag for the container, as it has `--dsn` for the database, has to set the
+  variable itself or bypass `Finalize`; the experiment kept the variables.
 
 ### `v1.storage` incorporation (to develop through the remaining stages)
 
@@ -552,6 +699,21 @@ owner and no unit.
   Reverting runs the service's set first.
 - `org_image` is hypothetical. No partial unique index existed in the workspace before this
   experiment.
+- The two-phase write as built (stage 10): the service inserts the pending row in the
+  transaction that writes its own rows (an owner, a document record), commits, uploads under the
+  row's key, and completes on the pool. The consumer's transaction boundary sits around the
+  first step only; no transaction spans the upload. A service that already runs `storage.Store`
+  under its lifecycle hands the started store to the adapter through `files.NewStorage`, and the
+  adapter is the `blobfs.KeyValidator` the begin step takes, so the wiring is the one line that
+  passes the adapter.
+- A `pending` row is the service's own state to sweep: no `failed` status exists, a retry of the
+  same upload resumes the row, and an abandoned row goes through the delete steps. A service
+  that wants a time bound lists `status = 'pending'` under `updated_at < threshold` through the
+  library's listing filters and deletes each.
+- The composition root names the domain's `files.Storage` type, because only the domain's
+  `storage.go` may import go-storage. A service whose composition root owns the storage store
+  would build the adapter in the domain the same way and keep the store itself in its
+  infrastructure; the type crossing is the cost of keeping the provider import in one file.
 
 ## Evidence: the cost of the shipped listing (proof V3, measured 2026-09-20, PostgreSQL 18.4)
 
