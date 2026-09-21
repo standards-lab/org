@@ -135,13 +135,14 @@ func (s *Store) Verify(ctx context.Context) error {
 }
 
 // directoryFields are the fields both of the library's listings declare,
-// and the owner read model declares beside its unit, so a sort term naming
-// one of them applies to the directory half of ls as well as to the file
-// half. The file half takes every term and refuses one it does not
-// declare; a term naming a field only files have (size, status, and so on)
-// sorts the files and leaves the directories in name order. parent_id is
-// left out: the directory listing declares it, but every row of one
-// listing shares it, so a sort by it orders nothing.
+// and the owner read model declares beside its unit, so a sort term or a
+// filter naming one of them applies to the directory half of ls as well
+// as to the file half. The file half takes every term and refuses one it
+// does not declare; a term naming a field only files have (size, status,
+// and so on) sorts or filters the files and leaves the directory half as
+// it is. parent_id is left out: the directory listing declares it, but
+// every row of one listing shares it, so a sort or a filter by it does
+// nothing.
 var directoryFields = map[string]bool{
 	"id": true, "name": true, "version": true, "created_at": true, "updated_at": true,
 }
@@ -159,12 +160,27 @@ func sortTerms(terms []Sort, allowed map[string]bool) []query.Sort {
 	return out
 }
 
+// filterTerms lowers the filters to the query library's, keeping only
+// those whose field the set allows; a nil set keeps every filter. The
+// operator is passed as it was written, so the library refuses one it
+// does not know.
+func filterTerms(filters []Filter, allowed map[string]bool) []query.Filter {
+	var out []query.Filter
+	for _, f := range filters {
+		if allowed != nil && !allowed[f.Field] {
+			continue
+		}
+		out = append(out, query.Filter{Field: f.Field, Op: query.Op(f.Op), Value: f.Value})
+	}
+	return out
+}
+
 // lower lowers a Listing to the library's listing for one half of ls: the
-// page, the total mode, the half's cursor, and the sort terms, all of
-// them for the file half and those naming a directory field for the
-// directory half.
+// page, the total mode, the half's cursor, and the filters and sort
+// terms, all of them for the file half and those naming a directory field
+// for the directory half.
 func lower(l Listing, allowed map[string]bool, after string) data.Listing {
-	out := data.Listing{Page: l.Page, Size: l.Size, Sort: sortTerms(l.Sort, allowed), After: after}
+	out := data.Listing{Page: l.Page, Size: l.Size, Filters: filterTerms(l.Filters, allowed), Sort: sortTerms(l.Sort, allowed), After: after}
 	if l.Total == TotalNone {
 		out.Total = data.TotalNone
 	}

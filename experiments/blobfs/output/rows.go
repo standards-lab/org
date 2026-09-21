@@ -28,11 +28,13 @@ func (o *Output) Total(n int) {
 }
 
 // Entry is one line of a directory listing: a directory or a file at the
-// listed path. Kind is dir or file. Size is nil for a directory and for a
+// listed path. Kind is dir or file. ID is the row's id, the handle the
+// id:<uuid> argument form takes. Size is nil for a directory and for a
 // file whose size is not known yet, and Status is empty for a directory.
 type Entry struct {
 	Kind    string
 	Name    string
+	ID      string
 	Size    *int64
 	Status  string
 	Updated time.Time
@@ -62,11 +64,12 @@ type Page struct {
 }
 
 // Listing writes a directory listing to stdout: the entries as aligned
-// columns, directories then files as the caller ordered them, one line per
-// half saying what the page holds and the total or its absence, a more:
-// line saying whether rows remain after it, and after a half that has a
-// next page, the line next-dirs: or next-files: with the cursor that
-// continues it.
+// columns, directories then files as the caller ordered them, with the id
+// as the last column so the name stays second, one line per half saying
+// what the page holds and the total or its absence, a more: line saying
+// whether rows remain after it, and after a half that has a next page and
+// a cursor to continue it, the line next-dirs: or next-files: with the
+// cursor; the caller blanks Next to leave those lines out.
 func (o *Output) Listing(entries []Entry, directories, files Page) {
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
@@ -77,9 +80,9 @@ func (o *Output) Listing(entries []Entry, directories, files Page) {
 		if e.Status != "" {
 			status = e.Status
 		}
-		rows = append(rows, []string{e.Kind, e.Name, size, status, e.Updated.UTC().Format("2006-01-02 15:04:05")})
+		rows = append(rows, []string{e.Kind, e.Name, size, status, e.Updated.UTC().Format("2006-01-02 15:04:05"), e.ID})
 	}
-	o.Rows([]string{"KIND", "NAME", "SIZE", "STATUS", "UPDATED"}, rows)
+	o.Rows([]string{"KIND", "NAME", "SIZE", "STATUS", "UPDATED", "ID"}, rows)
 	o.page("directories", "next-dirs", directories)
 	o.page("files", "next-files", files)
 }

@@ -57,8 +57,8 @@ func (s *Store) ownedByUnit(ctx context.Context, sess sqlate.Session, directoryI
 }
 
 // ownedBy lists the directories the unit with unitID owns through sess:
-// one page of owned_directories under l, sorted by the terms the
-// directory half takes, filtered by unit_id. The projection always runs
+// one page of owned_directories under l, sorted and filtered by the terms
+// the directory half takes, and filtered by unit_id. The projection always runs
 // its count statement, so under TotalNone the count is read and dropped;
 // the page then reports NoTotal like the library's listings do. More is
 // derived from that count in both modes, since the projection fetches
@@ -67,7 +67,7 @@ func (s *Store) ownedBy(ctx context.Context, sess sqlate.Session, unitID string,
 	d := query.Directives{
 		Page:    query.Page{Number: l.Page, Size: l.Size},
 		Sort:    sortTerms(l.Sort, directoryFields),
-		Filters: []query.Filter{{Field: "unit_id", Op: query.OpEq, Value: unitID}},
+		Filters: append(filterTerms(l.Filters, directoryFields), query.Filter{Field: "unit_id", Op: query.OpEq, Value: unitID}),
 	}
 	rows, total, err := s.ownedDirectories.List(ctx, sess, d)
 	if err != nil {

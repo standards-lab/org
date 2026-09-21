@@ -251,6 +251,68 @@ func TestListLowersTheSort(t *testing.T) {
 	}
 }
 
+// TestListLowersTheFilters proves database.go's lowering of the filters:
+// the file half takes every filter, in order, and the directory half
+// takes only those naming a directory field, so a filter on size, status,
+// or etag predicates the files and leaves the directory half unfiltered;
+// each value binds a placeholder cast to the field's type, and an in
+// filter binds one per value. A field neither half declares is refused
+// by the file half, and an operator the library does not know by the
+// directory half, each before its statement runs and each unwrapping to
+// the query library's sentinel. At the root as a unit, the owner read
+// model takes the directory filters beside its unit predicate.
+func TestListLowersTheFilters(t *testing.T) {
+	ctx := context.Background()
+	s, rec := newStore(t, root(), listing(directoryColumns, true, 0), listing(fileColumns, true, 0))
+	l := files.Listing{Page: 1, Size: 5, Filters: []files.Filter{
+		{Field: "name", Op: "like", Value: "a%"},
+		{Field: "size", Op: "gt", Value: "10"},
+		{Field: "status", Op: "in", Value: []any{"available", "pending"}},
+		{Field: "etag", Op: "notnull"},
+	}}
+	if _, err := s.List(ctx, "/", l); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	queries := rec.SQL(sqltest.OpQuery)
+	if !strings.Contains(queries[1], "WHERE q.parent_id = CAST($1 AS uuid) AND q.name LIKE CAST($2 AS text) ORDER BY q.name OFFSET $3 ROWS") {
+		t.Errorf("the directory half took a file-only filter or lost the shared one:\n%s", queries[1])
+	}
+	if !strings.Contains(queries[2], "WHERE q.directory_id = CAST($1 AS uuid) AND q.name LIKE CAST($2 AS text) AND q.size > CAST($3 AS bigint) AND q.status IN (CAST($4 AS text), CAST($5 AS text)) AND q.etag IS NOT NULL ORDER BY q.name OFFSET $6 ROWS") {
+		t.Errorf("the file half did not take every filter in order:\n%s", queries[2])
+	}
+	if args := rec.Calls()[3].Args; len(args) != 7 || args[1] != "a%" || args[2] != "10" || args[3] != "available" || args[4] != "pending" {
+		t.Errorf("the file half bound %v, want the directory, the four values, the offset, and the fetch", args)
+	}
+
+	s, rec = newStore(t, root(), listing(directoryColumns, true, 0))
+	_, err := s.List(ctx, "/", files.Listing{Page: 1, Size: 5, Filters: []files.Filter{{Field: "owner", Op: "eq", Value: "x"}}})
+	if !errors.Is(err, query.ErrDirectives) || !strings.Contains(err.Error(), "owner") {
+		t.Errorf("a filter on an undeclared field = %v, want ErrDirectives naming it", err)
+	}
+	if got := ops(rec); got != "begin query query rollback" {
+		t.Errorf("ops = %q, want the directory half to run unfiltered and the file half to refuse", got)
+	}
+	s, rec = newStore(t, root())
+	_, err = s.List(ctx, "/", files.Listing{Page: 1, Size: 5, Filters: []files.Filter{{Field: "name", Op: "between", Value: "x"}}})
+	if !errors.Is(err, query.ErrDirectives) || !strings.Contains(err.Error(), "unknown filter operator") {
+		t.Errorf("a filter with an unknown operator = %v, want ErrDirectives naming the operator", err)
+	}
+	if got := ops(rec); got != "begin query rollback" {
+		t.Errorf("ops = %q, want the directory half to refuse before its statement", got)
+	}
+
+	unit := blobfs.NewID()
+	s, rec = newStore(t, counted(0), sqltest.Response{Columns: ownedColumns})
+	if _, err := s.List(ctx, "/", files.Listing{Page: 1, Size: 5, Unit: unit, Filters: []files.Filter{{Field: "name", Op: "like", Value: "a%"}, {Field: "size", Op: "gt", Value: "10"}}}); err != nil {
+		t.Fatalf("List at the root as a unit with filters: %v", err)
+	}
+	for _, q := range rec.SQL(sqltest.OpQuery) {
+		if !strings.Contains(q, "q.name LIKE CAST($1 AS text) AND q.unit_id = CAST($2 AS uuid)") || strings.Contains(q, "size") {
+			t.Errorf("the owner read model did not take the directory filters beside the unit:\n%s", q)
+		}
+	}
+}
+
 // TestDirectoryFieldsMatchTheLibrary pins the field set the directory
 // half of a sort takes: the five fields both library listings declare all
 // reach the directory half, and both halves accept them, so a field the

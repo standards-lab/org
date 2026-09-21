@@ -303,6 +303,19 @@ func column(out string) []string {
 	return names
 }
 
+// ids returns the id of every entry line of a listing by its name: the
+// last column.
+func ids(out string) map[string]string {
+	m := map[string]string{}
+	for _, line := range lines(out) {
+		if strings.HasPrefix(line, "dir ") || strings.HasPrefix(line, "file ") {
+			f := strings.Fields(line)
+			m[f[1]] = f[len(f)-1]
+		}
+	}
+	return m
+}
+
 // field returns the value of one label of a stat record.
 func field(out, label string) string {
 	for _, line := range lines(out) {
@@ -415,6 +428,7 @@ func TestScript(t *testing.T) {
 				{"deletes", s.deletes},
 				{"moves", s.moves},
 				{"copies", s.copies},
+				{"ids", s.ids},
 				{"tree-lock", s.treeLock},
 				{"schema-down", s.schemaDown},
 			} {
@@ -471,10 +485,10 @@ func (s *script) statusAtHead(t *testing.T) {
 
 // directories is the directory commands: the variant flag, mkdir at
 // nested paths and with --unit at a top-level path, the refusals mkdir
-// renders, then ls with paging, sorting, --total none, the empty later
-// page, the cursor, and --unit scoping at a top-level directory and at
-// the root. The files are put from stdin with sizes that the size sort
-// shows.
+// renders, then ls with its id column, paging, sorting, filtering,
+// --total none, the empty later page, the cursor under --cursors, and
+// --unit scoping at a top-level directory and at the root. The files are
+// put from stdin with sizes that the size sort and the size filter show.
 func (s *script) directories(t *testing.T) {
 	unit, other := blobfs.NewID(), blobfs.NewID()
 
@@ -513,11 +527,22 @@ func (s *script) directories(t *testing.T) {
 	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total 2\nmore: no\n") || !strings.Contains(out, "files: 3 on page 1 of size 20, total 3\nmore: no\n") {
 		t.Errorf("ls /reports stdout:\n%s", out)
 	}
+	// The id column: every row ends with its id, a UUID.
+	if !strings.HasSuffix(lines(out)[0], "  ID") {
+		t.Errorf("ls header = %q, want ID as the last column", lines(out)[0])
+	}
+	for name, id := range ids(out) {
+		if _, err := blobfs.ParseID(id); err != nil {
+			t.Errorf("ls printed %q as the id of %s: %v", id, name, err)
+		}
+	}
+	// Without --cursors a half with a next page says more: yes and prints
+	// no cursor line.
 	out = ok(t, s.tg, "ls", "/reports", "--page", "2", "--size", "1", "--sort", "name:desc")
 	if got := column(out); strings.Join(got, " ") != "2025 b.txt" {
 		t.Errorf("ls page 2 of 1 by name desc names = %v", got)
 	}
-	if !strings.Contains(out, "directories: 1 on page 2 of size 1, total 2\nmore: no\n") || !strings.Contains(out, "files: 1 on page 2 of size 1, total 3\nmore: yes\nnext-files: ") {
+	if !strings.Contains(out, "directories: 1 on page 2 of size 1, total 2\nmore: no\n") || !strings.Contains(out, "files: 1 on page 2 of size 1, total 3\nmore: yes\n") || strings.Contains(out, "next-") {
 		t.Errorf("ls page 2 stdout:\n%s", out)
 	}
 	// A sort by size cannot be continued by a cursor: the file half says
@@ -548,9 +573,47 @@ func (s *script) directories(t *testing.T) {
 	refused(t, s.tg, "not found", "ls", "/reports/missing")
 	refused(t, s.tg, "unknown sort field", "ls", "/reports", "--sort", "owner")
 
-	// The cursor: a half with a next page prints it, and the flag continues
-	// that half alone, without a total.
-	out = ok(t, s.tg, "ls", "/reports", "--size", "2")
+	// --filter: a shared field predicates both halves, a file-only field
+	// the files alone, each operator against the rows, and the refusals
+	// the library makes before the statement runs.
+	for _, tc := range []struct {
+		filters []string
+		want    string
+	}{
+		{[]string{"name:like:2%"}, "2025 2026"},
+		{[]string{"name:eq:a.txt"}, "a.txt"},
+		{[]string{"name:ne:2026"}, "2025 a.txt b.txt c.txt"},
+		{[]string{"size:gt:15"}, "2025 2026 a.txt c.txt"},
+		{[]string{"size:ge:20", "size:lt:30"}, "2025 2026 a.txt"},
+		{[]string{"size:le:10"}, "2025 2026 b.txt"},
+		{[]string{"status:in:available,pending", "etag:notnull"}, "2025 2026 a.txt b.txt c.txt"},
+		{[]string{"etag:null"}, "2025 2026"},
+		{[]string{"created_at:ge:2000-01-01T00:00:00Z", "version:eq:2"}, "a.txt b.txt c.txt"},
+		{[]string{"name:like:%.txt", "size:gt:15"}, "a.txt c.txt"},
+	} {
+		args := []string{"ls", "/reports"}
+		for _, f := range tc.filters {
+			args = append(args, "--filter", f)
+		}
+		if got := column(ok(t, s.tg, args...)); strings.Join(got, " ") != tc.want {
+			t.Errorf("ls --filter %v names = %v, want %s", tc.filters, got, tc.want)
+		}
+	}
+	out = ok(t, s.tg, "ls", "/reports", "--filter", "size:gt:15", "--sort", "size:desc")
+	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt a.txt" {
+		t.Errorf("ls --filter with --sort names = %v", got)
+	}
+	if !strings.Contains(out, "directories: 2 on page 1 of size 20, total 2\nmore: no\n") || !strings.Contains(out, "files: 2 on page 1 of size 20, total 2\nmore: no\n") {
+		t.Errorf("ls --filter stdout:\n%s", out)
+	}
+	refused(t, s.tg, "unknown filter field", "ls", "/reports", "--filter", "owner:eq:x")
+	refused(t, s.tg, "unknown filter operator", "ls", "/reports", "--filter", "name:between:x")
+	refused(t, s.tg, "write <field>:<op>:<value>", "ls", "/reports", "--filter", "name")
+	refused(t, s.tg, "invalid", "ls", "/reports", "--filter", "size:gt:abc")
+
+	// The cursor: with --cursors a half with a next page prints it, and the
+	// flag continues that half alone, without a total.
+	out = ok(t, s.tg, "ls", "/reports", "--size", "2", "--cursors")
 	if got := column(out); strings.Join(got, " ") != "2025 2026 a.txt b.txt" {
 		t.Errorf("ls --size 2 names = %v", got)
 	}
@@ -569,7 +632,7 @@ func (s *script) directories(t *testing.T) {
 	if !strings.Contains(out, "directories: 2 on page 1 of size 2, total 2\nmore: no\n") || !strings.Contains(out, "files: 2 on page 1 of size 2, total 3\nmore: yes\nnext-files: ") {
 		t.Errorf("ls --size 2 stdout:\n%s", out)
 	}
-	out = ok(t, s.tg, "ls", "/reports", "--size", "2", "--after-files", cursor)
+	out = ok(t, s.tg, "ls", "/reports", "--size", "2", "--after-files", cursor, "--cursors")
 	if got := column(out); strings.Join(got, " ") != "2025 2026 c.txt" {
 		t.Errorf("ls --after-files names = %v", got)
 	}
@@ -601,6 +664,12 @@ func (s *script) directories(t *testing.T) {
 	out = ok(t, s.tg, "ls", "/", "--unit", other)
 	if got := column(out); strings.Join(got, " ") != "theirs" {
 		t.Errorf("ls / as the other unit names = %v", got)
+	}
+	if got := column(ok(t, s.tg, "ls", "/", "--unit", unit, "--filter", "name:like:arch%", "--filter", "size:gt:1")); strings.Join(got, " ") != "archive" {
+		t.Errorf("ls / as the unit with a filter names = %v", got)
+	}
+	if got := column(ok(t, s.tg, "ls", "/", "--unit", unit, "--filter", "name:like:zzz%")); len(got) != 0 {
+		t.Errorf("ls / as the unit with a filter nothing matches names = %v", got)
 	}
 	refused(t, s.tg, "owner read model takes no cursor", "ls", "/", "--unit", unit, "--after-dirs", cursor)
 	out = ok(t, s.tg, "ls", "/")
@@ -1113,6 +1182,119 @@ func (s *script) copies(t *testing.T) {
 	ok(t, s.tg, "cp", "/c/src/f.txt", "/c/dst/h.txt")
 	if got := bookmarkPaths(ok(t, s.tg, "bookmark", "ls", "--unit", unit)); strings.Join(got, " ") != "/c/src/f.txt" {
 		t.Errorf("bookmark ls after the copy = %v, want the source alone", got)
+	}
+}
+
+// ids is the id:<uuid> argument form against real rows: the ids ls prints
+// are the handles ls, stat, cat, put, cp, mv, and rm take, with the same
+// effects as the path forms; stat prints a directory's row by path and by
+// id, and the root's; and the refusals: an id no row holds, a malformed
+// id, the root's id, --unit with a listing by id, a path and an id mixed,
+// rm -r by id, and stdin into a directory by id.
+func (s *script) ids(t *testing.T) {
+	for _, p := range []string{"/ids", "/ids/src", "/ids/dst", "/ids/sub"} {
+		ok(t, s.tg, "mkdir", p)
+	}
+	putContent(t, s.tg, "by id\n", "/ids/src/f.txt")
+	top, under, src := ids(ok(t, s.tg, "ls", "/")), ids(ok(t, s.tg, "ls", "/ids")), ids(ok(t, s.tg, "ls", "/ids/src"))
+	idsDir, srcDir, dstDir, subDir, file := top["ids"], under["src"], under["dst"], under["sub"], src["f.txt"]
+	for name, id := range map[string]string{"ids": idsDir, "src": srcDir, "dst": dstDir, "sub": subDir, "f.txt": file} {
+		if _, err := blobfs.ParseID(id); err != nil {
+			t.Fatalf("ls printed %q as the id of %s: %v", id, name, err)
+		}
+	}
+
+	// stat: a directory by path and by id, the root, and a file by id; the
+	// record by id is the record by path without its path line.
+	out := ok(t, s.tg, "stat", "/ids")
+	if field(out, "path") != "/ids" || field(out, "id") != idsDir || field(out, "parent") != blobfs.RootID || field(out, "name") != "ids" || field(out, "version") != "1" || strings.Contains(out, "status:") {
+		t.Errorf("stat of a directory:\n%s", out)
+	}
+	if byID := ok(t, s.tg, "stat", "id:"+idsDir); strings.TrimRight(byID, "\n") != strings.Join(lines(out)[1:], "\n") {
+		t.Errorf("stat of a directory by id:\n%s\nwant the record by path without its path line:\n%s", byID, out)
+	}
+	if out := ok(t, s.tg, "stat", "/"); field(out, "path") != "/" || field(out, "id") != blobfs.RootID || field(out, "parent") != "-" || field(out, "name") != "/" {
+		t.Errorf("stat /:\n%s", out)
+	}
+	out = ok(t, s.tg, "stat", "/ids/src/f.txt")
+	if field(out, "id") != file || field(out, "status") != "available" {
+		t.Errorf("stat of the file:\n%s", out)
+	}
+	if byID := ok(t, s.tg, "stat", "id:"+file); strings.TrimRight(byID, "\n") != strings.Join(lines(out)[1:], "\n") {
+		t.Errorf("stat of a file by id:\n%s\nwant the record by path without its path line:\n%s", byID, out)
+	}
+	refused(t, s.tg, "no file or directory has it", "stat", "id:"+blobfs.NewID())
+	refused(t, s.tg, "not found", "stat", "/ids/missing")
+	refused(t, s.tg, "must be a UUID", "stat", "id:nope")
+
+	// ls by id.
+	if got := column(ok(t, s.tg, "ls", "id:"+idsDir)); strings.Join(got, " ") != "dst src sub" {
+		t.Errorf("ls by id names = %v", got)
+	}
+	if got := column(ok(t, s.tg, "ls", "id:"+srcDir, "--filter", "name:like:f%")); strings.Join(got, " ") != "f.txt" {
+		t.Errorf("ls by id with a filter names = %v", got)
+	}
+	refused(t, s.tg, "not found", "ls", "id:"+blobfs.NewID())
+	refused(t, s.tg, "must be a UUID", "ls", "id:nope")
+	refused(t, s.tg, "the nil UUID is the root's", "ls", "id:"+blobfs.RootID)
+	refused(t, s.tg, "list the path instead", "ls", "id:"+srcDir, "--unit", blobfs.NewID())
+
+	// cat by id.
+	if out := ok(t, s.tg, "cat", "id:"+file); out != "by id\n" {
+		t.Errorf("cat by id = %q", out)
+	}
+	refused(t, s.tg, "not found", "cat", "id:"+blobfs.NewID())
+
+	// put into a directory by id, under the local file's base name.
+	local := localFile(t, "local.txt", "local\n")
+	if out := ok(t, s.tg, "put", local, "id:"+dstDir); !strings.HasPrefix(out, "put: local.txt in id:"+dstDir+" (id ") {
+		t.Errorf("put into a directory by id stdout = %q", out)
+	}
+	if out := ok(t, s.tg, "cat", "/ids/dst/local.txt"); out != "local\n" {
+		t.Errorf("cat after the put by id = %q", out)
+	}
+	refused(t, s.tg, "stdin has no name", "put", "-", "id:"+dstDir)
+	refused(t, s.tg, "not found", "put", local, "id:"+blobfs.NewID())
+
+	// cp by ids: into the directory under the source's name.
+	if out := ok(t, s.tg, "cp", "id:"+file, "id:"+dstDir); !strings.HasPrefix(out, "cp: id:"+file+" -> id:"+dstDir+" (id ") {
+		t.Errorf("cp by ids stdout = %q", out)
+	}
+	if out := ok(t, s.tg, "cat", "/ids/dst/f.txt"); out != "by id\n" {
+		t.Errorf("cat of the copy = %q", out)
+	}
+	copyID := ids(ok(t, s.tg, "ls", "/ids/dst"))["f.txt"]
+	if copyID == "" || copyID == file {
+		t.Fatalf("the copy's id is %q", copyID)
+	}
+	refused(t, s.tg, "name taken", "cp", "id:"+file, "id:"+dstDir)
+	refused(t, s.tg, "two paths, or two ids", "cp", "/ids/src/f.txt", "id:"+dstDir)
+	refused(t, s.tg, "not found", "cp", "id:"+blobfs.NewID(), "id:"+dstDir)
+
+	// mv by ids: the copy up into /ids, then the sub directory into /ids/dst,
+	// each keeping its name, with the paths in the result line.
+	if out := ok(t, s.tg, "mv", "id:"+copyID, "id:"+idsDir); out != "mv: /ids/dst/f.txt -> /ids/f.txt (id "+copyID+")\n" {
+		t.Errorf("mv of a file by ids stdout = %q", out)
+	}
+	if out := ok(t, s.tg, "mv", "id:"+subDir, "id:"+dstDir); out != "mv: /ids/sub -> /ids/dst/sub (id "+subDir+")\n" {
+		t.Errorf("mv of a directory by ids stdout = %q", out)
+	}
+	if got := column(ok(t, s.tg, "ls", "/ids/dst")); strings.Join(got, " ") != "sub local.txt" {
+		t.Errorf("ls /ids/dst after the moves = %v", got)
+	}
+	refused(t, s.tg, "two paths, or two ids", "mv", "id:"+copyID, "/ids/dst")
+	refused(t, s.tg, "no file or directory has it", "mv", "id:"+blobfs.NewID(), "id:"+dstDir)
+	refused(t, s.tg, "the nil UUID is the root's", "mv", "id:"+blobfs.RootID, "id:"+dstDir)
+
+	// rm by id, once; rm -r takes a path.
+	if out := ok(t, s.tg, "rm", "id:"+copyID); out != "rm: id:"+copyID+" (id "+copyID+")\n" {
+		t.Errorf("rm by id stdout = %q", out)
+	}
+	refused(t, s.tg, "not found", "stat", "/ids/f.txt")
+	refused(t, s.tg, "not found", "rm", "id:"+copyID)
+	refused(t, s.tg, "removed by path, not by id", "rm", "-r", "id:"+idsDir)
+	if got := column(ok(t, s.tg, "ls", "/ids")); strings.Join(got, " ") != "dst src" {
+		t.Errorf("ls /ids after the id forms = %v", got)
 	}
 }
 

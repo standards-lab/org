@@ -193,6 +193,34 @@ func (s *Store) StatFile(ctx context.Context, id string, scope Scope) (blobfs.Fi
 	return f, nil
 }
 
+// Resolve returns the row of the directory at path, on the pool: the
+// library's path resolution, one child lookup per segment from the root.
+// It is the path form of StatDirectory. The root is the seeded root row.
+// A segment that does not name a directory is blobfs.ErrNotFound, and a
+// relative path is blobfs.ErrInvalidPath.
+func (s *Store) Resolve(ctx context.Context, path string) (blobfs.Directory, error) {
+	d, err := s.blobfs.ResolveDirectory(ctx, s.db, path)
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("files: stat %s: %w", path, err)
+	}
+	return d, nil
+}
+
+// StatDirectory returns the row of the directory with id, on the pool:
+// one read by id. A directory that does not exist is blobfs.ErrNotFound.
+// With a scope, the directory must lie within it (InScope), and one
+// outside it is ErrNotOwned.
+func (s *Store) StatDirectory(ctx context.Context, id string, scope Scope) (blobfs.Directory, error) {
+	if err := s.inScope(ctx, s.db, scope, id); err != nil {
+		return blobfs.Directory{}, fmt.Errorf("files: stat directory %s: %w", id, err)
+	}
+	d, err := s.blobfs.Directory(ctx, s.db, id)
+	if err != nil {
+		return blobfs.Directory{}, fmt.Errorf("files: stat directory %s: %w", id, err)
+	}
+	return d, nil
+}
+
 // Open opens the content of the file at path for reading and returns the
 // row with it; the caller closes the reader. It is Stat followed by the
 // read of the row's object, as OpenFile does by id. Only an available

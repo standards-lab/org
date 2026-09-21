@@ -44,17 +44,17 @@ func TestListing_WritesEntriesThenOneLinePerHalf(t *testing.T) {
 	size := int64(1234)
 	at := time.Date(2026, 9, 20, 10, 30, 0, 0, time.UTC)
 	out.Listing([]output.Entry{
-		{Kind: "dir", Name: "reports", Updated: at},
-		{Kind: "file", Name: "a.txt", Size: &size, Status: "available", Updated: at},
-		{Kind: "file", Name: "pending.bin", Status: "pending", Updated: at},
+		{Kind: "dir", Name: "reports", ID: "0193b0a2-0000-7000-8000-000000000001", Updated: at},
+		{Kind: "file", Name: "a.txt", ID: "0193b0a2-0000-7000-8000-000000000002", Size: &size, Status: "available", Updated: at},
+		{Kind: "file", Name: "pending.bin", ID: "0193b0a2-0000-7000-8000-000000000003", Status: "pending", Updated: at},
 	},
 		output.Page{Number: 1, Size: 20, Listed: 1, Total: 1, Counted: true},
 		output.Page{Number: 1, Size: 20, Listed: 2, Total: 7, Counted: true, More: true},
 	)
-	want := "KIND  NAME         SIZE  STATUS     UPDATED\n" +
-		"dir   reports      -     -          2026-09-20 10:30:00\n" +
-		"file  a.txt        1234  available  2026-09-20 10:30:00\n" +
-		"file  pending.bin  -     pending    2026-09-20 10:30:00\n" +
+	want := "KIND  NAME         SIZE  STATUS     UPDATED              ID\n" +
+		"dir   reports      -     -          2026-09-20 10:30:00  0193b0a2-0000-7000-8000-000000000001\n" +
+		"file  a.txt        1234  available  2026-09-20 10:30:00  0193b0a2-0000-7000-8000-000000000002\n" +
+		"file  pending.bin  -     pending    2026-09-20 10:30:00  0193b0a2-0000-7000-8000-000000000003\n" +
 		"directories: 1 on page 1 of size 20, total 1\n" +
 		"more: no\n" +
 		"files: 2 on page 1 of size 20, total 7\n" +
@@ -78,7 +78,7 @@ func TestListing_SaysWhenATotalIsAbsent(t *testing.T) {
 		output.Page{Number: 3, Size: 5, Listed: 0, Total: output.NoTotal, Counted: true},
 		output.Page{Number: 3, Size: 5, Listed: 0, Counted: false, More: true},
 	)
-	want := "KIND  NAME  SIZE  STATUS  UPDATED\n" +
+	want := "KIND  NAME  SIZE  STATUS  UPDATED  ID\n" +
 		"directories: 0 on page 3 of size 5, total unknown (the page is empty)\n" +
 		"more: no\n" +
 		"files: 0 on page 3 of size 5, total not counted\n" +
@@ -90,7 +90,8 @@ func TestListing_SaysWhenATotalIsAbsent(t *testing.T) {
 
 // A half read after a cursor says so instead of naming a page, and a half
 // with a next page writes its cursor on a line of its own under the label
-// its flag takes, next-dirs or next-files, after its more: line.
+// its flag takes, next-dirs or next-files, after its more: line. A half
+// whose Next is blank writes no such line, whatever More says.
 func TestListing_WritesTheCursorLines(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	out := output.New(&stdout, &stderr)
@@ -98,7 +99,7 @@ func TestListing_WritesTheCursorLines(t *testing.T) {
 		output.Page{Number: 1, Size: 2, Listed: 2, Total: 5, Counted: true, More: true, Next: "DIRS"},
 		output.Page{Size: 2, Listed: 2, Total: output.NoTotal, Cursor: true, More: true, Next: "FILES"},
 	)
-	want := "KIND  NAME  SIZE  STATUS  UPDATED\n" +
+	want := "KIND  NAME  SIZE  STATUS  UPDATED  ID\n" +
 		"directories: 2 on page 1 of size 2, total 5\n" +
 		"more: yes\n" +
 		"next-dirs: DIRS\n" +
@@ -107,6 +108,19 @@ func TestListing_WritesTheCursorLines(t *testing.T) {
 		"next-files: FILES\n"
 	if stdout.String() != want {
 		t.Errorf("stdout =\n%s\nwant\n%s", stdout.String(), want)
+	}
+	stdout.Reset()
+	out.Listing(nil,
+		output.Page{Number: 1, Size: 2, Listed: 2, Total: 5, Counted: true, More: true},
+		output.Page{Size: 2, Listed: 2, Total: output.NoTotal, Cursor: true, More: true},
+	)
+	want = "KIND  NAME  SIZE  STATUS  UPDATED  ID\n" +
+		"directories: 2 on page 1 of size 2, total 5\n" +
+		"more: yes\n" +
+		"files: 2 after the cursor, size 2, total not counted\n" +
+		"more: yes\n"
+	if stdout.String() != want {
+		t.Errorf("with Next blank, stdout =\n%s\nwant\n%s", stdout.String(), want)
 	}
 }
 

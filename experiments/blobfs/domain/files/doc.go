@@ -47,11 +47,12 @@
 //   - blobfs.go and the blobfs_<concern>.go files (read, write, move,
 //     delete, and scope) compose the operations from the library's
 //     methods, the consumer's statements, and the object store. Ids are
-//     the primary handle: ListDirectory, StatFile, OpenFile, PutFile,
-//     CopyFile, MoveEntry, and RemoveFile take directory and file ids,
-//     and the path forms List, Stat, Open, Put, Copy, Move, and Remove
-//     resolve their paths and then run the same steps, so a caller that
-//     holds an id from a listing acts without a resolution. Mkdir,
+//     the primary handle: ListDirectory, StatFile, StatDirectory,
+//     OpenFile, PutFile, CopyFile, MoveEntry, and RemoveFile take
+//     directory and file ids, and the path forms List, Stat, Resolve,
+//     Open, Put, Copy, Move, and Remove resolve their paths and then run
+//     the same steps, so a caller that holds an id from a listing acts
+//     without a resolution. Mkdir,
 //     RemoveDirectory, RemoveTree, AddBookmark, RemoveBookmark, and
 //     ListBookmarks take paths or a unit. List, ListDirectory, and
 //     ListBookmarks each run in one read-only repeatable-read
@@ -75,7 +76,10 @@
 //     on the file's row. InScope is the ownership check by id, which the
 //     id-keyed operations run when they are given a Scope.
 //   - commands.go builds the commands over a Store constructor and renders
-//     through output. The commands call the path forms.
+//     through output. The commands call the path forms, and ls, stat,
+//     cat, rm, put, cp, and mv call the id forms when an argument is
+//     written as id:<uuid>; ls lists each row's id, and stat prints a
+//     directory's row when no file is at the path or has the id.
 //
 // The package imports no admin package.
 //

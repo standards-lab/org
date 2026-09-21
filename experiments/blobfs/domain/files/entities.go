@@ -93,22 +93,38 @@ const (
 const NoTotal = -1
 
 // Listing is one page request of ls, as the command line states it: the
-// 1-based page and its size, the sort terms in order, the total mode, the
-// cursors to continue each half from, and the unit whose scope the
-// listing is checked against when Unit is not empty. Paths applies to the
-// bookmark listing alone: it asks for each row's path, which costs a
-// recursion per row, and is off by default. It is the consumer's own
-// shape of a read request; database.go lowers it to the library's listing
-// and to the query library's directives, since no other file of the
-// package names those.
+// 1-based page and its size, the filters and the sort terms in order, the
+// total mode, the cursors to continue each half from, and the unit whose
+// scope the listing is checked against when Unit is not empty. Paths
+// applies to the bookmark listing alone: it asks for each row's path,
+// which costs a recursion per row, and is off by default. It is the
+// consumer's own shape of a read request; database.go lowers it to the
+// library's listing and to the query library's directives, since no other
+// file of the package names those.
 type Listing struct {
-	Page  int
-	Size  int
-	Sort  []Sort
-	Total TotalMode
-	After After
-	Unit  string
-	Paths bool
+	Page    int
+	Size    int
+	Filters []Filter
+	Sort    []Sort
+	Total   TotalMode
+	After   After
+	Unit    string
+	Paths   bool
+}
+
+// Filter is one filter term of a Listing: a declared field of a listing,
+// an operator by the query library's name (eq, ne, gt, ge, lt, le, like,
+// null, notnull, in), and the value, which is the text the command line
+// gave and which the engine casts to the field's type; null and notnull
+// take no value, and in takes a []any of texts. The library refuses an
+// unknown field, an unknown operator, or a value of the wrong shape
+// before the statement runs. The file half of ls takes every filter and
+// the directory half those naming a field both listings declare, as the
+// sort terms are taken.
+type Filter struct {
+	Field string
+	Op    string
+	Value any
 }
 
 // Scope is the ownership claim an id-keyed operation checks: the unit
