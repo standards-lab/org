@@ -2,7 +2,10 @@
 
 The organized record of `blobfs.experiment`, written at stage 16 for the architect's review.
 `NOTES.md` is the chronological log the stages appended to; this file is the same material
-organized by the three findings the experiment exists to produce. The sources of truth are the
+organized by the three findings the experiment exists to produce. Its sections describe the
+experiment as it stood at stage 16. The review's decisions, and the stages 17 to 32 that
+implemented them, are in `DECISIONS.md` and the last section of `NOTES.md`; where a decision
+changed a claim below, the passage says so. The sources of truth are the
 code and the transcripts under `evidence/`, and every claim here names the test, statement, or
 transcript section that supports it. Where a later stage corrected an earlier entry of
 `NOTES.md`, this file states the corrected position and says so.
@@ -193,9 +196,11 @@ NULL (`size`, `etag`, `parent_id`), which the entity's pointer fields declare
 (`TestCursorRefusals`, `TestNullableSortIssuesNoCursor`, `TestCraftedCursorsAreRefused`). A cursor
 page carries `NoTotal` whatever `Total` says, because a window count under the keyset predicate
 would count the rows after the cursor, which is a different quantity; a caller reads page one with
-its total and then walks by cursor, and `Next` is filled on offset pages too. Whenever the sort can
-be continued, the composer fetches one row beyond the page and drops it, so the page size plus one
-is the bound fetch count.
+its total and then walks by cursor, and `Next` is filled on offset pages too. The composer fetches
+one row beyond every page, offset or cursor, and drops it, so the page size plus one is the bound
+fetch count. The row's presence is `Page.More`, which says whether rows remain whatever the sort
+and the total; `Next` is set when `More` is true and the sort can be continued. Stage 16 fetched
+the extra row only when the sort could be continued (decision 5 of `DECISIONS.md` changed that).
 
 The `NoTotal` edge: the window count travels on rows, so an empty first page has the exact total
 0 (no row matched) and an empty page after the first reports `NoTotal` (-1), because the composer
@@ -785,13 +790,16 @@ not prove (decision 6).
 - The baseline's missing tree lock. On an engine without a native variant, two concurrent
   directory moves can form a cycle, and a cycle makes every upward walk loop forever. The service
   must serialize directory moves outside the database or run them at serializable isolation.
-- The bookmark-versus-delete race. `rm` checks the bookmark count before the begin, and a bookmark
-  added between that check and the complete step (the add's own status check saw the row before
-  the begin committed) makes the foreign key refuse the row's removal after the object is gone;
-  the row stays `deleting` with its bookmark, and an `rm` after the bookmark is removed converges
-  (`TestRemoveMeetsABookmarkAfterTheBegin`). Closing the race at the standard tier needs
-  serializable isolation on both the add's and the delete's first transaction; a row lock is
-  native. Neither was built (decision 10).
+- The bookmark-versus-delete race, closed after stage 16 (decision 10 of `DECISIONS.md`). At
+  stage 16, `rm` checked the bookmark count before the begin, and a bookmark added between that
+  check and the complete step made the foreign key refuse the row's removal after the object was
+  gone. The library's `HoldFile` now takes the file's row lock with an update that changes no
+  value and no version, `AddBookmark` holds the file before it inserts, and `deleteFile` begins
+  the delete before it reads the count, so the two operations serialize on the row. The rule for a
+  consumer is reference-then-delete: hold the file in the transaction that inserts a row
+  referencing it. A row inserted without the hold still meets the foreign key at the complete
+  step, which leaves the row `deleting` with its bookmark until the bookmark is removed
+  (`TestBookmarkAddedDuringTheDeleteIsRefused`, `TestDeleteDuringTheBookmarkAddIsRefused`).
 - The migrator's connection count. A run needs two pool connections until `sqlate` takes the
   caller's connection (Finding 2, item 27).
 - The recursive delete under sustained writes. `rm -r` is not atomic and can loop; the experiment

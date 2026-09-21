@@ -42,6 +42,14 @@
 // without the lock capability is migrate.ErrNoLocker unless
 // Options.Unlocked is set, in which case concurrent starters are unsafe.
 //
+// A run needs two pool connections at once. The lock is pinned to one
+// connection, and each set's inner migrate.Migrator takes its own
+// connection from the pool to run its migrations, because sqlate's
+// migrate package does not run a set on a connection the caller holds. A
+// pool limited to one connection cannot run the migrator. The fix belongs
+// in sqlate: a set that runs its migrations on the caller's pinned
+// connection.
+//
 // Under the lock, before any set runs, every set's history is checked
 // against its migrations. A dirty set, one whose last non-transactional
 // migration failed midway, or a history that does not match the set,

@@ -43,7 +43,8 @@
 //     operations the file commands make, implements blobfs's key
 //     validation over the provider's rules, maps the store's errors onto
 //     the domain's, and opens and starts the store from the environment
-//     for the composition root.
+//     for the composition root. A service composes the object store
+//     through NewStorage instead, from its own configuration.
 //   - blobfs.go and the blobfs_<concern>.go files (read, write, move,
 //     delete, and scope) compose the operations from the library's
 //     methods, the consumer's statements, and the object store. Ids are

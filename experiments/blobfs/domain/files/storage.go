@@ -56,9 +56,13 @@ func OpenStorage(ctx context.Context, envPrefix string) (*Storage, error) {
 	return st, nil
 }
 
-// NewStorage wraps a store the caller built, started or not. A test hands
-// it a store over the storage package's in-memory fake; the composition
-// root goes through OpenStorage.
+// NewStorage wraps a store the caller built, started or not. A service
+// composes the object store through NewStorage: it builds the store from
+// its own configuration, as it builds its other infrastructure, and hands
+// it to the domain, so the domain never reads an environment prefix. A
+// test hands it a store over the storage package's in-memory fake, and
+// the command-line tool's composition root goes through OpenStorage, which
+// reads the environment.
 func NewStorage(store *storage.Store) *Storage {
 	return &Storage{store: store}
 }

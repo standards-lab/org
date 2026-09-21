@@ -1678,3 +1678,40 @@ was never vacuumed; section 0 of the V3 measurement settles that caveat.
 Authorization, which needs `go-auth` and is proven under `v1.auth`. The migration path through
 `go-web-service`'s admin surface, which `v1.storage.service` proves. Every proof has its answer
 in `REVIEW.md`, whose "What the experiment did not prove" section lists the rest.
+
+## Phase 3: stages 17 to 32
+
+The post-execution review's decisions became the stages below, each its own commit on
+`blobfs-experiment`. `DECISIONS.md` records what each decided and why. Entries above describe the
+experiment as it stood at stage 16.
+
+- Stage 17 split `domain/files/blobfs.go` and `database.go` by concern, with the role as the file
+  prefix, and widened `split-check` rules 7 and 9 to accept a `_<concern>` suffix.
+- Stage 18 named the root `/`, made `Directory.Name` a `string` and the column `NOT NULL`, removed
+  the `created_at` index migration, and moved the upgrade rehearsal to a fixture migration in the
+  migrator's tests.
+- Stage 19 moved the Postgres variant and the DDL into `lib/blobfs/postgres`, removed
+  `lib/blobfs/migrations`, and renamed the variant value to `postgres`.
+- Stage 20 added `blobfs.ViolationError`, so a classified constraint violation prints the sentinel
+  and the constraint name and never the driver's text.
+- Stage 21 added `Page.More`, which reports whether rows remain after a page, and the `more:` line.
+  The composer fetches one row beyond every page.
+- Stage 22 added `EnsureDirectory`, `BeginOrResumeFileWrite`, and the `WithID` option, and moved
+  the consumer's find-or-begin logic into the library.
+- Stage 23 added `HoldFile` and closed the bookmark-versus-delete race with the
+  reference-then-delete rule.
+- Stage 24 added `ResolveDirectoryFrom`, which resolves a relative path from a directory id.
+- Stage 25 added the id forms of the consumer's `Store`, the scope check by id, and a bookmark read
+  model that computes paths only on request.
+- Stage 26 added file `cp`.
+- Stage 27 added the `ID` column, `--filter`, `--cursors`, `stat` of a directory, and the
+  `id:<uuid>` form to the tool.
+- Stage 28 measured the three native variation points into `evidence/native-variation/`. Each
+  won: `RETURNING` for the write steps saves a round trip per step, one recursive statement
+  resolves a path of any depth in one round trip, and the row-value keyset predicate reads 35
+  buffers where the expanded chain reads 5,055 at a middle cursor when the sort column has an
+  index.
+- Stage 29 implemented the three as variation points on the `Variant` interface. The Postgres
+  variant overrides all of them, and the conformance suite compares both variants' rows and error
+  text.
+- Stage 30 added seven cost regression tests that assert plan shapes and buffer bounds.

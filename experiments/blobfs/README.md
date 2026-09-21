@@ -2,288 +2,179 @@
 
 An experiment that tests the design in `context/concepts/blobfs.md`: a SQL-backed virtual
 directory and file-metadata library over any object store. The experiment builds a command-line
-file system over Postgres and Azure Blob Storage, and records what the design gets right and what
-it gets wrong. It is not a product. The results are evidence for the concept, and nothing here
-moves into `design/` or into a member repository without a deliberate promotion.
+file system over Postgres and Azure Blob Storage, and it records what the design gets right and
+what it gets wrong. It is not a product. The results are evidence for the concept, and nothing
+here moves into `design/` or into a member repository without a deliberate promotion.
+
+Postgres holds the directory tree and each file's metadata: names, status, size, and the key of
+the stored object. The object store holds the file bytes, and the library never calls it. The
+consumer application in `domain/files` sequences the two stores.
+
+Where to read next:
+
+- `GUIDE.md` is a guided tour of every capability, with the files that implement each and the
+  commands to run.
+- `DECISIONS.md` records the decisions from the review of the first sixteen stages and the
+  adjustments that the later stages implemented.
+- `REVIEW.md` is the organized record of the findings, and `NOTES.md` is the chronological log.
+- `evidence/` holds the measurements behind the decisions.
 
 The experiment depends on published `sqlate` v0.1.1, `go-storage` v0.1.0, and `azureblob` v0.1.0.
 It contains no `replace` directive and edits no member repository.
 
-## Status and where to read next
-
-The experiment's sixteen stages are complete, and it awaits the architect's review. `REVIEW.md`
-is the organized record: the three findings (how the library should be written, the adjustments
-`sqlate` needs, and how `v1.storage` incorporates `blobfs`), the answer to every proof with its
-evidence, the amendments the concept needs, and the decisions the review has to make. `NOTES.md`
-is the chronological log the stages appended to: the decisions each stage made, the findings
-ledger, and the evidence summaries. Read `REVIEW.md` first and `NOTES.md` for the history behind
-a finding.
-
 ## Layout
 
 The packages under `lib/` are the promotion candidates. The rest is the consumer that exercises
-them, laid out as an elemental application: `cmd/blobfs` is process entry, `internal/app` is the
-composition root, and every other application package sits at the module root and never imports
-`internal/*`.
-
-An install is one directory tree in one database. The schema seeds one root directory, with the
-well-known id `blobfs.RootID` and no name, and every path starts at `/`. A consumer that wants
-several isolated trees runs several configurations, each with its own database and container.
+them, laid out as an elemental application: every package other than `cmd/` and `internal/app/`
+sits at the module root and never imports `internal/*`.
 
 | Directory | Contents |
 |-----------|----------|
-| `cmd/blobfs/` | Process entry: the signal context, `app.New(os.Stdout, os.Stderr).Run(ctx)`, and the exit code. It imports only `internal/app`. |
-| `internal/app/` | The composition root, one file per layer: the root command's flags, the infrastructure (the database pool, the object store, the logger, the output), the domain layer, the admin layer, and the list of mounts. It is the only package that opens a connection or names the pgx driver, and it opens the object store on the first file command that needs it. Its `domain.go` chooses the `blobfs` variant the file commands run over, from `--variant` or `BLOBFS_VARIANT`, and is the one application file that names `lib/blobfs/data/pgnative`. |
-| `internal/livetest/` | The helpers the integration-tagged tests share: a throwaway database per test, a throwaway Azurite container per test, and the reads that check what a run left behind (a database's existence, a container's blobs). |
-| `domain/files/` | The consumer's file-system layer over `blobfs`: the row type of the consumer's `directory_owner` table, its two read models (`owned_directories`, a projection base over `blobfs`'s published column list joined to `directory_owner`, and `bookmarks`, a projection base over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion correlated on the file's directory), `database.go` as the sole importer of `sqlate/query` and the place that maps the bookmark table's constraint names to the consumer's sentinels, `blobfs.go` as the translation over the library, `storage.go` as the sole importer of `go-storage` and the Azure Blob provider (the adapter over the object store, which is also `blobfs`'s key validator), and the `mkdir`, `ls`, `put`, `cat`, `stat`, `mv`, `rm`, `rmdir`, and `bookmark` commands. |
-| `evidence/` | The transcripts the measurements write (`mise run evidence` regenerates the first three): `read-model.txt` is proof V3, the cost of the shipped listing; `bookmarks.txt` is the stage 11 measurement, the cost of the bookmark read model against the shapes it was chosen over; `sort-index.txt` is the stage 14 measurement, what the `created_at` index of the rehearsal migration buys a sorted listing; `v1-read-model.txt` is proof V1, the read-model cost by form against the volume-based schema of an earlier stage, kept as the record. |
-| `admin/schema/` | The schema administration layer: the `schema` command, which reports, applies, reverts, and resets the two migration sets in canonical order. |
-| `migrations/` | The consumer's own migration set: `directory_owner` and `bookmark`, run after `blobfs`'s set under `sqlate`'s default history table. |
-| `output/` | The result rendering every command family shares: a one-line result to stdout, a directory listing as aligned rows with one line per half stating the page and the total or its absence, an error to stderr. |
-| `integration/` | The integration tier, behind the `integration` build tag: the built binary driven black-box against the compose stack. `TestScript` is one ordered script over every command family, run once per variant in its own database and container; `TestIsolation` runs two configurations side by side and shows neither sees the other. Every run logs its command line and its output, so `go test -v` prints the transcript. |
-| `lib/blobfs/` | The root package: entity types, the root's id, status vocabulary, key construction, name normalization, and error types. It imports neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, the directory removal, the cycle check, and the directory and file moves), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
-| `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
-| `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
-| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table: the directory table with its seeded root, the file table, and the index on `blobfs_file (directory_id, created_at)`, the third migration, which is the upgrade rehearsal. |
-| `lib/migrator/` | The multi-set migrator: it runs several migration sets, each with its own history table, in declared order under one lock on its own pinned connection, and offers `Up`, `Down`, `Reset`, `Status`, and `Force`. It imports only `sqlate` and the standard library. |
-| `compose/` | The Postgres and Azurite services the experiment runs against. |
+| `cmd/blobfs/`, `internal/app/` | The process entry and the composition root, which is the only place that opens a connection, names the driver, and chooses the variant. |
+| `domain/files/` | The consumer's file-system layer: the `Store` with its path and id forms, the object-store adapter, and the commands. |
+| `admin/schema/`, `migrations/` | The `schema` command, and the consumer's own migration set. |
+| `output/` | The rendering every command shares. |
+| `lib/blobfs/` | The root package: entity types, sentinel errors, key and name rules. It imports neither `sqlate` nor `go-storage`. |
+| `lib/blobfs/data/` | The persistence package: standard-tier statements, the listing composer, the write, delete, and move protocol, and the `Variant` interface with its baseline. `datatest/` is the conformance suite a variant must pass. |
+| `lib/blobfs/postgres/` | The Postgres engine: the variant with its native statements, and the DDL as a migration set. |
+| `lib/migrator/` | The multi-set migrator, a shim over `sqlate`. |
+| `integration/`, `evidence/`, `compose/` | The black-box tests over the built binary, the measurements, and the Postgres and Azurite services. |
 
-## The two variation points
+## Starting up
 
-The persistence package runs on any engine `sqlate` has a dialect for, and two of its operations
-may be replaced by an engine's own statements through the `data.Variant` interface. `data.New`
-runs the standard baseline unless it is given a variant with `data.WithVariant`, and a consumer
-that wants a different behavior for one operation embeds a variant and overrides that method.
-The consumer's `files.New` takes `files.WithVariant(constructor)` the same way, and the binary
-chooses the variant from `--variant standard|pgnative`, or `BLOBFS_VARIANT` when the flag is not
-given; the default is `standard`. The schema commands are the same on either variant, because the
-migrations are.
+The experiment carries its own toolchain in `mise.toml`, which pins Go and `golangci-lint`.
 
-- **The tree lock** (`LockTree`, `Serializes`). A directory move takes the lock inside its
-  transaction, before its cycle check, so two opposing moves run one after the other. The Postgres
-  variant takes a transaction-scoped advisory lock under a fixed key (`pgnative.TreeLockKey`),
-  which the engine releases when the transaction ends. Standard SQL has no lock that is held to
-  commit, so the baseline's lock is a no-op and `Serializes` reports false: on the baseline, two
-  opposing concurrent moves can form a cycle, and a consumer that needs the guarantee serializes
-  moves outside the database.
-- **The file-delete begin** (`BeginFileDelete`). The step moves the file to `deleting` and returns
-  the row, so the caller can delete the object by its key and then complete the delete by removing
-  the row. A retry returns the same row; a missing file is `blobfs.ErrNotFound`. The Postgres
-  variant is one `UPDATE ... RETURNING`. The baseline is an update and a read-back, which must run
-  in one transaction so the read sees the row the update locked; it refuses the pool with
-  `query.ErrTransactionRequired`. The complete step (`CompleteFileDelete`) is the same standard
-  statement on every variant: it removes the row, and only a `deleting` row.
+Start the services. Postgres listens on `127.0.0.1:5434` and Azurite on `127.0.0.1:10000`, and
+the command waits until both are healthy:
 
-## The delete path
+```bash
+cd experiments/blobfs
+mise run up
+```
 
-A file is deleted in two steps around the object delete, which `blobfs` never makes, and `rm`
-mirrors `put`. First, in one transaction of its own, `rm` reads the consumer's bookmark table for
-the file and refuses the delete while any unit bookmarks it (`files.ErrBookmarked`), then runs
-`blobfs`'s begin step through the variant, which marks the row `deleting`, and commits. Second,
-outside any transaction, it deletes the object under the row's key; the provider treats a missing
-object as success, so the step repeats safely. Third, on the pool, it runs `blobfs`'s complete
-step, which removes the row. A stop between the steps leaves the row `deleting`, where `ls` and
-`stat` show it, `cat` refuses it, and `put` refuses its name; an `rm` of the same path resumes at
-the step that stopped, because the begin is idempotent on a `deleting` row and the complete
-succeeds on a row already gone. The `deleting` status is what lets a retry finish once the object
-is gone: without it a row whose object was removed would read as `available`.
+Build the binary, and create a database and a container name of your own. The `[env]` table in
+`mise.toml` points at the stack's default `app` database, and mise's value overrides a variable
+set on the command line, so `mise run cli` changes `app`. The wrapper below passes every setting
+explicitly and never touches `app`:
 
-The library removes a directory only when it is empty: the two foreign keys into
-`blobfs_directory` refuse the removal otherwise and reach the caller as `blobfs.ErrNotEmpty`, and
-there is no cascade. A foreign key `blobfs` does not own, such as the consumer's `fk_bookmark_file`
-or `fk_directory_owner_directory`, reaches the caller as `blobfs.ErrReferenced` with the constraint
-name reachable, and the consumer maps the name to its own sentinel. `rmdir` removes the consumer's
-owner row and the directory in one transaction. `rm -r` is the consumer's recursive delete: it
-lists each directory a page at a time and removes what it lists, files through the delete steps
-and directories after their contents, until a page comes back empty, then removes the directory;
-it takes no lock, and a row inserted meanwhile is either removed by a later pass or refuses the
-directory's removal, in which case the walk empties the directory again a bounded number of
-times before it reports `blobfs.ErrNotEmpty`. A rerun continues from wherever it stopped.
+```bash
+mise exec -- go build -o /tmp/blobfs ./cmd/blobfs
 
-## The move path
+DB=blobfs_try CT=blobtry
+docker exec blobfs-postgres psql -U app -d app -c "CREATE DATABASE $DB"
 
-A directory move is three statements in the caller's transaction, in this order: the variant's
-tree lock, the cycle check, and the guarded update of `parent_id` and `name`. The cycle check
-(`directory_is_within`) is one upward walk from the new parent that looks for the moved
-directory, so it costs the new parent's depth; a new parent that is the directory or one of its
-descendants is `blobfs.ErrCycle`. The update is the query library's guarded command over the
-version the caller read, so a row another transaction changed is `query.ErrVersionMismatch`, a
-missing new parent is `blobfs.ErrNotFound` through the foreign key, and a taken name is
-`blobfs.ErrNameTaken` through the unique constraint. Directories and files have separate name
-spaces, so a directory may take a file's name beside it. The root is refused before any SQL.
-Children and files follow the moved directory by id, and no object moves, because no key encodes
-a path. A file move (`MoveFile`) is one guarded update on the pool with no lock and no check,
-since a file cannot be its own ancestor; a `deleting` row is refused, a `pending` row moves, and
-the key stays what the insert built, so a rename touches no object.
+bfs() {
+  BLOBFS_STORAGE_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1 \
+  BLOBFS_STORAGE_ACCOUNT=devstoreaccount1 \
+  BLOBFS_STORAGE_KEY='Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==' \
+  BLOBFS_STORAGE_CONTAINER=$CT \
+  /tmp/blobfs --dsn "postgres://app:app@127.0.0.1:5434/$DB?sslmode=disable" "$@"
+}
 
-The lock is what closes the race between two opposing moves: each takes it before its check, so
-the second one's check sees the first one's committed update and is refused. On the baseline the
-lock is a no-op, both checks pass against the same committed state, both updates commit, and the
-two directories become each other's ancestor, detached from the root; the conformance suite
-asserts that cycle on the baseline and its absence on `pgnative`. A caller on the baseline
-therefore serializes directory moves outside the database, or opens every moving transaction at
-serializable isolation and retries on SQLSTATE 40001, which the suite also proves refuses one of
-two opposing moves on both variants.
+bfs schema up
+```
 
-`mv <src> <dst>` reads its destination the way Unix does: an existing directory is moved into,
-and any other path is the new path, whose parent must exist and whose last segment is the new
-name. The consumer resolves both paths and runs the library's move in one transaction. It keeps
-every move under one top-level directory (`files.ErrMoveAcrossScopes` otherwise), because the
-`directory_owner` row binds a top-level directory and `--unit` is checked at that ancestor: a
-top-level directory may be renamed but not moved below another, and nothing moves up to the top
-level or across two top-level directories. A bookmark follows its file, and `bookmark ls`
-recomputes the path.
+The account and key are the Azurite emulator's published development credentials. Every file
+command runs a check first, and a database whose schema is not applied is refused with a message
+that names `schema up`. A database that an earlier commit installed must be reset before this
+code runs against it, because the root directory's row changed.
 
-## The write path
+## Using the commands
 
-A file is written in two steps around the object write, which `blobfs` never makes. `put` first
-resolves the parent, looks the name up, and inserts the row as `pending`, all in one transaction
-that commits before any byte reaches the store; that transaction is where a consumer writes its
-own rows beside the pending row. It then stores the object under the row's key, built from the
-row's id and the sanitized name and validated against the provider's key rules before the
-insert. Last, on the pool, it completes the row as `available` with the size, entity tag, and
-content type the store reported, guarded by the version read from the pending row. A stop
-between the steps leaves the row `pending`, where `ls` and `stat` show it and `cat` refuses it,
-and a `put` of the same path resumes the row: it stores the object again and completes it. There
-is no failed status; an abandoned write is removed through the delete steps (`rm` of the path).
+Paths are absolute: `/` is the root and `/reports/2026` is a directory two levels below it. The
+commands `ls`, `stat`, `cat`, and `rm` also take an entry's id as `id:<uuid>` in place of its
+path, and `put`, `cp`, and `mv` take a destination directory's id the same way. The root is
+addressed only as `/`. The commands below assume the wrapper above.
 
-## Running it
+```bash
+bfs mkdir /reports                                # create a directory; the parent must exist
+bfs mkdir /acme --unit <uuid>                     # a top-level directory owned by a unit
+bfs ls /reports                                   # directories, then files, one page each
+bfs ls /reports --size 10 --page 2 --sort name:desc --total none
+bfs ls /reports --filter size:gt:100 --filter name:like:q%
+bfs ls /reports --size 3 --cursors                # print the cursors that continue each half
+bfs ls /reports --after-files <cursor>            # continue the file half from a cursor
+bfs ls /acme --unit <uuid>                        # list as a unit that owns /acme
+bfs put ./q1.txt /reports/q1.txt                  # upload; use - for stdin
+bfs cat /reports/q1.txt                           # write the content to stdout
+bfs stat /reports/q1.txt                          # a file's or a directory's row
+bfs cp /reports/q1.txt /reports/2026              # into a directory, or to a new path
+bfs mv /reports/q1.txt /reports/q1-final.txt      # move or rename; within one top-level directory
+bfs rm /reports/q1-final.txt                      # delete a file
+bfs rmdir /reports/2026                           # remove an empty directory
+bfs rm -r /reports                                # remove a tree, children first
+bfs bookmark add /acme/docs/logo.png --unit <uuid> --active
+bfs bookmark ls --unit <uuid>
+bfs bookmark rm /acme/docs/logo.png --unit <uuid>
+```
 
-The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-lint`.
+What to know about the output:
 
-- `mise run up` starts Postgres on `127.0.0.1:5434` and Azurite on `127.0.0.1:10000`, and waits
-  until both report healthy. `mise run down` stops them and keeps their data; `mise run reset`
-  also drops the data.
-- `mise run test` runs the hermetic tests. `mise run integration` runs the tests that need the
-  services, behind the `integration` build tag; each one creates and drops its own database.
-- `mise run demo` builds the binary and runs the scripted end-to-end run of `integration/`
-  (`TestScript`) verbosely, once per variant, printing every command line and its output: the
-  transcript to read before running the binary by hand.
-- `mise run lint` runs `golangci-lint` and `sqlint`. `mise run split-check` fails when a package
-  imports what its layer may not.
-- `mise run cli -- <command>` runs the command-line file system; `mise run cli -- --help` lists
-  its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given,
-  and the variant from `--variant`, or from `BLOBFS_VARIANT`, or `standard` when neither is set.
-  The `BLOBFS_DSN` in `mise.toml` names the compose stack's default `app` database, and mise's
-  value overrides a variable set on the command line, so a command such as `schema up` changes
-  `app`. To try the commands elsewhere, create a throwaway database and pass its DSN with
-  `--dsn`.
-- `mise run evidence` runs the three cost measurements against the compose stack, each in a
-  throwaway database, and writes their transcripts: `TestListingCost` in `lib/blobfs/data` to
-  `evidence/read-model.txt`, `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`,
-  and `TestSortIndexCost` in `lib/blobfs/data` to `evidence/sort-index.txt`. All three are
-  skipped unless `BLOBFS_EVIDENCE=1`, which the task sets.
+- A success prints one line, and `ls` prints a table whose last column is each row's id.
+- Each half of a listing prints `more: yes` or `more: no`, which says whether rows remain after
+  the page. A cursor continues a half without an offset, and cursors print only with
+  `--cursors`.
+- An error prints the chain from the outermost operation to the innermost cause, so read the
+  last segment first. A refusal that a database constraint caused names the reason and the
+  constraint.
+- `put` and `cp` take `--fail-after insert|write`, and `rm` takes `--fail-after begin|object`.
+  Each stops after that step and leaves a `pending` or `deleting` row, and a rerun of the same
+  command finishes it.
 
-The DSN and the storage settings come from the `[env]` table in `mise.toml`. The Azurite account
-and key are the emulator's published development credentials. The object store is configured by
-`BLOBFS_STORAGE_ENDPOINT`, `BLOBFS_STORAGE_CONTAINER`, `BLOBFS_STORAGE_ACCOUNT`, and
-`BLOBFS_STORAGE_KEY` (the storage library's own configuration under the `blobfs` prefix), and it
-is opened by the first file command that needs it: `mkdir` and `ls` never read those variables.
+## Shutting down
 
-## The commands
+Drop the database you created and remove the binary:
 
-Paths are absolute: `/` is the root and `/reports/2026` a directory two levels below it. A unit
-id is a UUID and stands in for the auth strategy's unit.
+```bash
+docker exec blobfs-postgres psql -U app -d app -c "DROP DATABASE $DB"
+rm /tmp/blobfs
+```
 
-- `schema status` prints one row per migration set (its history table, applied version, latest
-  version, pending migrations, and dirty mark). `schema up` applies both sets, `blobfs`'s first;
-  `schema down` reverts them in the opposite order and keeps the history tables; `schema reset
-  --yes` reverts them and drops the history tables too, and refuses without `--yes`. A set whose
-  last migration failed midway refuses `up`, `down`, and `reset` until its history is repaired.
-- `mkdir <path>` creates the last segment under its parent, which must exist; there is no `-p`.
-  `mkdir <path> --unit <uuid>` works at a top-level path only and writes the directory and its
-  `directory_owner` row in one transaction.
-- `ls <path>` lists the directories under the path and then the files in it, one page of each,
-  with one line per half stating how many rows the page holds, the page number and size, and
-  the total. `--page` and `--size` choose the page, `--sort <field>[:desc]` (repeatable) orders
-  it, and `--total none` skips the total, which the page statement otherwise computes in the
-  same query as the rows. A sort term applies to both halves when both declare its field
-  (`name`, `created_at`, `updated_at`, `version`, `id`); a field only files have, such as
-  `size`, sorts the files and leaves the directories in name order. A descending sort is the
-  exact reverse of the ascending one: the `name` tie-breaker takes the sort's direction. An
-  empty page after the first carries no total and says so. The resolution of the path and both
-  halves run in one read-only repeatable-read transaction.
-- A half that has a next page prints a line `next-dirs: <cursor>` or `next-files: <cursor>`.
-  `ls <path> --after-dirs <cursor>` and `ls <path> --after-files <cursor>` continue that half
-  from the cursor: the half then lists the rows after the last row of the earlier page, ignores
-  `--page`, and reports `total not counted`, because a total computed under the cursor would
-  count the rows after it and not the listing. The other half is still read by page number. A
-  cursor is opaque; it is refused when it was edited, was issued by the other half, or was
-  issued under a different `--sort`, and a sort by a field that can be NULL (`size`, `etag`)
-  pages by number only. `ls / --unit` reads the owner read model, which pages by number only,
-  so it refuses a cursor.
-- `ls <path> --unit <uuid>` is the directory-grain ownership rehearsal: the unit must own the
-  path's top-level directory, checked once at that ancestor, and is refused otherwise. At `/`
-  the listing is the unit's own top-level directories, read through the consumer's owner
-  projection, and no files.
+The command-line tool cannot delete an object-store container, so `$CT` stays in Azurite until
+the stack's data is dropped. Stop the services, keeping their data or dropping it:
 
-- `put <local-file|-> <path>` uploads a local file, or stdin for `-`, as the file at the path,
-  whose parent must exist. `--content-type` sets the media type; without it the type comes from
-  the local file's extension, or `application/octet-stream`. The result line names the path,
-  the id, the size, and the entity tag. A name held by an `available` or `deleting` file is
-  refused as taken; a name held by a `pending` file is resumed, and the result line says so.
-  `--fail-after insert` stops once the pending row is committed, and `--fail-after write` once
-  the object is stored, each with exit code 1 and a message naming the pending row; a `put` of
-  the same path then completes it.
-- `cat <path>` streams the file's content to stdout as it is. A `pending` or `deleting` file is
-  refused with its status named.
-- `stat <path>` prints the file's row, one field per line: path, id, name, status, size,
-  content type, etag, key, version, and the timestamps. A `pending` file shows `-` for its size
-  and etag. The object store is not consulted.
-- `mv <src> <dst>` moves or renames the directory or file at `src` and prints both paths and the
-  id. When `dst` names an existing directory the source moves into it under its own name;
-  otherwise `dst` is the new path, whose parent must exist. A directory moves with everything
-  under it, in one transaction under the tree lock, and a move into its own subtree is refused
-  as a cycle. A file's object stays where it is. A move stays under one top-level directory: a
-  top-level directory may be renamed but not moved below another, and nothing moves up to the
-  top level or across two top-level directories. A `deleting` file is refused; a `pending` one
-  moves. The root cannot be moved.
-- `rm <path>` deletes the file at the path through the three steps above and prints the path and
-  the id. A file any unit bookmarks is refused before anything is touched. `--fail-after begin`
-  stops once the row is committed as `deleting`, and `--fail-after object` once the object is
-  deleted, each with exit code 1 and a message naming the deleting row; an `rm` of the same path
-  then finishes the delete. A `pending` file (an abandoned `put`) is deleted the same way, and a
-  finished path reports not found.
-- `rmdir <path>` removes an empty directory and prints the path and the id, with the directory's
-  `directory_owner` row when it has one, in one transaction. A directory that still has
-  directories or files under it is refused as not empty, and so is the root.
-- `rm -r <path>` removes the directory at the path and everything under it, printing one
-  `rm:` or `rmdir:` line per removal, children before their parent and the target last, and a
-  summary line with the counts. A bookmarked file under the tree stops the walk, which is
-  rerun after the bookmark is removed. The root is refused, and `--fail-after` does not apply.
+```bash
+mise run down      # stop the services and keep their data
+mise run reset     # stop the services and drop their data
+```
 
-The bookmark commands are the file-grain ownership rehearsal: a `bookmark` row binds a file to a
-unit, and a partial unique index allows one active bookmark per unit.
+## Remaining reference
 
-- `bookmark add <path> --unit <uuid> [--active]` records that the unit bookmarks the file at the
-  path and prints the file's id. With `--active` the bookmark becomes the unit's one active
-  bookmark; while another is active the add is refused, and the other is left as it is. A file
-  the unit has bookmarked already is refused, active or not; a file whose delete is under way
-  is refused; a `pending` file can be bookmarked. The resolution of the path and the insert run
-  in one transaction.
-- `bookmark ls --unit <uuid>` lists the unit's bookmarks with their files' full paths, one page,
-  in path order, with the size, the status, an `active` marker, and one line stating the page
-  and the total. `--page`, `--size`, `--sort <field>[:desc]` (over `path`, `name`, `status`,
-  `size`, `content_type`, `active`, `created_at`, `updated_at`, `file_id`, `unit_id`), and
-  `--total none` work as for `ls`. The listing is the consumer's bookmark projection: its total
-  comes from a count statement of its own, run in the same read-only repeatable-read transaction
-  as the page, so the two agree; under `--total none` the count still runs and is dropped. The
-  listing pages by number only.
-- `bookmark rm <path> --unit <uuid>` removes the unit's bookmark of the file, active or not. A
-  file the unit has not bookmarked is refused.
+The mise tasks:
 
-A run against a database whose schema is not applied fails before any work and names
-`schema up`. A file command under a `--variant` or `BLOBFS_VARIANT` that is neither `standard`
-nor `pgnative` fails before any I/O and names both. The variant shows in one place from the
-outside: a directory move on `pgnative` waits for the tree lock while another transaction holds
-it, and on `standard` it does not.
+| Task | What it does |
+|------|--------------|
+| `mise run up`, `down`, `reset` | Start the services and wait for health, stop them, or stop them and drop their data. |
+| `mise run build`, `vet`, `fmt`, `tidy` | Build every package, run `go vet`, format the source, and run `go mod tidy`. |
+| `mise run test` | Run the hermetic tests. |
+| `mise run integration` | Run the tests that need the services, behind the `integration` build tag. Each test creates and drops its own database. |
+| `mise run demo` | Build the binary and run the scripted run of `integration/` once per variant, printing every command and its output. |
+| `mise run lint`, `split-check` | Run `golangci-lint` and `sqlint`, and check the import boundaries of the layers. |
+| `mise run evidence` | Run the cost measurements against the stack and write `evidence/read-model.txt`, `bookmarks.txt`, and `sort-index.txt`. |
+| `mise run cli -- <command>` | Run the binary. It reads `BLOBFS_DSN`, which names the `app` database. |
 
-## Two configurations
+The command-line settings:
 
-An install is one database and one container, and a second isolated tree is a second
-configuration: another `BLOBFS_DSN` and another `BLOBFS_STORAGE_CONTAINER`. Nothing in the
-library or the consumer names another database or container, so two configurations share
-nothing: `TestIsolation` builds `/docs/a.txt` in both with different bytes and shows each
-configuration lists, reads, deletes, and resets its own tree only, each database holds exactly
-its own `blobfs_file` rows, and each container exactly its own objects.
+| Setting | Meaning |
+|---------|---------|
+| `--dsn`, `BLOBFS_DSN` | The database's connection string. |
+| `--variant`, `BLOBFS_VARIANT` | `standard`, the baseline every engine runs, or `postgres`, the Postgres engine's variant. The default is `standard`. |
+| `BLOBFS_STORAGE_ENDPOINT`, `_ACCOUNT`, `_KEY`, `_CONTAINER` | The object store. The first file command that needs it opens it, so `mkdir` and `ls` never read these. |
+
+The schema commands:
+
+```bash
+bfs schema status         # one row per migration set: applied version, latest, pending, dirty
+bfs schema up             # apply both sets, blobfs's first
+bfs schema down           # revert both sets in the opposite order, keeping the history tables
+bfs schema reset --yes    # revert both sets and drop the history tables
+```
+
+The other flags, by command:
+
+| Command | Flags |
+|---------|-------|
+| `ls` | `--page`, `--size`, `--sort <field>[:desc]`, `--total exact\|none`, `--filter <field>:<op>:<value>`, `--cursors`, `--after-dirs`, `--after-files`, `--unit`. |
+| `put` | `--content-type`, `--fail-after insert\|write`. |
+| `cp` | `--fail-after insert\|write`. |
+| `bookmark ls` | `--page`, `--size`, `--sort`, `--total`, `--unit`. |
