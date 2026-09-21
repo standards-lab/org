@@ -54,15 +54,15 @@ type options struct {
 
 // VariantConstructor builds the data.Variant blobfs's store forwards its
 // variation points to, against the program's catalog and the database's
-// dialect: the shape of pgnative.New and of data.NewStandard, with the
+// dialect: the shape of postgres.New and of data.NewStandard, with the
 // result as the interface.
 type VariantConstructor func(catalog *query.Catalog, dialect sqlate.Dialect) (data.Variant, error)
 
 // WithVariant makes New build blobfs's store over the variant that build
 // returns, compiled against the same catalog as the store's own
 // statements, instead of the standard baseline. build is any constructor
-// whose result implements data.Variant, so pgnative.New passes as it is:
-// Go does not convert a function that returns *pgnative.Variant to one
+// whose result implements data.Variant, so postgres.New passes as it is:
+// Go does not convert a function that returns *postgres.Variant to one
 // that returns the interface, and the type parameter does that wrapping
 // here, where the query library's types are named already. The
 // composition root chooses the variant; the tests run the consumer over

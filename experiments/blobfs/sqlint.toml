@@ -15,7 +15,7 @@ blobfs = "lib/blobfs/data/patterns"
 # exempt by its tier and must carry its port note to compile, and a file there that declares
 # the standard tier is still held to the standard forms.
 [statements]
-dirs = ["lib/blobfs/data/statements", "lib/blobfs/data/pgnative/statements", "domain/files/statements"]
+dirs = ["lib/blobfs/data/statements", "lib/blobfs/postgres/statements", "domain/files/statements"]
 verb_named = true
 delimiter = true
 native_forms = true
@@ -30,5 +30,5 @@ native_forms = true
 # The two migration sets: blobfs's own DDL and the consumer's. The migrations role has no
 # native-forms check; the DDL is Postgres at v1 by design.
 [migrations]
-dirs = ["lib/blobfs/migrations/postgres", "migrations/postgres"]
+dirs = ["lib/blobfs/postgres/migrations", "migrations/postgres"]
 single_statement = true

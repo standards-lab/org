@@ -124,26 +124,27 @@ app_packages() {
 
 # The root package is Go only: no sqlate, no go-storage.
 deps lib/blobfs "^($sqlate|$storage)"
-# The persistence package takes sqlate but never go-storage, and never the native variant.
-deps lib/blobfs/data "^($storage|$module/lib/blobfs/data/pgnative)"
-# The native variant takes the persistence package and sqlate only.
-deps lib/blobfs/data/pgnative "^($storage|$module/lib/migrator)"
+# The persistence package takes sqlate but never go-storage, and never an engine package.
+deps lib/blobfs/data "^($storage|$module/lib/blobfs/postgres)"
+# The engine package takes the persistence package, the migrator's Set type, and sqlate: never
+# go-storage and never the conformance suite.
+deps lib/blobfs/postgres "^($storage|$module/lib/blobfs/data/datatest)"
 # The conformance suite is variant-agnostic: it takes the persistence package and sqlate, never
-# a variant or the migrator, and no non-test file names it.
-deps lib/blobfs/data/datatest "^($storage|$module/lib/blobfs/data/pgnative|$module/lib/migrator)"
+# an engine package or the migrator, and no non-test file names it.
+deps lib/blobfs/data/datatest "^($storage|$module/lib/blobfs/postgres|$module/lib/migrator)"
 names "$module/lib/blobfs/data/datatest\"" '^lib/blobfs/data/datatest/' "a non-test file names the conformance suite"
 # The migrator shim takes sqlate and the standard library only.
 deps lib/migrator "^($storage|$module)"
-# The two migration sources take sqlate/migrate only: neither go-storage nor any other package of
-# this experiment.
-deps lib/blobfs/migrations "^($storage|$module/(lib/blobfs\$|lib/blobfs/data|lib/migrator))"
+# The consumer's migration source takes sqlate/migrate only: neither go-storage nor any other
+# package of this experiment.
 deps migrations "^($storage|$module/(cmd|internal|lib))"
 
-# No driver outside the native variant, within lib/. The composition root's infrastructure.go
-# is the application's one legitimate importer of the driver and the Postgres dialect.
+# No driver within lib/: the engine package runs plain SQL through the session. The composition
+# root's infrastructure.go is the application's one legitimate importer of the driver and the
+# Postgres dialect.
 if [ -d lib ]; then
-  named=$(grep -rl jackc lib/ --include='*.go' | grep -v -E '_test.go|^lib/blobfs/data/pgnative/' || true)
-  [ -z "$named" ] || report "lib/ names the driver outside pgnative" "$named"
+  named=$(grep -rl jackc lib/ --include='*.go' | grep -v '_test.go' || true)
+  [ -z "$named" ] || report "lib/ names the driver" "$named"
 fi
 
 # --- The elemental application layout.
@@ -196,10 +197,11 @@ names "$cobra" '^(internal/app/|cmd/|output/|(domain|admin)/[^/]+/commands\.go$)
 # listing to the library's, which is the one place the query library is named.
 names "$module/lib/blobfs/data\"" '^(lib/|domain/files/(blobfs|database)(_[a-z]+)?\.go$)' "an application file other than domain/files/blobfs.go or database.go names lib/blobfs/data"
 
-# 10. Among the application packages, only internal/app/domain.go names the Postgres variant:
-# the variant is a composition choice (--variant, BLOBFS_VARIANT), and no domain or admin
-# package makes it.
-names "$module/lib/blobfs/data/pgnative\"" '^(lib/|internal/app/domain\.go$)' "an application file other than internal/app/domain.go names lib/blobfs/data/pgnative"
+# 10. Among the application packages, only internal/app/domain.go names the Postgres engine
+# package for its variant: the variant is a composition choice (--variant, BLOBFS_VARIANT), and
+# no domain package makes it. admin/schema names the same package for its migration set, which
+# is the engine's DDL and not a variant choice.
+names "$module/lib/blobfs/postgres\"" '^(lib/|internal/app/domain\.go$|admin/schema/database\.go$)' "an application file other than internal/app/domain.go or admin/schema/database.go names lib/blobfs/postgres"
 
 [ "$fail" -eq 0 ] && echo "split-check: ok"
 exit "$fail"

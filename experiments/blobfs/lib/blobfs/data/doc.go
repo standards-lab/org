@@ -60,7 +60,7 @@
 // is the baseline every engine runs (a no-op lock that reports it does
 // not serialize, and the delete begin as an update and a read-back in the
 // caller's transaction), and New takes another implementation through
-// WithVariant: the pgnative package's for Postgres, or a consumer's own,
+// WithVariant: the postgres package's for Postgres, or a consumer's own,
 // which may embed either and override one method. The Store forwards
 // LockTree, Serializes, and BeginFileDelete to the variant and runs
 // everything else from its own statements. The datatest package holds the

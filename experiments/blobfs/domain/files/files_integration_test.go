@@ -18,7 +18,7 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	blobfspostgres "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/lib/migrator"
 	appmigrations "github.com/standards-lab/org/experiments/blobfs/migrations"
 )
@@ -50,7 +50,7 @@ func openWith(t *testing.T, opts ...files.Option) env {
 	ctx := context.Background()
 	db, dsn := livetest.OpenDSN(t)
 	t.Setenv("BLOBFS_STORAGE_CONTAINER", livetest.Container(t))
-	blobfsSet, err := blobfsmigrations.Migrations(db.Dialect())
+	blobfsSet, err := blobfspostgres.Migrations()
 	if err != nil {
 		t.Fatalf("blobfs Migrations: %v", err)
 	}
@@ -59,7 +59,7 @@ func openWith(t *testing.T, opts ...files.Option) env {
 		t.Fatalf("consumer Migrations: %v", err)
 	}
 	m, err := migrator.New(db, []migrator.Set{
-		{Name: blobfsmigrations.Source, Table: blobfsmigrations.Table, Migrations: blobfsSet},
+		blobfsSet,
 		{Name: "consumer", Migrations: consumerSet},
 	}, migrator.Options{})
 	if err != nil {

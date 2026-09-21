@@ -4,7 +4,7 @@
 -- The tree lock: every transaction that moves a directory takes it before
 -- its cycle check, so two opposing moves run one after the other and the
 -- second one's check sees the first one's result. The key is
--- pgnative.TreeLockKey, bound by the variant, and the lock is
+-- postgres.TreeLockKey, bound by the variant, and the lock is
 -- transaction-scoped, so a session that is not a transaction is refused
 -- rather than take a lock that autocommit releases at once.
 SELECT pg_advisory_xact_lock({{key:bigint}})

@@ -13,13 +13,12 @@ import (
 	"github.com/standards-lab/sqlate/sqltest"
 
 	"github.com/standards-lab/org/experiments/blobfs/admin/schema"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // postgresDialect is the stub dialect under the name the Postgres engine
-// reports, with the lock capability, so Sets selects the Postgres directory
-// without the driver and the inner migrators run their locked protocol
-// against the recorder.
+// reports, with the lock capability, so the inner migrators run their
+// locked protocol against the recorder without the driver.
 type postgresDialect struct{ sqltest.Dialect }
 
 func (postgresDialect) Name() string { return "postgres" }
@@ -44,7 +43,7 @@ func (postgresDialect) Unlock(ctx context.Context, conn *sql.Conn, name string) 
 // blobfs's set under its own history table, then the consumer's under
 // sqlate's default table, each holding its source's migrations.
 func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
-	sets, err := schema.Sets(postgresDialect{})
+	sets, err := schema.Sets()
 	if err != nil {
 		t.Fatalf("Sets: %v", err)
 	}
@@ -52,8 +51,8 @@ func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
 		t.Fatalf("Sets returned %d sets, want 2", len(sets))
 	}
 	first, last := sets[0], sets[1]
-	if first.Name != blobfsmigrations.Source || first.Table != blobfsmigrations.Table {
-		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, blobfsmigrations.Source, blobfsmigrations.Table)
+	if first.Name != postgres.Source || first.Table != postgres.Table {
+		t.Errorf("first set = %q under %q, want %q under %q", first.Name, first.Table, postgres.Source, postgres.Table)
 	}
 	if len(first.Migrations) != 2 || first.Migrations[0].Name != "directory" {
 		t.Errorf("first set holds %d migrations starting with %q, want blobfs's 2 starting with directory", len(first.Migrations), first.Migrations[0].Name)
@@ -63,17 +62,6 @@ func TestSets_OrdersBlobfsFirstAndTheConsumerLast(t *testing.T) {
 	}
 	if len(last.Migrations) != 2 || last.Migrations[0].Name != "directory_owner" {
 		t.Errorf("last set holds %d migrations starting with %q, want the consumer's 2 starting with directory_owner", len(last.Migrations), last.Migrations[0].Name)
-	}
-}
-
-// TestNewClient_RefusesADialectWithoutDDL proves the selection by dialect
-// reaches the client: an engine blobfs ships no directory for fails with
-// the source's sentinel.
-func TestNewClient_RefusesADialectWithoutDDL(t *testing.T) {
-	pool, _ := sqltest.Open(t)
-	_, err := schema.NewClient(sqlate.Wrap(pool, sqltest.Dialect{}), nil)
-	if !errors.Is(err, blobfsmigrations.ErrUnsupportedEngine) {
-		t.Fatalf("NewClient(test dialect) = %v, want ErrUnsupportedEngine", err)
 	}
 }
 
@@ -130,7 +118,7 @@ func TestUp_RunsBlobfsBeforeTheConsumer(t *testing.T) {
 		return slices.IndexFunc(execs, func(s string) bool { return strings.Contains(s, prefix) })
 	}
 	order := []string{
-		"CREATE TABLE IF NOT EXISTS " + blobfsmigrations.Table,
+		"CREATE TABLE IF NOT EXISTS " + postgres.Table,
 		"CREATE TABLE blobfs_directory",
 		"CREATE TABLE blobfs_file",
 		"CREATE TABLE IF NOT EXISTS schema_version",
@@ -174,7 +162,7 @@ func TestStatus_ReadsBothSets(t *testing.T) {
 		t.Fatalf("Status returned %d sets, want 2", len(sets))
 	}
 	b, consumer := sets[0], sets[1]
-	if b.Name != blobfsmigrations.Source || b.Table != blobfsmigrations.Table || b.Version != 1 || b.Latest != 2 || len(b.Pending) != 1 || b.Pending[0].Name != "file" || b.Dirty {
+	if b.Name != postgres.Source || b.Table != postgres.Table || b.Version != 1 || b.Latest != 2 || len(b.Pending) != 1 || b.Pending[0].Name != "file" || b.Dirty {
 		t.Errorf("blobfs status = %+v", b)
 	}
 	if consumer.Name != schema.ConsumerSet || consumer.Table != "schema_version" || consumer.Version != 0 || consumer.Latest != 2 || len(consumer.Pending) != 2 {

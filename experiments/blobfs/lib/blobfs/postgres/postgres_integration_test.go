@@ -1,6 +1,6 @@
 //go:build integration
 
-package pgnative_test
+package postgres_test
 
 import (
 	"context"
@@ -14,8 +14,7 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/datatest"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // env is one test's throwaway database with blobfs's migration set
@@ -34,11 +33,11 @@ func open(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	db := livetest.Open(t)
-	set, err := migrations.Migrations(db.Dialect())
+	set, err := postgres.Migrations()
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	m, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
+	m, err := migrate.New(db, set.Migrations, migrate.Options{Table: set.Table})
 	if err != nil {
 		t.Fatalf("migrate.New: %v", err)
 	}
@@ -49,16 +48,16 @@ func open(t *testing.T) env {
 	if err != nil {
 		t.Fatalf("NewCatalog: %v", err)
 	}
-	v, err := pgnative.New(c, db.Dialect())
+	v, err := postgres.New(c, db.Dialect())
 	if err != nil {
-		t.Fatalf("pgnative.New: %v", err)
+		t.Fatalf("postgres.New: %v", err)
 	}
 	native, err := data.New(c, db.Dialect(), data.WithVariant(v))
 	if err != nil {
-		t.Fatalf("data.New over pgnative: %v", err)
+		t.Fatalf("data.New over the Postgres variant: %v", err)
 	}
 	if err := native.Verify(ctx, db); err != nil {
-		t.Fatalf("Verify over pgnative against the migrated schema: %v", err)
+		t.Fatalf("Verify over the Postgres variant against the migrated schema: %v", err)
 	}
 	standard, err := data.New(c, db.Dialect())
 	if err != nil {

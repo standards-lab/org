@@ -6,7 +6,7 @@ import (
 
 	"github.com/standards-lab/sqlate"
 
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/lib/migrator"
 	appmigrations "github.com/standards-lab/org/experiments/blobfs/migrations"
 )
@@ -17,10 +17,10 @@ const ConsumerSet = "consumer"
 
 // Sets returns the two migration sets in canonical order: blobfs's set
 // first, under its own history table, and the consumer's set last, under
-// sqlate's default table. A dialect blobfs ships no DDL for is refused with
-// the source's ErrUnsupportedEngine.
-func Sets(dialect sqlate.Dialect) ([]migrator.Set, error) {
-	blobfsSet, err := blobfsmigrations.Migrations(dialect)
+// sqlate's default table. blobfs's set is the Postgres engine package's:
+// the engine is named by the import, not by the dialect.
+func Sets() ([]migrator.Set, error) {
+	blobfsSet, err := postgres.Migrations()
 	if err != nil {
 		return nil, err
 	}
@@ -28,10 +28,7 @@ func Sets(dialect sqlate.Dialect) ([]migrator.Set, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []migrator.Set{
-		{Name: blobfsmigrations.Source, Table: blobfsmigrations.Table, Migrations: blobfsSet},
-		{Name: ConsumerSet, Migrations: consumerSet},
-	}, nil
+	return []migrator.Set{blobfsSet, {Name: ConsumerSet, Migrations: consumerSet}}, nil
 }
 
 // Client runs the schema operations over the multi-set migrator.
@@ -43,7 +40,7 @@ type Client struct {
 // each applied and reverted migration to logger; a nil logger is silent.
 // It performs no I/O: the migrator validates the sets and opens nothing.
 func NewClient(db *sqlate.DB, logger *slog.Logger) (*Client, error) {
-	sets, err := Sets(db.Dialect())
+	sets, err := Sets()
 	if err != nil {
 		return nil, err
 	}

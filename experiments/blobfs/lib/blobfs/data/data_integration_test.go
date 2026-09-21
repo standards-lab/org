@@ -18,7 +18,7 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	blobfspostgres "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // env is one test's throwaway database with blobfs's migration set applied,
@@ -37,11 +37,11 @@ func open(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	db, dsn := livetest.OpenDSN(t)
-	set, err := migrations.Migrations(db.Dialect())
+	set, err := blobfspostgres.Migrations()
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	m, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
+	m, err := migrate.New(db, set.Migrations, migrate.Options{Table: set.Table})
 	if err != nil {
 		t.Fatalf("migrate.New: %v", err)
 	}

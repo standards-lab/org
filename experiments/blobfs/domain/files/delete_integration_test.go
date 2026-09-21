@@ -15,7 +15,7 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // variant is one of the two variants the consumer's delete tests run
@@ -37,12 +37,12 @@ func standardVariant(c *query.Catalog, d sqlate.Dialect) (data.Variant, error) {
 }
 
 func postgresVariant(c *query.Catalog, d sqlate.Dialect) (data.Variant, error) {
-	return pgnative.New(c, d)
+	return postgres.New(c, d)
 }
 
 var variants = []variant{
 	{"standard", standardVariant, nil},
-	{"pgnative", postgresVariant, []files.Option{files.WithVariant(postgresVariant)}},
+	{"postgres", postgresVariant, []files.Option{files.WithVariant(postgresVariant)}},
 }
 
 // perVariant runs f once per variant, each in its own database and

@@ -233,7 +233,7 @@ func (g *gated) LockTree(ctx context.Context, sess sqlate.Session) error {
 
 // TestMoveOpposingConcurrentMoves is the gate through mv, per variant:
 // mover A runs mv /s/x /s/y while mover B runs mv /s/y /s/x, interleaved
-// through the gated variant. On pgnative B blocks inside the lock while A
+// through the gated variant. On Postgres B blocks inside the lock while A
 // holds it, A commits, and B's check then sees x under y and is refused
 // with ErrCycle. On the baseline B passes the no-op lock at once; the
 // test releases B first, which commits y under x, and then A, whose check
@@ -278,7 +278,7 @@ func TestMoveOpposingConcurrentMoves(t *testing.T) {
 			a := move("/s/x", "/s/y")
 			releaseA := arrived("A")
 			b := move("/s/y", "/s/x")
-			if v.name == "pgnative" {
+			if v.name == "postgres" {
 				select {
 				case <-g.arrived:
 					t.Fatal("B passed the lock while A held it")

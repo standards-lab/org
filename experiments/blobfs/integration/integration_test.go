@@ -29,7 +29,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // binary is the path of cmd/blobfs, built once by TestMain.
@@ -366,7 +366,7 @@ var variants = []struct {
 	serializes bool
 }{
 	{"standard", false},
-	{"pgnative", true},
+	{"postgres", true},
 }
 
 // script is one end-to-end run of the binary over one configuration: its
@@ -465,7 +465,7 @@ func (s *script) directories(t *testing.T) {
 
 	// The variant: the flag beats the environment, and a name that is
 	// neither is refused before any I/O.
-	refused(t, s.tg, "--variant or BLOBFS_VARIANT is standard or pgnative", "ls", "/", "--variant", "nope")
+	refused(t, s.tg, "--variant or BLOBFS_VARIANT is standard or postgres", "ls", "/", "--variant", "nope")
 	ok(t, s.tg, "ls", "/", "--variant", s.tg.variant)
 
 	// mkdir.
@@ -976,9 +976,9 @@ func (s *script) moves(t *testing.T) {
 
 // treeLock is the one step where the binary shows which variant it runs:
 // the test holds blobfs's tree lock (the advisory lock under
-// pgnative.TreeLockKey) in a transaction of its own and runs two moves
+// postgres.TreeLockKey) in a transaction of its own and runs two moves
 // against it. A file move takes no lock on either variant and completes
-// while the lock is held. A directory move on pgnative takes the lock
+// while the lock is held. A directory move on postgres takes the lock
 // inside its transaction and waits until the test's transaction ends; on
 // the standard baseline the lock is a no-op, and the move completes while
 // the lock is held. Either way the move then succeeds and ls shows the
@@ -1001,10 +1001,10 @@ func (s *script) treeLock(t *testing.T) {
 		}
 	}
 	defer release()
-	if _, err := tx.ExecContext(s.ctx, "SELECT pg_advisory_xact_lock($1)", pgnative.TreeLockKey); err != nil {
+	if _, err := tx.ExecContext(s.ctx, "SELECT pg_advisory_xact_lock($1)", postgres.TreeLockKey); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("the test holds the tree lock (pg_advisory_xact_lock(%d), pgnative.TreeLockKey) in a transaction of its own", pgnative.TreeLockKey)
+	t.Logf("the test holds the tree lock (pg_advisory_xact_lock(%d), postgres.TreeLockKey) in a transaction of its own", postgres.TreeLockKey)
 
 	// A file move takes no lock on either variant.
 	file := start(t, s.tg, "mv", "/locked/x/f.txt", "/locked/y")

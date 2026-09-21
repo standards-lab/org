@@ -1,6 +1,6 @@
 //go:build integration
 
-package migrations_test
+package postgres_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // applied applies blobfs's set alone, under its own history table, to a
@@ -21,11 +21,11 @@ func applied(t *testing.T) (context.Context, *sqlate.DB) {
 	t.Helper()
 	ctx := context.Background()
 	db := livetest.Open(t)
-	set, err := migrations.Migrations(db.Dialect())
+	set, err := postgres.Migrations()
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	m, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
+	m, err := migrate.New(db, set.Migrations, migrate.Options{Table: set.Table})
 	if err != nil {
 		t.Fatalf("migrate.New: %v", err)
 	}

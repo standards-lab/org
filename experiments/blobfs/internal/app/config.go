@@ -29,16 +29,16 @@ type Config struct {
 var errNoDSN = errors.New("no database: set --dsn or BLOBFS_DSN")
 
 // The names --variant and BLOBFS_VARIANT accept. variantStandard is the
-// default: the standard-tier baseline every engine runs. variantPGNative is
-// the Postgres variant, lib/blobfs/data/pgnative.
+// default: the standard-tier baseline every engine runs. variantPostgres is
+// the Postgres variant, lib/blobfs/postgres.
 const (
 	variantStandard = "standard"
-	variantPGNative = "pgnative"
+	variantPostgres = "postgres"
 )
 
 // variantNames lists the accepted names, in the order the help and the
 // refusal print them.
-var variantNames = []string{variantStandard, variantPGNative}
+var variantNames = []string{variantStandard, variantPostgres}
 
 // storageEnvPrefix is the prefix the object store's configuration reads
 // its environment under: BLOBFS_STORAGE_ENDPOINT, BLOBFS_STORAGE_CONTAINER,

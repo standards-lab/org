@@ -39,7 +39,7 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	blobfspostgres "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // The fixture's size in file rows, the page size the forms list, the
@@ -127,11 +127,11 @@ func TestListingCost(t *testing.T) {
 	}
 	ctx := context.Background()
 	db, dsn := livetest.OpenDSN(t)
-	set, err := migrations.Migrations(db.Dialect())
+	set, err := blobfspostgres.Migrations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	mig, err := migrate.New(db, set, migrate.Options{Table: migrations.Table})
+	mig, err := migrate.New(db, set.Migrations, migrate.Options{Table: set.Table})
 	if err != nil {
 		t.Fatal(err)
 	}

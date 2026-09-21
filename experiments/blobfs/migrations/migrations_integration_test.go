@@ -11,7 +11,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/lib/migrator"
 	appmigrations "github.com/standards-lab/org/experiments/blobfs/migrations"
 )
@@ -23,7 +23,7 @@ func applied(t *testing.T) (context.Context, *sqlate.DB) {
 	t.Helper()
 	ctx := context.Background()
 	db := livetest.Open(t)
-	blobfsSet, err := blobfsmigrations.Migrations(db.Dialect())
+	blobfsSet, err := postgres.Migrations()
 	if err != nil {
 		t.Fatalf("blobfs Migrations: %v", err)
 	}
@@ -32,7 +32,7 @@ func applied(t *testing.T) (context.Context, *sqlate.DB) {
 		t.Fatalf("consumer Migrations: %v", err)
 	}
 	m, err := migrator.New(db, []migrator.Set{
-		{Name: blobfsmigrations.Source, Table: blobfsmigrations.Table, Migrations: blobfsSet},
+		blobfsSet,
 		{Name: "consumer", Migrations: consumerSet},
 	}, migrator.Options{})
 	if err != nil {

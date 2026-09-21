@@ -17,7 +17,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	blobfspostgres "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/lib/migrator"
 	appmigrations "github.com/standards-lab/org/experiments/blobfs/migrations"
 )
@@ -25,7 +25,7 @@ import (
 // The tables the two sets create, and their history tables.
 var (
 	objectTables  = []string{"blobfs_directory", "blobfs_file", "directory_owner", "bookmark"}
-	historyTables = []string{blobfsmigrations.Table, "schema_version"}
+	historyTables = []string{blobfspostgres.Table, "schema_version"}
 )
 
 // rehearsal is the fixture migration of the upgrade rehearsal: a third
@@ -47,19 +47,19 @@ var rehearsal = migrate.Migration{
 // which stands for the version an installed database holds.
 func canonicalSets(t *testing.T, dialect sqlate.Dialect, rehearsed bool) []migrator.Set {
 	t.Helper()
-	blobfsSet, err := blobfsmigrations.Migrations(dialect)
+	blobfsSet, err := blobfspostgres.Migrations()
 	if err != nil {
 		t.Fatalf("blobfs Migrations: %v", err)
 	}
 	if rehearsed {
-		blobfsSet = append(blobfsSet, rehearsal)
+		blobfsSet.Migrations = append(blobfsSet.Migrations, rehearsal)
 	}
 	consumerSet, err := appmigrations.Migrations()
 	if err != nil {
 		t.Fatalf("consumer Migrations: %v", err)
 	}
 	return []migrator.Set{
-		{Name: blobfsmigrations.Source, Table: blobfsmigrations.Table, Migrations: blobfsSet},
+		blobfsSet,
 		{Name: "consumer", Migrations: consumerSet},
 	}
 }
@@ -244,12 +244,12 @@ func TestUpgradeAfterRestart(t *testing.T) {
 	}
 	assertClean(ctx, t, upgraded, 3, 2)
 	assertRelations(ctx, t, restarted, true, "blobfs_ix_file_rehearsal")
-	if n := count(ctx, t, restarted, "SELECT COUNT(*) FROM "+blobfsmigrations.Table); n != 3 {
+	if n := count(ctx, t, restarted, "SELECT COUNT(*) FROM "+blobfspostgres.Table); n != 3 {
 		t.Errorf("blobfs history holds %d rows after the upgrade, want 3", n)
 	}
 	// Only the fixture was applied by the upgrade: rows 1 and 2 keep the
 	// applied_at of the install, which precedes row 3's.
-	if n := count(ctx, t, restarted, "SELECT COUNT(*) FROM "+blobfsmigrations.Table+" WHERE version < 3 AND applied_at >= (SELECT applied_at FROM "+blobfsmigrations.Table+" WHERE version = 3)"); n != 0 {
+	if n := count(ctx, t, restarted, "SELECT COUNT(*) FROM "+blobfspostgres.Table+" WHERE version < 3 AND applied_at >= (SELECT applied_at FROM "+blobfspostgres.Table+" WHERE version = 3)"); n != 0 {
 		t.Errorf("%d rows below version 3 were applied at or after version 3; the upgrade re-applied them", n)
 	}
 	if rowsAfter := count(ctx, t, restarted, "SELECT (SELECT COUNT(*) FROM blobfs_directory) + (SELECT COUNT(*) FROM blobfs_file) + (SELECT COUNT(*) FROM directory_owner) + (SELECT COUNT(*) FROM bookmark)"); rowsAfter != rowsBefore {
@@ -296,7 +296,7 @@ func TestResetOrderAcrossForeignKeys(t *testing.T) {
 	blobfsAlone := newLive(t, db, sets[:1], migrator.Options{})
 	assertDependentObjects(t, "Down of blobfs's set alone", blobfsAlone.Down(ctx))
 	assertRelations(ctx, t, db, true, append(objectTables, historyTables...)...)
-	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 2 {
+	if head := livetest.Head(ctx, t, db, blobfspostgres.Table); head != 2 {
 		t.Errorf("blobfs head after the refused reverts = %d, want 2 (the fixture's index reverted, the table drop refused)", head)
 	}
 	assertRelations(ctx, t, db, false, "blobfs_ix_file_rehearsal")
@@ -311,8 +311,8 @@ func TestResetOrderAcrossForeignKeys(t *testing.T) {
 func assertDependentObjects(t *testing.T, what string, err error) {
 	t.Helper()
 	var se *migrator.SetError
-	if !errors.As(err, &se) || se.Set != blobfsmigrations.Source {
-		t.Fatalf("%s = %v, want a SetError naming %s", what, err, blobfsmigrations.Source)
+	if !errors.As(err, &se) || se.Set != blobfspostgres.Source {
+		t.Fatalf("%s = %v, want a SetError naming %s", what, err, blobfspostgres.Source)
 	}
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.Code != "2BP01" {
@@ -428,7 +428,7 @@ func TestConcurrentStartersSerialize(t *testing.T) {
 		t.Fatalf("serialized starters: a = %v, b = %v; want both to succeed", errA, errB)
 	}
 	assertClean(ctx, t, a, 1, 2, 2)
-	for table, want := range map[string]int{"gate_schema_version": 1, blobfsmigrations.Table: 2, "schema_version": 2} {
+	for table, want := range map[string]int{"gate_schema_version": 1, blobfspostgres.Table: 2, "schema_version": 2} {
 		if n := count(ctx, t, db, "SELECT COUNT(*) FROM "+table); n != want {
 			t.Errorf("%s holds %d rows, want %d: a migration was applied more or less than once", table, n, want)
 		}
@@ -500,7 +500,7 @@ func TestDirtyRefusalOnEngine(t *testing.T) {
 			t.Errorf("%s over a dirty set = %v, want ErrDirty naming set probe at version 1", name, err)
 		}
 	}
-	assertRelations(ctx, t, db, false, "blobfs_directory", blobfsmigrations.Table)
+	assertRelations(ctx, t, db, false, "blobfs_directory", blobfspostgres.Table)
 	status, err := m.Status(ctx)
 	if err != nil {
 		t.Fatalf("Status: %v", err)
@@ -515,7 +515,7 @@ func TestDirtyRefusalOnEngine(t *testing.T) {
 	if err := m.Reset(ctx); err != nil {
 		t.Fatalf("Reset after Force: %v", err)
 	}
-	assertRelations(ctx, t, db, false, "probe_schema_version", blobfsmigrations.Table, "schema_version")
+	assertRelations(ctx, t, db, false, "probe_schema_version", blobfspostgres.Table, "schema_version")
 	if err := m.Up(ctx); err == nil {
 		t.Error("Up after the reset applied the failing migration")
 	}

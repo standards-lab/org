@@ -14,7 +14,7 @@ import (
 // native statements: the two variation points of the persistence package.
 // The Store runs every other operation from its standard-tier statements
 // and forwards these two to the variant it was built with. The default is
-// Standard, which is complete on any engine; pgnative is the Postgres
+// Standard, which is complete on any engine; the postgres package is the Postgres
 // variant; and a consumer supplies its own by implementing the interface,
 // typically by embedding one of the two and overriding one method.
 //
@@ -57,7 +57,7 @@ type options struct {
 // WithVariant makes the store forward its variation points to v instead
 // of the standard baseline. The variant is built by its own constructor
 // against the same catalog and dialect, so a consumer composes
-// pgnative.New(catalog, dialect) and then New(catalog, dialect,
+// postgres.New(catalog, dialect) and then New(catalog, dialect,
 // WithVariant(v)), or passes an implementation of its own.
 func WithVariant(v Variant) Option {
 	return func(o *options) { o.variant = v }
@@ -96,7 +96,7 @@ func (s *Store) BeginFileDelete(ctx context.Context, sess sqlate.Session, id str
 }
 
 // inventory is the optional capability of a variant that compiled
-// statements of its own: pgnative has one, Standard does not, because its
+// statements of its own: the Postgres variant has one, Standard does not, because its
 // statements are the persistence package's own and the Store already
 // lists and verifies them.
 type inventory interface {

@@ -43,7 +43,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	blobfspostgres "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/lib/migrator"
 	appmigrations "github.com/standards-lab/org/experiments/blobfs/migrations"
 )
@@ -360,7 +360,7 @@ const (
 // evMigrate applies blobfs's set and then the consumer's, as schema up does.
 func evMigrate(ctx context.Context, t *testing.T, db *sqlate.DB) {
 	t.Helper()
-	blobfsSet, err := blobfsmigrations.Migrations(db.Dialect())
+	blobfsSet, err := blobfspostgres.Migrations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +369,7 @@ func evMigrate(ctx context.Context, t *testing.T, db *sqlate.DB) {
 		t.Fatal(err)
 	}
 	m, err := migrator.New(db, []migrator.Set{
-		{Name: blobfsmigrations.Source, Table: blobfsmigrations.Table, Migrations: blobfsSet},
+		blobfsSet,
 		{Name: "consumer", Migrations: consumerSet},
 	}, migrator.Options{})
 	if err != nil {

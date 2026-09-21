@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/standards-lab/org/experiments/blobfs/domain/files"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 	"github.com/standards-lab/org/experiments/blobfs/output"
 )
 
@@ -44,16 +44,16 @@ func newDomain(infra *Infrastructure) *Domain {
 // store over the variant cfg resolves. The standard baseline is what
 // files.New builds without an option, compiled once with the store's own
 // statements, so it maps to none; the Postgres variant maps to
-// files.WithVariant over pgnative.New. This is the one file of the
-// application that names the Postgres variant: the variant is a
+// files.WithVariant over postgres.New. This is the one file of the
+// application that names the Postgres engine package: the variant is a
 // composition choice, and no domain or admin package makes it.
 func variantOptions(cfg *Config) ([]files.Option, error) {
 	name, err := cfg.variant()
 	if err != nil {
 		return nil, err
 	}
-	if name == variantPGNative {
-		return []files.Option{files.WithVariant(pgnative.New)}, nil
+	if name == variantPostgres {
+		return []files.Option{files.WithVariant(postgres.New)}, nil
 	}
 	return nil, nil
 }

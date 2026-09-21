@@ -13,7 +13,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/admin/schema"
 	"github.com/standards-lab/org/experiments/blobfs/internal/livetest"
-	blobfsmigrations "github.com/standards-lab/org/experiments/blobfs/lib/blobfs/migrations"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 var objectTables = []string{"blobfs_directory", "blobfs_file", "directory_owner", "bookmark"}
@@ -51,8 +51,8 @@ func TestSchemaUpDown(t *testing.T) {
 			t.Errorf("after Up, index %s is missing", index)
 		}
 	}
-	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 2 {
-		t.Errorf("%s head = %d, want 2", blobfsmigrations.Table, head)
+	if head := livetest.Head(ctx, t, db, postgres.Table); head != 2 {
+		t.Errorf("%s head = %d, want 2", postgres.Table, head)
 	}
 	if head := livetest.Head(ctx, t, db, "schema_version"); head != 2 {
 		t.Errorf("schema_version head = %d, want 2", head)
@@ -80,7 +80,7 @@ func TestSchemaUpDown(t *testing.T) {
 			t.Errorf("after Down, table %s still exists", table)
 		}
 	}
-	for _, table := range []string{blobfsmigrations.Table, "schema_version"} {
+	for _, table := range []string{postgres.Table, "schema_version"} {
 		if !livetest.Exists(ctx, t, db, table) {
 			t.Errorf("after Down, history table %s is gone", table)
 		} else if head := livetest.Head(ctx, t, db, table); head != 0 {
@@ -91,7 +91,7 @@ func TestSchemaUpDown(t *testing.T) {
 	if err := client.Reset(ctx); err != nil {
 		t.Fatalf("Reset: %v", err)
 	}
-	for _, table := range []string{blobfsmigrations.Table, "schema_version"} {
+	for _, table := range []string{postgres.Table, "schema_version"} {
 		if livetest.Exists(ctx, t, db, table) {
 			t.Errorf("after Reset, history table %s still exists", table)
 		}
@@ -123,15 +123,15 @@ func TestWrongOrderDownIsRefused(t *testing.T) {
 		t.Fatalf("Up: %v", err)
 	}
 
-	blobfsSet, err := blobfsmigrations.Migrations(db.Dialect())
+	blobfsSet, err := postgres.Migrations()
 	if err != nil {
 		t.Fatalf("Migrations: %v", err)
 	}
-	inner, err := migrate.New(db, blobfsSet, migrate.Options{Table: blobfsmigrations.Table})
+	inner, err := migrate.New(db, blobfsSet.Migrations, migrate.Options{Table: blobfsSet.Table})
 	if err != nil {
 		t.Fatalf("migrate.New: %v", err)
 	}
-	err = inner.Down(ctx, len(blobfsSet))
+	err = inner.Down(ctx, len(blobfsSet.Migrations))
 	if err == nil {
 		t.Fatal("blobfs Down before the consumer's succeeded; bookmark's foreign key did not block it")
 	}
@@ -145,8 +145,8 @@ func TestWrongOrderDownIsRefused(t *testing.T) {
 	// The refused revert ran in its own transaction and left the history
 	// in agreement with the schema, and the client's Down, in the right
 	// order, still succeeds.
-	if head := livetest.Head(ctx, t, db, blobfsmigrations.Table); head != 2 {
-		t.Errorf("%s head after the refused Down = %d, want 2", blobfsmigrations.Table, head)
+	if head := livetest.Head(ctx, t, db, postgres.Table); head != 2 {
+		t.Errorf("%s head after the refused Down = %d, want 2", postgres.Table, head)
 	}
 	for _, table := range []string{"blobfs_directory", "blobfs_file"} {
 		if !livetest.Exists(ctx, t, db, table) {

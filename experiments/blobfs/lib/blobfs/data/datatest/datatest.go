@@ -2,7 +2,7 @@
 // variation points: the checks every data.Variant must pass, run through a
 // data.Store built over the variant, against a live database. The
 // persistence package's own tests run it over the standard baseline,
-// pgnative's tests run it over the Postgres variant, and a consumer that
+// the postgres package's tests run it over the Postgres variant, and a consumer that
 // supplies a variant of its own runs it over that. It lives in a package of
 // its own because a test helper in a _test.go file cannot be imported by
 // another package's tests.

@@ -1,4 +1,4 @@
-package migrations
+package postgres
 
 import (
 	"crypto/sha256"
@@ -27,13 +27,13 @@ var released = map[string]string{
 // hashes: a file whose text changed, a file the table does not list, and a
 // listed file missing from the directory are each a failure.
 func TestGoldenHashes(t *testing.T) {
-	entries, err := fs.ReadDir(files, "postgres")
+	entries, err := fs.ReadDir(migrationFiles, "migrations")
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
 	seen := map[string]bool{}
 	for _, e := range entries {
-		text, err := fs.ReadFile(files, "postgres/"+e.Name())
+		text, err := fs.ReadFile(migrationFiles, "migrations/"+e.Name())
 		if err != nil {
 			t.Fatalf("ReadFile %s: %v", e.Name(), err)
 		}
@@ -50,7 +50,7 @@ func TestGoldenHashes(t *testing.T) {
 	}
 	for name := range released {
 		if !seen[name] {
-			t.Errorf("released file %s is missing from the postgres directory", name)
+			t.Errorf("released file %s is missing from the migrations directory", name)
 		}
 	}
 }

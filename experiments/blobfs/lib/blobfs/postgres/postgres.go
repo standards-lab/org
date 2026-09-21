@@ -1,4 +1,4 @@
-package pgnative
+package postgres
 
 import (
 	"context"
@@ -57,7 +57,7 @@ var (
 func New(catalog *query.Catalog, dialect sqlate.Dialect) (*Variant, error) {
 	stmts, err := catalog.Compile(statementFiles, "statements", dialect)
 	if err != nil {
-		return nil, fmt.Errorf("pgnative: %w", err)
+		return nil, fmt.Errorf("blobfs/postgres: %w", err)
 	}
 	return &Variant{
 		stmts:           stmts,

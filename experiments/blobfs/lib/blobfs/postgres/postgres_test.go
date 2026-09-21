@@ -1,4 +1,4 @@
-package pgnative_test
+package postgres_test
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs"
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
-	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data/pgnative"
+	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/postgres"
 )
 
 // catalog builds the catalog a consumer builds.
@@ -30,9 +30,9 @@ func catalog(t *testing.T) *query.Catalog {
 }
 
 // newVariant compiles the variant under the stub dialect.
-func newVariant(t *testing.T) *pgnative.Variant {
+func newVariant(t *testing.T) *postgres.Variant {
 	t.Helper()
-	v, err := pgnative.New(catalog(t), sqltest.Dialect{})
+	v, err := postgres.New(catalog(t), sqltest.Dialect{})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestNew(t *testing.T) {
 	if !v.Serializes() {
 		t.Error("Serializes = false, want true")
 	}
-	if _, err := pgnative.New(must(query.NewCatalog(query.Patterns())), sqltest.Dialect{}); err == nil {
+	if _, err := postgres.New(must(query.NewCatalog(query.Patterns())), sqltest.Dialect{}); err == nil {
 		t.Error("New without the blobfs namespace compiled; the begin statement includes blobfs.file_columns")
 	}
 }
@@ -90,7 +90,7 @@ func TestStoreOverTheVariant(t *testing.T) {
 		t.Fatalf("data.New: %v", err)
 	}
 	if s.Variant() != v {
-		t.Errorf("Variant() = %T, want the pgnative variant", s.Variant())
+		t.Errorf("Variant() = %T, want the Postgres variant", s.Variant())
 	}
 	stmts := s.Statements()
 	if len(stmts) != 22 || stmts[20].Name() != "begin_file_delete" || stmts[21].Name() != "lock_tree" {
@@ -124,9 +124,9 @@ func TestStoreOverTheVariant(t *testing.T) {
 // one, can recompute it.
 func TestTreeLockKey(t *testing.T) {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(pgnative.TreeLockName))
-	if want := int64(h.Sum64()); pgnative.TreeLockKey != want {
-		t.Errorf("TreeLockKey = %d, want %d", pgnative.TreeLockKey, want)
+	_, _ = h.Write([]byte(postgres.TreeLockName))
+	if want := int64(h.Sum64()); postgres.TreeLockKey != want {
+		t.Errorf("TreeLockKey = %d, want %d", postgres.TreeLockKey, want)
 	}
 }
 
@@ -157,8 +157,8 @@ func TestLockTreeSQL(t *testing.T) {
 		t.Errorf("LockTree ran %q", execs)
 	}
 	for _, c := range rec.Calls() {
-		if c.Op == sqltest.OpExec && !slices.Equal(c.Args, []any{pgnative.TreeLockKey}) {
-			t.Errorf("LockTree bound %v, want the key %d", c.Args, pgnative.TreeLockKey)
+		if c.Op == sqltest.OpExec && !slices.Equal(c.Args, []any{postgres.TreeLockKey}) {
+			t.Errorf("LockTree bound %v, want the key %d", c.Args, postgres.TreeLockKey)
 		}
 	}
 }

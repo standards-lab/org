@@ -30,7 +30,7 @@ func TestRun_PrintsUsageForHelp(t *testing.T) {
 		if code != 0 {
 			t.Errorf("%v exited %d: %s", args, code, errOut)
 		}
-		wants := []string{"Usage:", "schema", "mkdir", "ls", "mv", "--dsn", "--variant", "standard or pgnative"}
+		wants := []string{"Usage:", "schema", "mkdir", "ls", "mv", "--dsn", "--variant", "standard or postgres"}
 		if len(args) == 1 && args[0] == "schema" {
 			wants = []string{"Usage:", "schema", "--dsn", "--variant"}
 		}
@@ -91,7 +91,7 @@ func TestRun_RefusesSchemaUpWithoutADSN(t *testing.T) {
 
 // The variant is resolved when the files store is constructed, from the
 // flag or the environment, before the database opens: a name that is
-// neither standard nor pgnative fails with no DSN set and names both
+// neither standard nor postgres fails with no DSN set and names both
 // accepted names and both routes. The schema commands never resolve it.
 func TestRun_RefusesAnUnknownVariantBeforeAnyIO(t *testing.T) {
 	t.Setenv("BLOBFS_DSN", "")
@@ -112,7 +112,7 @@ func TestRun_RefusesAnUnknownVariantBeforeAnyIO(t *testing.T) {
 		if out != "" {
 			t.Errorf("%v: stdout = %q, want nothing", tc.args, out)
 		}
-		for _, want := range []string{`unknown variant "bogus"`, "--variant", "BLOBFS_VARIANT", "standard or pgnative"} {
+		for _, want := range []string{`unknown variant "bogus"`, "--variant", "BLOBFS_VARIANT", "standard or postgres"} {
 			if !strings.Contains(errOut, want) {
 				t.Errorf("%v (env %q): stderr = %q, want %q", tc.args, tc.env, errOut, want)
 			}
@@ -121,7 +121,7 @@ func TestRun_RefusesAnUnknownVariantBeforeAnyIO(t *testing.T) {
 	// An accepted name gets past the variant to the missing DSN, so the
 	// variant is resolved first and the standard default needs no flag.
 	t.Setenv("BLOBFS_VARIANT", "")
-	for _, args := range [][]string{{"ls", "/"}, {"--variant", "pgnative", "ls", "/"}, {"--variant", "standard", "ls", "/"}} {
+	for _, args := range [][]string{{"ls", "/"}, {"--variant", "postgres", "ls", "/"}, {"--variant", "standard", "ls", "/"}} {
 		_, errOut, code := execute(t, args...)
 		if code != 1 || !strings.Contains(errOut, "BLOBFS_DSN") {
 			t.Errorf("%v exited %d with %q, want the missing DSN", args, code, errOut)

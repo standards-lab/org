@@ -74,7 +74,7 @@ func newRoot(cfg *Config) *cobra.Command {
 			"/reports/2026/q1.pdf. The database comes from --dsn or BLOBFS_DSN and the\n" +
 			"object store from the BLOBFS_STORAGE_* variables. The file commands run\n" +
 			"over the blobfs variant --variant or BLOBFS_VARIANT names: standard, the\n" +
-			"baseline every engine runs, or pgnative, the Postgres variant whose\n" +
+			"baseline every engine runs, or postgres, the Postgres variant whose\n" +
 			"directory move takes a tree lock; the schema commands are the same on\n" +
 			"either.",
 		Args:          cobra.NoArgs,
