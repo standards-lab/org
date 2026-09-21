@@ -35,8 +35,10 @@
 // number or continued from the keyset cursor of an earlier page, and both
 // walk the same order; every page reports whether rows remain after it,
 // with or without a total. No operation walks the whole tree; a path is
-// resolved one segment per round trip and computed by one upward walk.
-// File and FileByName read one file row, by id or by directory and name.
+// resolved by the variant, one segment per round trip on the baseline
+// and in one statement on the Postgres variant, and computed by one
+// upward walk. File and FileByName read one file row, by id or by
+// directory and name.
 //
 // A file write is two steps around the object write the package never
 // makes. BeginFileWrite validates the name, mints the id, builds the key
@@ -79,17 +81,24 @@
 // delete that begins first makes the hold refuse. The rule is standard
 // SQL, so it holds on every engine and through every variant's begin.
 //
-// Two operations are variation points, where an engine may do better than
-// standard SQL: the tree lock that serializes directory moves, and the
-// first step of a file delete. The Variant interface names them, Standard
+// Several operations are variation points, where an engine may do better
+// than standard SQL: the tree lock that serializes directory moves, the
+// first step of a file delete, the inserts of the write's begin step and
+// of Mkdir, the write's complete step, path resolution, and the cursor
+// predicate of a listing page. The Variant interface names them, Standard
 // is the baseline every engine runs (a no-op lock that reports it does
-// not serialize, and the delete begin as an update and a read-back in the
-// caller's transaction), and New takes another implementation through
-// WithVariant: the postgres package's for Postgres, or a consumer's own,
-// which may embed either and override one method. The Store forwards
-// LockTree, Serializes, and BeginFileDelete to the variant and runs
-// everything else from its own statements. The datatest package holds the
-// conformance suite a variant must pass.
+// not serialize, the delete begin as an update and a read-back in the
+// caller's transaction, each insert followed by a read of the row, the
+// complete step through the query library's guard, one child read per
+// path segment, and the cursor predicate in its expanded form), and New
+// takes another implementation through WithVariant: the postgres
+// package's for Postgres, or a consumer's own, which embeds either and
+// overrides the methods it needs. The Store validates every input and
+// classifies every error itself, so a variant binds what it is given and
+// returns what the session mapped; it forwards the variation points to
+// the variant and runs everything else from its own statements. The
+// datatest package holds the conformance suite a variant must pass, which
+// compares each variation point's outcomes against the baseline's.
 //
 // Every method takes the session as an argument and passes it through
 // unwrapped, so a call runs against the pool or inside the caller's

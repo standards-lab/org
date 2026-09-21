@@ -165,18 +165,15 @@ func found(f blobfs.File) WriteOutcome {
 	return WriteExists
 }
 
-// insertFile inserts the pending row under id and key and reads it back.
-// The name is normalized and validated and the key validated already. A
-// constraint violation is classified through the write mapping and
-// returned without context, so each caller adds its own.
+// insertFile inserts the pending row under id and key through the variant
+// and returns it as the database holds it. The name is normalized and
+// validated and the key validated already. A constraint violation is
+// classified through the write mapping and returned without context, so
+// each caller adds its own.
 func (s *Store) insertFile(ctx context.Context, sess sqlate.Session, id, directoryID, name, key, contentType string) (blobfs.File, error) {
-	args := query.Args{"id": id, "directory_id": directoryID, "name": name, "key": key, "content_type": contentType}
-	if _, err := s.beginFileWrite.Exec(ctx, sess, args); err != nil {
-		return blobfs.File{}, classifyWrite(err)
-	}
-	f, err := s.fileByID.One(ctx, sess, query.Args{"id": id})
+	f, err := s.variant.InsertFile(ctx, sess, id, directoryID, name, key, contentType)
 	if err != nil {
-		return blobfs.File{}, fmt.Errorf("read back: %w", err)
+		return blobfs.File{}, classifyWrite(err)
 	}
 	return f, nil
 }
@@ -195,31 +192,14 @@ func (s *Store) insertFile(ctx context.Context, sess sqlate.Session, id, directo
 // available, which matches blobfs.ErrDeleting when a delete began in the
 // meantime and blobfs.ErrInvalidTransition when the write was completed
 // already; the guard alone cannot tell those from a version conflict, so
-// the row is read once more to classify. One statement changes the row,
-// so the session may be the pool or a transaction.
+// the row is read once more to classify, through CompleteRefusal on every
+// variant. The step is the variant's: the baseline runs the guard and a
+// read, and the Postgres variant one statement. One statement changes the
+// row, so the session may be the pool or a transaction.
 func (s *Store) CompleteFileWrite(ctx context.Context, sess sqlate.Session, id string, version int64, obj blobfs.Object) (blobfs.File, error) {
-	args := query.Args{"id": id, "size": obj.Size, "content_type": obj.ContentType, "etag": obj.ETag}
-	_, err := s.completeFileWrite.Run(ctx, sess, version, args)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, blobfs.ErrNotFound)
-	case errors.Is(err, query.ErrVersionMismatch):
-		// The guard checks the version alone, so a row at the expected
-		// version that failed the status predicate reports as a mismatch.
-		f, readErr := s.File(ctx, sess, id)
-		if readErr != nil {
-			return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, readErr)
-		}
-		if f.Version == version {
-			return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, blobfs.Transition(f.Status, blobfs.StatusAvailable))
-		}
-		return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, err)
-	case err != nil:
-		return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, err)
-	}
-	f, err := s.File(ctx, sess, id)
+	f, err := s.variant.CompleteFileWrite(ctx, sess, id, version, obj)
 	if err != nil {
-		return blobfs.File{}, fmt.Errorf("data: read back completed file %s: %w", id, err)
+		return blobfs.File{}, fmt.Errorf("data: complete write of file %s: %w", id, err)
 	}
 	return f, nil
 }

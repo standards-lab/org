@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -194,29 +195,39 @@ func TestCompleteFileWrite(t *testing.T) {
 		t.Errorf("the update bound %v, want the size, content type, etag, id, and expected version", args)
 	}
 
-	// No row affected and no row on the check: not found.
-	s, db, _ = openStore(t, sqltest.Response{Affected: 0}, sqltest.Response{Columns: []string{"version"}})
+	// No row affected and no row on the check: not found, in two
+	// statements.
+	s, db, rec = openStore(t, sqltest.Response{Affected: 0}, sqltest.Response{Columns: []string{"version"}})
 	if _, err := s.CompleteFileWrite(ctx, db, "F", 1, obj); !errors.Is(err, blobfs.ErrNotFound) {
 		t.Errorf("CompleteFileWrite of a missing row = %v, want ErrNotFound", err)
 	}
+	if ops := rec.Ops(); !slices.Equal(ops, []sqltest.Op{sqltest.OpExec, sqltest.OpQuery}) {
+		t.Errorf("ops = %v, want the update and the guard's check", ops)
+	}
 
 	// No row affected, the check reports another version: the guard's own
-	// conflict, confirmed by the read of the row.
-	s, db, _ = openStore(t, sqltest.Response{Affected: 0}, version(3), fileResponse("F", "a.txt", blobfs.StatusPending, 3))
-	if _, err := s.CompleteFileWrite(ctx, db, "F", 1, obj); !errors.Is(err, query.ErrVersionMismatch) {
-		t.Errorf("CompleteFileWrite at a stale version = %v, want ErrVersionMismatch", err)
+	// conflict, confirmed by the read of the row, three statements in all.
+	s, db, rec = openStore(t, sqltest.Response{Affected: 0}, version(3), fileResponse("F", "a.txt", blobfs.StatusPending, 3))
+	if _, err := s.CompleteFileWrite(ctx, db, "F", 1, obj); !errors.Is(err, query.ErrVersionMismatch) || !strings.Contains(err.Error(), "version mismatch: expected 1, current 3") {
+		t.Errorf("CompleteFileWrite at a stale version = %v, want ErrVersionMismatch naming both versions", err)
+	}
+	if ops := rec.Ops(); !slices.Equal(ops, []sqltest.Op{sqltest.OpExec, sqltest.OpQuery, sqltest.OpQuery}) {
+		t.Errorf("ops = %v, want the update, the guard's check, and the read", ops)
 	}
 
 	// No row affected, the check reports the expected version: the status
 	// predicate refused the row, and the read tells which status.
 	for _, status := range []blobfs.Status{blobfs.StatusDeleting, blobfs.StatusAvailable} {
-		s, db, _ = openStore(t, sqltest.Response{Affected: 0}, version(1), fileResponse("F", "a.txt", status, 1))
+		s, db, rec = openStore(t, sqltest.Response{Affected: 0}, version(1), fileResponse("F", "a.txt", status, 1))
 		_, err := s.CompleteFileWrite(ctx, db, "F", 1, obj)
 		if !errors.Is(err, blobfs.ErrInvalidTransition) || errors.Is(err, query.ErrVersionMismatch) {
 			t.Errorf("CompleteFileWrite of a %s row = %v, want ErrInvalidTransition and no version mismatch", status, err)
 		}
 		if errors.Is(err, blobfs.ErrDeleting) != (status == blobfs.StatusDeleting) {
 			t.Errorf("CompleteFileWrite of a %s row = %v; ErrDeleting should match for deleting only", status, err)
+		}
+		if ops := rec.Ops(); !slices.Equal(ops, []sqltest.Op{sqltest.OpExec, sqltest.OpQuery, sqltest.OpQuery}) {
+			t.Errorf("ops = %v, want the update, the guard's check, and the read", ops)
 		}
 	}
 }

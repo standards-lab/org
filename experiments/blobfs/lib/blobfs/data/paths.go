@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,24 +20,23 @@ import (
 // segment ValidateName refuses, is blobfs.ErrInvalidPath; a segment that
 // names no directory is blobfs.ErrNotFound, naming the prefix that failed.
 //
-// Resolution is iterative: one directory_child read per segment, starting
-// from the root. Standard SQL has no ordered array parameter, so the
-// segments cannot bind as one list and be walked by a single recursive
-// statement at the standard tier; the round trips are one per segment. A
-// native variant could resolve a path in one statement. It walks the
-// way ResolveDirectoryFrom does, starting at blobfs.RootID.
+// Resolution is the variant's: the baseline reads the root and then one
+// directory_child per segment, because standard SQL has no ordered array
+// parameter to walk by in one statement, so its round trips are one per
+// segment; the Postgres variant walks the whole path in one statement.
+// Both resolve the way ResolveDirectoryFrom does, starting at
+// blobfs.RootID.
 func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path string) (blobfs.Directory, error) {
 	segments, err := splitPath(path)
 	if err != nil {
 		return blobfs.Directory{}, fmt.Errorf("data: resolve %q: %w", path, err)
 	}
-	dir, err := s.Root(ctx, sess)
+	dir, depth, err := s.variant.ResolvePath(ctx, sess, blobfs.RootID, segments)
 	if err != nil {
-		return blobfs.Directory{}, err
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q: %w", path, err)
 	}
-	dir, err = s.walk(ctx, sess, dir, segments, "/")
-	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: resolve %q %w", path, err)
+	if depth < len(segments) {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q %w", path, missingAt("/", segments, depth))
 	}
 	return dir, nil
 }
@@ -50,41 +51,55 @@ func (s *Store) ResolveDirectory(ctx context.Context, sess sqlate.Session, path 
 // directory, including a file's id, is blobfs.ErrNotFound; a segment that
 // names no directory is blobfs.ErrNotFound naming the prefix that failed.
 //
-// Resolution is one directory_by_id read of the start and then one
-// directory_child read per segment, as ResolveDirectory walks from the
-// root; the session may be the pool or a transaction. A consumer that
-// holds a directory's id resolves below it without repeating the walk
-// from the root.
+// Resolution is the variant's, as in ResolveDirectory: the baseline reads
+// the start by id and then one directory_child per segment, and the
+// Postgres variant walks the whole path in one statement. The session may
+// be the pool or a transaction. A consumer that holds a directory's id
+// resolves below it without repeating the walk from the root.
 func (s *Store) ResolveDirectoryFrom(ctx context.Context, sess sqlate.Session, startID, rel string) (blobfs.Directory, error) {
 	segments, err := splitRelativePath(rel)
 	if err != nil {
 		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s: %w", rel, startID, err)
 	}
-	dir, err := s.directoryByID.One(ctx, sess, query.Args{"id": startID})
+	dir, depth, err := s.variant.ResolvePath(ctx, sess, startID, segments)
 	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s: %w", rel, startID, notFound(err))
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s: %w", rel, startID, err)
 	}
-	dir, err = s.walk(ctx, sess, dir, segments, "")
-	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s %w", rel, startID, err)
+	if depth < len(segments) {
+		return blobfs.Directory{}, fmt.Errorf("data: resolve %q from %s %w", rel, startID, missingAt("", segments, depth))
 	}
 	return dir, nil
 }
 
-// walk resolves segments below dir, one directory_child read each, and
-// returns the last directory reached. A segment that names no directory is
-// blobfs.ErrNotFound. The error reads "at <prefix>: ...", where the prefix
-// is the segments walked so far joined by slashes after lead: / for an
-// absolute path and nothing for a relative one.
-func (s *Store) walk(ctx context.Context, sess sqlate.Session, dir blobfs.Directory, segments []string, lead string) (blobfs.Directory, error) {
-	for i, name := range segments {
-		var err error
-		dir, err = s.directoryChild.One(ctx, sess, query.Args{"parent_id": dir.ID, "name": name})
-		if err != nil {
-			return blobfs.Directory{}, fmt.Errorf("at %s%s: %w", lead, strings.Join(segments[:i+1], "/"), notFound(err))
-		}
+// missingAt is the error for a walk that stopped at depth, because
+// segments[depth] named no directory: blobfs.ErrNotFound reading
+// "at <prefix>: ...", where the prefix is the segments up to and including
+// the missing one joined by slashes after lead: / for an absolute path
+// and nothing for a relative one.
+func missingAt(lead string, segments []string, depth int) error {
+	return fmt.Errorf("at %s%s: %w", lead, strings.Join(segments[:depth+1], "/"), blobfs.ErrNotFound)
+}
+
+// ResolvePath runs the baseline's walk: the read of the start by id, then
+// one directory_child read per segment until one names no directory or
+// the segments run out, so a resolved path of n segments is n+1
+// statements. See Variant.
+func (v *Standard) ResolvePath(ctx context.Context, sess sqlate.Session, startID string, segments []string) (blobfs.Directory, int, error) {
+	dir, err := v.directoryByID.One(ctx, sess, query.Args{"id": startID})
+	if err != nil {
+		return blobfs.Directory{}, 0, notFound(err)
 	}
-	return dir, nil
+	for depth, name := range segments {
+		child, err := v.directoryChild.One(ctx, sess, query.Args{"parent_id": dir.ID, "name": name})
+		if errors.Is(err, sql.ErrNoRows) {
+			return dir, depth, nil
+		}
+		if err != nil {
+			return blobfs.Directory{}, 0, err
+		}
+		dir = child
+	}
+	return dir, len(segments), nil
 }
 
 // DirectoryPath returns the path of the directory with id: / for the root

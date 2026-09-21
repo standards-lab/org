@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 			t.Errorf("%s: TransactionRequired = %v; only lock_tree requires one", st.Name(), st.TransactionRequired())
 		}
 	}
-	if want := []string{"begin_file_delete", "lock_tree"}; !slices.Equal(names, want) {
+	if want := []string{"begin_file_delete", "begin_file_write", "complete_file_write", "create_directory", "lock_tree", "resolve_path"}; !slices.Equal(names, want) {
 		t.Errorf("Statements = %v, want %v", names, want)
 	}
 	if !v.Serializes() {
@@ -93,29 +93,29 @@ func TestStoreOverTheVariant(t *testing.T) {
 		t.Errorf("Variant() = %T, want the Postgres variant", s.Variant())
 	}
 	stmts := s.Statements()
-	if len(stmts) != 24 || stmts[22].Name() != "begin_file_delete" || stmts[23].Name() != "lock_tree" {
+	if len(stmts) != 28 || stmts[22].Name() != "begin_file_delete" || stmts[27].Name() != "resolve_path" {
 		var names []string
 		for _, st := range stmts {
 			names = append(names, st.Name()+":"+string(st.Tier()))
 		}
-		t.Errorf("Statements = %v, want the package's twenty-two then the variant's two", names)
+		t.Errorf("Statements = %v, want the package's twenty-two then the variant's six", names)
 	}
 	pool, rec := sqltest.Open(t)
 	if err := s.Verify(context.Background(), sqlate.Wrap(pool, sqltest.Dialect{})); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
 	prepared := rec.SQL(sqltest.OpPrepare)
-	if len(prepared) != 30 {
-		t.Errorf("Verify prepared %d, want 30 (28 for the store, 2 for the variant)", len(prepared))
+	if len(prepared) != 34 {
+		t.Errorf("Verify prepared %d, want 34 (28 for the store, 6 for the variant)", len(prepared))
 	}
 	native := 0
 	for _, text := range prepared {
-		if strings.Contains(text, "RETURNING") || strings.Contains(text, "pg_advisory_xact_lock") {
+		if strings.Contains(text, "RETURNING") || strings.Contains(text, "pg_advisory_xact_lock") || strings.Contains(text, "AS text[]") {
 			native++
 		}
 	}
-	if native != 2 {
-		t.Errorf("Verify prepared %d native statements, want 2", native)
+	if native != 6 {
+		t.Errorf("Verify prepared %d native statements, want 6", native)
 	}
 }
 

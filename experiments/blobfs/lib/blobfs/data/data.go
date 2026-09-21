@@ -41,14 +41,11 @@ type Store struct {
 	stmts   *query.Statements
 	variant Variant
 
-	createDirectory    query.Statement
 	directoryByID      query.Rows[blobfs.Directory]
 	directoryChild     query.Rows[blobfs.Directory]
 	directoryAncestors query.Rows[ancestor]
 	fileByID           query.Rows[blobfs.File]
 	fileByName         query.Rows[blobfs.File]
-	beginFileWrite     query.Statement
-	completeFileWrite  query.Guard
 	holdFile           query.Statement
 	holdFileAtVersion  query.Statement
 	removeFile         query.Statement
@@ -95,31 +92,28 @@ func New(catalog *query.Catalog, dialect sqlate.Dialect, opts ...Option) (*Store
 	if err != nil {
 		return nil, fmt.Errorf("data: %w", err)
 	}
-	directory := query.Scanner[blobfs.Directory]()
-	file := query.Scanner[blobfs.File]()
-	files, err := newListing[blobfs.File](clauses, stmts.Statement("files_in_directory"), stmts.Statement("files_in_directory_with_total"))
-	if err != nil {
-		return nil, err
-	}
-	children, err := newListing[blobfs.Directory](clauses, stmts.Statement("children_of_directory"), stmts.Statement("children_of_directory_with_total"))
-	if err != nil {
-		return nil, err
-	}
 	variant := o.variant
 	if variant == nil {
 		variant = newStandard(stmts)
 	}
+	directory := query.Scanner[blobfs.Directory]()
+	file := query.Scanner[blobfs.File]()
+	files, err := newListing[blobfs.File](clauses, variant, stmts.Statement("files_in_directory"), stmts.Statement("files_in_directory_with_total"))
+	if err != nil {
+		return nil, err
+	}
+	children, err := newListing[blobfs.Directory](clauses, variant, stmts.Statement("children_of_directory"), stmts.Statement("children_of_directory_with_total"))
+	if err != nil {
+		return nil, err
+	}
 	return &Store{
 		stmts:              stmts,
 		variant:            variant,
-		createDirectory:    stmts.Statement("create_directory"),
 		directoryByID:      stmts.Statement("directory_by_id").Scan(directory),
 		directoryChild:     stmts.Statement("directory_child").Scan(directory),
 		directoryAncestors: stmts.Statement("directory_ancestors").Scan(query.Scanner[ancestor]()),
 		fileByID:           stmts.Statement("file_by_id").Scan(file),
 		fileByName:         stmts.Statement("file_by_name").Scan(file),
-		beginFileWrite:     stmts.Statement("begin_file_write"),
-		completeFileWrite:  stmts.Statement("complete_file_write").Guarded(stmts.Statement("file_version"), "version"),
 		holdFile:           stmts.Statement("hold_file"),
 		holdFileAtVersion:  stmts.Statement("hold_file_at_version"),
 		removeFile:         stmts.Statement("remove_file"),

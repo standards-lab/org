@@ -10,9 +10,15 @@
 // The suite takes the database from the caller: a throwaway database with
 // blobfs's migration set applied, opened however the caller's test tier
 // opens one, and Run is called once per database. It seeds directories
-// through the store and file rows through plain SQL, so it needs no key
-// validator, and it creates one table of its own that references
-// blobfs_file, to stand in for a consumer's foreign key.
+// through the store and file rows through plain SQL or through the write
+// steps with a key validator that accepts every key, and it creates one
+// table of its own that references blobfs_file, to stand in for a
+// consumer's foreign key, and one index on blobfs_file (directory_id,
+// created_at) that it drops again, to stand in for the one a consumer
+// adds. Every variation point's group compares the variant's outcome
+// with a second store over the standard baseline against the same
+// database, so a variant passes only when it is indistinguishable from
+// the baseline in what it returns.
 package datatest
 
 import (
@@ -31,10 +37,27 @@ import (
 	"github.com/standards-lab/org/experiments/blobfs/lib/blobfs/data"
 )
 
-// Run runs the suite as subtests of t: the file-delete begin's contract
-// (the row returned and left deleting, the version advanced once, a retry
-// converging, a rollback undoing it, a missing file as
-// blobfs.ErrNotFound); the whole delete protocol through the variant's
+// Run runs the suite as subtests of t. The groups that compare the
+// variant with the baseline build a second store over the standard
+// baseline against the same database and assert the same rows and the
+// same refusals, in text, for the same inputs: the write protocol's
+// begin and complete steps (the pending row created with the table's
+// defaults, a taken name, a missing directory, and a taken id refused,
+// begin-or-resume through created, resumed, and exists, the completed
+// row, and a complete refused for a missing row, a stale version, a row
+// already available, and a deleting row); Mkdir and EnsureDirectory (the
+// row created, the same three refusals, and ensure finding the row it
+// created); path resolution (depths 0, 1, 3, and 6 absolute and relative,
+// a missing segment first, in the middle, and last with the failing
+// prefix named, a missing start, and names that would break a spliced
+// path); and the cursor walk (every cursor-capable sort of one, two, and
+// three terms in both directions, walked by cursor to the end over the
+// files and the children, the same sequence as the baseline's and as an
+// offset walk, without and then with an index on created_at). The
+// remaining groups check each variant against the contract: the
+// file-delete begin's (the row returned and left deleting, the version
+// advanced once, a retry converging, a rollback undoing it, a missing
+// file as blobfs.ErrNotFound); the whole delete protocol through the variant's
 // begin and the shared complete step (the deleting row removed, a retry
 // of every step converging, a pending row deletable, a row that is not
 // deleting refused, and a row a consumer's foreign key references left
@@ -57,7 +80,19 @@ import (
 func Run(t *testing.T, db *sqlate.DB, store *data.Store) {
 	t.Helper()
 	ctx := context.Background()
-	s := suite{t: t, ctx: ctx, db: db, store: store}
+	catalog, err := query.NewCatalog(query.Patterns(), data.Patterns())
+	if err != nil {
+		t.Fatalf("NewCatalog: %v", err)
+	}
+	standard, err := data.New(catalog, db.Dialect())
+	if err != nil {
+		t.Fatalf("data.New over the baseline: %v", err)
+	}
+	s := suite{t: t, ctx: ctx, db: db, store: store, standard: standard}
+	t.Run("FileWrite", s.fileWrite)
+	t.Run("Mkdir", s.mkdirGroup)
+	t.Run("ResolvePath", s.resolvePath)
+	t.Run("Keyset", s.keyset)
 	t.Run("BeginFileDelete", s.beginFileDelete)
 	t.Run("FileDelete", s.fileDelete)
 	t.Run("HoldFile", s.holdFile)
@@ -71,6 +106,11 @@ type suite struct {
 	ctx   context.Context
 	db    *sqlate.DB
 	store *data.Store
+	// standard is a store over the baseline against the same database,
+	// which the groups whose outcomes must match the baseline's compare
+	// against; over the baseline itself it is a second store of the same
+	// kind.
+	standard *data.Store
 	// referenced records that createReference ran, so the groups that
 	// need the reference table share one.
 	referenced bool

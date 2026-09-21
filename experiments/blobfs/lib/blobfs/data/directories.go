@@ -105,17 +105,15 @@ func (s *Store) EnsureDirectory(ctx context.Context, sess sqlate.Session, parent
 	return d, false, nil
 }
 
-// insertDirectory inserts the directory row under id and reads it back.
-// The name is normalized and validated already. A constraint violation is
-// classified through the write mapping and returned without context, so
-// each caller adds its own.
+// insertDirectory inserts the directory row under id through the variant
+// and returns it as the database holds it. The name is normalized and
+// validated already. A constraint violation is classified through the
+// write mapping and returned without context, so each caller adds its
+// own.
 func (s *Store) insertDirectory(ctx context.Context, sess sqlate.Session, id, parentID, name string) (blobfs.Directory, error) {
-	if _, err := s.createDirectory.Exec(ctx, sess, query.Args{"id": id, "parent_id": parentID, "name": name}); err != nil {
-		return blobfs.Directory{}, classifyWrite(err)
-	}
-	d, err := s.directoryByID.One(ctx, sess, query.Args{"id": id})
+	d, err := s.variant.InsertDirectory(ctx, sess, id, parentID, name)
 	if err != nil {
-		return blobfs.Directory{}, fmt.Errorf("read back: %w", err)
+		return blobfs.Directory{}, classifyWrite(err)
 	}
 	return d, nil
 }

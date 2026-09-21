@@ -166,9 +166,11 @@ func (c clauses) fill(name string, fill map[string]string) string {
 }
 
 // listing is one listing's pair of compiled statements, without and with
-// the total, and the field contract they share.
+// the total, the field contract they share, and the variant that renders
+// the cursor predicate.
 type listing[T any] struct {
 	clauses  clauses
+	variant  Variant
 	plain    query.Statement
 	counted  query.Statement
 	key      string
@@ -180,8 +182,8 @@ type listing[T any] struct {
 // newListing binds the two statements of one listing and checks they
 // agree: both declare the key and the same fields, and both bind the same
 // parameters.
-func newListing[T any](c clauses, plain, counted query.Statement) (listing[T], error) {
-	l := listing[T]{clauses: c, plain: plain, counted: counted, key: plain.Key(), order: plain.Fields(), fields: map[string]query.Field{}}
+func newListing[T any](c clauses, variant Variant, plain, counted query.Statement) (listing[T], error) {
+	l := listing[T]{clauses: c, variant: variant, plain: plain, counted: counted, key: plain.Key(), order: plain.Fields(), fields: map[string]query.Field{}}
 	l.nullable = nullableOf[T](l.key)
 	if l.key == "" || len(l.order) == 0 {
 		return l, fmt.Errorf("data: %s declares no key or no fields", plain.Name())
@@ -338,7 +340,7 @@ func (l listing[T]) compose(st query.Statement, args query.Args, d Listing, afte
 			return plan{}, err
 		}
 		text.WriteString(" AND ")
-		text.WriteString(l.keyset(terms, after.Values, value))
+		text.WriteString(l.variant.Keyset(l.keyset(terms, after.Values, value)))
 	}
 
 	rendered := make([]string, len(order))
@@ -407,36 +409,59 @@ func (l listing[T]) cursorable(keyed []term) ([]term, string) {
 	return keyed, ""
 }
 
-// keyset renders the cursor predicate over terms with values: for one term
-// q.f > v (or < under a descending sort), and for several the expanded
-// form (a > x) OR (a = x AND b > y) OR ..., each comparison and each cast
-// spelled by the query library's own patterns. Every occurrence of a
-// value binds its own placeholder, so the text holds for a dialect whose
-// placeholders cannot be repeated.
-func (l listing[T]) keyset(terms []term, values []string, value func(query.Field, any) string) string {
-	after := "filter_gt"
-	if terms[0].Descending {
-		after = "filter_lt"
+// listingAlias is the correlation name every listing statement gives its
+// table, because the query library's clause patterns qualify a field as
+// q.<field>; Keyset.Column spells the same reference for a rendering
+// that has no pattern.
+const listingAlias = "q"
+
+// KeysetTerm is one term of a cursor predicate: a declared field, its
+// declared SQL type, and its direction.
+type KeysetTerm struct {
+	Field      string
+	Type       string
+	Descending bool
+}
+
+// Keyset is the composer's request for the cursor predicate of one page:
+// the sort terms up to and including the key, in sort order, all in one
+// direction, and the renderers a variant spells the predicate with. A
+// rendering is the text appended to the listing's WHERE clause with AND,
+// so it must be one boolean expression that keeps the rows after the
+// cursor's row in the sort order: strictly greater on every term under
+// an ascending sort and strictly smaller under a descending one.
+//
+// Value binds the cursor's value for Terms[i] as the next placeholder and
+// returns its text, the value cast to the term's type as the query
+// library's value pattern spells it. Every call binds one more value, in
+// call order, so a rendering calls it once per occurrence of the value
+// in its text, in the order the occurrences appear, and a value that
+// occurs twice is bound twice; the composer's placeholder numbering and
+// bound values then agree whatever the rendering. Compare renders
+// Terms[i]'s column compared to its value with the query library's
+// pattern for op, one of query.OpEq, query.OpGt, and query.OpLt, and
+// binds the value itself. Column returns Terms[i]'s column reference as
+// the listing statements spell it, for a rendering with no pattern.
+type Keyset struct {
+	Terms   []KeysetTerm
+	Value   func(i int) string
+	Compare func(op query.Op, i int) string
+	Column  func(i int) string
+}
+
+// keyset builds the Keyset for terms with the cursor's values, over the
+// composer's value binder.
+func (l listing[T]) keyset(terms []term, values []string, value func(query.Field, any) string) Keyset {
+	k := Keyset{Terms: make([]KeysetTerm, len(terms))}
+	for i, t := range terms {
+		k.Terms[i] = KeysetTerm{Field: t.Field, Type: l.fields[t.Field].Type, Descending: t.Descending}
 	}
-	compare := func(name string, i int) string {
-		return l.clauses.fill(name, map[string]string{"field": terms[i].Field, "value": value(l.fields[terms[i].Field], values[i])})
+	k.Value = func(i int) string { return value(l.fields[terms[i].Field], values[i]) }
+	k.Compare = func(op query.Op, i int) string {
+		return l.clauses.fill("filter_"+string(op), map[string]string{"field": terms[i].Field, "value": k.Value(i)})
 	}
-	if len(terms) == 1 {
-		return compare(after, 0)
-	}
-	disjuncts := make([]string, len(terms))
-	for i := range terms {
-		conjuncts := make([]string, 0, i+1)
-		for j := range i {
-			conjuncts = append(conjuncts, compare("filter_eq", j))
-		}
-		conjuncts = append(conjuncts, compare(after, i))
-		disjuncts[i] = strings.Join(conjuncts, " AND ")
-		if i > 0 {
-			disjuncts[i] = "(" + disjuncts[i] + ")"
-		}
-	}
-	return "(" + strings.Join(disjuncts, " OR ") + ")"
+	k.Column = func(i int) string { return listingAlias + "." + terms[i].Field }
+	return k
 }
 
 // rendering is one canonical rendering Verify prepares: a statement, the

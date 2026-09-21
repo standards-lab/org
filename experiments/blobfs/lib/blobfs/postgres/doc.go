@@ -10,12 +10,36 @@
 //
 // # The variant
 //
-// Variant implements data.Variant over native-tier statements. Its tree
-// lock is a transaction-scoped advisory lock (pg_advisory_xact_lock) over
-// one fixed key, so two transactions that move directories run one after
-// the other and their cycle checks cannot both pass. Its file-delete begin
-// is one UPDATE ... RETURNING, so the step is one round trip instead of
-// the baseline's update and read-back.
+// Variant implements data.Variant over native-tier statements, with the
+// standard baseline embedded for anything it does not override. Each
+// variation point it overrides was measured against the baseline
+// (evidence/native-variation) and shipped because it won:
+//
+//   - The tree lock (lock_tree) is a transaction-scoped advisory lock
+//     (pg_advisory_xact_lock) over one fixed key, so two transactions
+//     that move directories run one after the other and their cycle
+//     checks cannot both pass.
+//   - The file-delete begin (begin_file_delete) is one UPDATE ...
+//     RETURNING, one round trip instead of the baseline's update and
+//     read-back.
+//   - The write's begin step (begin_file_write) and Mkdir
+//     (create_directory) are INSERT ... RETURNING, one round trip
+//     instead of the insert and the read by id.
+//   - The write's complete step (complete_file_write) is UPDATE ...
+//     RETURNING: one round trip on success, and two on a refusal, where
+//     the baseline's guard runs two and three. A refusal is classified
+//     through data.CompleteRefusal from one read of the row, so the
+//     errors are the baseline's.
+//   - Path resolution (resolve_path) walks every segment in one recursive
+//     statement that indexes a text[] parameter by depth, one round trip
+//     for any depth instead of one per segment. The segments bind as one
+//     parameter, which the driver encodes from the Go slice, so no name
+//     is spliced into the text.
+//   - The cursor predicate of a listing page is a row-value comparison,
+//     (a, b) > (x, y), instead of the expanded OR chain. Postgres uses it
+//     as an index condition on an index over the sort's leading columns,
+//     such as the created_at index a consumer adds; without one the two
+//     forms cost the same.
 //
 // Every statement file declares its tier as native and carries a port
 // note: the engine feature it uses and what a port to another engine must
@@ -24,9 +48,10 @@
 //	v, err := postgres.New(catalog, dialect)
 //	store, err := data.New(catalog, dialect, data.WithVariant(v))
 //
-// and the store then forwards LockTree, Serializes, and BeginFileDelete
-// to it. The datatest package's suite proves the variant against the same
-// contract the baseline satisfies.
+// and the store then forwards every variation point to it. The datatest
+// package's suite proves the variant against the same contract the
+// baseline satisfies, comparing each outcome with the baseline's on the
+// same database.
 //
 // # The migration set
 //
