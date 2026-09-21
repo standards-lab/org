@@ -1,9 +1,15 @@
 # blobfs experiment notes
 
-The running record of `blobfs.experiment`. Each stage appends its findings and decisions here, and
-the final stage turns this file and the evidence into `REVIEW.md`. The design under test is
+The running record of `blobfs.experiment`: the chronological log each stage appended its findings
+and decisions to. `REVIEW.md` is the organized record, written at stage 16 from this file, the
+code, and the evidence, and it is where a reader starts. The design under test is
 `context/concepts/blobfs.md`. The stage list and the run protocol are in the reset file
 (`context/reset.md`).
+
+Entries for stages 7 to 13 name the built-binary tests `TestFileCommands`, `TestWriteCommands`,
+`TestBookmarkCommands`, `TestDeleteCommands`, and `TestMoveCommands`. Stage 15 folded them into the
+steps of `TestScript` in `integration/integration_test.go` (`directories`, `writes`, `bookmarks`,
+`deletes`, `moves`), which runs once per variant. The log keeps the original names.
 
 ## What the experiment answers
 
@@ -16,65 +22,12 @@ The experiment produces three findings, and the review is organized by them:
 
 ## Position at the time of writing (2026-09-21)
 
-Stages 1 to 15 are committed. Stages 1 to 13 hold: the single-root schema, the consumer's
-`directory_owner` and `bookmark` tables, the persistence package with the listing composer and its keyset cursor,
-`domain/files`, the listing evidence, and the variant seam: the `data.Variant` interface with its
-two variation points, the standard baseline, the Postgres variant in `lib/blobfs/data/pgnative`,
-and the conformance suite in `lib/blobfs/data/datatest`. Stage 10 added the
-two-phase write in the persistence package (`FileByName`, `BeginFileWrite`, `CompleteFileWrite`
-over four new standard-tier statements), the one-method key-validation interface, the storage
-adapter in `domain/files/storage.go` over `go-storage` and `azureblob`, the object store opened
-by the composition root on the first file command, and the `put`, `cat`, and `stat` commands with
-`put --fail-after insert|write`. Stage 11 added the bookmark commands
-(`bookmark add|ls|rm`, each under `--unit`), the consumer's bookmark read model (`bookmarks`, a
-projection over `bookmark` joined to `blobfs_file` with each row's path computed by a recursion
-correlated on the file's directory), the classification of the bookmark table's three
-constraints into consumer sentinels, and the second evidence transcript. The binary serves
-`schema up|down`, `mkdir <path> [--unit]`, `ls <path>` with `--page`, `--size`, `--sort`,
-`--total none`, `--after-dirs`, `--after-files`, and `--unit`, the three file commands, and the
-three bookmark commands; it builds its store over the baseline. `mise run evidence` writes
-`evidence/read-model.txt`, the cost of the shipped listing, and `evidence/bookmarks.txt`, the
-cost of the bookmark read model.
-
-Stage 12 added the complete step of the file delete (`CompleteFileDelete`
-over `remove_file`, the same standard statement on every variant), the directory removal
-(`RemoveDirectory` over `remove_directory`), the delete mapping with `blobfs.ErrReferenced` for
-a foreign key the library does not own, the delete protocol in the conformance suite, the
-adapter's object delete, and the `rm`, `rmdir`, and `rm -r` commands with `rm --fail-after
-begin|object`. `files.New` takes `WithVariant`, and the consumer's delete tests run over both
-variants.
-
-Stage 13 added the cycle check (`IsWithin` over
-`directory_is_within`), the directory move (`MoveDirectory`: the variant's tree lock, the
-check, and the guarded update `reparent_directory` with its check `directory_version`, in the
-caller's transaction), the file move (`MoveFile` over the guarded `move_file`, no lock and no
-check), the `MoveDirectory` group of the conformance suite with the two opposing concurrent
-moves interleaved through a test-only gated variant and the suite holding the commits, and the
-consumer's `mv <src> <dst>` with its Unix destination rule and the scope rule that keeps a move
-under one top-level directory (`files.ErrMoveAcrossScopes`). Proof 4 is answered: on the
-baseline the two opposing moves form a cycle, so the lock is a caller requirement there.
-
-Stage 14 finished the multi-set migrator in `lib/migrator`: one outer lock
-on the migrator's own pinned connection through `sqlate.Locker`, every inner `migrate.Migrator`
-built `Unlocked`, a check of every set's history before any set runs (a dirty set or a
-mismatched history refuses `Up`, `Down`, and `Reset` with a `SetError`), `Status` per set,
-`Reset` (revert in reverse order, then drop each set's history table), and `Force` per set as
-the operator's repair. It added the rehearsal migration `0003_file_created_index` to blobfs's
-set (the index `blobfs_ix_file_directory_created` on `blobfs_file (directory_id, created_at)`),
-re-pinned the golden hashes with the first two unchanged, measured what the index buys
-(`evidence/sort-index.txt`), and extended the binary to `schema status|up|down|reset --yes`.
-The gate is proved by `lib/migrator/migrator_integration_test.go`: fresh replay, upgrade after
-restart, reset order across the bookmark and owner foreign keys with the wrong order failing,
-and two concurrent starters serialized on the outer lock.
-
-Stage 15 added the binary's choice of variant: it chooses its variant from `--variant
-standard|pgnative` or `BLOBFS_VARIANT` in the composition root (`internal/app/domain.go`, the one
-application file that names `pgnative`, held there by `split-check` rule 10), and
-`files.WithVariant` takes a type parameter so `pgnative.New` passes as it is. The integration
-tier is one ordered script (`integration.TestScript`) over every command family, run once per
-variant in its own database and container, with the tree-lock step showing the variant from the
-outside, and `TestIsolation`, which runs two configurations side by side. Every run logs its
-command line and output; `mise run demo` prints the script's transcript.
+Stages 1 to 15 are committed on the branch `blobfs-experiment`, each as its own commit; the
+stage 5b commit is a work-in-progress commit that stage 6 unwound when `volume` left the design.
+Stage 16, the record, adds `REVIEW.md` and brings `README.md` and this file to their final state,
+and it changes no Go, SQL, or TOML. The experiment awaits the architect's review, which starts
+when the architect says so. Nothing is closed, pushed, or published, and the concept and design
+notes are unchanged until the review applies the amendments `REVIEW.md` lists.
 
 ## Running it
 
@@ -1723,5 +1676,5 @@ was never vacuumed; section 0 of the V3 measurement settles that caveat.
 ## Not proven yet
 
 Authorization, which needs `go-auth` and is proven under `v1.auth`. The migration path through
-`go-web-service`'s admin surface, which `v1.storage.service` proves. The remaining stages answer
-proofs 2 to 7 and the variant seam; the bookmark read model's cost is in the evidence.
+`go-web-service`'s admin surface, which `v1.storage.service` proves. Every proof has its answer
+in `REVIEW.md`, whose "What the experiment did not prove" section lists the rest.

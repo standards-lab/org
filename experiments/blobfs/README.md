@@ -9,13 +9,22 @@ moves into `design/` or into a member repository without a deliberate promotion.
 The experiment depends on published `sqlate` v0.1.1, `go-storage` v0.1.0, and `azureblob` v0.1.0.
 It contains no `replace` directive and edits no member repository.
 
+## Status and where to read next
+
+The experiment's sixteen stages are complete, and it awaits the architect's review. `REVIEW.md`
+is the organized record: the three findings (how the library should be written, the adjustments
+`sqlate` needs, and how `v1.storage` incorporates `blobfs`), the answer to every proof with its
+evidence, the amendments the concept needs, and the decisions the review has to make. `NOTES.md`
+is the chronological log the stages appended to: the decisions each stage made, the findings
+ledger, and the evidence summaries. Read `REVIEW.md` first and `NOTES.md` for the history behind
+a finding.
+
 ## Layout
 
 The packages under `lib/` are the promotion candidates. The rest is the consumer that exercises
 them, laid out as an elemental application: `cmd/blobfs` is process entry, `internal/app` is the
 composition root, and every other application package sits at the module root and never imports
-`internal/*`. Directories marked planned do not exist yet; each stage of the experiment creates its
-own.
+`internal/*`.
 
 An install is one directory tree in one database. The schema seeds one root directory, with the
 well-known id `blobfs.RootID` and no name, and every path starts at `/`. A consumer that wants
@@ -36,7 +45,7 @@ several isolated trees runs several configurations, each with its own database a
 | `lib/blobfs/data/` | The persistence package: statements, the published pattern namespace, the listing composer, the methods that take a `sqlate.Session` (the directory operations, the file reads, the two steps of the file write, the two steps of the file delete, the directory removal, the cycle check, and the directory and file moves), and the `Variant` interface with its standard-tier baseline, `Standard`. Every statement in it is standard tier. |
 | `lib/blobfs/data/pgnative/` | The Postgres variant of the persistence package's two variation points, over two native-tier statements, each with its port note. It imports the persistence package and `sqlate` only. |
 | `lib/blobfs/data/datatest/` | The conformance suite a variant must pass, run through a store built over the variant against a live database. The persistence package's tests run it over the baseline and `pgnative`'s over the Postgres variant. |
-| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table: the directory table, the file table, and the index on `blobfs_file (directory_id, created_at)` that stage 14 added as the upgrade rehearsal. |
+| `lib/blobfs/migrations/` | The embedded DDL, exported as a migration source under its own history table: the directory table with its seeded root, the file table, and the index on `blobfs_file (directory_id, created_at)`, the third migration, which is the upgrade rehearsal. |
 | `lib/migrator/` | The multi-set migrator: it runs several migration sets, each with its own history table, in declared order under one lock on its own pinned connection, and offers `Up`, `Down`, `Reset`, `Status`, and `Force`. It imports only `sqlate` and the standard library. |
 | `compose/` | The Postgres and Azurite services the experiment runs against. |
 
@@ -153,9 +162,13 @@ The experiment carries its own toolchain in `mise.toml`: Go 1.27 and `golangci-l
   transcript to read before running the binary by hand.
 - `mise run lint` runs `golangci-lint` and `sqlint`. `mise run split-check` fails when a package
   imports what its layer may not.
-- `mise run cli -- schema up` runs the command-line file system; `mise run cli -- --help` lists
+- `mise run cli -- <command>` runs the command-line file system; `mise run cli -- --help` lists
   its commands. The database comes from `--dsn`, or from `BLOBFS_DSN` when the flag is not given,
   and the variant from `--variant`, or from `BLOBFS_VARIANT`, or `standard` when neither is set.
+  The `BLOBFS_DSN` in `mise.toml` names the compose stack's default `app` database, and mise's
+  value overrides a variable set on the command line, so a command such as `schema up` changes
+  `app`. To try the commands elsewhere, create a throwaway database and pass its DSN with
+  `--dsn`.
 - `mise run evidence` runs the three cost measurements against the compose stack, each in a
   throwaway database, and writes their transcripts: `TestListingCost` in `lib/blobfs/data` to
   `evidence/read-model.txt`, `TestBookmarkCost` in `domain/files` to `evidence/bookmarks.txt`,
@@ -168,7 +181,7 @@ and key are the emulator's published development credentials. The object store i
 `BLOBFS_STORAGE_KEY` (the storage library's own configuration under the `blobfs` prefix), and it
 is opened by the first file command that needs it: `mkdir` and `ls` never read those variables.
 
-## The commands so far
+## The commands
 
 Paths are absolute: `/` is the root and `/reports/2026` a directory two levels below it. A unit
 id is a UUID and stands in for the auth strategy's unit.
