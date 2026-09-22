@@ -138,7 +138,7 @@ Files:
 bfs ls /reports --size 3 --page 2
 bfs ls /reports --sort name:desc --size 3
 bfs ls /reports --size 3 --total none
-bfs ls /reports --filter name:like:a% --filter name:ne:alpha
+bfs ls /reports --filter name:like:%a% --filter name:ne:alpha
 bfs ls /reports --filter nosuchfield:eq:1       # refused by the library before any query
 ```
 
