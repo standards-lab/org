@@ -31,25 +31,6 @@ order = [
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
-# The agents every project in the workspace may delegate a unit of work to
-# (behavior/delegation.md), resolved key by key against a project's own [agents] table. fable
-# and opus are the architect's personal agents (~/.claude/agents/), engaged per the standing
-# model-routing convention; a session names one and why before engaging it.
-[workspace.agents.fable]
-delegation = '''
-Planning and review delegate for the reasoning-heavy half of a unit of work: a settled design
-question, a hard bug's diagnosis, or a review of what opus built against the plan it was given.
-Handed over with full context. Not for stage implementation — opus is for that — and not for
-documentation, commit messages, or context notes; the session drafts and finishes those itself.
-'''
-
-[workspace.agents.opus]
-delegation = '''
-Execution delegate for implementing one stage of an already-settled plan, against the stage's
-own check (build, test, lint). Not for planning or code review — fable is for that. A finding
-that reaches beyond the stage goes back to fable through a re-plan, not folded in here.
-'''
-
 # Remote platform and the command that publishes a finished branch.
 # All three repositories rooted in this directory (org here, .github under public/,
 # .github-private under private/) are on GitHub and publish the same way; git routes
