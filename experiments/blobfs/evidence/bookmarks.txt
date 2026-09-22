@@ -1,6 +1,6 @@
 === RUN   TestBookmarkCost
 # blobfs stage 11: the cost of the bookmark read model
-# date: 2026-09-21
+# date: 2026-09-22
 # engine: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
 # machine: linux/amd64, 22 cpus; go go1.27.1. Timings are machine-dependent (a laptop, everything in shared buffers); plan shapes and buffer counts are not.
 # fixture: 3 trees under the root up to depth 6, about one directory per ten files, 100000 file rows spread uniformly over every directory; 50 background units with 1000 bookmarks each of random files, plus the measured units: 10, 100, and 1,000 bookmarks of random files, and 1,000 bookmarks of files at the shallowest depth that holds a thousand and at depth six.
@@ -10,54 +10,54 @@
 #
 # summary (median run; times in ms; buffers as hit+read pages; n is the unit's bookmark count):
 # sec query                                  unit         n   plan ms   exec ms  buffers  plan shape
-# a   shipped count                          u10         10     0.133     0.055       35  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
-# a   shipped page, by path                  u10         10     0.220     0.270      245  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
-# a   shipped count                          u100       100     0.222     0.259      306  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
-# a   shipped page, by path                  u100       100     0.168     1.012     2371  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
-# a   shipped count                          u1000     1000     0.100     0.930     3012  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
-# a   shipped page, by path                  u1000     1000     0.262   139.246    21940  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
-# b   shipped page, by file_id               u10         10     0.152     0.149      245  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Limit
-# b   shipped page, by file_id               u1000     1000     0.154     0.234      493  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Limit
-# c   top-level recursion, count             u10         10     0.308   164.706     3023  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate, JIT
-# c   top-level recursion, page              u10         10     0.313   166.629     3032  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Scan using pk_bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit, JIT
-# c   top-level recursion, count             u1000     1000     0.320   167.220     6000  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate, JIT
-# c   top-level recursion, page              u1000     1000     0.336   169.638     7009  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit, JIT
-# d   anchored, count                        u10         10     0.234     4.553      877  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
-# d   anchored, page                         u10         10     0.224     4.120      886  Recursive Union, WorkTable Scan, CTE Scan, Index Scan using pk_bookmark, Index Only Scan using pk_bookmark, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# d   anchored, count                        u1000     1000     0.239    13.758     5463  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
-# d   anchored, page                         u1000     1000     0.279    14.316     6472  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# d   anchored, page wrapped                 u1000     1000     0.280    14.529     6472  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# e   shipped page, by path                  shallow   1000     0.261   133.564    14349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
-# e   anchored, page                         shallow   1000     0.278    13.343     6475  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# e   shipped page, by path                  deep      1000     0.252   138.263    23349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
-# e   anchored, page                         deep      1000     0.274    14.112     6476  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# f   shipped page, by path, jit off         u100       100     0.243     1.591     2371  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
-# f   shipped page, by path, jit off         u1000     1000     0.196    16.899    21940  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
-# f   shipped page, by path, jit off         shallow   1000     0.239    13.931    14349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
-# f   shipped page, by path, jit off         deep      1000     0.200    17.382    23349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
-# f   top-level recursion, count, jit off    u10         10     0.314   156.149     3023  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
-# f   top-level recursion, page, jit off     u10         10     0.329   158.451     3032  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Scan using pk_bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
-# f   top-level recursion, count, jit off    u1000     1000     0.315   160.254     6000  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
-# f   top-level recursion, page, jit off     u1000     1000     0.332   160.161     7009  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# a   shipped count                          u10         10     0.101     0.043       35  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
+# a   shipped page, by path                  u10         10     0.176     0.179      245  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
+# a   shipped count                          u100       100     0.100     0.113      306  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
+# a   shipped page, by path                  u100       100     0.173     0.997     2371  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
+# a   shipped count                          u1000     1000     0.192     0.802     3012  Index Only Scan using pk_bookmark, Index Only Scan using blobfs_pk_file, Nested Loop, Aggregate
+# a   shipped page, by path                  u1000     1000     0.257   132.091    21940  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
+# b   shipped page, by file_id               u10         10     0.161     0.150      245  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Limit
+# b   shipped page, by file_id               u1000     1000     0.161     0.242      493  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Limit
+# c   top-level recursion, count             u10         10     0.325   161.340     3023  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate, JIT
+# c   top-level recursion, page              u10         10     0.321   163.484     3032  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Scan using pk_bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit, JIT
+# c   top-level recursion, count             u1000     1000     0.305   164.638     6000  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate, JIT
+# c   top-level recursion, page              u1000     1000     0.326   167.250     7009  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit, JIT
+# d   anchored, count                        u10         10     0.228     4.406      877  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
+# d   anchored, page                         u10         10     0.231     4.431      886  Recursive Union, WorkTable Scan, CTE Scan, Index Scan using pk_bookmark, Index Only Scan using pk_bookmark, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Merge Join, Sort, Limit
+# d   anchored, count                        u1000     1000     0.264    13.856     5463  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
+# d   anchored, page                         u1000     1000     0.282    14.328     6472  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# d   anchored, page wrapped                 u1000     1000     0.295    14.327     6472  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# e   shipped page, by path                  shallow   1000     0.236   128.623    14349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
+# e   anchored, page                         shallow   1000     0.271    12.953     6475  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# e   shipped page, by path                  deep      1000     0.241   133.227    23349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit, JIT
+# e   anchored, page                         deep      1000     0.269    13.868     6476  Recursive Union, WorkTable Scan, CTE Scan, Index Only Scan using pk_bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# f   shipped page, by path, jit off         u100       100     0.172     1.014     2371  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Index Scan using pk_bookmark, Index Scan using blobfs_pk_file, Index Scan using blobfs_pk_directory, Nested Loop, Sort, Limit
+# f   shipped page, by path, jit off         u1000     1000     0.354    16.748    21940  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
+# f   shipped page, by path, jit off         shallow   1000     0.206    13.499    14349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
+# f   shipped page, by path, jit off         deep      1000     0.203    16.948    23349  Recursive Union, WorkTable Scan, CTE Scan, SubPlan, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_directory, Hash Join, Nested Loop, Sort, Limit
+# f   top-level recursion, count, jit off    u10         10     0.353   154.690     3023  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
+# f   top-level recursion, page, jit off     u10         10     0.321   156.115     3032  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Scan using pk_bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
+# f   top-level recursion, count, jit off    u1000     1000     0.312   156.703     6000  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Index Only Scan using pk_bookmark, Seq Scan on blobfs_file, Index Only Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Aggregate
+# f   top-level recursion, page, jit off     u1000     1000     0.327   158.632     7009  Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on bookmark, Bitmap Heap Scan on bookmark, Seq Scan on blobfs_file, Index Scan using blobfs_pk_file, Seq Scan on blobfs_directory, Hash Join, Nested Loop, Sort, Limit
 
 ==================== fixture ====================
 directories: 10003 under the root in 3 trees; files: 100000; depth reached: 6; bookmarks: 53110 (50 background units with 1000 each, and the measured units below)
-unit u10      01a0c1e9-8069-7f18-be50-630b4153ac4b:    10 bookmarks, mean directory depth 5.70
-unit u100     01a0c1e9-806a-75d1-a8b2-6cbb20d8d196:   100 bookmarks, mean directory depth 5.40
-unit u1000    01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c:  1000 bookmarks, mean directory depth 5.53
-unit shallow  01a0c1e9-806b-7ef7-8dab-b8e906c43169:  1000 bookmarks, mean directory depth 3.00
-unit deep     01a0c1e9-806b-7f2c-9213-91eed339359a:  1000 bookmarks, mean directory depth 6.00
+unit u10      01a0c841-42ed-7c2b-becc-30732c91e031:    10 bookmarks, mean directory depth 5.70
+unit u100     01a0c841-42ee-7c46-b6fc-76a3486105f5:   100 bookmarks, mean directory depth 5.40
+unit u1000    01a0c841-42ef-76db-ae38-f82b4468500a:  1000 bookmarks, mean directory depth 5.53
+unit shallow  01a0c841-42f0-793c-94f5-2b84bbec3064:  1000 bookmarks, mean directory depth 3.00
+unit deep     01a0c841-42f0-7974-a7d1-08b82e27eaa8:  1000 bookmarks, mean directory depth 6.00
 VACUUM ANALYZE ran on the three tables after seeding; every section is measured after it.
 
 ==================== a. the shipped projection against the bookmark count ====================
 bookmarks as the store composes it under TotalExact, page 1 of 20 in path order: the count twin, then the page. The base computes each row's path by a recursion correlated on the file's directory; the unit is a filter directive outside the derived table.
-count as run: SELECT COUNT(*) FROM (SELECT b.unit_id, b.file_id, b.active,
+count as run: SELECT COUNT(*) FROM (SELECT b.unit_id, b.file_id, f.directory_id, b.active,
   (WITH RECURSIVE up (directory_id, path) AS (
-      SELECT d.parent_id, COALESCE('/' || d.name, '')
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END
       FROM blobfs_directory d
       WHERE d.id = f.directory_id
     UNION ALL
-      SELECT d.parent_id, COALESCE('/' || d.name, '') || up.path
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
       FROM up
       JOIN blobfs_directory d ON d.id = up.directory_id
   )
@@ -65,13 +65,13 @@ count as run: SELECT COUNT(*) FROM (SELECT b.unit_id, b.file_id, b.active,
   f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id) q WHERE q.unit_id = CAST($1 AS uuid)
-page as run:  SELECT * FROM (SELECT b.unit_id, b.file_id, b.active,
+page as run:  SELECT * FROM (SELECT b.unit_id, b.file_id, f.directory_id, b.active,
   (WITH RECURSIVE up (directory_id, path) AS (
-      SELECT d.parent_id, COALESCE('/' || d.name, '')
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END
       FROM blobfs_directory d
       WHERE d.id = f.directory_id
     UNION ALL
-      SELECT d.parent_id, COALESCE('/' || d.name, '') || up.path
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
       FROM up
       JOIN blobfs_directory d ON d.id = up.directory_id
   )
@@ -80,54 +80,54 @@ page as run:  SELECT * FROM (SELECT b.unit_id, b.file_id, b.active,
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id) q WHERE q.unit_id = CAST($1 AS uuid) ORDER BY q.path, q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
 
----- a: shipped count, unit u10 (10 bookmarks): median of 5 runs: planning 0.133 ms, execution 0.055 ms, buffers 35 ----
-Aggregate  (cost=26.69..26.70 rows=1 width=8) (actual time=0.035..0.035 rows=1.00 loops=1)
+---- a: shipped count, unit u10 (10 bookmarks): median of 5 runs: planning 0.101 ms, execution 0.043 ms, buffers 35 ----
+Aggregate  (cost=57.88..57.89 rows=1 width=8) (actual time=0.027..0.028 rows=1.00 loops=1)
   Buffers: shared hit=35
-  ->  Nested Loop  (cost=0.83..26.68 rows=5 width=0) (actual time=0.022..0.033 rows=10.00 loops=1)
+  ->  Nested Loop  (cost=0.83..57.85 rows=12 width=0) (actual time=0.017..0.026 rows=10.00 loops=1)
         Buffers: shared hit=35
-        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.50 rows=5 width=16) (actual time=0.013..0.013 rows=10.00 loops=1)
-              Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.62 rows=12 width=16) (actual time=0.008..0.009 rows=10.00 loops=1)
+              Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
               Heap Fetches: 0
               Index Searches: 1
               Buffers: shared hit=4
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..4.44 rows=1 width=16) (actual time=0.002..0.002 rows=1.00 loops=10)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..4.44 rows=1 width=16) (actual time=0.001..0.002 rows=1.00 loops=10)
               Index Cond: (id = b.file_id)
               Heap Fetches: 0
               Index Searches: 10
               Buffers: shared hit=31
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.133 ms
-Execution Time: 0.055 ms
+Planning Time: 0.101 ms
+Execution Time: 0.043 ms
 
----- a: shipped page, by path, unit u10 (10 bookmarks): median of 5 runs: planning 0.220 ms, execution 0.270 ms, buffers 245 ----
-Limit  (cost=4078.26..4078.27 rows=5 width=120) (actual time=0.206..0.208 rows=10.00 loops=1)
+---- a: shipped page, by path, unit u10 (10 bookmarks): median of 5 runs: planning 0.176 ms, execution 0.179 ms, buffers 245 ----
+Limit  (cost=9778.57..9778.60 rows=12 width=136) (actual time=0.127..0.129 rows=10.00 loops=1)
   Buffers: shared hit=245
-  ->  Sort  (cost=4078.26..4078.27 rows=5 width=120) (actual time=0.206..0.207 rows=10.00 loops=1)
+  ->  Sort  (cost=9778.57..9778.60 rows=12 width=136) (actual time=0.127..0.128 rows=10.00 loops=1)
         Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
         Sort Method: quicksort  Memory: 27kB
         Buffers: shared hit=245
-        ->  Nested Loop  (cost=0.83..4078.20 rows=5 width=120) (actual time=0.046..0.194 rows=10.00 loops=1)
+        ->  Nested Loop  (cost=0.83..9778.36 rows=12 width=136) (actual time=0.031..0.119 rows=10.00 loops=1)
               Buffers: shared hit=245
-              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..15.50 rows=5 width=49) (actual time=0.011..0.013 rows=10.00 loops=1)
-                    Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..27.88 rows=12 width=49) (actual time=0.006..0.007 rows=10.00 loops=1)
+                    Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                     Index Searches: 1
                     Buffers: shared hit=4
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=71) (actual time=0.002..0.002 rows=1.00 loops=10)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=10)
                     Index Cond: (id = b.file_id)
                     Index Searches: 10
                     Buffers: shared hit=40
               SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.014..0.015 rows=1.00 loops=10)
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.009..0.009 rows=1.00 loops=10)
                       Filter: (directory_id IS NULL)
                       Rows Removed by Filter: 6
                       Storage: Memory  Maximum Storage: 17kB
                       Buffers: shared hit=201
                       CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.002..0.013 rows=6.70 loops=10)
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.008 rows=6.70 loops=10)
                               Storage: Memory  Maximum Storage: 33kB
                               Buffers: shared hit=201
-                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.002..0.002 rows=1.00 loops=10)
+                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=10)
                                     Index Cond: (id = f.directory_id)
                                     Index Searches: 10
                                     Buffers: shared hit=30
@@ -140,54 +140,54 @@ Limit  (cost=4078.26..4078.27 rows=5 width=120) (actual time=0.206..0.208 rows=1
                                           Buffers: shared hit=171
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.220 ms
-Execution Time: 0.270 ms
+Planning Time: 0.176 ms
+Execution Time: 0.179 ms
 
----- a: shipped count, unit u100 (100 bookmarks): median of 5 runs: planning 0.222 ms, execution 0.259 ms, buffers 306 ----
-Aggregate  (cost=383.19..383.20 rows=1 width=8) (actual time=0.225..0.226 rows=1.00 loops=1)
+---- a: shipped count, unit u100 (100 bookmarks): median of 5 runs: planning 0.100 ms, execution 0.113 ms, buffers 306 ----
+Aggregate  (cost=447.38..447.39 rows=1 width=8) (actual time=0.099..0.099 rows=1.00 loops=1)
   Buffers: shared hit=306
-  ->  Nested Loop  (cost=0.83..382.95 rows=94 width=0) (actual time=0.034..0.217 rows=100.00 loops=1)
+  ->  Nested Loop  (cost=0.83..447.10 rows=112 width=0) (actual time=0.014..0.095 rows=100.00 loops=1)
         Buffers: shared hit=306
-        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..6.06 rows=94 width=16) (actual time=0.020..0.032 rows=100.00 loops=1)
-              Index Cond: (unit_id = '01a0c1e9-806a-75d1-a8b2-6cbb20d8d196'::uuid)
+        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..6.38 rows=112 width=16) (actual time=0.008..0.014 rows=100.00 loops=1)
+              Index Cond: (unit_id = '01a0c841-42ee-7c46-b6fc-76a3486105f5'::uuid)
               Heap Fetches: 0
               Index Searches: 1
               Buffers: shared hit=5
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..4.01 rows=1 width=16) (actual time=0.002..0.002 rows=1.00 loops=100)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..3.93 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=100)
               Index Cond: (id = b.file_id)
               Heap Fetches: 0
               Index Searches: 100
               Buffers: shared hit=301
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.222 ms
-Execution Time: 0.259 ms
+Planning Time: 0.100 ms
+Execution Time: 0.113 ms
 
----- a: shipped page, by path, unit u100 (100 bookmarks): median of 5 runs: planning 0.168 ms, execution 1.012 ms, buffers 2371 ----
-Limit  (cost=76497.84..76497.89 rows=20 width=120) (actual time=0.962..0.964 rows=20.00 loops=1)
+---- a: shipped page, by path, unit u100 (100 bookmarks): median of 5 runs: planning 0.173 ms, execution 0.997 ms, buffers 2371 ----
+Limit  (cost=91131.17..91131.22 rows=20 width=136) (actual time=0.946..0.948 rows=20.00 loops=1)
   Buffers: shared hit=2371
-  ->  Sort  (cost=76497.84..76498.08 rows=94 width=120) (actual time=0.962..0.963 rows=20.00 loops=1)
+  ->  Sort  (cost=91131.17..91131.45 rows=112 width=136) (actual time=0.946..0.947 rows=20.00 loops=1)
         Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
         Sort Method: top-N heapsort  Memory: 33kB
         Buffers: shared hit=2371
-        ->  Nested Loop  (cost=0.83..76495.34 rows=94 width=120) (actual time=0.030..0.913 rows=100.00 loops=1)
+        ->  Nested Loop  (cost=0.83..91128.19 rows=112 width=136) (actual time=0.030..0.895 rows=100.00 loops=1)
               Buffers: shared hit=2371
-              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..160.56 rows=94 width=49) (actual time=0.006..0.018 rows=100.00 loops=1)
-                    Index Cond: (unit_id = '01a0c1e9-806a-75d1-a8b2-6cbb20d8d196'::uuid)
+              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..187.69 rows=112 width=49) (actual time=0.006..0.018 rows=100.00 loops=1)
+                    Index Cond: (unit_id = '01a0c841-42ee-7c46-b6fc-76a3486105f5'::uuid)
                     Index Searches: 1
                     Buffers: shared hit=51
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..7.97 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=100)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..7.86 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=100)
                     Index Cond: (id = b.file_id)
                     Index Searches: 100
                     Buffers: shared hit=400
               SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.008 rows=1.00 loops=100)
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.007 rows=1.00 loops=100)
                       Filter: (directory_id IS NULL)
                       Rows Removed by Filter: 5
                       Storage: Memory  Maximum Storage: 17kB
                       Buffers: shared hit=1920
                       CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.007 rows=6.40 loops=100)
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.006 rows=6.40 loops=100)
                               Storage: Memory  Maximum Storage: 33kB
                               Buffers: shared hit=1920
                               ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=100)
@@ -203,50 +203,50 @@ Limit  (cost=76497.84..76497.89 rows=20 width=120) (actual time=0.962..0.964 row
                                           Buffers: shared hit=1620
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.168 ms
-Execution Time: 1.012 ms
+Planning Time: 0.173 ms
+Execution Time: 0.997 ms
 
----- a: shipped count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.100 ms, execution 0.930 ms, buffers 3012 ----
-Aggregate  (cost=2024.86..2024.87 rows=1 width=8) (actual time=0.912..0.912 rows=1.00 loops=1)
+---- a: shipped count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.192 ms, execution 0.802 ms, buffers 3012 ----
+Aggregate  (cost=2049.33..2049.34 rows=1 width=8) (actual time=0.770..0.771 rows=1.00 loops=1)
   Buffers: shared hit=3012
-  ->  Nested Loop  (cost=0.83..2022.44 rows=968 width=0) (actual time=0.017..0.884 rows=1000.00 loops=1)
+  ->  Nested Loop  (cost=0.83..2046.80 rows=1013 width=0) (actual time=0.022..0.742 rows=1000.00 loops=1)
         Buffers: shared hit=3012
-        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.35 rows=968 width=16) (actual time=0.012..0.067 rows=1000.00 loops=1)
-              Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+        ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..54.14 rows=1013 width=16) (actual time=0.014..0.065 rows=1000.00 loops=1)
+              Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
               Heap Fetches: 0
               Index Searches: 1
               Buffers: shared hit=11
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..2.04 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=1000)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..1.97 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=1000)
               Index Cond: (id = b.file_id)
               Heap Fetches: 0
               Index Searches: 1000
               Buffers: shared hit=3001
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.100 ms
-Execution Time: 0.930 ms
+Planning Time: 0.192 ms
+Execution Time: 0.802 ms
 
----- a: shipped page, by path, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.262 ms, execution 139.246 ms, buffers 21940 ----
-Limit  (cost=782614.49..782614.54 rows=20 width=120) (actual time=138.297..138.301 rows=20.00 loops=1)
+---- a: shipped page, by path, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.257 ms, execution 132.091 ms, buffers 21940 ----
+Limit  (cost=818801.24..818801.29 rows=20 width=136) (actual time=131.203..131.207 rows=20.00 loops=1)
   Buffers: shared hit=21940
-  ->  Sort  (cost=782614.49..782616.91 rows=968 width=120) (actual time=16.748..16.751 rows=20.00 loops=1)
+  ->  Sort  (cost=818801.24..818803.77 rows=1013 width=136) (actual time=16.789..16.792 rows=20.00 loops=1)
         Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
         Sort Method: top-N heapsort  Memory: 33kB
         Buffers: shared hit=21940
-        ->  Hash Join  (cost=626.36..782588.73 rows=968 width=120) (actual time=0.298..16.400 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=627.18..818774.29 rows=1013 width=136) (actual time=0.232..16.446 rows=1000.00 loops=1)
               Hash Cond: (f.id = b.file_id)
               Buffers: shared hit=21940
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.023..2.962 rows=100000.00 loops=1)
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.014..2.984 rows=100000.00 loops=1)
                     Buffers: shared hit=2326
-              ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.186..0.187 rows=1000.00 loops=1)
+              ->  Hash  (cost=614.52..614.52 rows=1013 width=49) (actual time=0.153..0.154 rows=1000.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 94kB
                     Buffers: shared hit=21
-                    ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.065..0.119 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                    ->  Bitmap Heap Scan on bookmark b  (cost=44.27..614.52 rows=1013 width=49) (actual time=0.047..0.089 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                           Heap Blocks: exact=11
                           Buffers: shared hit=21
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.054..0.054 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.01 rows=1013 width=0) (actual time=0.039..0.039 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                 Index Searches: 1
                                 Buffers: shared hit=10
               SubPlan 2
@@ -272,22 +272,22 @@ Limit  (cost=782614.49..782614.54 rows=20 width=120) (actual time=138.297..138.3
                                           Buffers: shared hit=16593
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.262 ms
+Planning Time: 0.257 ms
 JIT:
   Functions: 28
   Options: Inlining true, Optimization true, Expressions true, Deforming true
-  Timing: Generation 0.804 ms (Deform 0.323 ms), Inlining 6.595 ms, Optimization 66.653 ms, Emission 48.302 ms, Total 122.353 ms
-Execution Time: 139.246 ms
+  Timing: Generation 0.731 ms (Deform 0.345 ms), Inlining 6.266 ms, Optimization 62.166 ms, Emission 45.982 ms, Total 115.146 ms
+Execution Time: 132.091 ms
 
 ==================== b. the shipped page sorted by the key ====================
 The same page with --sort file_id: the sort is the bookmark index's order, so the walk runs for the page's rows only.
-page as run: SELECT * FROM (SELECT b.unit_id, b.file_id, b.active,
+page as run: SELECT * FROM (SELECT b.unit_id, b.file_id, f.directory_id, b.active,
   (WITH RECURSIVE up (directory_id, path) AS (
-      SELECT d.parent_id, COALESCE('/' || d.name, '')
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END
       FROM blobfs_directory d
       WHERE d.id = f.directory_id
     UNION ALL
-      SELECT d.parent_id, COALESCE('/' || d.name, '') || up.path
+      SELECT d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
       FROM up
       JOIN blobfs_directory d ON d.id = up.directory_id
   )
@@ -296,13 +296,13 @@ page as run: SELECT * FROM (SELECT b.unit_id, b.file_id, b.active,
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id) q WHERE q.unit_id = CAST($1 AS uuid) ORDER BY q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
 
----- b: shipped page, by file_id, unit u10 (10 bookmarks): median of 5 runs: planning 0.152 ms, execution 0.149 ms, buffers 245 ----
-Limit  (cost=0.83..4078.20 rows=5 width=120) (actual time=0.029..0.112 rows=10.00 loops=1)
+---- b: shipped page, by file_id, unit u10 (10 bookmarks): median of 5 runs: planning 0.161 ms, execution 0.150 ms, buffers 245 ----
+Limit  (cost=0.83..9778.36 rows=12 width=136) (actual time=0.029..0.113 rows=10.00 loops=1)
   Buffers: shared hit=245
-  ->  Nested Loop  (cost=0.83..4078.20 rows=5 width=120) (actual time=0.029..0.111 rows=10.00 loops=1)
+  ->  Nested Loop  (cost=0.83..9778.36 rows=12 width=136) (actual time=0.029..0.112 rows=10.00 loops=1)
         Buffers: shared hit=245
-        ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..15.50 rows=5 width=49) (actual time=0.005..0.005 rows=10.00 loops=1)
-              Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+        ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..27.88 rows=12 width=49) (actual time=0.005..0.006 rows=10.00 loops=1)
+              Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
               Index Searches: 1
               Buffers: shared hit=4
         ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=10)
@@ -332,24 +332,24 @@ Limit  (cost=0.83..4078.20 rows=5 width=120) (actual time=0.029..0.112 rows=10.0
                                     Buffers: shared hit=171
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.152 ms
-Execution Time: 0.149 ms
+Planning Time: 0.161 ms
+Execution Time: 0.150 ms
 
----- b: shipped page, by file_id, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.154 ms, execution 0.234 ms, buffers 493 ----
-Limit  (cost=0.83..16209.76 rows=20 width=120) (actual time=0.033..0.198 rows=20.00 loops=1)
+---- b: shipped page, by file_id, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.161 ms, execution 0.242 ms, buffers 493 ----
+Limit  (cost=0.83..16207.40 rows=20 width=136) (actual time=0.034..0.202 rows=20.00 loops=1)
   Buffers: shared hit=493
-  ->  Nested Loop  (cost=0.83..784512.86 rows=968 width=120) (actual time=0.032..0.197 rows=20.00 loops=1)
+  ->  Nested Loop  (cost=0.83..820863.52 rows=1013 width=136) (actual time=0.034..0.201 rows=20.00 loops=1)
         Buffers: shared hit=493
-        ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..957.92 rows=968 width=49) (actual time=0.005..0.009 rows=20.00 loops=1)
-              Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+        ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..984.27 rows=1013 width=49) (actual time=0.006..0.010 rows=20.00 loops=1)
+              Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
               Index Searches: 1
               Buffers: shared hit=23
-        ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.35 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=20)
+        ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.25 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=20)
               Index Cond: (id = b.file_id)
               Index Searches: 20
               Buffers: shared hit=80
         SubPlan 2
-          ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.008 rows=1.00 loops=20)
+          ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.008..0.008 rows=1.00 loops=20)
                 Filter: (directory_id IS NULL)
                 Rows Removed by Filter: 6
                 Storage: Memory  Maximum Storage: 17kB
@@ -371,8 +371,8 @@ Limit  (cost=0.83..16209.76 rows=20 width=120) (actual time=0.033..0.198 rows=20
                                     Buffers: shared hit=330
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.154 ms
-Execution Time: 0.234 ms
+Planning Time: 0.161 ms
+Execution Time: 0.242 ms
 
 ==================== c. the projection over a top-level recursion ====================
 The shape the plan described: a base whose recursion is a common table expression anchored on every bookmarked file's directory, walking upward, joined to the bookmarks; the unit as a directive outside the derived table, because a projection base binds no parameter. The count twin and the page.
@@ -381,10 +381,10 @@ count: SELECT COUNT(*) FROM (WITH RECURSIVE up (file_id, directory_id, path) AS 
     FROM blobfs_file f
     WHERE f.id IN (SELECT b.file_id FROM bookmark b)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
-SELECT b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
+SELECT b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id
 JOIN up ON up.file_id = b.file_id AND up.directory_id IS NULL) q WHERE q.unit_id = CAST($1 AS uuid)
@@ -393,176 +393,176 @@ page:  SELECT * FROM (WITH RECURSIVE up (file_id, directory_id, path) AS (
     FROM blobfs_file f
     WHERE f.id IN (SELECT b.file_id FROM bookmark b)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
-SELECT b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
+SELECT b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id
 JOIN up ON up.file_id = b.file_id AND up.directory_id IS NULL) q WHERE q.unit_id = CAST($1 AS uuid) ORDER BY q.path, q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
 
----- c: top-level recursion, count, unit u10 (10 bookmarks): median of 5 runs: planning 0.308 ms, execution 164.706 ms, buffers 3023 ----
-Aggregate  (cost=232930.73..232930.74 rows=1 width=8) (actual time=162.331..162.336 rows=1.00 loops=1)
+---- c: top-level recursion, count, unit u10 (10 bookmarks): median of 5 runs: planning 0.325 ms, execution 161.340 ms, buffers 3023 ----
+Aggregate  (cost=232769.79..232769.80 rows=1 width=8) (actual time=158.741..158.746 rows=1.00 loops=1)
   Buffers: shared hit=3023, temp written=2141
-  ->  Nested Loop  (cost=154962.97..232930.72 rows=1 width=185) (actual time=134.060..162.311 rows=10.00 loops=1)
+  ->  Nested Loop  (cost=154857.03..232769.76 rows=2 width=201) (actual time=130.465..158.710 rows=10.00 loops=1)
         Join Filter: (f.id = b.file_id)
         Buffers: shared hit=3023, temp written=2141
         CTE up
-          ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=15.026..108.414 rows=310172.00 loops=1)
+          ->  Recursive Union  (cost=1742.97..154851.84 rows=3892944 width=64) (actual time=13.842..105.768 rows=310172.00 loops=1)
                 Storage: Memory  Maximum Storage: 7370kB
                 Buffers: shared hit=2988
-                ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=15.024..28.715 rows=41466.00 loops=1)
+                ->  Hash Semi Join  (cost=1742.97..6049.36 rows=38544 width=64) (actual time=13.841..26.650 rows=41466.00 loops=1)
                       Hash Cond: (f_1.id = b_1.file_id)
                       Buffers: shared hit=2874
-                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.009..3.220 rows=100000.00 loops=1)
+                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.007..3.379 rows=100000.00 loops=1)
                             Buffers: shared hit=2326
-                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=14.868..14.868 rows=53110.00 loops=1)
+                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=13.694..13.695 rows=53110.00 loops=1)
                             Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                             Buffers: shared hit=548
-                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=8.697..10.620 rows=53110.00 loops=1)
+                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=8.037..9.925 rows=53110.00 loops=1)
                                   Buffers: shared hit=548
-                ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.326..6.263 rows=33588.25 loops=8)
+                ->  Hash Join  (cost=339.09..10987.30 rows=385440 width=64) (actual time=0.318..6.201 rows=33588.25 loops=8)
                       Hash Cond: (up_1.directory_id = d.id)
                       Buffers: shared hit=114
-                      ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.001..0.969 rows=38771.50 loops=8)
-                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.273..1.274 rows=10004.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..7708.80 rows=385440 width=64) (actual time=0.000..0.942 rows=38771.50 loops=8)
+                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.236..1.237 rows=10004.00 loops=1)
                             Buckets: 16384  Batches: 1  Memory Usage: 811kB
                             Buffers: shared hit=114
-                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.024..0.433 rows=10004.00 loops=1)
+                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.015..0.424 rows=10004.00 loops=1)
                                   Buffers: shared hit=114
-        ->  Hash Join  (cost=4.56..77971.15 rows=3 width=32) (actual time=134.025..162.231 rows=10.00 loops=1)
+        ->  Hash Join  (cost=4.78..77914.76 rows=6 width=32) (actual time=130.422..158.608 rows=10.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=2992, temp written=2141
-              ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=16) (actual time=59.145..160.289 rows=41466.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..77858.88 rows=19465 width=16) (actual time=56.534..156.744 rows=41466.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 268706
                     Storage: Disk  Maximum Storage: 17128kB
                     Buffers: shared hit=2988, temp written=2141
-              ->  Hash  (cost=4.50..4.50 rows=5 width=16) (actual time=0.107..0.107 rows=10.00 loops=1)
+              ->  Hash  (cost=4.62..4.62 rows=12 width=16) (actual time=0.061..0.062 rows=10.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
                     Buffers: shared hit=4
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.50 rows=5 width=16) (actual time=0.099..0.100 rows=10.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.62 rows=12 width=16) (actual time=0.056..0.057 rows=10.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=4
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.006..0.006 rows=1.00 loops=10)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.008..0.008 rows=1.00 loops=10)
               Index Cond: (id = up.file_id)
               Heap Fetches: 0
               Index Searches: 10
               Buffers: shared hit=31
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.308 ms
+Planning Time: 0.325 ms
 JIT:
   Functions: 37
   Options: Inlining false, Optimization false, Expressions true, Deforming true
-  Timing: Generation 1.041 ms (Deform 0.387 ms), Inlining 0.000 ms, Optimization 0.294 ms, Emission 8.513 ms, Total 9.848 ms
-Execution Time: 164.706 ms
+  Timing: Generation 0.964 ms (Deform 0.275 ms), Inlining 0.000 ms, Optimization 0.257 ms, Emission 7.882 ms, Total 9.102 ms
+Execution Time: 161.340 ms
 
----- c: top-level recursion, page, unit u10 (10 bookmarks): median of 5 runs: planning 0.313 ms, execution 166.629 ms, buffers 3032 ----
-Limit  (cost=232943.17..232943.17 rows=1 width=120) (actual time=164.170..164.175 rows=10.00 loops=1)
+---- c: top-level recursion, page, unit u10 (10 bookmarks): median of 5 runs: planning 0.321 ms, execution 163.484 ms, buffers 3032 ----
+Limit  (cost=232795.90..232795.90 rows=2 width=136) (actual time=160.823..160.830 rows=10.00 loops=1)
   Buffers: shared hit=3032, temp written=2141
-  ->  Sort  (cost=232943.17..232943.17 rows=1 width=120) (actual time=153.342..153.347 rows=10.00 loops=1)
+  ->  Sort  (cost=232795.90..232795.90 rows=2 width=136) (actual time=150.389..150.395 rows=10.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
         Sort Method: quicksort  Memory: 27kB
         Buffers: shared hit=3032, temp written=2141
-        ->  Nested Loop  (cost=154973.97..232943.16 rows=1 width=120) (actual time=125.006..153.319 rows=10.00 loops=1)
+        ->  Nested Loop  (cost=154880.28..232795.89 rows=2 width=136) (actual time=122.647..150.367 rows=10.00 loops=1)
               Join Filter: (f.id = b.file_id)
               Buffers: shared hit=3032, temp written=2141
               CTE up
-                ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=5.870..99.593 rows=310172.00 loops=1)
+                ->  Recursive Union  (cost=1742.97..154851.84 rows=3892944 width=64) (actual time=5.770..97.404 rows=310172.00 loops=1)
                       Storage: Memory  Maximum Storage: 7370kB
                       Buffers: shared hit=2988
-                      ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=5.868..19.732 rows=41466.00 loops=1)
+                      ->  Hash Semi Join  (cost=1742.97..6049.36 rows=38544 width=64) (actual time=5.769..19.327 rows=41466.00 loops=1)
                             Hash Cond: (f_1.id = b_1.file_id)
                             Buffers: shared hit=2874
-                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.016..3.239 rows=100000.00 loops=1)
+                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.009..3.278 rows=100000.00 loops=1)
                                   Buffers: shared hit=2326
-                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.729..5.730 rows=53110.00 loops=1)
+                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.639..5.640 rows=53110.00 loops=1)
                                   Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                                   Buffers: shared hit=548
-                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.005..1.912 rows=53110.00 loops=1)
+                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.005..1.897 rows=53110.00 loops=1)
                                         Buffers: shared hit=548
-                      ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.325..6.283 rows=33588.25 loops=8)
+                      ->  Hash Join  (cost=339.09..10987.30 rows=385440 width=64) (actual time=0.317..6.161 rows=33588.25 loops=8)
                             Hash Cond: (up_1.directory_id = d.id)
                             Buffers: shared hit=114
-                            ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.973 rows=38771.50 loops=8)
-                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.268..1.269 rows=10004.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..7708.80 rows=385440 width=64) (actual time=0.000..0.960 rows=38771.50 loops=8)
+                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.230..1.231 rows=10004.00 loops=1)
                                   Buckets: 16384  Batches: 1  Memory Usage: 811kB
                                   Buffers: shared hit=114
-                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.028..0.436 rows=10004.00 loops=1)
+                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.022..0.423 rows=10004.00 loops=1)
                                         Buffers: shared hit=114
-              ->  Hash Join  (cost=15.56..77982.15 rows=3 width=97) (actual time=124.971..153.206 rows=10.00 loops=1)
+              ->  Hash Join  (cost=28.02..77938.01 rows=6 width=97) (actual time=122.613..150.270 rows=10.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=2992, temp written=2141
-                    ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=48) (actual time=49.943..151.333 rows=41466.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..77858.88 rows=19465 width=48) (actual time=49.226..148.489 rows=41466.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 268706
                           Storage: Disk  Maximum Storage: 17128kB
                           Buffers: shared hit=2988, temp written=2141
-                    ->  Hash  (cost=15.50..15.50 rows=5 width=49) (actual time=0.045..0.046 rows=10.00 loops=1)
+                    ->  Hash  (cost=27.88..27.88 rows=12 width=49) (actual time=0.041..0.042 rows=10.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
                           Buffers: shared hit=4
-                          ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..15.50 rows=5 width=49) (actual time=0.027..0.029 rows=10.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                          ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..27.88 rows=12 width=49) (actual time=0.024..0.026 rows=10.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                                 Index Searches: 1
                                 Buffers: shared hit=4
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=55) (actual time=0.009..0.009 rows=1.00 loops=10)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=71) (actual time=0.007..0.007 rows=1.00 loops=10)
                     Index Cond: (id = up.file_id)
                     Index Searches: 10
                     Buffers: shared hit=40
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.313 ms
+Planning Time: 0.321 ms
 JIT:
   Functions: 41
   Options: Inlining false, Optimization false, Expressions true, Deforming true
-  Timing: Generation 1.086 ms (Deform 0.493 ms), Inlining 0.000 ms, Optimization 0.326 ms, Emission 10.571 ms, Total 11.983 ms
-Execution Time: 166.629 ms
+  Timing: Generation 1.170 ms (Deform 0.525 ms), Inlining 0.000 ms, Optimization 0.377 ms, Emission 10.117 ms, Total 11.664 ms
+Execution Time: 163.484 ms
 
----- c: top-level recursion, count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.320 ms, execution 167.220 ms, buffers 6000 ----
-Aggregate  (cost=233246.18..233246.19 rows=1 width=8) (actual time=164.932..164.938 rows=1.00 loops=1)
+---- c: top-level recursion, count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.305 ms, execution 164.638 ms, buffers 6000 ----
+Aggregate  (cost=233101.03..233101.04 rows=1 width=8) (actual time=162.406..162.411 rows=1.00 loops=1)
   Buffers: shared hit=6000, temp written=2141
-  ->  Nested Loop  (cost=155019.86..233243.81 rows=189 width=185) (actual time=83.079..164.837 rows=1000.00 loops=1)
+  ->  Nested Loop  (cost=154919.06..233098.57 rows=197 width=201) (actual time=81.863..162.321 rows=1000.00 loops=1)
         Join Filter: (f.id = b.file_id)
         Buffers: shared hit=6000, temp written=2141
         CTE up
-          ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=15.061..108.963 rows=310172.00 loops=1)
+          ->  Recursive Union  (cost=1742.97..154851.84 rows=3892944 width=64) (actual time=14.476..106.866 rows=310172.00 loops=1)
                 Storage: Memory  Maximum Storage: 7370kB
                 Buffers: shared hit=2988
-                ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=15.059..28.983 rows=41466.00 loops=1)
+                ->  Hash Semi Join  (cost=1742.97..6049.36 rows=38544 width=64) (actual time=14.474..27.852 rows=41466.00 loops=1)
                       Hash Cond: (f_1.id = b_1.file_id)
                       Buffers: shared hit=2874
-                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.007..3.259 rows=100000.00 loops=1)
+                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.006..3.350 rows=100000.00 loops=1)
                             Buffers: shared hit=2326
-                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=14.908..14.909 rows=53110.00 loops=1)
+                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=14.330..14.331 rows=53110.00 loops=1)
                             Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                             Buffers: shared hit=548
-                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=8.863..10.791 rows=53110.00 loops=1)
+                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=8.453..10.356 rows=53110.00 loops=1)
                                   Buffers: shared hit=548
-                ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.342..6.285 rows=33588.25 loops=8)
+                ->  Hash Join  (cost=339.09..10987.30 rows=385440 width=64) (actual time=0.314..6.242 rows=33588.25 loops=8)
                       Hash Cond: (up_1.directory_id = d.id)
                       Buffers: shared hit=114
-                      ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.967 rows=38771.50 loops=8)
-                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.311..1.311 rows=10004.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..7708.80 rows=385440 width=64) (actual time=0.000..0.948 rows=38771.50 loops=8)
+                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.254..1.254 rows=10004.00 loops=1)
                             Buckets: 16384  Batches: 1  Memory Usage: 811kB
                             Buffers: shared hit=114
-                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.024..0.456 rows=10004.00 loops=1)
+                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.025..0.426 rows=10004.00 loops=1)
                                   Buffers: shared hit=114
-        ->  Hash Join  (cost=61.45..78028.04 rows=489 width=32) (actual time=83.041..163.147 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=66.81..77976.79 rows=512 width=32) (actual time=81.833..160.655 rows=1000.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=2999, temp written=2141
-              ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=16) (actual time=59.622..160.530 rows=41466.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..77858.88 rows=19465 width=16) (actual time=58.412..158.091 rows=41466.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 268706
                     Storage: Disk  Maximum Storage: 17128kB
                     Buffers: shared hit=2988, temp written=2141
-              ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.182..0.182 rows=1000.00 loops=1)
+              ->  Hash  (cost=54.14..54.14 rows=1013 width=16) (actual time=0.167..0.167 rows=1000.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 55kB
                     Buffers: shared hit=11
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.35 rows=968 width=16) (actual time=0.055..0.118 rows=1000.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..54.14 rows=1013 width=16) (actual time=0.046..0.106 rows=1000.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=11
@@ -573,77 +573,77 @@ Aggregate  (cost=233246.18..233246.19 rows=1 width=8) (actual time=164.932..164.
               Buffers: shared hit=3001
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.320 ms
+Planning Time: 0.305 ms
 JIT:
   Functions: 37
   Options: Inlining false, Optimization false, Expressions true, Deforming true
-  Timing: Generation 0.913 ms (Deform 0.322 ms), Inlining 0.000 ms, Optimization 0.310 ms, Emission 8.668 ms, Total 9.892 ms
-Execution Time: 167.220 ms
+  Timing: Generation 0.927 ms (Deform 0.289 ms), Inlining 0.000 ms, Optimization 0.298 ms, Emission 8.234 ms, Total 9.458 ms
+Execution Time: 164.638 ms
 
----- c: top-level recursion, page, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.336 ms, execution 169.638 ms, buffers 7009 ----
-Limit  (cost=234048.26..234048.31 rows=20 width=120) (actual time=166.990..166.996 rows=20.00 loops=1)
+---- c: top-level recursion, page, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.326 ms, execution 167.250 ms, buffers 7009 ----
+Limit  (cost=235084.95..235085.00 rows=20 width=136) (actual time=164.754..164.759 rows=20.00 loops=1)
   Buffers: shared hit=7009, temp written=2141
-  ->  Sort  (cost=234048.26..234048.73 rows=189 width=120) (actual time=155.493..155.498 rows=20.00 loops=1)
+  ->  Sort  (cost=235084.95..235085.42 rows=188 width=136) (actual time=154.387..154.391 rows=20.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
+        Sort Method: top-N heapsort  Memory: 34kB
         Buffers: shared hit=7009, temp written=2141
-        ->  Nested Loop  (cost=155584.76..234043.23 rows=189 width=120) (actual time=73.031..155.158 rows=1000.00 loops=1)
+        ->  Nested Loop  (cost=156263.93..235079.95 rows=188 width=136) (actual time=72.304..154.038 rows=1000.00 loops=1)
               Join Filter: (f.id = b.file_id)
               Buffers: shared hit=7009, temp written=2141
               CTE up
-                ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=5.992..99.194 rows=310172.00 loops=1)
+                ->  Recursive Union  (cost=1742.97..155636.60 rows=3913851 width=64) (actual time=5.794..97.425 rows=310172.00 loops=1)
                       Storage: Memory  Maximum Storage: 7370kB
                       Buffers: shared hit=2988
-                      ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=5.990..19.787 rows=41466.00 loops=1)
+                      ->  Hash Semi Join  (cost=1742.97..6053.21 rows=38751 width=64) (actual time=5.792..18.381 rows=41466.00 loops=1)
                             Hash Cond: (f_1.id = b_1.file_id)
                             Buffers: shared hit=2874
-                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.014..3.451 rows=100000.00 loops=1)
+                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.008..3.213 rows=100000.00 loops=1)
                                   Buffers: shared hit=2326
-                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.833..5.834 rows=53110.00 loops=1)
+                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.654..5.655 rows=53110.00 loops=1)
                                   Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                                   Buffers: shared hit=548
-                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.006..1.945 rows=53110.00 loops=1)
+                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.005..1.881 rows=53110.00 loops=1)
                                         Buffers: shared hit=548
-                      ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.325..6.216 rows=33588.25 loops=8)
+                      ->  Hash Join  (cost=339.09..11044.49 rows=387510 width=64) (actual time=0.325..6.249 rows=33588.25 loops=8)
                             Hash Cond: (up_1.directory_id = d.id)
                             Buffers: shared hit=114
-                            ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.001..0.993 rows=38771.50 loops=8)
-                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.291..1.291 rows=10004.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..7750.20 rows=387510 width=64) (actual time=0.000..0.966 rows=38771.50 loops=8)
+                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.254..1.254 rows=10004.00 loops=1)
                                   Buckets: 16384  Batches: 1  Memory Usage: 811kB
                                   Buffers: shared hit=114
-                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.031..0.450 rows=10004.00 loops=1)
+                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.023..0.423 rows=10004.00 loops=1)
                                         Buffers: shared hit=114
-              ->  Hash Join  (cost=626.36..78592.94 rows=489 width=97) (actual time=73.003..152.870 rows=1000.00 loops=1)
+              ->  Hash Join  (cost=626.91..78955.31 rows=486 width=97) (actual time=72.270..151.724 rows=1000.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=3009, temp written=2141
-                    ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=48) (actual time=51.226..150.041 rows=41466.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..78277.02 rows=19569 width=48) (actual time=48.394..149.105 rows=41466.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 268706
                           Storage: Disk  Maximum Storage: 17128kB
                           Buffers: shared hit=2988, temp written=2141
-                    ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.183..0.184 rows=1000.00 loops=1)
+                    ->  Hash  (cost=614.87..614.87 rows=963 width=49) (actual time=0.164..0.165 rows=1000.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 94kB
                           Buffers: shared hit=21
-                          ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.059..0.103 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                          ->  Bitmap Heap Scan on bookmark b  (cost=39.88..614.87 rows=963 width=49) (actual time=0.048..0.094 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                 Heap Blocks: exact=11
                                 Buffers: shared hit=21
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.044..0.044 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.64 rows=963 width=0) (actual time=0.038..0.038 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                       Index Searches: 1
                                       Buffers: shared hit=10
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=55) (actual time=0.002..0.002 rows=1.00 loops=1000)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=71) (actual time=0.002..0.002 rows=1.00 loops=1000)
                     Index Cond: (id = up.file_id)
                     Index Searches: 1000
                     Buffers: shared hit=4000
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.336 ms
+Planning Time: 0.326 ms
 JIT:
   Functions: 41
   Options: Inlining false, Optimization false, Expressions true, Deforming true
-  Timing: Generation 1.125 ms (Deform 0.507 ms), Inlining 0.000 ms, Optimization 0.369 ms, Emission 11.203 ms, Total 12.697 ms
-Execution Time: 169.638 ms
+  Timing: Generation 1.159 ms (Deform 0.518 ms), Inlining 0.000 ms, Optimization 0.393 ms, Emission 10.038 ms, Total 11.589 ms
+Execution Time: 167.250 ms
 
 ==================== d. the anchored plain statement ====================
 The shape a parameterized projection base would give: the unit bound inside the recursion's anchor, so the walk starts from the unit's bookmarks only. The count twin over the base, the page composed at the base's level, and the page wrapped as a derived table.
@@ -653,10 +653,10 @@ count:        SELECT COUNT(*) FROM (WITH RECURSIVE up (file_id, directory_id, pa
     JOIN blobfs_file f ON f.id = b.file_id
     WHERE b.unit_id = CAST($1 AS uuid)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
-SELECT b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
+SELECT b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id
 JOIN up ON up.file_id = b.file_id AND up.directory_id IS NULL
@@ -667,10 +667,10 @@ page:         WITH RECURSIVE up (file_id, directory_id, path) AS (
     JOIN blobfs_file f ON f.id = b.file_id
     WHERE b.unit_id = CAST($1 AS uuid)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
-SELECT b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
+SELECT b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id
 JOIN up ON up.file_id = b.file_id AND up.directory_id IS NULL
@@ -681,80 +681,80 @@ page wrapped: SELECT * FROM (WITH RECURSIVE up (file_id, directory_id, path) AS 
     JOIN blobfs_file f ON f.id = b.file_id
     WHERE b.unit_id = CAST($1 AS uuid)
   UNION ALL
-    SELECT up.file_id, d.parent_id, COALESCE('/' || d.name, '') || up.path
+    SELECT up.file_id, d.parent_id, CASE WHEN d.parent_id IS NULL THEN '' ELSE '/' || d.name END || up.path
     FROM up JOIN blobfs_directory d ON d.id = up.directory_id
 )
-SELECT b.unit_id, b.file_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
+SELECT b.unit_id, b.file_id, f.directory_id, b.active, up.path || '/' || f.name AS path, f.name, f.status, f.size, f.content_type, b.created_at, b.updated_at
 FROM bookmark b
 JOIN blobfs_file f ON f.id = b.file_id
 JOIN up ON up.file_id = b.file_id AND up.directory_id IS NULL
 WHERE b.unit_id = CAST($1 AS uuid)) q ORDER BY q.path, q.file_id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
 
----- d: anchored, count, unit u10 (10 bookmarks): median of 5 runs: planning 0.234 ms, execution 4.553 ms, buffers 877 ----
-Aggregate  (cost=2610.15..2610.16 rows=1 width=8) (actual time=4.486..4.487 rows=1.00 loops=1)
+---- d: anchored, count, unit u10 (10 bookmarks): median of 5 runs: planning 0.228 ms, execution 4.406 ms, buffers 877 ----
+Aggregate  (cost=2723.99..2724.00 rows=1 width=8) (actual time=4.338..4.340 rows=1.00 loops=1)
   Buffers: shared hit=877
-  ->  Nested Loop  (cost=2596.01..2610.14 rows=1 width=185) (actual time=3.216..4.485 rows=10.00 loops=1)
+  ->  Nested Loop  (cost=2695.71..2723.98 rows=1 width=201) (actual time=3.110..4.337 rows=10.00 loops=1)
         Buffers: shared hit=877
         CTE up
-          ->  Recursive Union  (cost=0.83..2591.03 rows=505 width=64) (actual time=0.017..4.432 rows=77.00 loops=1)
+          ->  Recursive Union  (cost=0.83..2690.52 rows=1212 width=64) (actual time=0.019..4.289 rows=77.00 loops=1)
                 Storage: Memory  Maximum Storage: 34kB
                 Buffers: shared hit=842
-                ->  Nested Loop  (cost=0.83..46.68 rows=5 width=64) (actual time=0.016..0.028 rows=10.00 loops=1)
+                ->  Nested Loop  (cost=0.83..105.85 rows=12 width=64) (actual time=0.019..0.030 rows=10.00 loops=1)
                       Buffers: shared hit=44
-                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..4.50 rows=5 width=16) (actual time=0.008..0.009 rows=10.00 loops=1)
-                            Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..4.62 rows=12 width=16) (actual time=0.013..0.014 rows=10.00 loops=1)
+                            Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                             Heap Fetches: 0
                             Index Searches: 1
                             Buffers: shared hit=4
-                      ->  Index Scan using blobfs_pk_file on blobfs_file f_1  (cost=0.42..8.44 rows=1 width=32) (actual time=0.002..0.002 rows=1.00 loops=10)
+                      ->  Index Scan using blobfs_pk_file on blobfs_file f_1  (cost=0.42..8.44 rows=1 width=32) (actual time=0.001..0.001 rows=1.00 loops=10)
                             Index Cond: (id = b_1.file_id)
                             Index Searches: 10
                             Buffers: shared hit=40
-                ->  Hash Join  (cost=1.62..253.93 rows=50 width=64) (actual time=0.008..0.546 rows=8.38 loops=8)
+                ->  Hash Join  (cost=3.90..257.25 rows=120 width=64) (actual time=0.008..0.528 rows=8.38 loops=8)
                       Hash Cond: (d.id = up_1.directory_id)
                       Buffers: shared hit=798
-                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.001..0.227 rows=10004.00 loops=7)
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.001..0.216 rows=10004.00 loops=7)
                             Buffers: shared hit=798
-                      ->  Hash  (cost=1.00..1.00 rows=50 width=64) (actual time=0.004..0.004 rows=8.38 loops=8)
+                      ->  Hash  (cost=2.40..2.40 rows=120 width=64) (actual time=0.004..0.005 rows=8.38 loops=8)
                             Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                            ->  WorkTable Scan on up up_1  (cost=0.00..1.00 rows=50 width=64) (actual time=0.000..0.001 rows=9.62 loops=8)
-        ->  Hash Join  (cost=4.56..14.67 rows=1 width=32) (actual time=3.207..4.466 rows=10.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..2.40 rows=120 width=64) (actual time=0.000..0.001 rows=9.62 loops=8)
+        ->  Hash Join  (cost=4.78..29.03 rows=1 width=32) (actual time=3.103..4.320 rows=10.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=846
-              ->  CTE Scan on up  (cost=0.00..10.10 rows=3 width=16) (actual time=3.188..4.445 rows=10.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..24.24 rows=6 width=16) (actual time=3.087..4.303 rows=10.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 67
                     Storage: Memory  Maximum Storage: 22kB
                     Buffers: shared hit=842
-              ->  Hash  (cost=4.50..4.50 rows=5 width=16) (actual time=0.016..0.016 rows=10.00 loops=1)
+              ->  Hash  (cost=4.62..4.62 rows=12 width=16) (actual time=0.013..0.013 rows=10.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
                     Buffers: shared hit=4
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.50 rows=5 width=16) (actual time=0.010..0.011 rows=10.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.62 rows=12 width=16) (actual time=0.009..0.009 rows=10.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=4
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..4.44 rows=1 width=16) (actual time=0.002..0.002 rows=1.00 loops=10)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..4.44 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=10)
               Index Cond: (id = b.file_id)
               Heap Fetches: 0
               Index Searches: 10
               Buffers: shared hit=31
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.234 ms
-Execution Time: 4.553 ms
+Planning Time: 0.228 ms
+Execution Time: 4.406 ms
 
----- d: anchored, page, unit u10 (10 bookmarks): median of 5 runs: planning 0.224 ms, execution 4.120 ms, buffers 886 ----
-Limit  (cost=2625.39..2625.39 rows=1 width=120) (actual time=4.043..4.045 rows=10.00 loops=1)
+---- d: anchored, page, unit u10 (10 bookmarks): median of 5 runs: planning 0.231 ms, execution 4.431 ms, buffers 886 ----
+Limit  (cost=2751.23..2751.23 rows=1 width=136) (actual time=4.362..4.364 rows=10.00 loops=1)
   Buffers: shared hit=886
   CTE up
-    ->  Recursive Union  (cost=0.83..2591.03 rows=505 width=64) (actual time=0.017..3.967 rows=77.00 loops=1)
+    ->  Recursive Union  (cost=0.83..2690.52 rows=1212 width=64) (actual time=0.013..4.297 rows=77.00 loops=1)
           Storage: Memory  Maximum Storage: 34kB
           Buffers: shared hit=842
-          ->  Nested Loop  (cost=0.83..46.68 rows=5 width=64) (actual time=0.017..0.027 rows=10.00 loops=1)
+          ->  Nested Loop  (cost=0.83..105.85 rows=12 width=64) (actual time=0.013..0.024 rows=10.00 loops=1)
                 Buffers: shared hit=44
-                ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..4.50 rows=5 width=16) (actual time=0.010..0.011 rows=10.00 loops=1)
-                      Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..4.62 rows=12 width=16) (actual time=0.007..0.008 rows=10.00 loops=1)
+                      Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                       Heap Fetches: 0
                       Index Searches: 1
                       Buffers: shared hit=4
@@ -762,576 +762,252 @@ Limit  (cost=2625.39..2625.39 rows=1 width=120) (actual time=4.043..4.045 rows=1
                       Index Cond: (id = b_1.file_id)
                       Index Searches: 10
                       Buffers: shared hit=40
-          ->  Hash Join  (cost=1.62..253.93 rows=50 width=64) (actual time=0.009..0.489 rows=8.38 loops=8)
+          ->  Hash Join  (cost=3.90..257.25 rows=120 width=64) (actual time=0.008..0.530 rows=8.38 loops=8)
                 Hash Cond: (d.id = up_1.directory_id)
                 Buffers: shared hit=798
-                ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.001..0.202 rows=10004.00 loops=7)
+                ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.001..0.220 rows=10004.00 loops=7)
                       Buffers: shared hit=798
-                ->  Hash  (cost=1.00..1.00 rows=50 width=64) (actual time=0.005..0.005 rows=8.38 loops=8)
+                ->  Hash  (cost=2.40..2.40 rows=120 width=64) (actual time=0.004..0.004 rows=8.38 loops=8)
                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                      ->  WorkTable Scan on up up_1  (cost=0.00..1.00 rows=50 width=64) (actual time=0.000..0.001 rows=9.62 loops=8)
-  ->  Sort  (cost=34.36..34.37 rows=1 width=120) (actual time=4.043..4.043 rows=10.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..2.40 rows=120 width=64) (actual time=0.000..0.001 rows=9.62 loops=8)
+  ->  Sort  (cost=60.71..60.72 rows=1 width=136) (actual time=4.362..4.363 rows=10.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
         Sort Method: quicksort  Memory: 27kB
         Buffers: shared hit=886
-        ->  Nested Loop  (cost=0.83..34.35 rows=1 width=120) (actual time=2.891..4.035 rows=10.00 loops=1)
+        ->  Nested Loop  (cost=25.15..60.70 rows=1 width=136) (actual time=4.338..4.353 rows=10.00 loops=1)
               Buffers: shared hit=886
-              ->  Nested Loop  (cost=0.41..25.91 rows=1 width=97) (actual time=2.883..4.016 rows=10.00 loops=1)
-                    Join Filter: (b.file_id = up.file_id)
-                    Rows Removed by Join Filter: 90
+              ->  Merge Join  (cost=24.73..52.26 rows=1 width=97) (actual time=4.328..4.333 rows=10.00 loops=1)
+                    Merge Cond: (b.file_id = up.file_id)
                     Buffers: shared hit=846
-                    ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..15.50 rows=5 width=49) (actual time=0.008..0.009 rows=10.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                    ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..27.88 rows=12 width=49) (actual time=0.006..0.007 rows=10.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                           Index Searches: 1
                           Buffers: shared hit=4
-                    ->  CTE Scan on up  (cost=0.00..10.10 rows=3 width=48) (actual time=0.289..0.400 rows=10.00 loops=10)
-                          Filter: (directory_id IS NULL)
-                          Rows Removed by Filter: 67
-                          Storage: Memory  Maximum Storage: 22kB
+                    ->  Sort  (cost=24.32..24.33 rows=6 width=48) (actual time=4.320..4.321 rows=10.00 loops=1)
+                          Sort Key: up.file_id
+                          Sort Method: quicksort  Memory: 25kB
                           Buffers: shared hit=842
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=55) (actual time=0.001..0.001 rows=1.00 loops=10)
+                          ->  CTE Scan on up  (cost=0.00..24.24 rows=6 width=48) (actual time=3.106..4.310 rows=10.00 loops=1)
+                                Filter: (directory_id IS NULL)
+                                Rows Removed by Filter: 67
+                                Storage: Memory  Maximum Storage: 22kB
+                                Buffers: shared hit=842
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=71) (actual time=0.002..0.002 rows=1.00 loops=10)
                     Index Cond: (id = b.file_id)
                     Index Searches: 10
                     Buffers: shared hit=40
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.224 ms
-Execution Time: 4.120 ms
+Planning Time: 0.231 ms
+Execution Time: 4.431 ms
 
----- d: anchored, count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.239 ms, execution 13.758 ms, buffers 5463 ----
-Aggregate  (cost=12735.38..12735.39 rows=1 width=8) (actual time=13.581..13.583 rows=1.00 loops=1)
+---- d: anchored, count, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.264 ms, execution 13.856 ms, buffers 5463 ----
+Aggregate  (cost=12706.21..12706.22 rows=1 width=8) (actual time=13.674..13.676 rows=1.00 loops=1)
   Buffers: shared hit=5463
-  ->  Nested Loop  (cost=10754.63..12735.32 rows=5 width=185) (actual time=10.554..13.543 rows=1000.00 loops=1)
+  ->  Nested Loop  (cost=10735.47..12706.15 rows=5 width=201) (actual time=10.762..13.636 rows=1000.00 loops=1)
         Buffers: shared hit=5463
         CTE up
-          ->  Recursive Union  (cost=61.45..10692.76 rows=97768 width=64) (actual time=0.157..11.169 rows=7531.00 loops=1)
+          ->  Recursive Union  (cost=61.30..10673.74 rows=97263 width=64) (actual time=0.154..11.367 rows=7531.00 loops=1)
                 Storage: Memory  Maximum Storage: 190kB
                 Buffers: shared hit=2451
-                ->  Hash Join  (cost=61.45..3649.97 rows=968 width=64) (actual time=0.157..7.910 rows=1000.00 loops=1)
+                ->  Hash Join  (cost=61.30..3649.82 rows=963 width=64) (actual time=0.154..8.114 rows=1000.00 loops=1)
                       Hash Cond: (f_1.id = b_1.file_id)
                       Buffers: shared hit=2337
-                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.003..2.676 rows=100000.00 loops=1)
+                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.002..2.751 rows=100000.00 loops=1)
                             Buffers: shared hit=2326
-                      ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.143..0.143 rows=1000.00 loops=1)
+                      ->  Hash  (cost=49.27..49.27 rows=963 width=16) (actual time=0.139..0.139 rows=1000.00 loops=1)
                             Buckets: 1024  Batches: 1  Memory Usage: 55kB
                             Buffers: shared hit=11
-                            ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.35 rows=968 width=16) (actual time=0.010..0.067 rows=1000.00 loops=1)
-                                  Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                            ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.27 rows=963 width=16) (actual time=0.011..0.066 rows=1000.00 loops=1)
+                                  Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                   Heap Fetches: 0
                                   Index Searches: 1
                                   Buffers: shared hit=11
-                ->  Hash Join  (cost=339.09..606.51 rows=9680 width=64) (actual time=0.169..0.314 rows=816.38 loops=8)
+                ->  Hash Join  (cost=339.09..605.13 rows=9630 width=64) (actual time=0.170..0.316 rows=816.38 loops=8)
                       Hash Cond: (up_1.directory_id = d.id)
                       Buffers: shared hit=114
-                      ->  WorkTable Scan on up up_1  (cost=0.00..193.60 rows=9680 width=64) (actual time=0.000..0.023 rows=941.38 loops=8)
-                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.277..1.277 rows=10004.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..192.60 rows=9630 width=64) (actual time=0.000..0.024 rows=941.38 loops=8)
+                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.284..1.284 rows=10004.00 loops=1)
                             Buckets: 16384  Batches: 1  Memory Usage: 811kB
                             Buffers: shared hit=114
-                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.003..0.414 rows=10004.00 loops=1)
+                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.004..0.417 rows=10004.00 loops=1)
                                   Buffers: shared hit=114
-        ->  Hash Join  (cost=61.45..2018.10 rows=12 width=32) (actual time=10.545..12.502 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=61.30..2007.84 rows=12 width=32) (actual time=10.751..12.685 rows=1000.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=2462
-              ->  CTE Scan on up  (cost=0.00..1955.36 rows=489 width=16) (actual time=10.391..12.245 rows=1000.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..1945.26 rows=486 width=16) (actual time=10.606..12.445 rows=1000.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 6531
                     Storage: Memory  Maximum Storage: 611kB
                     Buffers: shared hit=2451
-              ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.152..0.152 rows=1000.00 loops=1)
+              ->  Hash  (cost=49.27..49.27 rows=963 width=16) (actual time=0.143..0.143 rows=1000.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 55kB
                     Buffers: shared hit=11
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.35 rows=968 width=16) (actual time=0.013..0.073 rows=1000.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.27 rows=963 width=16) (actual time=0.013..0.069 rows=1000.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=11
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..2.04 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=1000)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..2.05 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=1000)
               Index Cond: (id = b.file_id)
               Heap Fetches: 0
               Index Searches: 1000
               Buffers: shared hit=3001
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.239 ms
-Execution Time: 13.758 ms
+Planning Time: 0.264 ms
+Execution Time: 13.856 ms
 
----- d: anchored, page, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.279 ms, execution 14.316 ms, buffers 6472 ----
-Limit  (cost=13340.07..13340.08 rows=5 width=120) (actual time=14.113..14.117 rows=20.00 loops=1)
+---- d: anchored, page, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.282 ms, execution 14.328 ms, buffers 6472 ----
+Limit  (cost=13311.61..13311.62 rows=5 width=136) (actual time=14.126..14.130 rows=20.00 loops=1)
   Buffers: shared hit=6472
   CTE up
-    ->  Recursive Union  (cost=61.45..10692.76 rows=97768 width=64) (actual time=0.156..11.117 rows=7531.00 loops=1)
+    ->  Recursive Union  (cost=61.30..10673.74 rows=97263 width=64) (actual time=0.152..11.139 rows=7531.00 loops=1)
           Storage: Memory  Maximum Storage: 190kB
           Buffers: shared hit=2451
-          ->  Hash Join  (cost=61.45..3649.97 rows=968 width=64) (actual time=0.155..7.815 rows=1000.00 loops=1)
+          ->  Hash Join  (cost=61.30..3649.82 rows=963 width=64) (actual time=0.152..7.835 rows=1000.00 loops=1)
                 Hash Cond: (f_1.id = b_1.file_id)
                 Buffers: shared hit=2337
-                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.002..2.584 rows=100000.00 loops=1)
+                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.002..2.609 rows=100000.00 loops=1)
                       Buffers: shared hit=2326
-                ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.141..0.142 rows=1000.00 loops=1)
+                ->  Hash  (cost=49.27..49.27 rows=963 width=16) (actual time=0.138..0.138 rows=1000.00 loops=1)
                       Buckets: 1024  Batches: 1  Memory Usage: 55kB
                       Buffers: shared hit=11
-                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.35 rows=968 width=16) (actual time=0.011..0.068 rows=1000.00 loops=1)
-                            Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.27 rows=963 width=16) (actual time=0.011..0.065 rows=1000.00 loops=1)
+                            Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                             Heap Fetches: 0
                             Index Searches: 1
                             Buffers: shared hit=11
-          ->  Hash Join  (cost=339.09..606.51 rows=9680 width=64) (actual time=0.168..0.316 rows=816.38 loops=8)
+          ->  Hash Join  (cost=339.09..605.13 rows=9630 width=64) (actual time=0.169..0.317 rows=816.38 loops=8)
                 Hash Cond: (up_1.directory_id = d.id)
                 Buffers: shared hit=114
-                ->  WorkTable Scan on up up_1  (cost=0.00..193.60 rows=9680 width=64) (actual time=0.000..0.024 rows=941.38 loops=8)
-                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.275..1.275 rows=10004.00 loops=1)
+                ->  WorkTable Scan on up up_1  (cost=0.00..192.60 rows=9630 width=64) (actual time=0.000..0.024 rows=941.38 loops=8)
+                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.279..1.279 rows=10004.00 loops=1)
                       Buckets: 16384  Batches: 1  Memory Usage: 811kB
                       Buffers: shared hit=114
-                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.004..0.419 rows=10004.00 loops=1)
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.004..0.422 rows=10004.00 loops=1)
                             Buffers: shared hit=114
-  ->  Sort  (cost=2647.31..2647.33 rows=5 width=120) (actual time=14.112..14.114 rows=20.00 loops=1)
+  ->  Sort  (cost=2637.87..2637.88 rows=5 width=136) (actual time=14.125..14.127 rows=20.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
+        Sort Method: top-N heapsort  Memory: 34kB
         Buffers: shared hit=6472
-        ->  Nested Loop  (cost=626.78..2647.26 rows=5 width=120) (actual time=10.454..13.830 rows=1000.00 loops=1)
+        ->  Nested Loop  (cost=627.33..2637.81 rows=5 width=136) (actual time=10.495..13.833 rows=1000.00 loops=1)
               Buffers: shared hit=6472
-              ->  Hash Join  (cost=626.36..2583.00 rows=12 width=97) (actual time=10.445..12.497 rows=1000.00 loops=1)
+              ->  Hash Join  (cost=626.91..2573.45 rows=12 width=97) (actual time=10.483..12.493 rows=1000.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=2472
-                    ->  CTE Scan on up  (cost=0.00..1955.36 rows=489 width=48) (actual time=10.285..12.208 rows=1000.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..1945.26 rows=486 width=48) (actual time=10.336..12.222 rows=1000.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 6531
                           Storage: Memory  Maximum Storage: 611kB
                           Buffers: shared hit=2451
-                    ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.157..0.158 rows=1000.00 loops=1)
+                    ->  Hash  (cost=614.87..614.87 rows=963 width=49) (actual time=0.146..0.146 rows=1000.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 94kB
                           Buffers: shared hit=21
-                          ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.035..0.084 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                          ->  Bitmap Heap Scan on bookmark b  (cost=39.88..614.87 rows=963 width=49) (actual time=0.033..0.075 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                 Heap Blocks: exact=11
                                 Buffers: shared hit=21
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.029..0.029 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.64 rows=963 width=0) (actual time=0.026..0.026 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                       Index Searches: 1
                                       Buffers: shared hit=10
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.35 rows=1 width=55) (actual time=0.001..0.001 rows=1.00 loops=1000)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.36 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=1000)
                     Index Cond: (id = b.file_id)
                     Index Searches: 1000
                     Buffers: shared hit=4000
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.279 ms
-Execution Time: 14.316 ms
+Planning Time: 0.282 ms
+Execution Time: 14.328 ms
 
----- d: anchored, page wrapped, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.280 ms, execution 14.529 ms, buffers 6472 ----
-Limit  (cost=13340.07..13340.08 rows=5 width=120) (actual time=14.326..14.329 rows=20.00 loops=1)
+---- d: anchored, page wrapped, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.295 ms, execution 14.327 ms, buffers 6472 ----
+Limit  (cost=13311.61..13311.62 rows=5 width=136) (actual time=14.133..14.136 rows=20.00 loops=1)
   Buffers: shared hit=6472
-  ->  Sort  (cost=13340.07..13340.08 rows=5 width=120) (actual time=14.325..14.327 rows=20.00 loops=1)
+  ->  Sort  (cost=13311.61..13311.62 rows=5 width=136) (actual time=14.132..14.134 rows=20.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
+        Sort Method: top-N heapsort  Memory: 34kB
         Buffers: shared hit=6472
-        ->  Nested Loop  (cost=11319.53..13340.01 rows=5 width=120) (actual time=10.628..14.040 rows=1000.00 loops=1)
+        ->  Nested Loop  (cost=11301.07..13311.55 rows=5 width=136) (actual time=10.530..13.835 rows=1000.00 loops=1)
               Buffers: shared hit=6472
               CTE up
-                ->  Recursive Union  (cost=61.45..10692.76 rows=97768 width=64) (actual time=0.192..11.290 rows=7531.00 loops=1)
+                ->  Recursive Union  (cost=61.30..10673.74 rows=97263 width=64) (actual time=0.153..11.170 rows=7531.00 loops=1)
                       Storage: Memory  Maximum Storage: 190kB
                       Buffers: shared hit=2451
-                      ->  Hash Join  (cost=61.45..3649.97 rows=968 width=64) (actual time=0.191..7.969 rows=1000.00 loops=1)
+                      ->  Hash Join  (cost=61.30..3649.82 rows=963 width=64) (actual time=0.153..7.842 rows=1000.00 loops=1)
                             Hash Cond: (f_1.id = b_1.file_id)
                             Buffers: shared hit=2337
-                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.004..2.647 rows=100000.00 loops=1)
+                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.003..2.636 rows=100000.00 loops=1)
                                   Buffers: shared hit=2326
-                            ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.171..0.171 rows=1000.00 loops=1)
+                            ->  Hash  (cost=49.27..49.27 rows=963 width=16) (actual time=0.139..0.139 rows=1000.00 loops=1)
                                   Buckets: 1024  Batches: 1  Memory Usage: 55kB
                                   Buffers: shared hit=11
-                                  ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.35 rows=968 width=16) (actual time=0.011..0.080 rows=1000.00 loops=1)
-                                        Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                                  ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.27 rows=963 width=16) (actual time=0.010..0.065 rows=1000.00 loops=1)
+                                        Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                         Heap Fetches: 0
                                         Index Searches: 1
                                         Buffers: shared hit=11
-                      ->  Hash Join  (cost=339.09..606.51 rows=9680 width=64) (actual time=0.171..0.319 rows=816.38 loops=8)
+                      ->  Hash Join  (cost=339.09..605.13 rows=9630 width=64) (actual time=0.170..0.320 rows=816.38 loops=8)
                             Hash Cond: (up_1.directory_id = d.id)
                             Buffers: shared hit=114
-                            ->  WorkTable Scan on up up_1  (cost=0.00..193.60 rows=9680 width=64) (actual time=0.000..0.025 rows=941.38 loops=8)
-                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.295..1.295 rows=10004.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..192.60 rows=9630 width=64) (actual time=0.000..0.026 rows=941.38 loops=8)
+                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.281..1.281 rows=10004.00 loops=1)
                                   Buckets: 16384  Batches: 1  Memory Usage: 811kB
                                   Buffers: shared hit=114
-                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.007..0.430 rows=10004.00 loops=1)
+                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.011..0.427 rows=10004.00 loops=1)
                                         Buffers: shared hit=114
-              ->  Hash Join  (cost=626.36..2583.00 rows=12 width=97) (actual time=10.619..12.674 rows=1000.00 loops=1)
+              ->  Hash Join  (cost=626.91..2573.45 rows=12 width=97) (actual time=10.517..12.531 rows=1000.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=2472
-                    ->  CTE Scan on up  (cost=0.00..1955.36 rows=489 width=48) (actual time=10.467..12.388 rows=1000.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..1945.26 rows=486 width=48) (actual time=10.360..12.255 rows=1000.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 6531
                           Storage: Memory  Maximum Storage: 611kB
                           Buffers: shared hit=2451
-                    ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.151..0.151 rows=1000.00 loops=1)
+                    ->  Hash  (cost=614.87..614.87 rows=963 width=49) (actual time=0.154..0.154 rows=1000.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 94kB
                           Buffers: shared hit=21
-                          ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.035..0.080 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                          ->  Bitmap Heap Scan on bookmark b  (cost=39.88..614.87 rows=963 width=49) (actual time=0.044..0.085 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                 Heap Blocks: exact=11
                                 Buffers: shared hit=21
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.030..0.030 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.64 rows=963 width=0) (actual time=0.036..0.036 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                       Index Searches: 1
                                       Buffers: shared hit=10
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.35 rows=1 width=55) (actual time=0.001..0.001 rows=1.00 loops=1000)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.36 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=1000)
                     Index Cond: (id = b.file_id)
                     Index Searches: 1000
                     Buffers: shared hit=4000
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.280 ms
-Execution Time: 14.529 ms
+Planning Time: 0.295 ms
+Execution Time: 14.327 ms
 
 ==================== e. the shipped page and the anchored page against the depth ====================
 Two units with 1000 bookmarks each: one of files at the shallowest depth that holds that many (mean depth 3.00), one of files at depth 6.
 
----- e: shipped page, by path, unit shallow (1000 bookmarks): median of 5 runs: planning 0.261 ms, execution 133.564 ms, buffers 14349 ----
-Limit  (cost=815584.99..815585.04 rows=20 width=120) (actual time=132.680..132.684 rows=20.00 loops=1)
+---- e: shipped page, by path, unit shallow (1000 bookmarks): median of 5 runs: planning 0.236 ms, execution 128.623 ms, buffers 14349 ----
+Limit  (cost=789851.24..789851.29 rows=20 width=136) (actual time=127.705..127.709 rows=20.00 loops=1)
   Buffers: shared hit=14349
-  ->  Sort  (cost=815584.99..815587.52 rows=1009 width=120) (actual time=13.793..13.796 rows=20.00 loops=1)
+  ->  Sort  (cost=789851.24..789853.68 rows=977 width=136) (actual time=13.396..13.399 rows=20.00 loops=1)
         Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
         Sort Method: top-N heapsort  Memory: 33kB
         Buffers: shared hit=14349
-        ->  Hash Join  (cost=627.46..815558.14 rows=1009 width=120) (actual time=0.264..13.483 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=625.92..789825.24 rows=977 width=136) (actual time=0.300..13.071 rows=1000.00 loops=1)
               Hash Cond: (f.id = b.file_id)
               Buffers: shared hit=14349
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.013..2.976 rows=100000.00 loops=1)
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.025..2.929 rows=100000.00 loops=1)
                     Buffers: shared hit=2326
-              ->  Hash  (cost=614.85..614.85 rows=1009 width=49) (actual time=0.169..0.170 rows=1000.00 loops=1)
+              ->  Hash  (cost=613.71..613.71 rows=977 width=49) (actual time=0.185..0.186 rows=1000.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 94kB
                     Buffers: shared hit=23
-                    ->  Bitmap Heap Scan on bookmark b  (cost=44.23..614.85 rows=1009 width=49) (actual time=0.047..0.095 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
+                    ->  Bitmap Heap Scan on bookmark b  (cost=39.99..613.71 rows=977 width=49) (actual time=0.066..0.118 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
                           Heap Blocks: exact=12
                           Buffers: shared hit=23
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..43.98 rows=1009 width=0) (actual time=0.039..0.040 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
-                                Index Searches: 1
-                                Buffers: shared hit=11
-              SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.005..0.005 rows=1.00 loops=1000)
-                      Filter: (directory_id IS NULL)
-                      Rows Removed by Filter: 3
-                      Storage: Memory  Maximum Storage: 17kB
-                      Buffers: shared hit=12000
-                      CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.004 rows=4.00 loops=1000)
-                              Storage: Memory  Maximum Storage: 33kB
-                              Buffers: shared hit=12000
-                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
-                                    Index Cond: (id = f.directory_id)
-                                    Index Searches: 1000
-                                    Buffers: shared hit=3000
-                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.75 loops=4000)
-                                    Buffers: shared hit=9000
-                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=4000)
-                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.000..0.000 rows=0.75 loops=4000)
-                                          Index Cond: (id = up.directory_id)
-                                          Index Searches: 3000
-                                          Buffers: shared hit=9000
-Planning:
-  Buffers: shared hit=9
-Planning Time: 0.261 ms
-JIT:
-  Functions: 28
-  Options: Inlining true, Optimization true, Expressions true, Deforming true
-  Timing: Generation 0.731 ms (Deform 0.325 ms), Inlining 6.564 ms, Optimization 65.711 ms, Emission 46.621 ms, Total 119.627 ms
-Execution Time: 133.564 ms
-
----- e: anchored, page, unit shallow (1000 bookmarks): median of 5 runs: planning 0.278 ms, execution 13.343 ms, buffers 6475 ----
-Limit  (cost=13588.15..13588.16 rows=5 width=120) (actual time=13.123..13.126 rows=20.00 loops=1)
-  Buffers: shared hit=6475
-  CTE up
-    ->  Recursive Union  (cost=66.69..10852.66 rows=101909 width=64) (actual time=0.169..10.551 rows=5000.00 loops=1)
-          Storage: Memory  Maximum Storage: 173kB
-          Buffers: shared hit=2452
-          ->  Hash Join  (cost=66.69..3655.20 rows=1009 width=64) (actual time=0.169..7.904 rows=1000.00 loops=1)
-                Hash Cond: (f_1.id = b_1.file_id)
-                Buffers: shared hit=2338
-                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.003..2.626 rows=100000.00 loops=1)
-                      Buffers: shared hit=2326
-                ->  Hash  (cost=54.07..54.07 rows=1009 width=16) (actual time=0.140..0.141 rows=1000.00 loops=1)
-                      Buckets: 1024  Batches: 1  Memory Usage: 55kB
-                      Buffers: shared hit=12
-                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..54.07 rows=1009 width=16) (actual time=0.010..0.067 rows=1000.00 loops=1)
-                            Index Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
-                            Heap Fetches: 0
-                            Index Searches: 1
-                            Buffers: shared hit=12
-          ->  Hash Join  (cost=339.09..617.84 rows=10090 width=64) (actual time=0.289..0.427 rows=800.00 loops=5)
-                Hash Cond: (up_1.directory_id = d.id)
-                Buffers: shared hit=114
-                ->  WorkTable Scan on up up_1  (cost=0.00..201.80 rows=10090 width=64) (actual time=0.000..0.026 rows=1000.00 loops=5)
-                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.345..1.345 rows=10004.00 loops=1)
-                      Buckets: 16384  Batches: 1  Memory Usage: 811kB
-                      Buffers: shared hit=114
-                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.011..0.436 rows=10004.00 loops=1)
-                            Buffers: shared hit=114
-  ->  Sort  (cost=2735.49..2735.50 rows=5 width=120) (actual time=13.122..13.123 rows=20.00 loops=1)
-        Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=6475
-        ->  Nested Loop  (cost=627.88..2735.43 rows=5 width=120) (actual time=10.961..12.847 rows=1000.00 loops=1)
-              Buffers: shared hit=6475
-              ->  Hash Join  (cost=627.46..2666.98 rows=13 width=97) (actual time=10.948..11.570 rows=1000.00 loops=1)
-                    Hash Cond: (up.file_id = b.file_id)
-                    Buffers: shared hit=2475
-                    ->  CTE Scan on up  (cost=0.00..2038.18 rows=510 width=48) (actual time=10.785..11.286 rows=1000.00 loops=1)
-                          Filter: (directory_id IS NULL)
-                          Rows Removed by Filter: 4000
-                          Storage: Memory  Maximum Storage: 384kB
-                          Buffers: shared hit=2452
-                    ->  Hash  (cost=614.85..614.85 rows=1009 width=49) (actual time=0.161..0.161 rows=1000.00 loops=1)
-                          Buckets: 1024  Batches: 1  Memory Usage: 94kB
-                          Buffers: shared hit=23
-                          ->  Bitmap Heap Scan on bookmark b  (cost=44.23..614.85 rows=1009 width=49) (actual time=0.045..0.091 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
-                                Heap Blocks: exact=12
-                                Buffers: shared hit=23
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..43.98 rows=1009 width=0) (actual time=0.038..0.038 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
-                                      Index Searches: 1
-                                      Buffers: shared hit=11
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.26 rows=1 width=55) (actual time=0.001..0.001 rows=1.00 loops=1000)
-                    Index Cond: (id = b.file_id)
-                    Index Searches: 1000
-                    Buffers: shared hit=4000
-Planning:
-  Buffers: shared hit=18
-Planning Time: 0.278 ms
-Execution Time: 13.343 ms
-
----- e: shipped page, by path, unit deep (1000 bookmarks): median of 5 runs: planning 0.252 ms, execution 138.263 ms, buffers 23349 ----
-Limit  (cost=835686.15..835686.20 rows=20 width=120) (actual time=137.283..137.288 rows=20.00 loops=1)
-  Buffers: shared hit=23349
-  ->  Sort  (cost=835686.15..835688.73 rows=1034 width=120) (actual time=16.922..16.925 rows=20.00 loops=1)
-        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=23349
-        ->  Hash Join  (cost=625.31..835658.63 rows=1034 width=120) (actual time=0.269..16.571 rows=1000.00 loops=1)
-              Hash Cond: (f.id = b.file_id)
-              Buffers: shared hit=23349
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.013..3.032 rows=100000.00 loops=1)
-                    Buffers: shared hit=2326
-              ->  Hash  (cost=612.39..612.39 rows=1034 width=49) (actual time=0.164..0.165 rows=1000.00 loops=1)
-                    Buckets: 2048  Batches: 1  Memory Usage: 102kB
-                    Buffers: shared hit=23
-                    ->  Bitmap Heap Scan on bookmark b  (cost=44.43..612.39 rows=1034 width=49) (actual time=0.049..0.096 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
-                          Heap Blocks: exact=11
-                          Buffers: shared hit=23
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.17 rows=1034 width=0) (actual time=0.040..0.040 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
-                                Index Searches: 1
-                                Buffers: shared hit=12
-              SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.008..0.008 rows=1.00 loops=1000)
-                      Filter: (directory_id IS NULL)
-                      Rows Removed by Filter: 6
-                      Storage: Memory  Maximum Storage: 17kB
-                      Buffers: shared hit=21000
-                      CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.007 rows=7.00 loops=1000)
-                              Storage: Memory  Maximum Storage: 33kB
-                              Buffers: shared hit=21000
-                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
-                                    Index Cond: (id = f.directory_id)
-                                    Index Searches: 1000
-                                    Buffers: shared hit=3000
-                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.86 loops=7000)
-                                    Buffers: shared hit=18000
-                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7000)
-                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.001..0.001 rows=0.86 loops=7000)
-                                          Index Cond: (id = up.directory_id)
-                                          Index Searches: 6000
-                                          Buffers: shared hit=18000
-Planning:
-  Buffers: shared hit=9
-Planning Time: 0.252 ms
-JIT:
-  Functions: 28
-  Options: Inlining true, Optimization true, Expressions true, Deforming true
-  Timing: Generation 0.818 ms (Deform 0.360 ms), Inlining 6.625 ms, Optimization 67.071 ms, Emission 46.669 ms, Total 121.183 ms
-Execution Time: 138.263 ms
-
----- e: anchored, page, unit deep (1000 bookmarks): median of 5 runs: planning 0.274 ms, execution 14.112 ms, buffers 6476 ----
-Limit  (cost=13736.09..13736.10 rows=5 width=120) (actual time=13.912..13.916 rows=20.00 loops=1)
-  Buffers: shared hit=6476
-  CTE up
-    ->  Recursive Union  (cost=67.44..10947.72 rows=104434 width=64) (actual time=0.175..10.950 rows=8000.00 loops=1)
-          Storage: Memory  Maximum Storage: 202kB
-          Buffers: shared hit=2453
-          ->  Hash Join  (cost=67.44..3655.95 rows=1034 width=64) (actual time=0.174..7.558 rows=1000.00 loops=1)
-                Hash Cond: (f_1.id = b_1.file_id)
-                Buffers: shared hit=2339
-                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.003..2.655 rows=100000.00 loops=1)
-                      Buffers: shared hit=2326
-                ->  Hash  (cost=54.51..54.51 rows=1034 width=16) (actual time=0.145..0.145 rows=1000.00 loops=1)
-                      Buckets: 2048  Batches: 1  Memory Usage: 63kB
-                      Buffers: shared hit=13
-                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..54.51 rows=1034 width=16) (actual time=0.012..0.072 rows=1000.00 loops=1)
-                            Index Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
-                            Heap Fetches: 0
-                            Index Searches: 1
-                            Buffers: shared hit=13
-          ->  Hash Join  (cost=339.09..624.74 rows=10340 width=64) (actual time=0.172..0.324 rows=875.00 loops=8)
-                Hash Cond: (up_1.directory_id = d.id)
-                Buffers: shared hit=114
-                ->  WorkTable Scan on up up_1  (cost=0.00..206.80 rows=10340 width=64) (actual time=0.000..0.025 rows=1000.00 loops=8)
-                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.288..1.288 rows=10004.00 loops=1)
-                      Buckets: 16384  Batches: 1  Memory Usage: 811kB
-                      Buffers: shared hit=114
-                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.006..0.425 rows=10004.00 loops=1)
-                            Buffers: shared hit=114
-  ->  Sort  (cost=2788.37..2788.38 rows=5 width=120) (actual time=13.912..13.913 rows=20.00 loops=1)
-        Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=6476
-        ->  Nested Loop  (cost=625.73..2788.31 rows=5 width=120) (actual time=11.745..13.615 rows=1000.00 loops=1)
-              Buffers: shared hit=6476
-              ->  Hash Join  (cost=625.31..2715.36 rows=14 width=97) (actual time=11.735..12.358 rows=1000.00 loops=1)
-                    Hash Cond: (up.file_id = b.file_id)
-                    Buffers: shared hit=2476
-                    ->  CTE Scan on up  (cost=0.00..2088.68 rows=522 width=48) (actual time=11.583..12.089 rows=1000.00 loops=1)
-                          Filter: (directory_id IS NULL)
-                          Rows Removed by Filter: 7000
-                          Storage: Memory  Maximum Storage: 656kB
-                          Buffers: shared hit=2453
-                    ->  Hash  (cost=612.39..612.39 rows=1034 width=49) (actual time=0.151..0.151 rows=1000.00 loops=1)
-                          Buckets: 2048  Batches: 1  Memory Usage: 102kB
-                          Buffers: shared hit=23
-                          ->  Bitmap Heap Scan on bookmark b  (cost=44.43..612.39 rows=1034 width=49) (actual time=0.034..0.081 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
-                                Heap Blocks: exact=11
-                                Buffers: shared hit=23
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.17 rows=1034 width=0) (actual time=0.027..0.027 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
-                                      Index Searches: 1
-                                      Buffers: shared hit=12
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.21 rows=1 width=55) (actual time=0.001..0.001 rows=1.00 loops=1000)
-                    Index Cond: (id = b.file_id)
-                    Index Searches: 1000
-                    Buffers: shared hit=4000
-Planning:
-  Buffers: shared hit=18
-Planning Time: 0.274 ms
-Execution Time: 14.112 ms
-
-==================== f. the same queries with JIT compilation off ====================
-The planner's cost estimate of the correlated recursion crosses jit_above_cost at about a hundred and forty rows, and the top-level recursion's estimate crosses it for any unit, so those queries are JIT-compiled on a server with the default settings. The same queries on a session with jit = off isolate the compile time from the walk: the shipped page for the counted and the depth units, and the top-level recursion's count and page.
-
----- f: shipped page, by path, jit off, unit u100 (100 bookmarks): median of 5 runs: planning 0.243 ms, execution 1.591 ms, buffers 2371 ----
-Limit  (cost=76497.84..76497.89 rows=20 width=120) (actual time=1.492..1.497 rows=20.00 loops=1)
-  Buffers: shared hit=2371
-  ->  Sort  (cost=76497.84..76498.08 rows=94 width=120) (actual time=1.492..1.494 rows=20.00 loops=1)
-        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=2371
-        ->  Nested Loop  (cost=0.83..76495.34 rows=94 width=120) (actual time=0.034..1.410 rows=100.00 loops=1)
-              Buffers: shared hit=2371
-              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..160.56 rows=94 width=49) (actual time=0.007..0.026 rows=100.00 loops=1)
-                    Index Cond: (unit_id = '01a0c1e9-806a-75d1-a8b2-6cbb20d8d196'::uuid)
-                    Index Searches: 1
-                    Buffers: shared hit=51
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..7.97 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=100)
-                    Index Cond: (id = b.file_id)
-                    Index Searches: 100
-                    Buffers: shared hit=400
-              SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.011..0.012 rows=1.00 loops=100)
-                      Filter: (directory_id IS NULL)
-                      Rows Removed by Filter: 5
-                      Storage: Memory  Maximum Storage: 17kB
-                      Buffers: shared hit=1920
-                      CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.010 rows=6.40 loops=100)
-                              Storage: Memory  Maximum Storage: 33kB
-                              Buffers: shared hit=1920
-                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=100)
-                                    Index Cond: (id = f.directory_id)
-                                    Index Searches: 100
-                                    Buffers: shared hit=300
-                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.84 loops=640)
-                                    Buffers: shared hit=1620
-                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=640)
-                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.001..0.001 rows=0.84 loops=640)
-                                          Index Cond: (id = up.directory_id)
-                                          Index Searches: 540
-                                          Buffers: shared hit=1620
-Planning:
-  Buffers: shared hit=9
-Planning Time: 0.243 ms
-Execution Time: 1.591 ms
-
----- f: shipped page, by path, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.196 ms, execution 16.899 ms, buffers 21940 ----
-Limit  (cost=782614.49..782614.54 rows=20 width=120) (actual time=16.816..16.818 rows=20.00 loops=1)
-  Buffers: shared hit=21940
-  ->  Sort  (cost=782614.49..782616.91 rows=968 width=120) (actual time=16.815..16.817 rows=20.00 loops=1)
-        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=21940
-        ->  Hash Join  (cost=626.36..782588.73 rows=968 width=120) (actual time=0.179..16.490 rows=1000.00 loops=1)
-              Hash Cond: (f.id = b.file_id)
-              Buffers: shared hit=21940
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.003..2.810 rows=100000.00 loops=1)
-                    Buffers: shared hit=2326
-              ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.139..0.140 rows=1000.00 loops=1)
-                    Buckets: 1024  Batches: 1  Memory Usage: 94kB
-                    Buffers: shared hit=21
-                    ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.033..0.075 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
-                          Heap Blocks: exact=11
-                          Buffers: shared hit=21
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.028..0.028 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
-                                Index Searches: 1
-                                Buffers: shared hit=10
-              SubPlan 2
-                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.008 rows=1.00 loops=1000)
-                      Filter: (directory_id IS NULL)
-                      Rows Removed by Filter: 6
-                      Storage: Memory  Maximum Storage: 17kB
-                      Buffers: shared hit=19593
-                      CTE up
-                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.007 rows=6.53 loops=1000)
-                              Storage: Memory  Maximum Storage: 33kB
-                              Buffers: shared hit=19593
-                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
-                                    Index Cond: (id = f.directory_id)
-                                    Index Searches: 1000
-                                    Buffers: shared hit=3000
-                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.85 loops=6531)
-                                    Buffers: shared hit=16593
-                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=6531)
-                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.000..0.000 rows=0.85 loops=6531)
-                                          Index Cond: (id = up.directory_id)
-                                          Index Searches: 5531
-                                          Buffers: shared hit=16593
-Planning:
-  Buffers: shared hit=9
-Planning Time: 0.196 ms
-Execution Time: 16.899 ms
-
----- f: shipped page, by path, jit off, unit shallow (1000 bookmarks): median of 5 runs: planning 0.239 ms, execution 13.931 ms, buffers 14349 ----
-Limit  (cost=815584.99..815585.04 rows=20 width=120) (actual time=13.832..13.835 rows=20.00 loops=1)
-  Buffers: shared hit=14349
-  ->  Sort  (cost=815584.99..815587.52 rows=1009 width=120) (actual time=13.831..13.833 rows=20.00 loops=1)
-        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
-        Buffers: shared hit=14349
-        ->  Hash Join  (cost=627.46..815558.14 rows=1009 width=120) (actual time=0.190..13.528 rows=1000.00 loops=1)
-              Hash Cond: (f.id = b.file_id)
-              Buffers: shared hit=14349
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.003..2.769 rows=100000.00 loops=1)
-                    Buffers: shared hit=2326
-              ->  Hash  (cost=614.85..614.85 rows=1009 width=49) (actual time=0.145..0.146 rows=1000.00 loops=1)
-                    Buckets: 1024  Batches: 1  Memory Usage: 94kB
-                    Buffers: shared hit=23
-                    ->  Bitmap Heap Scan on bookmark b  (cost=44.23..614.85 rows=1009 width=49) (actual time=0.035..0.080 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
-                          Heap Blocks: exact=12
-                          Buffers: shared hit=23
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..43.98 rows=1009 width=0) (actual time=0.029..0.029 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806b-7ef7-8dab-b8e906c43169'::uuid)
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.74 rows=977 width=0) (actual time=0.055..0.055 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
                                 Index Searches: 1
                                 Buffers: shared hit=11
               SubPlan 2
@@ -1357,34 +1033,361 @@ Limit  (cost=815584.99..815585.04 rows=20 width=120) (actual time=13.832..13.835
                                           Buffers: shared hit=9000
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.239 ms
-Execution Time: 13.931 ms
+Planning Time: 0.236 ms
+JIT:
+  Functions: 28
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 0.769 ms (Deform 0.314 ms), Inlining 6.431 ms, Optimization 61.975 ms, Emission 45.903 ms, Total 115.078 ms
+Execution Time: 128.623 ms
 
----- f: shipped page, by path, jit off, unit deep (1000 bookmarks): median of 5 runs: planning 0.200 ms, execution 17.382 ms, buffers 23349 ----
-Limit  (cost=835686.15..835686.20 rows=20 width=120) (actual time=17.285..17.288 rows=20.00 loops=1)
+---- e: anchored, page, unit shallow (1000 bookmarks): median of 5 runs: planning 0.271 ms, execution 12.953 ms, buffers 6475 ----
+Limit  (cost=13391.80..13391.81 rows=5 width=136) (actual time=12.779..12.782 rows=20.00 loops=1)
+  Buffers: shared hit=6475
+  CTE up
+    ->  Recursive Union  (cost=61.72..10726.98 rows=98677 width=64) (actual time=0.161..10.314 rows=5000.00 loops=1)
+          Storage: Memory  Maximum Storage: 173kB
+          Buffers: shared hit=2452
+          ->  Hash Join  (cost=61.72..3650.24 rows=977 width=64) (actual time=0.161..7.791 rows=1000.00 loops=1)
+                Hash Cond: (f_1.id = b_1.file_id)
+                Buffers: shared hit=2338
+                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.002..2.552 rows=100000.00 loops=1)
+                      Buffers: shared hit=2326
+                ->  Hash  (cost=49.51..49.51 rows=977 width=16) (actual time=0.135..0.135 rows=1000.00 loops=1)
+                      Buckets: 1024  Batches: 1  Memory Usage: 55kB
+                      Buffers: shared hit=12
+                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..49.51 rows=977 width=16) (actual time=0.010..0.065 rows=1000.00 loops=1)
+                            Index Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
+                            Heap Fetches: 0
+                            Index Searches: 1
+                            Buffers: shared hit=12
+          ->  Hash Join  (cost=339.09..609.00 rows=9770 width=64) (actual time=0.271..0.409 rows=800.00 loops=5)
+                Hash Cond: (up_1.directory_id = d.id)
+                Buffers: shared hit=114
+                ->  WorkTable Scan on up up_1  (cost=0.00..195.40 rows=9770 width=64) (actual time=0.000..0.025 rows=1000.00 loops=5)
+                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.267..1.268 rows=10004.00 loops=1)
+                      Buckets: 16384  Batches: 1  Memory Usage: 811kB
+                      Buffers: shared hit=114
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.005..0.408 rows=10004.00 loops=1)
+                            Buffers: shared hit=114
+  ->  Sort  (cost=2664.82..2664.83 rows=5 width=136) (actual time=12.778..12.779 rows=20.00 loops=1)
+        Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=6475
+        ->  Nested Loop  (cost=626.34..2664.76 rows=5 width=136) (actual time=10.694..12.495 rows=1000.00 loops=1)
+              Buffers: shared hit=6475
+              ->  Hash Join  (cost=625.92..2600.75 rows=12 width=97) (actual time=10.685..11.288 rows=1000.00 loops=1)
+                    Hash Cond: (up.file_id = b.file_id)
+                    Buffers: shared hit=2475
+                    ->  CTE Scan on up  (cost=0.00..1973.54 rows=493 width=48) (actual time=10.543..11.028 rows=1000.00 loops=1)
+                          Filter: (directory_id IS NULL)
+                          Rows Removed by Filter: 4000
+                          Storage: Memory  Maximum Storage: 384kB
+                          Buffers: shared hit=2452
+                    ->  Hash  (cost=613.71..613.71 rows=977 width=49) (actual time=0.140..0.140 rows=1000.00 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 94kB
+                          Buffers: shared hit=23
+                          ->  Bitmap Heap Scan on bookmark b  (cost=39.99..613.71 rows=977 width=49) (actual time=0.027..0.070 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
+                                Heap Blocks: exact=12
+                                Buffers: shared hit=23
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.74 rows=977 width=0) (actual time=0.023..0.023 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
+                                      Index Searches: 1
+                                      Buffers: shared hit=11
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.33 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=1000)
+                    Index Cond: (id = b.file_id)
+                    Index Searches: 1000
+                    Buffers: shared hit=4000
+Planning:
+  Buffers: shared hit=18
+Planning Time: 0.271 ms
+Execution Time: 12.953 ms
+
+---- e: shipped page, by path, unit deep (1000 bookmarks): median of 5 runs: planning 0.241 ms, execution 133.227 ms, buffers 23349 ----
+Limit  (cost=828449.96..828450.01 rows=20 width=136) (actual time=132.287..132.291 rows=20.00 loops=1)
   Buffers: shared hit=23349
-  ->  Sort  (cost=835686.15..835688.73 rows=1034 width=120) (actual time=17.284..17.286 rows=20.00 loops=1)
+  ->  Sort  (cost=828449.96..828452.52 rows=1025 width=136) (actual time=17.218..17.221 rows=20.00 loops=1)
         Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
         Sort Method: top-N heapsort  Memory: 33kB
         Buffers: shared hit=23349
-        ->  Hash Join  (cost=625.31..835658.63 rows=1034 width=120) (actual time=0.192..16.950 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=626.31..828422.68 rows=1025 width=136) (actual time=0.339..16.863 rows=1000.00 loops=1)
               Hash Cond: (f.id = b.file_id)
               Buffers: shared hit=23349
-              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.002..2.830 rows=100000.00 loops=1)
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.025..3.017 rows=100000.00 loops=1)
                     Buffers: shared hit=2326
-              ->  Hash  (cost=612.39..612.39 rows=1034 width=49) (actual time=0.140..0.141 rows=1000.00 loops=1)
+              ->  Hash  (cost=613.50..613.50 rows=1025 width=49) (actual time=0.200..0.201 rows=1000.00 loops=1)
                     Buckets: 2048  Batches: 1  Memory Usage: 102kB
                     Buffers: shared hit=23
-                    ->  Bitmap Heap Scan on bookmark b  (cost=44.43..612.39 rows=1034 width=49) (actual time=0.034..0.075 rows=1000.00 loops=1)
-                          Recheck Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
+                    ->  Bitmap Heap Scan on bookmark b  (cost=44.36..613.50 rows=1025 width=49) (actual time=0.066..0.127 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
                           Heap Blocks: exact=11
                           Buffers: shared hit=23
-                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.17 rows=1034 width=0) (actual time=0.027..0.028 rows=1000.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-806b-7f2c-9213-91eed339359a'::uuid)
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.10 rows=1025 width=0) (actual time=0.056..0.056 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
                                 Index Searches: 1
                                 Buffers: shared hit=12
               SubPlan 2
                 ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.008..0.009 rows=1.00 loops=1000)
+                      Filter: (directory_id IS NULL)
+                      Rows Removed by Filter: 6
+                      Storage: Memory  Maximum Storage: 17kB
+                      Buffers: shared hit=21000
+                      CTE up
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.008 rows=7.00 loops=1000)
+                              Storage: Memory  Maximum Storage: 33kB
+                              Buffers: shared hit=21000
+                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
+                                    Index Cond: (id = f.directory_id)
+                                    Index Searches: 1000
+                                    Buffers: shared hit=3000
+                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.86 loops=7000)
+                                    Buffers: shared hit=18000
+                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7000)
+                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.001..0.001 rows=0.86 loops=7000)
+                                          Index Cond: (id = up.directory_id)
+                                          Index Searches: 6000
+                                          Buffers: shared hit=18000
+Planning:
+  Buffers: shared hit=9
+Planning Time: 0.241 ms
+JIT:
+  Functions: 28
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 0.775 ms (Deform 0.325 ms), Inlining 6.599 ms, Optimization 62.245 ms, Emission 46.224 ms, Total 115.843 ms
+Execution Time: 133.227 ms
+
+---- e: anchored, page, unit deep (1000 bookmarks): median of 5 runs: planning 0.269 ms, execution 13.868 ms, buffers 6476 ----
+Limit  (cost=13684.94..13684.95 rows=5 width=136) (actual time=13.670..13.673 rows=20.00 loops=1)
+  Buffers: shared hit=6476
+  CTE up
+    ->  Recursive Union  (cost=67.16..10913.50 rows=103525 width=64) (actual time=0.172..10.738 rows=8000.00 loops=1)
+          Storage: Memory  Maximum Storage: 202kB
+          Buffers: shared hit=2453
+          ->  Hash Join  (cost=67.16..3655.68 rows=1025 width=64) (actual time=0.171..7.405 rows=1000.00 loops=1)
+                Hash Cond: (f_1.id = b_1.file_id)
+                Buffers: shared hit=2339
+                ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.003..2.570 rows=100000.00 loops=1)
+                      Buffers: shared hit=2326
+                ->  Hash  (cost=54.35..54.35 rows=1025 width=16) (actual time=0.143..0.143 rows=1000.00 loops=1)
+                      Buckets: 2048  Batches: 1  Memory Usage: 63kB
+                      Buffers: shared hit=13
+                      ->  Index Only Scan using pk_bookmark on bookmark b_1  (cost=0.41..54.35 rows=1025 width=16) (actual time=0.010..0.066 rows=1000.00 loops=1)
+                            Index Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
+                            Heap Fetches: 0
+                            Index Searches: 1
+                            Buffers: shared hit=13
+          ->  Hash Join  (cost=339.09..622.26 rows=10250 width=64) (actual time=0.170..0.320 rows=875.00 loops=8)
+                Hash Cond: (up_1.directory_id = d.id)
+                Buffers: shared hit=114
+                ->  WorkTable Scan on up up_1  (cost=0.00..205.00 rows=10250 width=64) (actual time=0.000..0.025 rows=1000.00 loops=8)
+                ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.278..1.278 rows=10004.00 loops=1)
+                      Buckets: 16384  Batches: 1  Memory Usage: 811kB
+                      Buffers: shared hit=114
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.004..0.415 rows=10004.00 loops=1)
+                            Buffers: shared hit=114
+  ->  Sort  (cost=2771.44..2771.45 rows=5 width=136) (actual time=13.669..13.670 rows=20.00 loops=1)
+        Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=6476
+        ->  Nested Loop  (cost=626.73..2771.38 rows=5 width=136) (actual time=11.538..13.370 rows=1000.00 loops=1)
+              Buffers: shared hit=6476
+              ->  Hash Join  (cost=626.31..2698.17 rows=14 width=97) (actual time=11.528..12.123 rows=1000.00 loops=1)
+                    Hash Cond: (up.file_id = b.file_id)
+                    Buffers: shared hit=2476
+                    ->  CTE Scan on up  (cost=0.00..2070.50 rows=518 width=48) (actual time=11.358..11.842 rows=1000.00 loops=1)
+                          Filter: (directory_id IS NULL)
+                          Rows Removed by Filter: 7000
+                          Storage: Memory  Maximum Storage: 656kB
+                          Buffers: shared hit=2453
+                    ->  Hash  (cost=613.50..613.50 rows=1025 width=49) (actual time=0.168..0.169 rows=1000.00 loops=1)
+                          Buckets: 2048  Batches: 1  Memory Usage: 102kB
+                          Buffers: shared hit=23
+                          ->  Bitmap Heap Scan on bookmark b  (cost=44.36..613.50 rows=1025 width=49) (actual time=0.031..0.102 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
+                                Heap Blocks: exact=11
+                                Buffers: shared hit=23
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.10 rows=1025 width=0) (actual time=0.025..0.025 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
+                                      Index Searches: 1
+                                      Buffers: shared hit=12
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..5.23 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=1000)
+                    Index Cond: (id = b.file_id)
+                    Index Searches: 1000
+                    Buffers: shared hit=4000
+Planning:
+  Buffers: shared hit=18
+Planning Time: 0.269 ms
+Execution Time: 13.868 ms
+
+==================== f. the same queries with JIT compilation off ====================
+The planner's cost estimate of the correlated recursion crosses jit_above_cost at about a hundred and forty rows, and the top-level recursion's estimate crosses it for any unit, so those queries are JIT-compiled on a server with the default settings. The same queries on a session with jit = off isolate the compile time from the walk: the shipped page for the counted and the depth units, and the top-level recursion's count and page.
+
+---- f: shipped page, by path, jit off, unit u100 (100 bookmarks): median of 5 runs: planning 0.172 ms, execution 1.014 ms, buffers 2371 ----
+Limit  (cost=76497.84..76497.89 rows=20 width=136) (actual time=0.962..0.964 rows=20.00 loops=1)
+  Buffers: shared hit=2371
+  ->  Sort  (cost=76497.84..76498.08 rows=94 width=136) (actual time=0.962..0.963 rows=20.00 loops=1)
+        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=2371
+        ->  Nested Loop  (cost=0.83..76495.34 rows=94 width=136) (actual time=0.031..0.911 rows=100.00 loops=1)
+              Buffers: shared hit=2371
+              ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..160.56 rows=94 width=49) (actual time=0.006..0.019 rows=100.00 loops=1)
+                    Index Cond: (unit_id = '01a0c841-42ee-7c46-b6fc-76a3486105f5'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=51
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..7.97 rows=1 width=71) (actual time=0.001..0.001 rows=1.00 loops=100)
+                    Index Cond: (id = b.file_id)
+                    Index Searches: 100
+                    Buffers: shared hit=400
+              SubPlan 2
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.008 rows=1.00 loops=100)
+                      Filter: (directory_id IS NULL)
+                      Rows Removed by Filter: 5
+                      Storage: Memory  Maximum Storage: 17kB
+                      Buffers: shared hit=1920
+                      CTE up
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.007 rows=6.40 loops=100)
+                              Storage: Memory  Maximum Storage: 33kB
+                              Buffers: shared hit=1920
+                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=100)
+                                    Index Cond: (id = f.directory_id)
+                                    Index Searches: 100
+                                    Buffers: shared hit=300
+                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.84 loops=640)
+                                    Buffers: shared hit=1620
+                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=640)
+                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.000..0.000 rows=0.84 loops=640)
+                                          Index Cond: (id = up.directory_id)
+                                          Index Searches: 540
+                                          Buffers: shared hit=1620
+Planning:
+  Buffers: shared hit=9
+Planning Time: 0.172 ms
+Execution Time: 1.014 ms
+
+---- f: shipped page, by path, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.354 ms, execution 16.748 ms, buffers 21940 ----
+Limit  (cost=778594.38..778594.43 rows=20 width=136) (actual time=16.635..16.639 rows=20.00 loops=1)
+  Buffers: shared hit=21940
+  ->  Sort  (cost=778594.38..778596.79 rows=963 width=136) (actual time=16.634..16.637 rows=20.00 loops=1)
+        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=21940
+        ->  Hash Join  (cost=626.91..778568.76 rows=963 width=136) (actual time=0.211..16.299 rows=1000.00 loops=1)
+              Hash Cond: (f.id = b.file_id)
+              Buffers: shared hit=21940
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.007..2.761 rows=100000.00 loops=1)
+                    Buffers: shared hit=2326
+              ->  Hash  (cost=614.87..614.87 rows=963 width=49) (actual time=0.167..0.168 rows=1000.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 94kB
+                    Buffers: shared hit=21
+                    ->  Bitmap Heap Scan on bookmark b  (cost=39.88..614.87 rows=963 width=49) (actual time=0.048..0.096 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
+                          Heap Blocks: exact=11
+                          Buffers: shared hit=21
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.64 rows=963 width=0) (actual time=0.040..0.040 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=10
+              SubPlan 2
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.007..0.008 rows=1.00 loops=1000)
+                      Filter: (directory_id IS NULL)
+                      Rows Removed by Filter: 6
+                      Storage: Memory  Maximum Storage: 17kB
+                      Buffers: shared hit=19593
+                      CTE up
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.007 rows=6.53 loops=1000)
+                              Storage: Memory  Maximum Storage: 33kB
+                              Buffers: shared hit=19593
+                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
+                                    Index Cond: (id = f.directory_id)
+                                    Index Searches: 1000
+                                    Buffers: shared hit=3000
+                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.85 loops=6531)
+                                    Buffers: shared hit=16593
+                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=6531)
+                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.000..0.000 rows=0.85 loops=6531)
+                                          Index Cond: (id = up.directory_id)
+                                          Index Searches: 5531
+                                          Buffers: shared hit=16593
+Planning:
+  Buffers: shared hit=9
+Planning Time: 0.354 ms
+Execution Time: 16.748 ms
+
+---- f: shipped page, by path, jit off, unit shallow (1000 bookmarks): median of 5 runs: planning 0.206 ms, execution 13.499 ms, buffers 14349 ----
+Limit  (cost=789851.24..789851.29 rows=20 width=136) (actual time=13.407..13.410 rows=20.00 loops=1)
+  Buffers: shared hit=14349
+  ->  Sort  (cost=789851.24..789853.68 rows=977 width=136) (actual time=13.406..13.408 rows=20.00 loops=1)
+        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=14349
+        ->  Hash Join  (cost=625.92..789825.24 rows=977 width=136) (actual time=0.185..13.102 rows=1000.00 loops=1)
+              Hash Cond: (f.id = b.file_id)
+              Buffers: shared hit=14349
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.003..2.685 rows=100000.00 loops=1)
+                    Buffers: shared hit=2326
+              ->  Hash  (cost=613.71..613.71 rows=977 width=49) (actual time=0.138..0.138 rows=1000.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 94kB
+                    Buffers: shared hit=23
+                    ->  Bitmap Heap Scan on bookmark b  (cost=39.99..613.71 rows=977 width=49) (actual time=0.032..0.074 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
+                          Heap Blocks: exact=12
+                          Buffers: shared hit=23
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.74 rows=977 width=0) (actual time=0.026..0.026 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42f0-793c-94f5-2b84bbec3064'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=11
+              SubPlan 2
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.004..0.005 rows=1.00 loops=1000)
+                      Filter: (directory_id IS NULL)
+                      Rows Removed by Filter: 3
+                      Storage: Memory  Maximum Storage: 17kB
+                      Buffers: shared hit=12000
+                      CTE up
+                        ->  Recursive Union  (cost=0.29..802.08 rows=101 width=48) (actual time=0.001..0.004 rows=4.00 loops=1000)
+                              Storage: Memory  Maximum Storage: 33kB
+                              Buffers: shared hit=12000
+                              ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=48) (actual time=0.001..0.001 rows=1.00 loops=1000)
+                                    Index Cond: (id = f.directory_id)
+                                    Index Searches: 1000
+                                    Buffers: shared hit=3000
+                              ->  Nested Loop  (cost=0.29..79.28 rows=10 width=48) (actual time=0.001..0.001 rows=0.75 loops=4000)
+                                    Buffers: shared hit=9000
+                                    ->  WorkTable Scan on up  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=4000)
+                                    ->  Index Scan using blobfs_pk_directory on blobfs_directory d_1  (cost=0.29..7.90 rows=1 width=37) (actual time=0.000..0.000 rows=0.75 loops=4000)
+                                          Index Cond: (id = up.directory_id)
+                                          Index Searches: 3000
+                                          Buffers: shared hit=9000
+Planning:
+  Buffers: shared hit=9
+Planning Time: 0.206 ms
+Execution Time: 13.499 ms
+
+---- f: shipped page, by path, jit off, unit deep (1000 bookmarks): median of 5 runs: planning 0.203 ms, execution 16.948 ms, buffers 23349 ----
+Limit  (cost=828449.96..828450.01 rows=20 width=136) (actual time=16.844..16.847 rows=20.00 loops=1)
+  Buffers: shared hit=23349
+  ->  Sort  (cost=828449.96..828452.52 rows=1025 width=136) (actual time=16.843..16.845 rows=20.00 loops=1)
+        Sort Key: ((((SubPlan 2) || '/'::text) || f.name)), b.file_id
+        Sort Method: top-N heapsort  Memory: 33kB
+        Buffers: shared hit=23349
+        ->  Hash Join  (cost=626.31..828422.68 rows=1025 width=136) (actual time=0.193..16.506 rows=1000.00 loops=1)
+              Hash Cond: (f.id = b.file_id)
+              Buffers: shared hit=23349
+              ->  Seq Scan on blobfs_file f  (cost=0.00..3326.00 rows=100000 width=71) (actual time=0.002..2.761 rows=100000.00 loops=1)
+                    Buffers: shared hit=2326
+              ->  Hash  (cost=613.50..613.50 rows=1025 width=49) (actual time=0.140..0.141 rows=1000.00 loops=1)
+                    Buckets: 2048  Batches: 1  Memory Usage: 102kB
+                    Buffers: shared hit=23
+                    ->  Bitmap Heap Scan on bookmark b  (cost=44.36..613.50 rows=1025 width=49) (actual time=0.034..0.075 rows=1000.00 loops=1)
+                          Recheck Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
+                          Heap Blocks: exact=11
+                          Buffers: shared hit=23
+                          ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..44.10 rows=1025 width=0) (actual time=0.027..0.027 rows=1000.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42f0-7974-a7d1-08b82e27eaa8'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=12
+              SubPlan 2
+                ->  CTE Scan on up up_1  (cost=802.08..804.10 rows=1 width=32) (actual time=0.008..0.008 rows=1.00 loops=1000)
                       Filter: (directory_id IS NULL)
                       Rows Removed by Filter: 6
                       Storage: Memory  Maximum Storage: 17kB
@@ -1406,238 +1409,238 @@ Limit  (cost=835686.15..835686.20 rows=20 width=120) (actual time=17.285..17.288
                                           Buffers: shared hit=18000
 Planning:
   Buffers: shared hit=9
-Planning Time: 0.200 ms
-Execution Time: 17.382 ms
+Planning Time: 0.203 ms
+Execution Time: 16.948 ms
 
----- f: top-level recursion, count, jit off, unit u10 (10 bookmarks): median of 5 runs: planning 0.314 ms, execution 156.149 ms, buffers 3023 ----
-Aggregate  (cost=232930.73..232930.74 rows=1 width=8) (actual time=154.905..154.910 rows=1.00 loops=1)
+---- f: top-level recursion, count, jit off, unit u10 (10 bookmarks): median of 5 runs: planning 0.353 ms, execution 154.690 ms, buffers 3023 ----
+Aggregate  (cost=233972.96..233972.97 rows=1 width=8) (actual time=153.425..153.429 rows=1.00 loops=1)
   Buffers: shared hit=3023, temp written=2141
-  ->  Nested Loop  (cost=154962.97..232930.72 rows=1 width=185) (actual time=126.057..154.901 rows=10.00 loops=1)
+  ->  Nested Loop  (cost=155641.79..233972.93 rows=2 width=201) (actual time=125.523..153.418 rows=10.00 loops=1)
         Join Filter: (f.id = b.file_id)
         Buffers: shared hit=3023, temp written=2141
         CTE up
-          ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=6.194..101.004 rows=310172.00 loops=1)
+          ->  Recursive Union  (cost=1742.97..155636.60 rows=3913851 width=64) (actual time=6.311..100.162 rows=310172.00 loops=1)
                 Storage: Memory  Maximum Storage: 7370kB
                 Buffers: shared hit=2988
-                ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=6.191..20.005 rows=41466.00 loops=1)
+                ->  Hash Semi Join  (cost=1742.97..6053.21 rows=38751 width=64) (actual time=6.310..20.352 rows=41466.00 loops=1)
                       Hash Cond: (f_1.id = b_1.file_id)
                       Buffers: shared hit=2874
-                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.004..3.241 rows=100000.00 loops=1)
+                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.005..3.335 rows=100000.00 loops=1)
                             Buffers: shared hit=2326
-                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=6.055..6.056 rows=53110.00 loops=1)
+                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=6.165..6.166 rows=53110.00 loops=1)
                             Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                             Buffers: shared hit=548
-                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..2.053 rows=53110.00 loops=1)
+                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..2.063 rows=53110.00 loops=1)
                                   Buffers: shared hit=548
-                ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.327..6.380 rows=33588.25 loops=8)
+                ->  Hash Join  (cost=339.09..11044.49 rows=387510 width=64) (actual time=0.337..6.363 rows=33588.25 loops=8)
                       Hash Cond: (up_1.directory_id = d.id)
                       Buffers: shared hit=114
-                      ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.987 rows=38771.50 loops=8)
-                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.315..1.315 rows=10004.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..7750.20 rows=387510 width=64) (actual time=0.000..0.972 rows=38771.50 loops=8)
+                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.434..1.435 rows=10004.00 loops=1)
                             Buckets: 16384  Batches: 1  Memory Usage: 811kB
                             Buffers: shared hit=114
-                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.014..0.438 rows=10004.00 loops=1)
+                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.014..0.441 rows=10004.00 loops=1)
                                   Buffers: shared hit=114
-        ->  Hash Join  (cost=4.56..77971.15 rows=3 width=32) (actual time=126.028..154.819 rows=10.00 loops=1)
+        ->  Hash Join  (cost=4.78..78333.17 rows=6 width=32) (actual time=125.475..153.311 rows=10.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=2992, temp written=2141
-              ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=16) (actual time=50.760..152.967 rows=41466.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..78277.02 rows=19569 width=16) (actual time=51.066..151.580 rows=41466.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 268706
                     Storage: Disk  Maximum Storage: 17128kB
                     Buffers: shared hit=2988, temp written=2141
-              ->  Hash  (cost=4.50..4.50 rows=5 width=16) (actual time=0.036..0.036 rows=10.00 loops=1)
+              ->  Hash  (cost=4.62..4.62 rows=12 width=16) (actual time=0.033..0.033 rows=10.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
                     Buffers: shared hit=4
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.50 rows=5 width=16) (actual time=0.032..0.033 rows=10.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..4.62 rows=12 width=16) (actual time=0.029..0.031 rows=10.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=4
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.007..0.007 rows=1.00 loops=10)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.009..0.009 rows=1.00 loops=10)
               Index Cond: (id = up.file_id)
               Heap Fetches: 0
               Index Searches: 10
               Buffers: shared hit=31
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.314 ms
-Execution Time: 156.149 ms
+Planning Time: 0.353 ms
+Execution Time: 154.690 ms
 
----- f: top-level recursion, page, jit off, unit u10 (10 bookmarks): median of 5 runs: planning 0.329 ms, execution 158.451 ms, buffers 3032 ----
-Limit  (cost=232943.17..232943.17 rows=1 width=120) (actual time=157.005..157.011 rows=10.00 loops=1)
+---- f: top-level recursion, page, jit off, unit u10 (10 bookmarks): median of 5 runs: planning 0.321 ms, execution 156.115 ms, buffers 3032 ----
+Limit  (cost=233999.06..233999.06 rows=2 width=136) (actual time=154.834..154.839 rows=10.00 loops=1)
   Buffers: shared hit=3032, temp written=2141
-  ->  Sort  (cost=232943.17..232943.17 rows=1 width=120) (actual time=157.004..157.009 rows=10.00 loops=1)
+  ->  Sort  (cost=233999.06..233999.06 rows=2 width=136) (actual time=154.833..154.837 rows=10.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
         Sort Method: quicksort  Memory: 27kB
         Buffers: shared hit=3032, temp written=2141
-        ->  Nested Loop  (cost=154973.97..232943.16 rows=1 width=120) (actual time=128.391..156.989 rows=10.00 loops=1)
+        ->  Nested Loop  (cost=155665.04..233999.05 rows=2 width=136) (actual time=126.713..154.818 rows=10.00 loops=1)
               Join Filter: (f.id = b.file_id)
               Buffers: shared hit=3032, temp written=2141
               CTE up
-                ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=6.153..103.209 rows=310172.00 loops=1)
+                ->  Recursive Union  (cost=1742.97..155636.60 rows=3913851 width=64) (actual time=6.115..101.394 rows=310172.00 loops=1)
                       Storage: Memory  Maximum Storage: 7370kB
                       Buffers: shared hit=2988
-                      ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=6.152..21.405 rows=41466.00 loops=1)
+                      ->  Hash Semi Join  (cost=1742.97..6053.21 rows=38751 width=64) (actual time=6.113..20.594 rows=41466.00 loops=1)
                             Hash Cond: (f_1.id = b_1.file_id)
                             Buffers: shared hit=2874
-                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.004..3.423 rows=100000.00 loops=1)
+                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.005..3.312 rows=100000.00 loops=1)
                                   Buffers: shared hit=2326
-                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=6.005..6.006 rows=53110.00 loops=1)
+                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.973..5.974 rows=53110.00 loops=1)
                                   Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                                   Buffers: shared hit=548
-                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..2.003 rows=53110.00 loops=1)
+                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.002..1.959 rows=53110.00 loops=1)
                                         Buffers: shared hit=548
-                      ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.328..6.455 rows=33588.25 loops=8)
+                      ->  Hash Join  (cost=339.09..11044.49 rows=387510 width=64) (actual time=0.320..6.418 rows=33588.25 loops=8)
                             Hash Cond: (up_1.directory_id = d.id)
                             Buffers: shared hit=114
-                            ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.995 rows=38771.50 loops=8)
-                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.326..1.326 rows=10004.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..7750.20 rows=387510 width=64) (actual time=0.000..0.960 rows=38771.50 loops=8)
+                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.284..1.284 rows=10004.00 loops=1)
                                   Buckets: 16384  Batches: 1  Memory Usage: 811kB
                                   Buffers: shared hit=114
-                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.008..0.450 rows=10004.00 loops=1)
+                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.010..0.443 rows=10004.00 loops=1)
                                         Buffers: shared hit=114
-              ->  Hash Join  (cost=15.56..77982.15 rows=3 width=97) (actual time=128.360..156.897 rows=10.00 loops=1)
+              ->  Hash Join  (cost=28.02..78356.42 rows=6 width=97) (actual time=126.662..154.705 rows=10.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=2992, temp written=2141
-                    ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=48) (actual time=53.067..155.112 rows=41466.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..78277.02 rows=19569 width=48) (actual time=50.824..152.944 rows=41466.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 268706
                           Storage: Disk  Maximum Storage: 17128kB
                           Buffers: shared hit=2988, temp written=2141
-                    ->  Hash  (cost=15.50..15.50 rows=5 width=49) (actual time=0.026..0.026 rows=10.00 loops=1)
+                    ->  Hash  (cost=27.88..27.88 rows=12 width=49) (actual time=0.027..0.027 rows=10.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
                           Buffers: shared hit=4
-                          ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..15.50 rows=5 width=49) (actual time=0.021..0.023 rows=10.00 loops=1)
-                                Index Cond: (unit_id = '01a0c1e9-8069-7f18-be50-630b4153ac4b'::uuid)
+                          ->  Index Scan using pk_bookmark on bookmark b  (cost=0.41..27.88 rows=12 width=49) (actual time=0.023..0.025 rows=10.00 loops=1)
+                                Index Cond: (unit_id = '01a0c841-42ed-7c2b-becc-30732c91e031'::uuid)
                                 Index Searches: 1
                                 Buffers: shared hit=4
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=55) (actual time=0.007..0.007 rows=1.00 loops=10)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=71) (actual time=0.009..0.009 rows=1.00 loops=10)
                     Index Cond: (id = up.file_id)
                     Index Searches: 10
                     Buffers: shared hit=40
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.329 ms
-Execution Time: 158.451 ms
+Planning Time: 0.321 ms
+Execution Time: 156.115 ms
 
----- f: top-level recursion, count, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.315 ms, execution 160.254 ms, buffers 6000 ----
-Aggregate  (cost=233246.18..233246.19 rows=1 width=8) (actual time=158.986..158.991 rows=1.00 loops=1)
+---- f: top-level recursion, count, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.312 ms, execution 156.703 ms, buffers 6000 ----
+Aggregate  (cost=234284.68..234284.69 rows=1 width=8) (actual time=155.404..155.408 rows=1.00 loops=1)
   Buffers: shared hit=6000, temp written=2141
-  ->  Nested Loop  (cost=155019.86..233243.81 rows=189 width=185) (actual time=75.191..158.916 rows=1000.00 loops=1)
+  ->  Nested Loop  (cost=155698.32..234282.33 rows=188 width=201) (actual time=73.444..155.331 rows=1000.00 loops=1)
         Join Filter: (f.id = b.file_id)
         Buffers: shared hit=6000, temp written=2141
         CTE up
-          ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=6.075..102.003 rows=310172.00 loops=1)
+          ->  Recursive Union  (cost=1742.97..155636.60 rows=3913851 width=64) (actual time=6.135..99.414 rows=310172.00 loops=1)
                 Storage: Memory  Maximum Storage: 7370kB
                 Buffers: shared hit=2988
-                ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=6.073..20.593 rows=41466.00 loops=1)
+                ->  Hash Semi Join  (cost=1742.97..6053.21 rows=38751 width=64) (actual time=6.133..19.254 rows=41466.00 loops=1)
                       Hash Cond: (f_1.id = b_1.file_id)
                       Buffers: shared hit=2874
-                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.004..3.223 rows=100000.00 loops=1)
+                      ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.005..3.330 rows=100000.00 loops=1)
                             Buffers: shared hit=2326
-                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.932..5.933 rows=53110.00 loops=1)
+                      ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.994..5.995 rows=53110.00 loops=1)
                             Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                             Buffers: shared hit=548
-                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.002..1.995 rows=53110.00 loops=1)
+                            ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..2.018 rows=53110.00 loops=1)
                                   Buffers: shared hit=548
-                ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.334..6.398 rows=33588.25 loops=8)
+                ->  Hash Join  (cost=339.09..11044.49 rows=387510 width=64) (actual time=0.319..6.358 rows=33588.25 loops=8)
                       Hash Cond: (up_1.directory_id = d.id)
                       Buffers: shared hit=114
-                      ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.986 rows=38771.50 loops=8)
-                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.375..1.375 rows=10004.00 loops=1)
+                      ->  WorkTable Scan on up up_1  (cost=0.00..7750.20 rows=387510 width=64) (actual time=0.000..0.974 rows=38771.50 loops=8)
+                      ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.281..1.281 rows=10004.00 loops=1)
                             Buckets: 16384  Batches: 1  Memory Usage: 811kB
                             Buffers: shared hit=114
-                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.014..0.467 rows=10004.00 loops=1)
+                            ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.009..0.431 rows=10004.00 loops=1)
                                   Buffers: shared hit=114
-        ->  Hash Join  (cost=61.45..78028.04 rows=489 width=32) (actual time=75.154..157.124 rows=1000.00 loops=1)
+        ->  Hash Join  (cost=61.30..78389.70 rows=486 width=32) (actual time=73.409..153.613 rows=1000.00 loops=1)
               Hash Cond: (up.file_id = b.file_id)
               Buffers: shared hit=2999, temp written=2141
-              ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=16) (actual time=51.544..154.454 rows=41466.00 loops=1)
+              ->  CTE Scan on up  (cost=0.00..78277.02 rows=19569 width=16) (actual time=49.979..151.054 rows=41466.00 loops=1)
                     Filter: (directory_id IS NULL)
                     Rows Removed by Filter: 268706
                     Storage: Disk  Maximum Storage: 17128kB
                     Buffers: shared hit=2988, temp written=2141
-              ->  Hash  (cost=49.35..49.35 rows=968 width=16) (actual time=0.171..0.171 rows=1000.00 loops=1)
+              ->  Hash  (cost=49.27..49.27 rows=963 width=16) (actual time=0.172..0.172 rows=1000.00 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 55kB
                     Buffers: shared hit=11
-                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.35 rows=968 width=16) (actual time=0.045..0.107 rows=1000.00 loops=1)
-                          Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                    ->  Index Only Scan using pk_bookmark on bookmark b  (cost=0.41..49.27 rows=963 width=16) (actual time=0.037..0.106 rows=1000.00 loops=1)
+                          Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                           Heap Fetches: 0
                           Index Searches: 1
                           Buffers: shared hit=11
-        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.002..0.002 rows=1.00 loops=1000)
+        ->  Index Only Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.51 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=1000)
               Index Cond: (id = up.file_id)
               Heap Fetches: 0
               Index Searches: 1000
               Buffers: shared hit=3001
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.315 ms
-Execution Time: 160.254 ms
+Planning Time: 0.312 ms
+Execution Time: 156.703 ms
 
----- f: top-level recursion, page, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.332 ms, execution 160.161 ms, buffers 7009 ----
-Limit  (cost=234048.26..234048.31 rows=20 width=120) (actual time=158.855..158.861 rows=20.00 loops=1)
+---- f: top-level recursion, page, jit off, unit u1000 (1000 bookmarks): median of 5 runs: planning 0.327 ms, execution 158.632 ms, buffers 7009 ----
+Limit  (cost=235084.95..235085.00 rows=20 width=136) (actual time=157.302..157.309 rows=20.00 loops=1)
   Buffers: shared hit=7009, temp written=2141
-  ->  Sort  (cost=234048.26..234048.73 rows=189 width=120) (actual time=158.853..158.858 rows=20.00 loops=1)
+  ->  Sort  (cost=235084.95..235085.42 rows=188 width=136) (actual time=157.301..157.306 rows=20.00 loops=1)
         Sort Key: (((up.path || '/'::text) || f.name)), b.file_id
-        Sort Method: top-N heapsort  Memory: 33kB
+        Sort Method: top-N heapsort  Memory: 34kB
         Buffers: shared hit=7009, temp written=2141
-        ->  Nested Loop  (cost=155584.76..234043.23 rows=189 width=120) (actual time=74.352..158.524 rows=1000.00 loops=1)
+        ->  Nested Loop  (cost=156263.93..235079.95 rows=188 width=136) (actual time=73.100..156.942 rows=1000.00 loops=1)
               Join Filter: (f.id = b.file_id)
               Buffers: shared hit=7009, temp written=2141
               CTE up
-                ->  Recursive Union  (cost=1742.97..154957.99 rows=3895772 width=64) (actual time=6.249..101.357 rows=310172.00 loops=1)
+                ->  Recursive Union  (cost=1742.97..155636.60 rows=3913851 width=64) (actual time=5.945..100.018 rows=310172.00 loops=1)
                       Storage: Memory  Maximum Storage: 7370kB
                       Buffers: shared hit=2988
-                      ->  Hash Semi Join  (cost=1742.97..6049.88 rows=38572 width=64) (actual time=6.248..20.469 rows=41466.00 loops=1)
+                      ->  Hash Semi Join  (cost=1742.97..6053.21 rows=38751 width=64) (actual time=5.944..18.823 rows=41466.00 loops=1)
                             Hash Cond: (f_1.id = b_1.file_id)
                             Buffers: shared hit=2874
-                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.004..3.187 rows=100000.00 loops=1)
+                            ->  Seq Scan on blobfs_file f_1  (cost=0.00..3326.00 rows=100000 width=32) (actual time=0.005..3.155 rows=100000.00 loops=1)
                                   Buffers: shared hit=2326
-                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=6.111..6.112 rows=53110.00 loops=1)
+                            ->  Hash  (cost=1079.10..1079.10 rows=53110 width=16) (actual time=5.803..5.804 rows=53110.00 loops=1)
                                   Buckets: 65536  Batches: 1  Memory Usage: 3002kB
                                   Buffers: shared hit=548
-                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..2.012 rows=53110.00 loops=1)
+                                  ->  Seq Scan on bookmark b_1  (cost=0.00..1079.10 rows=53110 width=16) (actual time=0.003..1.926 rows=53110.00 loops=1)
                                         Buffers: shared hit=548
-                      ->  Hash Join  (cost=339.09..10995.04 rows=385720 width=64) (actual time=0.323..6.345 rows=33588.25 loops=8)
+                      ->  Hash Join  (cost=339.09..11044.49 rows=387510 width=64) (actual time=0.327..6.431 rows=33588.25 loops=8)
                             Hash Cond: (up_1.directory_id = d.id)
                             Buffers: shared hit=114
-                            ->  WorkTable Scan on up up_1  (cost=0.00..7714.40 rows=385720 width=64) (actual time=0.000..0.984 rows=38771.50 loops=8)
-                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.289..1.289 rows=10004.00 loops=1)
+                            ->  WorkTable Scan on up up_1  (cost=0.00..7750.20 rows=387510 width=64) (actual time=0.000..0.975 rows=38771.50 loops=8)
+                            ->  Hash  (cost=214.04..214.04 rows=10004 width=37) (actual time=1.310..1.310 rows=10004.00 loops=1)
                                   Buckets: 16384  Batches: 1  Memory Usage: 811kB
                                   Buffers: shared hit=114
-                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.009..0.437 rows=10004.00 loops=1)
+                                  ->  Seq Scan on blobfs_directory d  (cost=0.00..214.04 rows=10004 width=37) (actual time=0.012..0.451 rows=10004.00 loops=1)
                                         Buffers: shared hit=114
-              ->  Hash Join  (cost=626.36..78592.94 rows=489 width=97) (actual time=74.325..155.920 rows=1000.00 loops=1)
+              ->  Hash Join  (cost=626.91..78955.31 rows=486 width=97) (actual time=73.068..154.549 rows=1000.00 loops=1)
                     Hash Cond: (up.file_id = b.file_id)
                     Buffers: shared hit=3009, temp written=2141
-                    ->  CTE Scan on up  (cost=0.00..77915.44 rows=19479 width=48) (actual time=51.032..153.151 rows=41466.00 loops=1)
+                    ->  CTE Scan on up  (cost=0.00..78277.02 rows=19569 width=48) (actual time=49.501..151.847 rows=41466.00 loops=1)
                           Filter: (directory_id IS NULL)
                           Rows Removed by Filter: 268706
                           Storage: Disk  Maximum Storage: 17128kB
                           Buffers: shared hit=2988, temp written=2141
-                    ->  Hash  (cost=614.26..614.26 rows=968 width=49) (actual time=0.161..0.161 rows=1000.00 loops=1)
+                    ->  Hash  (cost=614.87..614.87 rows=963 width=49) (actual time=0.157..0.158 rows=1000.00 loops=1)
                           Buckets: 1024  Batches: 1  Memory Usage: 94kB
                           Buffers: shared hit=21
-                          ->  Bitmap Heap Scan on bookmark b  (cost=39.92..614.26 rows=968 width=49) (actual time=0.055..0.101 rows=1000.00 loops=1)
-                                Recheck Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                          ->  Bitmap Heap Scan on bookmark b  (cost=39.88..614.87 rows=963 width=49) (actual time=0.059..0.103 rows=1000.00 loops=1)
+                                Recheck Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                 Heap Blocks: exact=11
                                 Buffers: shared hit=21
-                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.67 rows=968 width=0) (actual time=0.044..0.044 rows=1000.00 loops=1)
-                                      Index Cond: (unit_id = '01a0c1e9-806a-7cf5-b5b3-ec05b2b7512c'::uuid)
+                                ->  Bitmap Index Scan on pk_bookmark  (cost=0.00..39.64 rows=963 width=0) (actual time=0.044..0.044 rows=1000.00 loops=1)
+                                      Index Cond: (unit_id = '01a0c841-42ef-76db-ae38-f82b4468500a'::uuid)
                                       Index Searches: 1
                                       Buffers: shared hit=10
-              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=55) (actual time=0.002..0.002 rows=1.00 loops=1000)
+              ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..0.99 rows=1 width=71) (actual time=0.002..0.002 rows=1.00 loops=1000)
                     Index Cond: (id = up.file_id)
                     Index Searches: 1000
                     Buffers: shared hit=4000
 Planning:
   Buffers: shared hit=18
-Planning Time: 0.332 ms
-Execution Time: 160.161 ms
+Planning Time: 0.327 ms
+Execution Time: 158.632 ms
 
 cross-check: for each measured unit every form lists the same first page of paths, every count equals the unit's bookmark count, and every path starts at a tree root.
---- PASS: TestBookmarkCost (16.92s)
+--- PASS: TestBookmarkCost (16.54s)
 PASS
-ok  	github.com/standards-lab/org/experiments/blobfs/domain/files	16.921s
+ok  	github.com/standards-lab/org/experiments/blobfs/domain/files	16.552s
