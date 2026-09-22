@@ -1,55 +1,44 @@
-# reset · workflow-refinement
+# reset · blobfs-sources
 
 - **Status:** closeout
-- **Session:** plan
-- **Project:** standards-lab, claude-plugins
-- **Branch:** workflow-refinement
+- **Session:** start
+- **Project:** sqlate
+- **Branch:** blobfs-sources
 
 ## Disposition
 
-- **Add or sharpen:** four new concept notes at `claude-plugins/context/concepts/`:
-  `checkpoint-execution.md` (autonomous stage commits gated by behavioral checkpoints, replacing
-  per-stage architect review; the delegated review-and-report pattern formalized as `close`'s
-  default, with the review's alignment check defaulting to ecosystem idiom rather than an assumed
-  architecture), `flat-context.md` (collapsing `context/design` and `context/concepts` into a
-  single flat `context/` tier, a note's own prose carrying its settledness instead of its
-  directory), `isolated-experiments.md` (a standalone marathon project outside the workspace tree,
-  `[experiment] workspace = "org"`, connected back through the references convention, graduated by
-  a coordinator `plan` session reading the closed experiment), and `roadmap-waves.md` (`next` as a
-  list of waves in the shape `[workspace] order` already uses, plus a root `active` list). Each
-  states what it touches and the open questions left for its implementing session.
-- **Roadmap:** two new tasks under `goals.v1.harness.tasks` (`workflow-refinement`,
-  `context-migration`), moved to the head of `next` ahead of `blobfs.sources` — the third sequence
-  jump the header comment narrates. `workflow-refinement` consolidates what was drafted as four
-  separate `claude-plugins` tasks (checkpoint execution, flat context, isolated experiments,
-  roadmap waves) into one session; `context-migration` consolidates what was drafted as two
-  separate repository reviews (`standards-lab`, `go-web-service`) into one cross-repo session. Both
-  consolidations are the architect's direction — each combined change is delicate enough to want
-  one continuous session's attention. `blobfs.sources` and everything after it is unaffected in
-  substance, only in when it starts.
-- **Cleanup:** four unused plugins uninstalled directly (`claude plugin uninstall`), not through a
-  marathon session, per the architect's confirmation they're unused on this workspace or any
-  active project: `dev-workflow`, `iterative-dev`, `project-management`, `go-patterns` (all
-  `tau-marketplace`). `~/claude-settings` was reviewed and needs no cleanup — it's lean and
-  current, and the "companion `behavior/voice.md`" cross-reference in its git history is a
-  resolved duplication (marathon core carries no such file; it was deliberately merged out of the
-  skill into `claude-settings` in an earlier commit there).
-- **Cross-repo:** none — the four concept notes are new files at `claude-plugins`, not edits to
-  anything that repository's own context previously asserted.
+- **Promoted:** nothing new to `sqlate`'s own `context/` — every shape this session built is now
+  fully expressed by `sqlate`'s own code and `docs/features.md`/`quick-start.md`/`glossary.md`/
+  `concepts.md`, so there was no unbuilt intent left over to promote there.
+- **Integrated (Cross-repo, in `standards-lab`):** `context/concepts/migration-sets.md`
+  deconstructed to what's still unbuilt — "A set is a layer," "The migrator in `sqlate`," "The
+  hooks `sqlate` needs," and "Where the experiment's shim goes" are gone, all now expressed by
+  `sqlate`'s own "migrate: schema versioning" documentation; "What a shipper guarantees," "What
+  the admin surface exposes," and "How a consumer adopts a set" retained, since `blobfs.build`,
+  `blobfs.admin`, and `go-auth` haven't landed yet. `context/concepts/sqlate-library-support.md`'s
+  entire "Scheduled in `blobfs.sources`" section removed — all six areas are built; its Backlog
+  and "What v0.2.0 unblocks" sections retained and reworded to present tense.
+- **Culled:** the `blobfs.sources` roadmap task, finished, and its entry in `next`.
+- **Retained:** `sqlate-library-support.md`'s "Assumptions" trimmed to the two still-open claims
+  (`go-auth`'s set fitting the model, no checksum column needed yet); the two validated
+  assumptions (the shim's shape moving in unchanged, one connection sufficing) are gone, now
+  simply true of the built code.
+- **Roadmap (Cross-repo, in `standards-lab`):** `sqlate-library-support.md`'s Backlog gains two
+  entries this session surfaced and deliberately deferred: a window-count total mode for the
+  collection read (rejected for this release — a `COUNT(*) OVER()` column can't be hidden from an
+  arbitrary consumer-supplied `ScanFunc[T]`), and a stricter type grammar for a `field`
+  declaration (`sqlType`'s regex is lenient enough that a `not null` typo like `not nul l` is
+  silently accepted as a bizarre type name rather than refused — pre-existing, surfaced
+  incidentally, out of scope for this release).
+- **Architecture layer:** nothing promoted at this close. The candidates the prior session named
+  ("What a shipper guarantees," the consumer-adoption pattern) stay deferred pending a second
+  shipper (`go-auth`), per that session's own recorded trigger — not met yet.
+- **Cross-repo:** the roadmap manifest edit (`context/roadmap.toml`: `blobfs.sources` deleted,
+  `next` advanced) and the two `context/concepts/` edits above are this session's own commit in
+  `standards-lab`, the coordinator, since the session ran in the `sqlate` member repo.
 
 ## Next-focus
 
-`v1.harness.workflow-refinement`, in the `claude-plugins` repository: one `start` session
-implementing all four settled changes — checkpoint execution and the closing branch-review
-pattern, the flat `context/` tier, isolated experiments, and roadmap waves. Start from the four
-concept notes in dependency order: `context/concepts/checkpoint-execution.md`,
-`flat-context.md`, `isolated-experiments.md`, `roadmap-waves.md` — each carries its own settled
-design and the open questions left for that portion's stages (report file location/lifecycle,
-whether `[agents]` needs a review-role key, whether Interrupt needs a hook, and so on). Stage the
-session's own list by the same order; each note's "Files this touches" section names where the
-stages land. The session ends with `scripts/check.sh` passing and marathon 0.13.0,
-marathon-architecture 0.2.0, and marathon-roadmap 0.2.0 all reinstalled — reinstalling is required
-before the new pipeline is the one actually running (`claude-plugins/CLAUDE.md`: "changes here
-take effect once reinstalled"). `v1.harness.context-migration` — one cross-repo session covering
-both `standards-lab` and `go-web-service` — and the first two isolated experiments (`v1.messaging`,
-`v1.ai`) wait behind it, per the roadmap's own dependency ordering.
+`blobfs.build`, in a new `blobfs` repository (doesn't exist yet — this task promotes the
+`blobfs` experiment out of `standards-lab/experiments/` into its own repository, per
+`context/concepts/blobfs.md` and `blobfs-api.md`). Start there next session.

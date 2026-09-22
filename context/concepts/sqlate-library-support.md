@@ -5,64 +5,10 @@ read models, native variants, and a schema over them, as `blobfs` is the first t
 the migrate group, which is `migration-sets.md`'s subject. Every entry states what fails or is
 awkward in `sqlate` as it stands, the smallest change that removes it, and what it unblocks;
 evidence and every workaround `blobfs.experiment` used live in `experiments/blobfs/REVIEW.md`,
-cited once here and not restated. Every entry stands against `sqlate` main at v0.1.1 with an empty
-`[Unreleased]` section; an entry `sqlate` lands independently of this ledger is removed once it
-does.
-
-The test that sorted each item between the scheduled section and the backlog is the architect's:
-whether the change makes `sqlate` and its consumers generally stronger, not whether it is easy or
-whether it touches a lot of existing code. `blobfs.sources` was chosen to carry the scheduled items
-alongside the multi-set migrator, so `sqlate.v0.2.0`'s scope is six areas, not the migrator alone.
-
-## Scheduled in `blobfs.sources`
-
-**The collection read.** A projection base may bind its own parameters: `List` and `One` take a
-variadic `base ...Args`, so a call with nothing to bind is unchanged and a scoped call passes one
-value built with a new package function, `query.With(name, v) Args`, which returns a fresh `Args`
-carrying one binding and chains with the existing `Args.With` method for more. This is also a
-`v1.auth` requirement (`design/auth-strategy.md` §4) independent of `blobfs`: any scoped read model
-in v1 needs a base that can bind the scoping value the server's own code supplies, not a value a
-request could supply or omit. `Directives` gains a total mode with three values — exact (today's
-only behavior), a window count, and none — and a keyset cursor with the rules the experiment
-settled: the declared key as the tie-breaker in the sort's own direction, one direction per query,
-no nullable field in the terms. A projection's `--| key:` header accepts a comma-separated list for
-a composite key, checked at the same depth `sqlate` already applies to a single key — that the
-named fields are declared fields of the statement, nothing more; no schema-level uniqueness check
-exists for the single-field case today, so none is built for the composite case either. `List`'s
-result reports the items, the total when one was asked for, and whether more rows remain, in one
-value rather than an overloaded return. The Postgres module supplies its first pattern overlay for
-this: the row-value keyset comparison in place of the standard tier's expanded chain, which needs
-the overlay mechanism relaxed to accept a subset of the source pattern's slots, since the two forms
-fill different ones.
-
-**The guard.** A typed guard whose check can carry a second predicate and returns the row: on zero
-rows affected, it distinguishes no row at all, a row at another version, and a row at the expected
-version that the command's own predicate refused, rather than reporting every such case as a false
-version mismatch. The existing `Guard` keeps its shape for a consumer with only the plain
-version-checked predicate.
-
-**Verification and the header.** `Verify` probes each declared field's type against the cast it
-would render, so a misspelled standard-tier type fails at startup rather than at first request. A
-native statement's declaration may span more than one line, under a `port` key, with today's
-one-line form still accepted; the header parser's matching change ships in the same release as the
-grammar change, not trailing it, and `sqlint`'s native-forms check is extended to recognize the new
-form in lockstep, per standing policy that the lint tool tracks the format it enforces. A library's
-own shipped statements reserve the `sql.` namespace and resolve it by identity rather than by
-name, so a consumer that aliases `sqlate`'s own source with `As` cannot break a library's compile;
-this is settled now, before `go-auth` becomes the second shipper to depend on it.
-
-**The mapper.** The struct-tag scanner and the args-from-struct binder both flatten an embedded
-struct's fields, so a read model that reuses a library's entity type, or a shared identity or audit
-type, does not have to restate every column by hand.
-
-**Errors.** `ConstraintError` carries the table and column name the driver already reports, when the
-driver exposes them, beside the constraint name and class it carries today; this closes a real gap,
-since a not-null violation on Postgres carries no constraint name at all, leaving the column name
-as the only handle a consumer has. Additive; no existing caller changes.
-
-**`migrate`.** `HistoryExists` is qualified by the database's current schema through a
-dialect-supplied lookup, closing a defect where a same-named table in any schema satisfies the
-check today; this rides with the migrate group's own rework of the history protocol.
+cited once here and not restated. An entry moves from the backlog to a scheduled task by whether
+the change makes `sqlate` and its consumers generally stronger, not by whether it is easy or
+touches a lot of existing code. An entry `sqlate` lands independently of this ledger is removed
+once it does.
 
 ## Backlog
 
@@ -116,14 +62,22 @@ Recorded with what would need to become true before each moves to a scheduled ta
   library's evidence; a protocol-handle design and a native-only-feature design are both plausible
   and unproven. Trigger: a second library with the same fallback need, or a settled protocol shape
   agreed before the code is written.
+- **A window-count total mode for the collection read**, a `COUNT(*) OVER()` column read alongside
+  the page instead of a separate query. The column would reach an arbitrary consumer-supplied
+  `ScanFunc[T]`, which the projection cannot hide it from without a second, mapped-only binding.
+  Trigger: a consumer measuring the separate count's round trip as its own bottleneck.
+- **A stricter type grammar for a `field` declaration.** `sqlType`'s regex allows spaces, for real
+  multi-word types like "timestamp with time zone," which also lets a typo in the `not null`
+  suffix (`not nul l`) fall through as a literal, bizarre type name instead of an error. Trigger: a
+  second instance of this class of typo actually reaching review, or a consumer asking for
+  stricter validation.
 
-## What each scheduled item unblocks
+## What v0.2.0 unblocks
 
-`blobfs.build`, once `sources` lands: the listing composer and the cursor can collapse onto
-`sqlate`'s own projection instead of being carried as the library's own code, and the engine's
-variation-point interface is expected to shrink once the pattern-overlay mechanism covers the
-statements that exist only because it did not. `v1.auth`: the parameterized base is a stated
-requirement of the auth strategy independently of `blobfs`. `go-web-service`'s existing organization
-domain: the guard, verification, and mapper changes are additive and force no code change there; the
-parameterized base may cost one file, `domain/organization/database.go`, a small signature change
-at its two call sites.
+`blobfs.build`'s listing composer and cursor can now collapse onto `sqlate`'s own projection
+instead of being carried as the library's own code, and its engine's variation-point interface is
+expected to shrink once the pattern-overlay mechanism covers the statements that exist only
+because it did not. `v1.auth`'s parameterized base requirement is now met independently of
+`blobfs`. `go-web-service`'s existing organization domain needs one file changed,
+`domain/organization/database.go`, a small signature change at its two call sites; the guard,
+verification, and mapper changes are additive and need no change there.

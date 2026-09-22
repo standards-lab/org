@@ -50,7 +50,6 @@
 next = [
   "v1.harness.workflow-refinement",
   "v1.harness.context-migration",
-  "blobfs.sources",
   "blobfs.build",
   "blobfs.admin",
   "v1.storage.service",
@@ -96,32 +95,6 @@ variant, selected by import. go-storage's own keys stay opaque and unaware of bl
 domain composes ownership over blobfs_file through its own join table.
 '''
 context = ["standards-lab/context/concepts/blobfs.md"]
-
-[goals.blobfs.tasks.sources]
-name = "sqlate v0.2.0: the multi-set migrator and the library-hosting adjustments"
-repos = ["sqlate"]
-summary = '''
-The experiment's multi-set migrator promoted into sqlate v0.2.0: one Migrator runs several
-migration sets, each with its own history table, under one lock, in the order the consumer
-declares them with its own set last. A v0.1.1 database needs no history migration.
-
-Folded in alongside it, sorted by whether each strengthens sqlate and its consumers generally
-rather than by how much work it is (concepts/sqlate-library-support.md, "Scheduled in
-blobfs.sources"): a projection base that binds its own parameters, additive via a variadic Args
-and the new query.With helper; a total mode and a keyset cursor on Directives, with a composite
-projection key at the same verification depth the single key already has; a guard whose check
-returns the row and can carry a status predicate; Verify checking declared field types; a
-multi-line native declaration with a matching sqlint release, shipped together; the library
-namespace sql reserved and resolved by identity; ConstraintError carrying the table and column
-name the driver exposes; the mapper flattening embedded structs; and HistoryExists qualified by
-the current schema. The Postgres module supplies its first pattern overlay, the row-value keyset
-predicate, alongside its migrate.Catalog implementation.
-'''
-proof = "sqlate v0.2.0 is released; go-web-service's existing migrations and its organization domain (projection, guards, startup verify) pass unchanged or with the one signature change item 1 may force; and the blobfs conformance suite's listing and guard cases pass over sqlate's own projection and guard."
-context = [
-  "standards-lab/context/concepts/migration-sets.md",
-  "standards-lab/context/concepts/sqlate-library-support.md",
-]
 
 [goals.blobfs.tasks.build]
 name = "Promotion to its own repository"
