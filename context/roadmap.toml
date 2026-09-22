@@ -46,7 +46,11 @@
 # because the per-stage review cadence and the single-session-per-workspace limit were exposing
 # real friction, most visibly the wish to run v1.messaging and v1.ai in parallel once planned;
 # landing it first means every session after it, including blobfs.sources, runs under the
-# improved workflow instead of needing a later retrofit.
+# improved workflow instead of needing a later retrofit. blobfs.sources ran ahead of the wave
+# anyway, closing 2026-09-22 under the old workflow, and the wave resumes at the head. A
+# harness-realignment planning session the same day folded one more change into
+# workflow-refinement: delegation by purpose-specific agent profiles marathon ships, with the
+# session choosing each engagement's model (claude-plugins/context/concepts/agent-profiles.md).
 next = [
   "v1.harness.workflow-refinement",
   "v1.harness.context-migration",
@@ -102,9 +106,8 @@ repos = ["blobfs"]
 summary = '''
 What the experiment proved out lands as blobfs's own repository and first release against sqlate
 v0.2.0, with the final module path checked against repository-topology.md and a references entry
-that carries no standard key. blobfs.sources must land first, since the engine package's
-migration set is the type sqlate v0.2.0 exports; if sources slips, the engine package returns its
-migrations as a plain list instead, and this task's fallback is worse for the first consumer.
+that carries no standard key. blobfs.sources closed 2026-09-22 and released sqlate v0.2.0, so the
+engine package's migration set is the type sqlate v0.2.0 exports.
 concepts/blobfs-api.md is this task's own SETTLE's starting point, not a finished design: it
 proposes a Directories and Files operation set over one compiled store, with several names (the
 persistence package's own, the two write and delete steps' verbs, whether a listing is scoped by
@@ -363,26 +366,30 @@ held, adopted here as this goal's own tasks; none is yet in `next`.
 context = ["standards-lab/context/concepts/tooling-principles.md"]
 
 [goals.v1.harness.tasks.workflow-refinement]
-name = "Checkpoint execution, flat context, isolated experiments, and roadmap waves"
+name = "Checkpoint execution, flat context, isolated experiments, roadmap waves, and agent profiles"
 repos = ["claude-plugins"]
 summary = '''
-One session, not four: checkpoint execution replacing per-stage review plus the closing
+One session, not five: checkpoint execution replacing per-stage review plus the closing
 branch-review/report pattern (concepts/checkpoint-execution.md); the flat context/ tier replacing
 design/concepts, including marathon-architecture's promotion-source update
 (concepts/flat-context.md); first-class isolated experiments outside the workspace tree
-(concepts/isolated-experiments.md); and roadmap waves plus the active list in marathon-roadmap
-(concepts/roadmap-waves.md). Run as a single session because all four land in the same
-repository, touch overlapping files (pipeline.md, close.md, init.md), and would execute
-sequentially either way; the architect judged the combined change delicate enough to want one
-continuous session's attention rather than four disjoint ones with a reinstall between each.
+(concepts/isolated-experiments.md); roadmap waves plus the active list in marathon-roadmap
+(concepts/roadmap-waves.md); and the planner, executor, and reviewer agent profiles replacing the
+[agents] catalog (concepts/agent-profiles.md). Run as a single session because all five land in
+the same repository, touch overlapping files (pipeline.md, close.md, init.md, delegation.md), and
+would execute sequentially either way; the architect judged the combined change delicate enough
+to want one continuous session's attention rather than five disjoint ones with a reinstall
+between each. The agent-profiles change includes the Cross-repo edit dropping
+[workspace.agents] from standards-lab/.claude/marathon.toml.
 marathon -> 0.13.0, marathon-architecture -> 0.2.0, marathon-roadmap -> 0.2.0, one release.
 '''
-proof = "scripts/check.sh passes; the reinstalled skill and extensions run a start session whose stages commit without pausing, whose checkpoints stop where the stage list places them, whose close fires the declared review agent's branch review, whose context/ is flat with no design/ or concepts/ reference, whose experiment command offers the isolated grain, and whose roadmap.toml parses in both flat and wave form."
+proof = "scripts/check.sh passes; the reinstalled skill and extensions run a start session whose stages commit without pausing, whose checkpoints stop where the stage list places them, whose reviewer profile reviews the branch after the final technical stage, whose context/ is flat with no design/ or concepts/ reference, whose experiment command offers the isolated grain, and whose roadmap.toml parses in both flat and wave form."
 context = [
   "claude-plugins/context/concepts/checkpoint-execution.md",
   "claude-plugins/context/concepts/flat-context.md",
   "claude-plugins/context/concepts/isolated-experiments.md",
   "claude-plugins/context/concepts/roadmap-waves.md",
+  "claude-plugins/context/concepts/agent-profiles.md",
 ]
 
 [goals.v1.harness.tasks.context-migration]
