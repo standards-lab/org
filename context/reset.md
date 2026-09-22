@@ -1,60 +1,55 @@
-# reset · blobfs-experiment
+# reset · workflow-refinement
 
 - **Status:** closeout
-- **Session:** experiment
-- **Project:** standards-lab
-- **Branch:** blobfs-experiment
+- **Session:** plan
+- **Project:** standards-lab, claude-plugins
+- **Branch:** workflow-refinement
 
 ## Disposition
 
-- **Promoted:** `context/concepts/blobfs.md` deconstructed into five concept documents, all
-  concept-tier since nothing built from the experiment yet exists: `blobfs.md` re-scoped to what
-  the library is; `blobfs-api.md` (new), the proposed `Directories`/`Files` operation set and
-  repository layout for `blobfs.build`'s own SETTLE; `blobfs-composition.md` (new), how a consumer
-  builds around the library; `migration-sets.md` (new), the multi-set migrator model
-  `blobfs.sources` promotes into `sqlate`; `sqlate-library-support.md` (new), the coordinator's
-  ledger of every other `sqlate` adjustment, split into what `sources` schedules and what stays an
-  unscheduled backlog.
-- **Integrated:** `experiments/blobfs/REVIEW.md`, `DECISIONS.md`, and `NOTES.md` merged into one
-  closed-experiment record, describing the experiment as it stood at close (stage 32 and five
-  follow-up commits) rather than at stage 16; `DECISIONS.md` and `NOTES.md` removed, and every
-  stale reference to either repointed at `REVIEW.md`. `design/auth-strategy.md` §8 amended to
-  state the directory grain alongside the file grain (the read anchored on a directory an owner
-  row authorized, not a join row per file, and why a move never crosses one top-level directory
-  into another). `design/storage-strategy.md`'s "migration source" corrected to "migration set."
-  Two claims `REVIEW.md` had made stale by later stages were corrected in the same pass:
-  `go-storage`'s object-store interface has had `List` since v0.1.0 (the concept's contrary claim
-  was wrong), and the bookmark-versus-delete race is closed, not open (adjustment 10, stage 23).
-- **Culled:** the `blobfs.experiment` roadmap task, finished, and its entry in `next`. The
-  original `blobfs.md`'s CLI-shaped and ownership-shaped content (the directive-filter workaround,
-  the interim "path projection" pattern, the consumer's ownership vocabulary) is gone from the
-  library concept; it was never the library's, only the tool's, and now lives, correctly
-  attributed, in `blobfs-composition.md`.
-- **Retained:** every other design note and concept the review touched only by citation, unchanged.
-- **Roadmap:** `blobfs.sources`'s summary and proof grew to six areas of `sqlate` (the collection
-  read, the guard, verification and headers, the mapper, errors, and `migrate`), not the migrator
-  alone — the architect's call, sorted by whether each adjustment strengthens `sqlate` and its
-  consumers generally rather than by how much work it is. `blobfs.build`'s summary states that
-  `blobfs-api.md` is input to its own SETTLE, not a finished design. `blobfs.admin` and
-  `v1.storage`'s two tasks pick up small corrections (`Force` named explicitly, the seed step, the
-  new documents cited).
-- **Architecture layer:** nothing promoted at this close. The candidates the earlier handoff named
-  (navigation one directory at a time; engine packages owning their DDL and native variants;
-  migration sets as layers; ids as the primary handle) stay recorded as deferred, with their
-  triggers, in `concepts/blobfs.md`'s "Deferred, with triggers" section; `blobfs.build` is the
-  named trigger for the adjacency position, and `go-auth` as the second shipper for the
-  object-namespace amendment.
-- **Cross-repo:** none; every edit this close made lands in `standards-lab`, the coordinator.
+- **Add or sharpen:** four new concept notes at `claude-plugins/context/concepts/`:
+  `checkpoint-execution.md` (autonomous stage commits gated by behavioral checkpoints, replacing
+  per-stage architect review; the delegated review-and-report pattern formalized as `close`'s
+  default, with the review's alignment check defaulting to ecosystem idiom rather than an assumed
+  architecture), `flat-context.md` (collapsing `context/design` and `context/concepts` into a
+  single flat `context/` tier, a note's own prose carrying its settledness instead of its
+  directory), `isolated-experiments.md` (a standalone marathon project outside the workspace tree,
+  `[experiment] workspace = "org"`, connected back through the references convention, graduated by
+  a coordinator `plan` session reading the closed experiment), and `roadmap-waves.md` (`next` as a
+  list of waves in the shape `[workspace] order` already uses, plus a root `active` list). Each
+  states what it touches and the open questions left for its implementing session.
+- **Roadmap:** two new tasks under `goals.v1.harness.tasks` (`workflow-refinement`,
+  `context-migration`), moved to the head of `next` ahead of `blobfs.sources` — the third sequence
+  jump the header comment narrates. `workflow-refinement` consolidates what was drafted as four
+  separate `claude-plugins` tasks (checkpoint execution, flat context, isolated experiments,
+  roadmap waves) into one session; `context-migration` consolidates what was drafted as two
+  separate repository reviews (`standards-lab`, `go-web-service`) into one cross-repo session. Both
+  consolidations are the architect's direction — each combined change is delicate enough to want
+  one continuous session's attention. `blobfs.sources` and everything after it is unaffected in
+  substance, only in when it starts.
+- **Cleanup:** four unused plugins uninstalled directly (`claude plugin uninstall`), not through a
+  marathon session, per the architect's confirmation they're unused on this workspace or any
+  active project: `dev-workflow`, `iterative-dev`, `project-management`, `go-patterns` (all
+  `tau-marketplace`). `~/claude-settings` was reviewed and needs no cleanup — it's lean and
+  current, and the "companion `behavior/voice.md`" cross-reference in its git history is a
+  resolved duplication (marathon core carries no such file; it was deliberately merged out of the
+  skill into `claude-settings` in an earlier commit there).
+- **Cross-repo:** none — the four concept notes are new files at `claude-plugins`, not edits to
+  anything that repository's own context previously asserted.
 
 ## Next-focus
 
-`blobfs.sources`, in the `sqlate` repository: promote the experiment's multi-set migrator shim into
-`sqlate` v0.2.0 alongside the `sqlate` adjustments the architect chose to fold in at close — a
-parameterized projection base, a total mode and keyset cursor on `Directives`, a guard that returns
-the row and can carry a status predicate, verified field types, a resolved library namespace, a
-multi-line native declaration (with `sqlint` updated in lockstep, not trailing), a schema-qualified
-history check, and a mapper that flattens embedded structs. Start from
-`context/concepts/migration-sets.md` and `sqlate-library-support.md`'s "Scheduled in
-`blobfs.sources`" section; both already carry the exact shapes settled in this session's SETTLE.
-`sqlate`'s own repository does not yet have a marathon `context/`; the first session there should
-check whether to initialize one before planning the task in earnest.
+`v1.harness.workflow-refinement`, in the `claude-plugins` repository: one `start` session
+implementing all four settled changes — checkpoint execution and the closing branch-review
+pattern, the flat `context/` tier, isolated experiments, and roadmap waves. Start from the four
+concept notes in dependency order: `context/concepts/checkpoint-execution.md`,
+`flat-context.md`, `isolated-experiments.md`, `roadmap-waves.md` — each carries its own settled
+design and the open questions left for that portion's stages (report file location/lifecycle,
+whether `[agents]` needs a review-role key, whether Interrupt needs a hook, and so on). Stage the
+session's own list by the same order; each note's "Files this touches" section names where the
+stages land. The session ends with `scripts/check.sh` passing and marathon 0.13.0,
+marathon-architecture 0.2.0, and marathon-roadmap 0.2.0 all reinstalled — reinstalling is required
+before the new pipeline is the one actually running (`claude-plugins/CLAUDE.md`: "changes here
+take effect once reinstalled"). `v1.harness.context-migration` — one cross-repo session covering
+both `standards-lab` and `go-web-service` — and the first two isolated experiments (`v1.messaging`,
+`v1.ai`) wait behind it, per the roadmap's own dependency ordering.
