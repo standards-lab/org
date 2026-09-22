@@ -255,7 +255,7 @@ type walker struct {
 // the removal, up to maxEmptyRounds times.
 func (w *walker) removeTree(ctx context.Context, id, path string) error {
 	var err error
-	for round := 0; round < maxEmptyRounds; round++ {
+	for range maxEmptyRounds {
 		if err = w.empty(ctx, id, path); err != nil {
 			return err
 		}

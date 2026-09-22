@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/standards-lab/sqlate"
 	"github.com/standards-lab/sqlate/migrate"
@@ -184,8 +185,7 @@ func (m *Migrator) Reset(ctx context.Context) error {
 // revertAll reverts every set in reverse declared order and runs after,
 // when not nil, on each set once it is reverted.
 func (m *Migrator) revertAll(ctx context.Context, after func(runner) error) error {
-	for i := len(m.sets) - 1; i >= 0; i-- {
-		r := m.sets[i]
+	for _, r := range slices.Backward(m.sets) {
 		// Steps tolerates a count larger than the applied prefix, so the
 		// whole set is the count to revert everything.
 		if err := r.migrator.Down(ctx, len(r.migrator.Migrations())); err != nil {

@@ -103,8 +103,7 @@ func TestEntityTags(t *testing.T) {
 	}
 	for _, v := range []any{blobfs.Directory{}, blobfs.File{}} {
 		rt := reflect.TypeOf(v)
-		for i := range rt.NumField() {
-			f := rt.Field(i)
+		for f := range rt.Fields() {
 			tag := f.Tag.Get("json")
 			if tag == "" || tag != strings.ToLower(tag) {
 				t.Errorf("%s.%s has json tag %q, want a lowercase column name", rt.Name(), f.Name, tag)

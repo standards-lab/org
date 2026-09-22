@@ -73,7 +73,7 @@ func ran(rec *sqltest.Recorder) (string, []sqltest.Call) {
 // fieldOf returns the value of one label of a stat record, or "" when the
 // record has no such line.
 func fieldOf(out, label string) string {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if rest, ok := strings.CutPrefix(line, label+":"); ok {
 			return strings.TrimSpace(rest)
 		}
@@ -509,7 +509,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 		t.Errorf("page 1's more: lines rendered:\n%s", out)
 	}
 	var cursor string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if rest, ok := strings.CutPrefix(line, "next-files: "); ok {
 			cursor = rest
 		}
@@ -541,7 +541,7 @@ func TestCommands_RenderTheCursor(t *testing.T) {
 	if !strings.Contains(out, "more: yes\nnext-dirs: ") || strings.Contains(out, "next-files:") {
 		t.Errorf("a directory half with a next page rendered:\n%s", out)
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if rest, ok := strings.CutPrefix(line, "next-dirs: "); ok {
 			cursor = rest
 		}
