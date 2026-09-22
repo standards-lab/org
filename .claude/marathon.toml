@@ -37,18 +37,17 @@ order = [
 # model-routing convention; a session names one and why before engaging it.
 [workspace.agents.fable]
 delegation = '''
-Technical delegate for one stage's implementation or one design decision: a unit of work
-technically complex enough that working it out directly would cost more than briefing this
-agent to do it, handed over with full context. Not for documentation, commit messages, or
-context notes — the session drafts and finishes those itself.
+Planning and review delegate for the reasoning-heavy half of a unit of work: a settled design
+question, a hard bug's diagnosis, or a review of what opus built against the plan it was given.
+Handed over with full context. Not for stage implementation — opus is for that — and not for
+documentation, commit messages, or context notes; the session drafts and finishes those itself.
 '''
 
 [workspace.agents.opus]
 delegation = '''
-Escalation delegate for a high-stakes, hard-to-reverse decision: wide blast radius across the
-project or workspace, or more context than the step itself needs held at once to reason
-through. Not for implementation or routine technical work — fable is for that. Reach for this
-only when getting the call right matters more than speed or cost.
+Execution delegate for implementing one stage of an already-settled plan, against the stage's
+own check (build, test, lint). Not for planning or code review — fable is for that. A finding
+that reaches beyond the stage goes back to fable through a re-plan, not folded in here.
 '''
 
 # Remote platform and the command that publishes a finished branch.
