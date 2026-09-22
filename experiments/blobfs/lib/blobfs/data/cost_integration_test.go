@@ -3,7 +3,7 @@
 package data_test
 
 // This file holds the cost regression assertions of the standard tier
-// (adjustment 19 of DECISIONS.md): each test seeds a fixture in its own
+// (REVIEW.md, "Phase 3", adjustment 19): each test seeds a fixture in its own
 // throwaway database, captures a statement as the store composes it or
 // takes it from the store's inventory, explains it with EXPLAIN (ANALYZE,
 // BUFFERS) through internal/livetest, and asserts a plan shape and a

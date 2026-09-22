@@ -38,7 +38,18 @@ type deps struct {
 // it.
 func Commands(newStore func() (*Store, error), out *output.Output) []*cobra.Command {
 	d := deps{newStore: newStore, out: out}
-	return []*cobra.Command{d.mkdir(), d.list(), d.put(), d.cat(), d.stat(), d.copy(), d.move(), d.remove(), d.removeDirectory(), d.bookmark()}
+	return []*cobra.Command{
+		d.mkdir(),
+		d.list(),
+		d.put(),
+		d.cat(),
+		d.stat(),
+		d.copy(),
+		d.move(),
+		d.remove(),
+		d.removeDirectory(),
+		d.bookmark(),
+	}
 }
 
 // store constructs the store and verifies it against the database, so a

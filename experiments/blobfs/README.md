@@ -14,9 +14,8 @@ Where to read next:
 
 - `GUIDE.md` is a guided tour of every capability, with the files that implement each and the
   commands to run.
-- `DECISIONS.md` records the decisions from the review of the first sixteen stages and the
-  adjustments that the later stages implemented.
-- `REVIEW.md` is the organized record of the findings, and `NOTES.md` is the chronological log.
+- `REVIEW.md` is the whole record: the findings, the decisions the review made, the stages that
+  implemented them, and the evidence.
 - `evidence/` holds the measurements behind the decisions.
 
 The experiment depends on published `sqlate` v0.1.1, `go-storage` v0.1.0, and `azureblob` v0.1.0.

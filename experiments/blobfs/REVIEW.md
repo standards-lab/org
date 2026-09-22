@@ -1,14 +1,19 @@
-# blobfs experiment review
+# blobfs experiment record
 
-The organized record of `blobfs.experiment`, written at stage 16 for the architect's review.
-`NOTES.md` is the chronological log the stages appended to; this file is the same material
-organized by the three findings the experiment exists to produce. Its sections describe the
-experiment as it stood at stage 16. The review's decisions, and the stages 17 to 32 that
-implemented them, are in `DECISIONS.md` and the last section of `NOTES.md`; where a decision
-changed a claim below, the passage says so. The sources of truth are the
-code and the transcripts under `evidence/`, and every claim here names the test, statement, or
-transcript section that supports it. Where a later stage corrected an earlier entry of
-`NOTES.md`, this file states the corrected position and says so.
+The record of `blobfs.experiment`, replacing what were three files — `REVIEW.md`, `DECISIONS.md`,
+and `NOTES.md` — with one. It describes the experiment as it closed, after stage 32 and the
+follow-up commits (`3ba8178` through `8c12919`), not as it stood partway through. Where a Phase 3
+stage (17 to 32) changed a finding from the post-execution review, this record states the finding
+in its final form and says which stage changed it and why. The sources of truth are the code on
+the `blobfs-experiment` branch, the transcripts under `evidence/`, and `GUIDE.md` for the tour of
+each capability; every claim below names the test, statement, or transcript section that supports
+it.
+
+`DECISIONS.md` and `NOTES.md` were folded into this file and are removed; git history keeps them.
+What left the experiment for the workspace's durable context is in `context/concepts/blobfs.md`,
+`blobfs-api.md`, `blobfs-composition.md`, `migration-sets.md`, and `sqlate-library-support.md`, and
+in the amendments to `context/design/auth-strategy.md` and `context/roadmap.toml`; see "What left
+the experiment."
 
 ## Summary
 
@@ -17,926 +22,820 @@ SQL for an object store, and a command-line file system that uses it. The librar
 object store. The experiment ran against Postgres 18 and Azurite, over published `sqlate` v0.1.1
 and `go-storage` v0.1.0.
 
-The library has these packages:
+The library has these packages, as of stage 32:
 
 - `lib/blobfs` is the root package of entities, vocabulary, and errors.
-- `lib/blobfs/data` is the persistence package.
-- `lib/blobfs/migrations` is the migration source.
-- `lib/blobfs/data/pgnative` is the Postgres variant.
-- `lib/blobfs/data/datatest` is the conformance suite.
-- `lib/migrator` is the multi-set migrator.
+- `lib/blobfs/data` is the persistence package, with `lib/blobfs/data/datatest` beside it as the
+  conformance suite.
+- `lib/blobfs/postgres` is the Postgres engine: the variant and the DDL as a migration set.
+- `lib/migrator` is the multi-set migrator, a documented shim over `sqlate` v0.1.1.
 
 The consumer is an application under `cmd/`, `internal/`, `domain/`, `admin/`, `migrations/`, and
-`output/`.
-
-The experiment ran in sixteen stages. Stages 1 to 5 built a design with a volume table, and the
-architect then removed the volume. Stages 6 to 15 rebuilt the schema around one seeded root and
-added the listing, the variant seam, the write, bookmark, delete, and move paths, the migrator,
-and the integration tier. Every stage was committed after its gates passed, and stage 16 is this
-record.
+`output/`, and it is not promoted; it exists to prove the library and to rehearse what a real
+consumer's own layer above it might look like.
 
 The conclusions that matter most:
 
-- The standard-tier baseline is complete on any engine, and only two operations need native SQL.
-- The listing is one statement anchored on a directory, with its total in the same select list.
-  `sqlate`'s projection cannot express it.
+- The standard-tier baseline is complete on any engine, and the Postgres engine overrides six
+  operations, each shipped only after a measurement showed a win: the tree lock, the file-delete
+  begin, the write steps' `RETURNING` forms, one-statement path resolution, and the row-value
+  keyset predicate.
+- The listing is one statement anchored on a directory, with its total in the same select list and
+  `Page.More` reporting whether rows remain independent of the total. `sqlate`'s projection cannot
+  express it.
 - A file's path stays a read-time computation, and the library stores no path.
-- Ownership is a join in the consumer's tables, and the library holds no unit.
-- The multi-set migrator ships integrated, and the `deleting` status is required.
-- On the baseline, the tree lock is a requirement on the caller.
+- Ownership is a join in the consumer's tables at two grains, directory and file, and the library
+  holds no unit; the two operations that reference a file (a bookmark, a delete) serialize on the
+  file's row through the library's reference-then-delete rule.
+- The multi-set migrator ships integrated as a shim, and the `deleting` status is required.
+- Ids are the primary handle in the library and in the consumer above it; a caller that holds an
+  id and a version from a listing acts without a read.
 
-The decisions that need the architect are in "Decisions for the architect".
+The decisions the architect made in the post-execution review are in "The review: the fifteen
+questions and their answers" and "The review: decisions added"; the stages that implemented them
+are in "Phase 3."
 
-## Finding 1: the library
+## How the experiment ran
 
-### The layers and their import boundaries
+The experiment ran in 32 stages on the branch `blobfs-experiment`, plus five close-out commits.
+Stages 1 to 5 built a design with a volume table, one core table meant to segregate directories
+inside one container. The architect reversed that decision: a volume is an opinionated way to
+segregate directories that an application owner can build on top of the baseline, and `blobfs`'s
+job is the container-based directory and file infrastructure underneath it. Making volume a core
+table had real benefits — unique roots, a clean anchor for path resolution, a declarative rule
+that a root belongs to exactly one volume — and real costs: an opinionated segregation baked into
+the library, and a listing anchor that the consumer's ownership join could not compose with. The
+schema returned to two tables with one seeded root row, and the consumer's own two tables
+(`directory_owner`, `bookmark`) rehearse two ways an application owner can build isolation and
+ownership on top of it.
 
-The library is one module with three layers, as the concept states, and the experiment adds two
-packages beside the second layer.
+Stages 6 to 15 rebuilt the schema around the one seeded root and added the listing, the variant
+seam, the write, bookmark, delete, and move paths, the migrator, and the integration tier. Stage
+16 produced the post-execution review (the original `REVIEW.md`) from the code and the evidence,
+and the architect reviewed eight layers of the built experiment, watched a live demonstration, and
+answered fifteen open questions and thirteen decisions the review added, recorded originally in
+`DECISIONS.md`. Stages 17 to 32 implemented that review; see "Phase 3." Every stage was committed
+after its own build, vet, lint, `split-check`, test, and integration gates passed, several with
+their implementation delegated to another agent under full context and the diff read firsthand
+before commit.
+
+One naming note for reading old test names: stages 7 to 13 named the built-binary tests
+`TestFileCommands`, `TestWriteCommands`, `TestBookmarkCommands`, `TestDeleteCommands`, and
+`TestMoveCommands`; stage 15 folded them into the steps of `TestScript` in
+`integration/integration_test.go` (`directories`, `writes`, `bookmarks`, `deletes`, `moves`), which
+runs once per variant.
+
+## The library, as built
+
+### Layers and import boundaries
+
+The library is one module in three layers, as the concept states.
 
 | Package | What it holds | What it may import |
-|---------|---------------|--------------------|
-| `lib/blobfs` | The entity types `Directory`, `File`, and `Object`; `RootID`; the `Status` vocabulary and the transition table; `NewKey` and `SanitizeFilename`; `NormalizeName` and `ValidateName`; the `KeyValidator` interface; the constraint-name constants; the sentinel errors. | The standard library and `golang.org/x/text/unicode/norm`. Neither `sqlate` nor `go-storage`. |
-| `lib/blobfs/data` | Twenty standard-tier statements, the published pattern namespace `blobfs`, the listing composer, the `Store` type whose methods take a `sqlate.Session`, and the `Variant` interface with its baseline `Standard`. | `sqlate` and the root package. Never `go-storage`, never `pgnative`. |
-| `lib/blobfs/data/pgnative` | The Postgres `Variant`: two native-tier statements, each with its port note. | The persistence package and `sqlate`. No driver: the lock and the returning update are plain SQL through the session. |
-| `lib/blobfs/data/datatest` | The conformance suite, `Run(t, db, store)`, a non-test package so another package's tests can import it. | The persistence package and `sqlate`. Never a variant, never the migrator, and no non-test file names it. |
-| `lib/blobfs/migrations` | The embedded Postgres DDL, exported as a migration source under the history table `blobfs_schema_version`. | `sqlate/migrate` only. |
+|---------|---------------|---------------------|
+| `lib/blobfs` | The entity types `Directory`, `File`, and `Object`; `RootID`; `NewID` and `ParseID`; the `Status` vocabulary and the transition table; `NewKey` and `SanitizeFilename`; `NormalizeName` and `ValidateName`; the `KeyValidator` interface; the constraint-name constants; the sentinel errors and `ViolationError`. | The standard library and `golang.org/x/text/unicode/norm`. Neither `sqlate` nor `go-storage`. |
+| `lib/blobfs/data` | Twenty-two standard-tier statements, the published pattern namespace `blobfs`, the listing composer, the `Store` type whose methods take a `sqlate.Session`, and the `Variant` interface (`LockTree`, `Serializes`, `BeginFileDelete`, `InsertFile`, `InsertDirectory`, `CompleteFileWrite`, `ResolvePath`, `Keyset`) with its baseline `Standard`. | `sqlate` and the root package. Never `go-storage`, never the engine package. |
+| `lib/blobfs/data/datatest` | The conformance suite, `Run(t, db, store)`, a non-test package so another package's tests can import it. | The persistence package and `sqlate`. Never an engine package, never the migrator, and no non-test file names it. |
+| `lib/blobfs/postgres` | The Postgres `Variant`, its six native statements each with a port note, and the DDL exported as a migration set (`Migrations() (migrator.Set, error)`). | The persistence package, `lib/migrator` (for the `Set` type), and `sqlate`. No driver: every statement runs as plain SQL through the session. |
 | `lib/migrator` | The multi-set migrator: several `migrate.Migrator` values under one outer lock. | `sqlate` and the standard library. |
 
-The `split-check` task in `mise.toml` enforces these boundaries with `go list -deps` over each
-package and a grep for the driver's import path under `lib/`, and it enforces the consumer's
-elemental layout in ten numbered rules: `cmd/blobfs` imports only `internal/app`; no root-level
-application package depends on `internal/`; no package under `lib/` depends on a package outside
-`lib/`; `output` depends on no domain, admin, or library package; the domain and admin packages
-do not depend on each other; only `domain/files/storage.go` names `go-storage`; only a domain or
-admin package's `database.go` names `sqlate/query`; cobra appears only in the command layers; only
-`domain/files/blobfs.go` and `domain/files/database.go` name `lib/blobfs/data`; and only
-`internal/app/domain.go` names `pgnative`. Every rule added after stage 4 was proved by a
-temporary violation before it landed (`NOTES.md`, stages 9 and 15).
+`split-check` in `mise.toml` enforces these boundaries with `go list -deps` over each package and a
+grep for the driver's import path under `lib/`, and it enforces the consumer's elemental layout in
+rules that grew from ten at stage 16 to accommodate the split. Every rule added after stage 4 was
+proved by a temporary violation before it landed.
 
-Two findings about the layers. The root package is thin: it compiles alone and a consumer with
-its own persistence can take it, but it is vocabulary and validation, not a capability. The
-concept's claim that a second engine adds a directory and not a module no longer holds once
-native variants exist: a second engine adds a migrations directory and a variant package for
-each native operation, and the native files' port notes are that work list.
+Two findings hold from stage 16 and one is corrected by Phase 3. The root package is thin: it
+compiles alone, and a consumer with its own persistence can take it, but it is vocabulary and
+validation, not a capability. The concept's claim that a second engine adds a directory and not a
+module holds in a stronger form after stage 19: an engine is a package a consumer selects by
+import, with no registry, no init, and no flag; a second engine adds a package of its own, owning
+its DDL as a whole migration set and its native variant, and the native files' port notes are its
+work list.
 
-### The schema
+### The schema, and the designs it was chosen over
 
 The schema is two tables. `blobfs_directory(id, parent_id, name, version, created_at,
-updated_at)` holds exactly one root: the row with no parent and no name, seeded by
-`0001_directory.up.sql` with the nil UUID `blobfs.RootID`. The check constraint
-`blobfs_cc_directory_root_name` states `(parent_id IS NULL) = (name IS NULL)`, and the partial
-unique index `blobfs_uq_directory_root` over the expression `(parent_id IS NULL)` allows one row
-without a parent, so a second root fails as a unique violation under that index's name
-(`TestOneRoot`, `TestRootRule` in `lib/blobfs/migrations`). No library operation can create a
-root, because `Mkdir` always binds a parent and a validated name. `blobfs_file(id, directory_id,
-name, status, key, size, content_type, etag, version, created_at, updated_at)` is the file table;
-`size` and `etag` are NULL until the object exists, and the status check constraint admits
-`pending`, `available`, and `deleting`. The third migration, `0003_file_created_index`, adds the
-index `blobfs_ix_file_directory_created` on `blobfs_file (directory_id, created_at)` as the
-upgrade rehearsal (see "The migration set and the multi-set migrator").
+updated_at)` holds exactly one root, seeded by `0001_directory.up.sql` with the nil UUID
+`blobfs.RootID` and named `/` (stage 18; before it, the root had no name and `Directory.Name` was
+a pointer). The check constraint `blobfs_cc_directory_root_name` states `(parent_id IS NULL) =
+(name = '/')`, `name` is `NOT NULL`, and the partial unique index `blobfs_uq_directory_root` over
+the expression `(parent_id IS NULL)` — over the expression rather than `NULLS NOT DISTINCT`, for
+portability across engines — allows one row without a parent, so a second root fails as a unique
+violation under that index's name. No library operation can create a root, because `Mkdir` always
+binds a parent and a validated name. `blobfs_file(id, directory_id, name, status, key, size,
+content_type, etag, version, created_at, updated_at)` is the file table; `size` and `etag` are
+NULL until the object exists, and the status check constraint admits `pending`, `available`, and
+`deleting`.
 
-Constraint names are public API and follow `blobfs_<kind>_<table>_<detail>`, where `kind` is
-`pk`, `fk`, `uq`, `cc`, or `ix`. The constants live in the root package (`lib/blobfs/constraints.go`)
-because the persistence package imports the root and must not import the migrations package;
-`TestConstraintConstants` checks every constant against the DDL. The two foreign keys into
+Constraint names are public API and follow `blobfs_<kind>_<table>_<detail>`, where `kind` is `pk`,
+`fk`, `uq`, `cc`, or `ix`. The constants live in the root package because the persistence package
+imports the root and must not import the engine package. The two foreign keys into
 `blobfs_directory` have no cascading action, and they are the whole guard against removing a
 non-empty directory. Every row carries a `version` column, which the query library's guarded
-commands check.
+commands check. Directories and files have separate name spaces, so a directory may take the name
+of a file beside it, and a path resolves by kind: a command that resolves one kind sees a file
+before a directory of the same name (`cp` and `stat`, stage 26 and 27).
 
-An `EnsureRoot` operation was the alternative to seeding the root in the migration. The seed was
-chosen because it needs no lifecycle step and gives every consumer the same id, and `Root` is a
-read of `RootID` through `directory_by_id`. The review should confirm it (decision 1).
+**Designs rejected.** The post-execution review measured four schema designs on Postgres 18 at
+10,003 directories and 100,000 files. Design B, one `blobfs_entry` table with a `kind` column,
+served an interleaved listing in 14 buffers but cost about 6% more buffers on the exact-total page
+and about 21% more storage, and needed a generated `kind` column and NULL-safe check constraints
+per kind. Design C, a `blobfs_node` table with subtype tables, needed 19 round trips for a file
+lifecycle against 9, and page 1 by name cost 95 buffers against design A's 12; a node with no
+subtype row was representable, hiding from the listing while holding its name. Design D, design A
+plus a `UNION ALL` interleaved listing, cost about the same as A for a name-sorted page and had no
+own DDL. Design A, the two tables the experiment built, won every measured read, because the
+storage medium is a web-based virtual file system and consumers address directories and files as
+separate resources; an interleaved listing was not needed. See
+`evidence/schema-alternatives/README.md` for the method and every number.
 
-### The two-tier statement model and what is native
+**The `created_at` index.** The library ships no index on `blobfs_file (directory_id, created_at)`
+(decision 5; removed at stage 18). It would turn a page sorted by `created_at` without a total into
+an index read (25 buffers against about 2,400 for the biggest measured directory) and buys nothing
+for an exact-total page, which reads every row for the window count regardless; it costs about
+3.99 MB for 100,000 files against the name index's 8.78 MB. A library that ships an index imposes
+its write cost on every consumer, so `blobfs`'s package comment documents the index and its cost
+and a consumer's own migration set adds it if wanted.
 
-Every statement in `lib/blobfs/data/statements` is standard tier: `TestNew` counts twenty, all
-standard, and `sqlint` holds them to the standard forms (no `RETURNING`, no `::`, no `now()`, no
-`LIMIT`, and the rest of the list in `context/reset.md`). The baseline is complete on any engine
-`sqlate` has a dialect for.
+**The schema is public API.** A violation of a documented constraint reaches the caller as a
+`blobfs.ViolationError` naming the sentinel and the constraint, with the underlying
+`sqlate.ConstraintError` reachable through `errors.As` (stage 20; before it, the message carried
+the driver's raw text). On a delete, a consumer's foreign key is classified by class as
+`blobfs.ErrReferenced` with the constraint name reachable, never by name; on a write, a consumer
+constraint's violation returns as it came. A released migration's text never changes, and a change
+to seeded data — such as the root row — is a new migration, never an amendment (adjustment 17).
 
-Two operations are variation points, named by the `data.Variant` interface (`lib/blobfs/data/variant.go`):
+### The standard tier and the Postgres engine package
 
-- `LockTree(ctx, sess)` and `Serializes() bool`. The Postgres variant runs `SELECT
-  pg_advisory_xact_lock($1)` under the fixed key `pgnative.TreeLockKey`, the 64-bit FNV-1a hash of
-  `pgnative.TreeLockName` (`blobfs_directory.tree`), pinned by `TestTreeLockKey`. The baseline's
-  `LockTree` takes no lock and `Serializes` reports false: standard SQL has no statement that holds
-  a lock to commit. Both refuse a session that is not a `*sqlate.Tx` with
-  `query.ErrTransactionRequired`, so a caller sees the same refusal on every variant. `Serializes`
-  is the capability probe: a caller that needs moves serialized checks it before the first move
-  instead of learning from a cycle.
-- `BeginFileDelete(ctx, sess, id)`. The Postgres variant is one `UPDATE ... RETURNING` whose `CASE`
-  expressions keep a deleting row's version and `updated_at` unchanged, so a retry converges; it
-  accepts the pool (`TestBeginFileDeleteAcceptsThePool`). The baseline is the update
-  `begin_file_delete` (headed `transaction: required`) and the read-back `file_by_id`, which must
-  share a transaction so the read sees the row the update locked
-  (`TestStandardBeginRequiresTransaction`). The two return the same row for the same fixture
-  (`TestVariantsAgree`).
+Every statement in `lib/blobfs/data/statements` is standard tier: `TestNew` counts twenty-two
+(twenty at stage 16; stage 23 added `hold_file` and `hold_file_at_version`), all standard, and
+`sqlint` holds them to the standard forms. The baseline is complete on any engine `sqlate` has a
+dialect for, and it is the reference semantics, the fallback, and the port template.
 
-What the baseline costs and cannot do: one extra round trip per file-delete begin, and no
-serialization of directory moves. The write path (four statements), the delete's complete step,
-the directory removal, and both moves needed no native form; `RETURNING` would save one read-back
-per step everywhere, which the delete begin already measures at one round trip. The delete and
-move stages each confirmed that no third variation point was needed.
+The Postgres engine (`lib/blobfs/postgres`, stage 19; before it, the variant was
+`lib/blobfs/data/pgnative` and the DDL was a separate `lib/blobfs/migrations` package with a
+dialect switch) overrides six operations on the `Variant` interface, each shipped only after
+stage 28 measured a win against the standard tier and stage 29 implemented it:
 
-A variant is supplied at construction: `data.New(catalog, dialect, data.WithVariant(v))`, where
-`v` is built by its own constructor against the same catalog (`pgnative.New`, `data.NewStandard`),
-because the variant's statements compile against the consumer's catalog like the store's do. The
-default costs no second compile: `newStandard` binds the baseline over the statements `New`
-already compiled. A consumer-supplied variant is a struct that embeds a base variant and
-overrides one method; `TestConsumerVariantSwapsOneMethod` proves the store runs the override and
-the base for the other method, in both directions. `Store.Statements()` appends the variant's
-inventory and `Store.Verify` runs the variant's `Verify`, so `pgnative`'s two statements are listed
-and prepared at startup with the rest.
+- **`LockTree` and `Serializes`.** Unchanged since stage 16: `pg_advisory_xact_lock` under the
+  fixed key `postgres.TreeLockKey`; the baseline's lock is a no-op reporting `Serializes() ==
+  false`.
+- **`BeginFileDelete`.** Unchanged in shape: one `UPDATE ... RETURNING` against the baseline's
+  update-then-read; the round trip saved was already measured at stage 16.
+- **`InsertFile`, `InsertDirectory`, `CompleteFileWrite`** (stage 29, decision 14's third bullet).
+  `INSERT ... RETURNING` for a file's begin and for `Mkdir` save one round trip each (measured: 72
+  to 68 buffers, 92 to 89); a successful `CompleteFileWrite` drops from two round trips to one, and
+  a refused one from three to two, because the variant reads the row once after an empty
+  `RETURNING` to classify a version mismatch from a status refusal, sharing the classifier
+  `data.CompleteRefusal` with the baseline.
+- **`ResolvePath`** (stage 29). One recursive statement resolves a path of any depth in one round
+  trip, against the baseline's one read per segment; measured at depth 10, 11 round trips become 1,
+  with 3 extra buffers from the statement's final selection, which selecting the row at the
+  maximum depth removes rather than sorting and cutting. The segments bind as one `[]string`
+  parameter the driver encodes as `text[]`, so no name is ever spliced into SQL text, verified
+  against names carrying quotes, backslashes, braces, commas, a SQL injection string, and unicode.
+- **`Keyset`** (stage 29). A sort with two or more terms renders a row-value comparison
+  (`(q.a, q.b) > (x, y)`) instead of the baseline's expanded OR chain; measured at 35 buffers at
+  any cursor position in a directory that has an index on the sort column, against up to 5,055 for
+  the OR chain at a cursor in the middle. A single-term sort (the listings' default, by `name`)
+  renders identically on both tiers.
 
-Every native file declares `--| tier: native` and `--| native: <feature and port>`, and `sqlint`
-holds the variant's directory to the native-forms check keyed on each file's declared tier: a
-native file is exempt by its tier and must carry its port note, and a file in that directory that
-declares the standard tier is still held to the standard forms. The conformance suite
-(`datatest.Run`) passes over both variants: `TestStandardConformance` in the persistence package
-and `TestConformance` in `pgnative`.
+Every native statement declares `--| tier: native` and `--| native: <feature and port>`, and
+`sqlint` holds the engine package's directory to the native-forms check keyed on each file's
+declared tier. The conformance suite (`datatest.Run`) runs both variants and compares their rows
+and error text for every operation, including the new ones; `datatest` also builds a second store
+over the baseline against the same database, so the suite is variant-agnostic by construction. A
+consumer variant embeds a base variant and overrides one method, proved unchanged since stage 16.
+
+What the baseline costs and cannot do: one extra round trip per file-delete begin and per write
+step, a path walk of one round trip per segment, the expanded-chain keyset cost at scale, and no
+serialization of directory moves. Adjustment 14's `sqlate` note ("engine-keyed statement overlays
+for statements of the same shape, and a way to declare a statement that returns the changed row")
+is expected to remove four of the eight `Variant` methods' reasons to exist once `sqlate` lands
+pattern overlays for `RETURNING`; see `context/concepts/sqlate-library-support.md`.
 
 ### The listing
 
 The listing is not a projection. `ListFiles` and `Children` are each one authored statement
-anchored on a directory id (`files_in_directory`, `children_of_directory`, and their `_with_total`
-twins), with the caller's filters, sort, and page appended in Go by the composer in
-`lib/blobfs/data/listing.go` from the query library's own clause patterns, read through
-`Catalog.Patterns()`. There is no derived-table wrap: the clauses attach at the statement's own
-level, so the engine sees one flat query over one table and pages a name sort through the unique
-index. The statements alias their table as `q` because the clause patterns qualify every field as
-`q.<field>`.
+anchored on a directory id, with the caller's filters, sort, and page appended in Go by the
+composer in `lib/blobfs/data/listing.go` from the query library's own clause patterns. There is no
+derived-table wrap: the clauses attach at the statement's own level, so the engine sees one flat
+query over one table and pages a name sort through the unique index.
 
-The total travels in the page. Under `TotalExact` (the zero value) the `_with_total` statement
-carries `COUNT(*) OVER () AS total` in its select list, evaluated over the rows the WHERE clause
-keeps and before the paging clause cuts them, so the total cannot disagree with its page under
-any isolation level. `TestListingCarriesItsTotal` proves one query per page, the window count
-present under `TotalExact` and absent under `TotalNone`; `TestListingMatchesForest` proves the rows
-and the total equal a whole-forest recursion's answer for every directory of a fixture, four
-sorts, two filters, and four page sizes; `TestExactTotalUnderConcurrentInserts` proves the total
-agrees with its own rows while a second connection inserts between calls.
+The total travels in the page. Under `TotalExact` (the zero value, rejected as the cursor's
+default early on precisely because it is the zero value and a cursor page must default to no
+total) the `_with_total` statement carries `COUNT(*) OVER () AS total`, evaluated over the rows the
+WHERE clause keeps and before the paging clause cuts them, so the total cannot disagree with its
+page under any isolation level.
 
-Paging is by number (`OFFSET ... FETCH NEXT`) or by keyset cursor, and both walk the same order
-(`TestCursorWalkMatchesOffsetWalk`). The sort is the caller's terms followed by `name`, the key,
-as the tie-breaker when the caller did not name it. The tie-breaker takes the terms' direction
-when they share one, so `created_at:desc` orders by `created_at DESC, name DESC` and a descending
-sort is the exact reverse of the ascending one; mixed caller terms get `name` ascending. Stage 6
-appended `name` ascending always, and stage 8 changed the rule so that a descending sort can take
-a cursor; the stage 6 and 7 engine baselines were updated for the new order (decision 3).
+The composer fetches one row beyond every page, offset or cursor, and drops it (stage 21; at
+stage 16 the extra row was fetched only when the sort could be continued by a cursor). The row's
+presence is `Page.More`, reporting whether rows remain whatever the sort and the total say; `Next`,
+the cursor, is filled when `More` is true and the sort can be continued. A page therefore reads as
+one of three states: no rows remain; more rows, continue by cursor; or more rows with no cursor,
+so read the next page by number. The `NoTotal` edge holds: an empty first page has the exact total
+0, and an empty page after the first reports `NoTotal` because the composer runs no count
+statement. The sort is the caller's terms followed by `name`, the key, as the tie-breaker when the
+caller did not name it, taking the terms' shared direction when they have one.
 
-The cursor (`lib/blobfs/data/cursor.go`) is base64url over an eight-byte SHA-256 prefix and a JSON
-body holding the encoding version, the name of the statement that issued it, the sort terms it
-was issued under, and the sort values of the page's last row as text. The checksum is an
-integrity check, not authentication: a forged well-formed cursor positions the listing where a
-filter could and nothing more. A cursor binds the listing and the sort, not the directory. It is
-refused, with a `data.CursorError` that unwraps to `query.ErrDirectives`, when it is malformed or
-edited, was issued by the other listing or under other terms or directions, or when the sort
-cannot be continued: terms up to the key that mix directions, or a term naming a field that can be
-NULL (`size`, `etag`, `parent_id`), which the entity's pointer fields declare
-(`TestCursorRefusals`, `TestNullableSortIssuesNoCursor`, `TestCraftedCursorsAreRefused`). A cursor
-page carries `NoTotal` whatever `Total` says, because a window count under the keyset predicate
-would count the rows after the cursor, which is a different quantity; a caller reads page one with
-its total and then walks by cursor, and `Next` is filled on offset pages too. The composer fetches
-one row beyond every page, offset or cursor, and drops it, so the page size plus one is the bound
-fetch count. The row's presence is `Page.More`, which says whether rows remain whatever the sort
-and the total; `Next` is set when `More` is true and the sort can be continued. Stage 16 fetched
-the extra row only when the sort could be continued (decision 5 of `DECISIONS.md` changed that).
+The cursor is base64url over an eight-byte SHA-256 prefix and a JSON body holding the statement's
+name, the sort terms, and the last row's sort values. It is refused when malformed, edited, issued
+by the other listing or under other terms, or when the sort cannot be continued (mixed directions,
+or a nullable field such as `size` or `parent_id`).
 
-The `NoTotal` edge: the window count travels on rows, so an empty first page has the exact total
-0 (no row matched) and an empty page after the first reports `NoTotal` (-1), because the composer
-runs no count statement (`TestListingPagesPastTheEnd`). The consumer's projections, whose count is
-a separate statement, report the exact total on that same edge, so the two read models the binary
-ships differ there and `output` renders both (`total unknown (the page is empty)` against
-`total 5`) (decision 2).
+`ls` gained an `ID` column, `--filter` (the same rule as `--sort`: a term applies to the file half
+whenever the file listing declares its field, and to the directory half only for fields both
+listings declare), and `--cursors` to opt into printing the cursor lines (stage 27); none of this
+touches the library, which already carried every id and had no filter restriction of its own — the
+narrowing by half is the tool's rule (`domain/files/database.go`), not the library's.
 
-The store's `Verify` has two halves: every statement prepares as authored, and each listing
-prepares once more as a canonical rendering with every declared field filtered and sorted, plus a
-cursor rendering over every field a cursor can continue. `TestVerify` counts twenty-six prepares:
-twenty statements, four offset renderings, and two cursor renderings.
-
-What the listing costs is in `evidence/read-model.txt` (proof V3) and `evidence/sort-index.txt`,
-summarized under "The proofs".
+The store's `Verify` prepares twenty-eight statements on the standard tier (twenty-two statements,
+four offset renderings, two cursor renderings; twenty-six at stage 16, before `hold_file` and
+`hold_file_at_version`). A store built with the Postgres variant prepares thirty-four: the
+twenty-two standard statements (compiled regardless, since the standard set is the store's own
+inventory and the variant's is appended, not substituted) plus the variant's six native statements.
+The consumer's own inventory prepares forty (thirty-six at stage 16; stage 23 added the two holds
+and stage 25's second bookmark projection, `bookmarks_with_paths`, added one more).
 
 ### Error mapping
 
 Constraint-to-sentinel mapping is per operation, because one constraint means different things on
-different statements. `blobfs_fk_directory_parent` means a missing parent on an insert or a move
-and a non-empty directory on a delete. `lib/blobfs/data/errors.go` therefore keeps two tables:
-`writeSentinels` maps the two name uniques to `ErrNameTaken`, the root index to
-`ErrRootDirectory`, and the two foreign keys to `ErrNotFound`; `deleteSentinels` maps the same two
-foreign keys to `ErrNotEmpty`. Each mapping is keyed on the constraint name and checked against the
-class `sqlate` reports, and the `sqlate.ConstraintError` stays reachable through `errors.As`
-(`TestClassifyWrite`, `TestClassifyDelete`).
+different statements. `lib/blobfs/data/errors.go` keeps two tables: `writeSentinels` maps the two
+name uniques to `ErrNameTaken`, the root index to `ErrRootDirectory`, the two foreign keys to
+`ErrNotFound`, and the two primary keys (new at stage 22, for a caller-supplied id) to
+`ErrIDTaken`; `deleteSentinels` maps the two foreign keys to `ErrNotEmpty`. Each mapping is now
+wrapped in a `blobfs.ViolationError` (stage 20) that names the sentinel and the constraint and
+keeps the `sqlate.ConstraintError` reachable through `errors.As`, never the driver's raw text.
 
-A constraint `blobfs` does not own is handled by class on a delete and left alone on a write. A
-`DELETE` of a `blobfs_file` row can violate only a foreign key that references `blobfs_file`, and
-`blobfs`'s own DDL declares none, so any foreign-key violation on the file's removal is a
-consumer's constraint by construction; on a directory removal, any foreign key that is not one of
-`blobfs`'s two is likewise a consumer's. `classifyDelete` reports those as `blobfs.ErrReferenced`
-with the constraint name reachable, and the consumer matches the name against its own
-(`fileDeleteSentinels` in `domain/files/database.go` maps `fk_bookmark_file` to
-`files.ErrBookmarked`). The library never names a consumer constraint. On a write, a consumer
-constraint's violation returns as it came, wrapped with the operation's context, and the consumer
-classifies it (`bookmarkSentinels` maps `pk_bookmark`, `uq_bookmark_active`, and `fk_bookmark_file`
-to the consumer's sentinels). The engine proofs are the suite's `ReferencedRowStaysDeleting`, which
-creates a reference table of its own, and `TestRemoveDirectoryOnTheEngine`.
-
-Two refusals are made in Go before any SQL: `ErrRootDirectory` for a move, rename, or removal of
-the root, and a `NameError` for a name `ValidateName` refuses. `sql.ErrNoRows` from a typed handle
-is mapped to `ErrNotFound` by `notFound`.
+A constraint `blobfs` does not own is handled by class on a delete and left alone on a write, as
+at stage 16. The consumer maps a foreign key's name to its own sentinel through the same
+`ViolationError` shape (`domain/files/database_bookmarks.go`). Two refusals are made in Go before
+any SQL: `ErrRootDirectory` and a `NameError`/`IDError`.
 
 ### The write path
 
 A file write is two steps around the object write, which the library never makes.
-`BeginFileWrite(ctx, sess, keys, directoryID, name, contentType)` validates the name, mints the id
-(`uuid.NewV7()` from the standard library), builds the key `id/sanitized-name` and validates it
-against the caller's `blobfs.KeyValidator`, and inserts the row as `pending` through
-`begin_file_write`, then reads it back with `file_by_id`. `CompleteFileWrite(ctx, sess, id,
-version, obj)` runs the guarded update `complete_file_write` under the query library's version
-guard (`file_version` is the check) and reads the row back. Both take `sqlate.Session`, not
-`*sqlate.Tx`: `begin_file_write` carries no `transaction: required` header, because one insert and
-its read-back are correct on the pool, and a consumer that wants the row beside its own passes its
-transaction. `TestFileWriteComposesIntoTheCallersTransaction` proves the begin inside a consumer's
-`Transact` beside a consumer row that references `blobfs_file`: a rollback leaves neither row and
-a commit both.
+`BeginOrResumeFileWrite` (stage 22; the consumer's find-or-begin logic moved into the library)
+looks the name up first and inserts only when absent, returning a `WriteOutcome` — created,
+resumed a `pending` row, or already present — so `put`, `cp`, and a seeder share one write
+protocol. `CompleteFileWrite` runs the guarded update and reads the row back on a refusal to
+classify it. `WithID` lets a caller supply the row's id, so a seeded file keeps its id and its key
+across resets (adjustment 18); a found row keeps its own id regardless.
 
-There is no fail step and no `failed` status, by decision (stage 10). A stop between the steps
-leaves the row `pending`, which is the queryable state proof 3 asks for; a retry of the same write
-finds the row through `FileByName` and completes it (`TestFileWriteRetryCompletesAPendingRow`,
-`TestPutStopsAndResumes`); an abandoned write is removed through the delete steps, which
-`pending` already allows. The transition table in `lib/blobfs/status.go` has no row for a failed
-write and its comment records the decision. The complete step stores what `Put` returned: the size
-the provider counted, the entity tag it assigned, and the content type as sent (`TestPut` proves
-the row equals the service's `Stat` of the object on Azurite).
+There is no fail step and no `failed` status, unchanged since stage 10. A stop between the steps
+leaves the row `pending`; a retry of the same write resumes it; an abandoned write is removed
+through the delete steps.
 
-The consumer's `put` is three steps with two transaction boundaries
-(`TestPutIsThreeStepsWithTwoBoundaries`): the parent's resolution, the name lookup, and the
-insert in one transaction that commits before any byte reaches the store; the object write outside
-any transaction; the completion on the pool. `put --fail-after insert|write` stops after the first
-or second step with exit code 1 and a message naming the pending row.
+### The delete path and the reference-then-delete rule
 
-### The delete path
+A file delete is two steps around the object delete, mirroring the write. `BeginFileDelete` moves
+the row to `deleting`; `CompleteFileDelete` removes it. The retry rule per step holds from stage
+16: the begin returns a deleting row unchanged, the object delete succeeds on a missing object,
+and the complete succeeds on a missing row.
 
-A file delete is two steps around the object delete. `BeginFileDelete` moves the row to `deleting`
-through the variant and returns it. `CompleteFileDelete` runs `remove_file` (`DELETE ... WHERE id =
-? AND status = 'deleting'`), the same standard statement on every variant, and when it removes
-nothing it reads the row once and classifies: a row that is gone is success, a row that exists and
-is not deleting is `blobfs.ErrNotDeleting`, and a row that became deleting meanwhile has the
-removal repeated once. The retry rule per step is that the begin returns a deleting row unchanged,
-the object delete succeeds on a missing object, and the complete succeeds on a missing row, so a
-stop after any step leaves a state the next run finishes. The suite's `FileDelete` group proves it
-on both variants (`RetryAtEachStepConverges`, `PendingIsDeletable`, `NotDeletingIsRefused`,
-`ReferencedRowStaysDeleting`), and the consumer's `TestRemoveConvergesAtEachStep` proves it end to
-end.
+The bookmark-versus-delete race, open at stage 16, closed at stage 23. At stage 16, a delete
+checked the bookmark count before its begin, and a bookmark added between that check and the
+complete step made the foreign key refuse the row's removal after the object was already gone,
+leaving a `deleting` row with a bookmark until the bookmark was removed by hand. The library's
+`HoldFile` now takes the file's row lock through a guarded update that changes no value and no
+version; `AddBookmark` holds the file before it inserts, and `deleteFile` begins the delete before
+it reads the bookmark count, so the two operations serialize on the row. The rule for a consumer
+is reference-then-delete: hold the file in the transaction that inserts a row referencing it. A
+row inserted without the hold still meets the foreign key at the complete step, which leaves the
+row `deleting` with its bookmark until the bookmark is removed. Both interleavings are proven
+against Postgres with real concurrent transactions
+(`TestBookmarkAddedDuringTheDeleteIsRefused`, `TestDeleteDuringTheBookmarkAddIsRefused`), on both
+variants, with the earlier `TestRemoveMeetsABookmarkAfterTheBegin` removed.
 
-`deleting` is needed (proof 6). It is the durable marker that lets a retry finish once the object
-is gone: without it a row whose object was deleted would read as `available`, a rerun could not
-tell "resume the delete" from "delete a live file", `cat` would report a missing object as a store
-fault, and a bookmark could be added to a file with no object. The status also keeps the
-`(directory_id, name)` slot until the row goes, so a `put` of the same name during the delete is
-`ErrNameTaken` and `rmdir` of the directory is `ErrNotEmpty` until the row goes.
-
-`RemoveDirectory` is one statement, `remove_directory`, which never removes a row without a parent;
-the root is refused in Go first. There is no cascade and no recursive delete in the library. The
-consumer's `rm -r` walks the tree in pages of 100 rows, directories then files, removes what each
-page holds until a page comes back empty, then removes the directory; it takes no lock, and a row
-inserted meanwhile is either removed by a later pass or refuses the directory's removal through the
-foreign key, in which case the walk empties the directory again up to three rounds before
-reporting `ErrNotEmpty`, and three stalled passes in a row over one directory are
-`files.ErrTreeBusy` (`TestRemoveTreeRacesAnInsert`, `TestRemoveTreeRacesAnInsertBetweenPasses`).
-The delete takes no tree lock: a move racing a delete is decided by one foreign key or the other,
-with the engine's row locks making the second operation wait for the first's outcome
-(`TestMoveRacesADelete`).
+`RemoveDirectory` and the consumer's `rm -r` walk are unchanged since stage 16: no cascade, no
+recursive delete in the library, and the consumer's walk empties a directory in pages until it is
+gone or gives up as `ErrTreeBusy` after three stalled passes.
 
 ### The move path
 
-`MoveDirectory(ctx, sess, id, parentID, name, version)` runs three statements in the caller's
-transaction, in this order: the variant's `LockTree`, the cycle check `directory_is_within`
-(exported as `IsWithin`), and the guarded update `reparent_directory` with `directory_version` as
-its check and `AND parent_id IS NOT NULL` so no statement of the library can move the root. The
-cycle check is one upward walk from the new parent looking for the moved directory, so its cost is
-the new parent's depth. The transaction requirement is enforced twice: by the lock's refusal of a
-pool session on both variants and by the `transaction: required` header on `reparent_directory`.
-The step takes the id and the version the caller read, because the guard needs exactly those two.
-A rename is a move to the same parent and pays the lock and the check like any move.
-`TestMoveDirectoryIsThreeStepsUnderOneLock` pins the order and the bound arguments hermetically.
+`MoveDirectory` and `MoveFile` are unchanged in shape since stage 16: the directory move takes the
+variant's tree lock, the cycle check, and a guarded update in one transaction; the file move is one
+guarded statement with no lock. What is corrected: `Directory.Name` is a `string`, not a pointer
+(stage 18), so a rename no longer nil-checks the root's name. `MoveEntry` (stage 25) is the id
+form: it reads the source row for its parent, name, and version, resolves both paths for the
+result, and takes an optional `Scope`.
 
-`MoveFile(ctx, sess, id, directoryID, name, version)` is one guarded statement, `move_file`, with
-`AND status <> 'deleting'`, on the pool or in a transaction: a file cannot be its own ancestor, so
-it takes no lock and no check. The key is untouched, so a rename moves no object
-(`TestMoveFileOnTheEngine`). Directories and files have separate name spaces: a directory may take
-the name of a file beside it (`MoveDirectory/NameTaken`).
+What the baseline requires of a caller holds from stage 16: the lock, or serializable isolation
+with a retry on SQLSTATE 40001, or serializing moves outside the database.
 
-What the baseline requires of a caller (proof 4): the lock. On the baseline, the suite's
-`MoveDirectory/OpposingConcurrentMoves` shows two opposing moves (X under Y and Y under X) both
-pass the no-op lock, both checks pass against the same committed state, both commit, and
-afterward X's parent is Y and Y's parent is X, neither reachable from the root. The same
-interleaving on `pgnative` blocks the second move inside the lock until the first commits and
-then refuses it with `ErrCycle`. The cycle check assumes an acyclic tree: `directory_is_within` and
-`directory_ancestors` are unbounded upward walks that never terminate on a cycle, which is why the
-suite repairs the cycle it forms and why the lock is a requirement and not a courtesy. A baseline
-caller has three options, in order of preference: use a serializing variant; open every moving
-transaction at serializable isolation and retry on SQLSTATE 40001, which
-`OpposingSerializableMoves` proves refuses the second of two opposing moves on both variants with
-no cycle; or serialize directory moves outside the database. Postgres already serializes the two
-updates on its own row locks (an update of `parent_id` is a key update under
-`blobfs_uq_directory_parent_name`, and the foreign-key check's `KEY SHARE` conflicts with it); the
-cycle comes from the second check running before the first commit, which only a lock taken before
-the check or a serializable snapshot prevents (decision 4).
+### Path resolution and ids as the handle
 
-The interleaving is made deterministic by a test-only gated variant that the suite wraps around
-the store's variant through the public `data.New`; there is no production hook and no third
-variation point.
+`ResolveDirectoryFrom` (stage 24) resolves a relative path from a directory id, sharing its
+segment-splitting and per-segment walk with the absolute-path `ResolveDirectory`, so both accept
+and refuse the same names with identical messages. `IsWithin`, exported since stage 16, is the
+cycle check used both by `Move`'s own check and by a consumer's scope check.
 
-### Keys (proof 7)
+Ids are the primary handle in the library and in the consumer above it (adjustment 9). The
+consumer's `Store` gained an id-keyed method beside each path-keyed one — `ListDirectory`,
+`StatFile`, `OpenFile`, `PutFile`, `MoveEntry`, `RemoveFile`, `CopyFile` — each taking an optional
+`Scope` (stage 25). A caller that holds a listing row's id and version acts on it without a read:
+`RemoveFile` with a version holds the row at that version first, refusing before anything begins
+if the row moved on.
 
-`blobfs.KeyValidator` has one method, `ValidateKey(key string) error`. The concept's `MaxKeyLength`
-was dropped at stage 10: `azureblob`'s `ValidateKey` enforces its 1,024-rune limit itself, the
-storage fake's default does the same, and `MaxNameLength` (255 runes) keeps every key `blobfs`
-builds at 292 runes at most, so a length check in `blobfs` never fires against a real provider.
-The consumer's adapter is one method, `Storage.ValidateKey`, over
-`store.Capabilities().ValidateKey`. The rune-boundary proofs are `TestBeginFileWriteKeyBoundary` (a
-validator with a 60-rune limit accepts a key of exactly 60 runes and 83 bytes and refuses one rune
-over before any SQL), `TestNewKeyCountsRunes`, and end to end `TestPutNameAtTheRuneBoundary` (a
-name of 255 `é`, a key of 292 runes and 546 bytes, stored in Azurite and read back; 256 is
-`ErrInvalidName`). Azurite proves nothing about the limit: `TestAzuriteAndTheKeyLimit` shows it
-accepts a key of 1,025 runes put straight through `storage.Store.Put`, so the provider's rule is
-the whole defense. The validator is a parameter of the begin step rather than an option of
-`data.New`, so the persistence package builds without the object store and the consumer opens the
-store lazily (decision 9).
+### Keys
 
-### The migration set and the multi-set migrator
+Unchanged since stage 16 (proof 7). `blobfs.KeyValidator` has one method,
+`ValidateKey(key string) error`, no maximum length, and the consumer's adapter is one method over
+the provider's own capability.
 
-`lib/blobfs/migrations` exports `Migrations(dialect)`, which selects the directory by the
-dialect's name (Postgres only at v1; another dialect is `ErrUnsupportedEngine`), the source name
-`Source` (`blobfs`), and the history table `Table` (`blobfs_schema_version`). The set is three
-migrations; `TestGoldenHashes` pins each file's text and `TestUpgradeKeepsInstalledHashes` checks
-that versions 1 and 2 still hash to the values pinned at stage 6 after migration 3 was added.
-Migration text was amended in place through stage 6 because nothing is released; migration 3 is a
-new version because the rehearsal's purpose is an upgrade over an installed database
-(`TestUpgradeAfterRestart` builds the installed state from the set cut to two migrations, seeds
-rows, opens a new migrator over the full set, and checks that only version 3 was applied).
+### The migration set the library ships
 
-`lib/migrator` (`migrator.go`, 303 lines including its comments) runs several sets under one
-lock. `New(db, []Set, Options)` validates that every set has a name and that no two share a name or
-a history table, and builds one `migrate.Migrator` per set with `Options.Unlocked`. Each run
-asserts `sqlate.Locker` on the dialect, pins one connection from the pool, takes the lock under
-`Options.LockName` (default `migrator.sets`), checks every set's history first (a dirty row or a
-mismatched history is a `SetError` that unwraps to `migrate.ErrDirty` or
-`migrate.ErrUnknownVersion`), runs the sets, and releases the lock under `context.WithoutCancel`.
-`Up` runs the sets in declared order; `Down` reverts them in reverse and keeps the history tables; `Reset` reverts in reverse and then drops each set's history table with a `DROP TABLE` the
-shim issues itself; `Status` returns one `SetStatus` per set (name, table, applied version, latest,
-pending migrations, dirty mark) without the lock; `Force(ctx, set, version)` is the operator's
-repair. The inner migrators run on their own pooled connections, so a run needs two connections.
-The engine proofs are `TestFreshReplay`, `TestUpgradeAfterRestart`, `TestResetOrderAcrossForeignKeys`
-(the wrong order fails at migration 2's `DROP TABLE blobfs_file` with SQLSTATE 2BP01 and leaves
-blobfs's head at 2, because migration 3 was already reverted in its own transaction),
-`TestConcurrentStartersSerialize`, and `TestDirtyRefusalOnEngine`. Proof 5's answer is integrated
-shipping; the hooks the promotion needs are items 26 to 32 of Finding 2.
+`lib/blobfs/postgres` exports `Migrations() (migrator.Set, error)` (stage 19), returning the whole
+set — name `blobfs`, history table `blobfs_schema_version`, and the migrations — as one value,
+rather than the name, the table, and the migration list assembled separately as at stage 16. The
+set is two migrations (stage 18; a third, `0003_file_created_index`, existed at stage 16 as the
+upgrade rehearsal and was removed with the index it added). The upgrade rehearsal now lives in the
+migrator's own tests as a fixture third migration, not a released one, since nothing in `blobfs`'s
+set is released.
+
+The set's self-containment rules hold: it owns every object it creates under the `blobfs_` prefix,
+never references a consumer's objects, and a golden-hash test pins every migration's text. The
+multi-set migrator and a consumer's adoption of a shipped set are recorded in
+`context/concepts/migration-sets.md`, not restated here.
 
 ### What a consumer composes
 
-The consumer's shape is `domain/files`, and it is the shape `v1.storage` will take.
+`domain/files` is the shape `v1.storage` will take, updated for Phase 3:
 
-- Its own tables, in its own migration set (`migrations/postgres`): `directory_owner(directory_id,
-  unit_id, version, timestamps)` keyed on the directory with a foreign key into
-  `blobfs_directory`, and `bookmark(unit_id, file_id, active, timestamps)` with the primary key
-  `(unit_id, file_id)`, a foreign key into `blobfs_file`, and the partial unique index
-  `uq_bookmark_active ON bookmark (unit_id) WHERE active`. Its constraint names follow
-  `<kind>_<table>_<detail>` without the `blobfs_` prefix, and the two mappings never overlap.
-- One pattern catalog for the program (`domain/files/database.go`): `query.NewCatalog(query.Patterns(),
-  data.Patterns())`, against which `New` compiles `blobfs`'s statements, the variant's, and the
-  consumer's. `Verify` prepares thirty-six: the consumer's eight statements and two projections,
-  `blobfs`'s twenty, and the six listing renderings.
-- Ownership joins. `owned_directories` is a projection over `{{> blobfs.directory_columns}}` joined
-  to `directory_owner`, and `bookmarks` is a projection over `bookmark` joined to `blobfs_file` with
-  each row's path computed by a recursion correlated on the file's directory. Both restate the
-  library entity's columns by name, because the scanner does not flatten embedded structs.
-- Transaction boundaries. `ls` runs the path resolution and both halves in one read-only
-  repeatable-read transaction (`DB.Transact` with `sqlate.ReadOnly()` and
-  `sqlate.Isolation(sql.LevelRepeatableRead)`), so the two halves are mutually consistent
-  (`TestListRunsInOneReadOnlyRepeatableReadTransaction`, `TestListHalvesAgreeUnderConcurrentWrites`).
-  `bookmark ls` does the same for its count and page. `put`, `rm`, `mkdir --unit`, `rmdir`, `mv`,
-  and `bookmark add` each state their boundary in `domain/files/blobfs.go`.
-- The variant choice. `files.New(db, opener, files.WithVariant(pgnative.New))` at the composition
-  root (`internal/app/domain.go`), from `--variant standard|pgnative` or `BLOBFS_VARIANT`.
-  `WithVariant` takes a type parameter so `pgnative.New` passes as it is without the composition
-  root naming the query library's types, which `split-check` rules 7 and 9 reserve for
-  `database.go`.
-- The object-store adapter (`domain/files/storage.go`), the one application file that imports
-  `go-storage` and `azureblob`: it is the `blobfs.KeyValidator`, it maps the store's sentinels
-  onto the domain's, and the composition root opens and starts it on the first file command that
-  needs it, so `mkdir` and `ls` run with Azurite down.
+- **File copy** (stage 26). `Copy` and `CopyFile` are a third sequence over the two-phase write,
+  reusing `Put`'s begin and complete steps to stream bytes from a source object to a new one. The
+  destination reads like `mv`. The source must be `available`; a directory is the new `ErrNotAFile`
+  sentinel. Bookmarks and owner rows stay with the source.
+- **The scope check by id** (stage 25). `InScope` reads the owner row of a client-named scope
+  directory first, then asks the library's `IsWithin` whether the target lies inside it, so a
+  supplied scope id is checked and never trusted; a unit that names a directory it does not own
+  learns nothing about what is under it. The path form of `ls --unit` keeps deriving its scope
+  from the path, unchanged.
+- **The bookmark read model** (stage 25). It returns `file_id` and `directory_id` and computes a
+  row's path only when the caller asks (`bookmark ls` does); the default statement carries no
+  recursion, which the previous read model always ran.
+- **Seeding** (adjustment 18, stage 22). `EnsureDirectory` and `BeginOrResumeFileWrite` are the
+  library's insert-or-find operations a seeder needs, with `WithID` for a stable id across resets.
+- Every other item — the pattern catalog, the variant choice, the object-store adapter, the
+  transaction boundaries — is unchanged from stage 16.
 
-## Finding 2: the adjustments `sqlate` needs
+## The adjustments `sqlate` needs
 
-One consolidated list, collected from the `sqlate` ledger and every stage's additions in
-`NOTES.md` and deduplicated. Each item states what fails or is awkward, the evidence, the
-workaround `blobfs` uses today, and the smallest change in `sqlate` that removes it.
+The consolidated list from the post-execution review, sorted after the review into what
+`blobfs.sources` addresses and what stays an unscheduled ledger. Each item states what fails or is
+awkward, the evidence, the workaround `blobfs` uses today, and the smallest change in `sqlate` that
+removes it. The full text of all 34 items, plus the three Phase 3 additions, is preserved below;
+the sort and the shapes chosen for `blobfs.sources` are in
+`context/concepts/sqlate-library-support.md` and `migration-sets.md`.
 
 ### Projections and listings
 
-1. A projection base cannot bind a parameter. A listing anchored on one directory therefore
-   cannot be a projection, and a projection whose recursion must be a top-level common table
-   expression walks from every row before the outer filter runs. Evidence: the composer exists
+1. A projection base cannot bind a parameter. A listing anchored on one directory therefore cannot
+   be a projection, and a projection whose recursion must be a top-level common table expression
+   walks from every row before the outer filter runs. Evidence: the composer exists
    (`lib/blobfs/data/listing.go`); `evidence/bookmarks.txt` section c (the top-level recursion
    costs 164.706 ms and 3023 buffers for a unit with 10 bookmarks among 53,110, and 167.220 ms for
    1,000) against section a (0.270 ms and 245 buffers for 10). Workaround: the library composes its
    listings outside the projection, and the bookmark read model moves its recursion into a scalar
    subquery correlated on each row's directory, which the planner pulls up. Change: a base that
-   binds parameters, the arity-one lift `design/auth-strategy.md` section 4 names. The correlated
-   form cannot take a downward walk or a walk shared by several output columns, which keeps the
-   lift motivated.
+   binds parameters, sorted to `sources` (`sqlate-library-support.md`): `List`/`One` take a
+   variadic `base ...Args`, so an unscoped call is unchanged and a scoped one passes one `Args`
+   value built with the new package function `query.With(name, v) Args`. This is also a `v1.auth`
+   requirement (`design/auth-strategy.md` section 4), independent of `blobfs`.
 2. The total belongs in the page statement, and a projection cannot skip its count.
-   `Projection.List` always runs its count twin before the page, and a separate count can disagree
-   with its page. Evidence: `TestListingCarriesItsTotal`; `ls / --unit --total none` and `bookmark
-   ls --total none` read the count and drop it (`NOTES.md`, stages 7 and 11). Workaround: the
-   library's `_with_total` statements carry `COUNT(*) OVER () AS total`, and the consumer drops the
-   count it cannot skip. Change: a total mode on `Directives`, and the window count as an option of
-   the collection pattern, with the edge documented that a window total travels on rows and an
-   empty later page has none.
+   `Projection.List` always runs its count twin before the page. Change: a total mode on
+   `Directives` (exact, window, none), sorted to `sources`.
 3. A derived-table wrap over a base that contains `WITH RECURSIVE` loses the index order and blocks
-   the outer filter. Evidence: `evidence/read-model.txt` section e3 (the same base pages in 0.069 ms
-   and 21 buffers flat and in 5.094 ms and 2443 buffers wrapped); sections e1 and e2 show the wrap
-   costs nothing over a flat base. Workaround: the composer appends the clauses at the statement's
-   own level. Change: let a projection compose its clauses at the base's level for a recursive
-   base, or document that the authored base decides whether the directives can reach an index.
-4. The catalog exposes its inventory and not its renderer. `Catalog.render` is unexported, so a
-   composer outside the projection reads the clause patterns' text through `Catalog.Patterns()` and
-   fills the slots with its own copy of the slot regex. Evidence: `slot` and `newClauses` in
-   `listing.go`. Change: a `Catalog.Render(name, fill)` method, or an exported clause composer.
-5. The clause patterns fix the correlation name `q`. `filter_*`, `order_term`, and
-   `order_term_desc` spell every field as `q.<field>`. Evidence: every listing statement reads `FROM
-   blobfs_file q` or `FROM blobfs_directory q`. Change: make the qualifier a slot, or publish
-   unqualified terms.
-6. `Projection` has no keyset paging. `Directives` carries a page number only. Evidence: `ls /
-   --unit` refuses `--after-dirs` with `files.ErrNoCursorAtRoot`. Change: a cursor on `Directives`
-   with the composer's rules (the key as the tie-breaker in the sort's direction, one direction, no
-   nullable term).
-7. A projection's key is one field. `--| key:` names one field, and the bookmark read model's
-   unique key over the unfiltered base is the pair `(unit_id, file_id)`. Evidence:
-   `domain/files/statements/bookmarks.sql` declares `file_id` and relies on every read filtering by
-   the unit. Change: a composite key, or a key declared per filter.
-8. `Statement` does not expose the dialect it compiled against, only its catalog. Evidence:
-   `data.New` takes the dialect for the placeholders the composer appends after the statement's
-   own. Change: a `Statement.Dialect()` accessor.
-9. `Statement.Text()` ends where the file ends, and nothing in the loader states it. The composer
-   relies on the loader trimming a trailing semicolon and whitespace, and a listing statement must
-   end with its WHERE clause. Evidence: the hermetic tests pin the rendered suffix
-   (`TestListingComposesClauses`). Change: document the rule.
-10. A statement cannot resolve a path in one round trip. Standard SQL has no ordered array
-    parameter, and `{{name...}}` renders an `IN` list. Evidence: `ResolveDirectory` is one
-    `directory_child` read per segment, and `mv` resolves four times from the root. Change: none at
-    the standard tier; a native variant could resolve a path in one statement, and `blobfs` could
-    offer a `ResolveUnder(parentID, path)` to halve the consumer's repeats.
+   the outer filter. Change: sorted to the backlog; item 1 removes most of the cost in the cases
+   that matter, and the alternative composition contract would give up the projection's
+   base-independence guarantee.
+4. The catalog exposes its inventory and not its renderer. Sorted to the backlog: it serves only a
+   composer built outside `Projection`, which items 1, 2, and 6 retire.
+5. The clause patterns fix the correlation name `q`. Sorted to the backlog, for the same reason as
+   item 4.
+6. `Projection` has no keyset paging. Sorted to `sources`: a cursor on `Directives` with the
+   composer's rules (the key as the tie-breaker, one direction, no nullable term), and the Postgres
+   half as the first pattern overlay the engine module supplies (the row-value predicate).
+7. A projection's key is one field, and the bookmark read model's unique key over the unfiltered
+   base was the pair `(unit_id, file_id)`. Sorted to `sources` alongside item 6, at the same
+   verification depth `sqlate` already applies to a single key (a declared-field check only, no
+   schema introspection): composite-key grammar (`--| key: a, b`) is cheap to add and item 1
+   removes the one case that needed it. Real schema-level uniqueness verification, for a single key
+   or a composite one, is a separate, new capability and stays in the backlog.
+8. `Statement` does not expose the dialect it compiled against. Sorted to the backlog: it serves
+   only the outside composer.
+9. `Statement.Text()` trims a trailing semicolon and nothing states it. Sorted to the backlog:
+   already documented in `docs/features.md` and the parser's own comment; a godoc line on `Text`
+   rides along with a later change.
+10. A statement cannot resolve a path in one round trip at the standard tier. Closed: the
+    one-statement Postgres form needs nothing from `sqlate`; a `text[]` parameter binds as one
+    `Args` value, and the statement is native in an engine package.
 
 ### Transactions and sessions
 
-11. `sqlate.Session` cannot begin a transaction. A library cannot give a two-read operation a
-    consistent snapshot, so the caller must. Evidence: `ls` and `bookmark ls` open the read-only
-    repeatable-read transaction themselves (`TestListRunsInOneReadOnlyRepeatableReadTransaction`).
-    The consumer-side answer works: `DB.Transact` takes `ReadOnly()` and `Isolation(...)` beside the
-    function, and every library method takes the `*Tx` as its session. Change: document the
-    pattern, or let a library method take an option that begins a read-only transaction when the
-    session is the pool.
-12. The transaction requirement lives in the statement, not in the operation. The baseline's
-    delete begin is two statements that need one transaction, declared on the first statement's
-    header and inherited by the second only because the first refused the pool; the baseline's
-    no-op lock enforces the same requirement by a type assertion in Go, since no statement runs.
-    Evidence: `Standard.LockTree` and `Standard.BeginFileDelete` in `variant.go`. Change: an
-    operation-level requirement (a `*sqlate.Tx` parameter or a `Transact`-style contract) that
-    states it once.
+11. `sqlate.Session` cannot begin a transaction. Sorted to the backlog: the library's own answer,
+    typing the four transaction-only operations as `*sqlate.Tx`, is the better contract.
+12. The transaction requirement lives in the statement, not the operation. Closed as a
+    `blobfs.build` API decision, not a `sqlate` change: `Directories.Move`, `LockTree`, `Files.Hold`,
+    and `Files.Delete` take `*sqlate.Tx`.
 
 ### Errors and constraint classification
 
-13. `UnknownFieldError` unwraps to `ErrDirectives`, the client-error sentinel, so a forgotten scope
-    filter fails as a client error unless the consumer matches the type. The error carries `Use:
-    filter`, which tells them apart. Evidence: the composer's refusals (`TestListingRefusals`).
-    Change: a separate sentinel for a field the statement did not declare, or a documented
-    contract that the consumer matches the type.
-14. `postgres.Dialect.MapError` does not map SQLSTATE 2BP01 (dependent objects still exist).
-    Evidence: `TestResetOrderAcrossForeignKeys` and `TestWrongOrderDownIsRefused` match the code by
-    hand through the driver's error. Workaround: the shim wraps the raw error in `SetError`.
-    Change: map the class to a sentinel.
-15. `postgres.Dialect.MapError` leaves SQLSTATE 40001 (serialization failure) unmapped, and the
-    dialect's own test pins that. Evidence: the suite's `OpposingSerializableMoves` recognizes it
-    through the driver's `interface{ SQLState() string }`. Change: a sentinel for the class, so a
-    retry loop stays portable; this matters because serializable isolation is the standard-tier
-    alternative to the tree lock.
-16. `ConstraintError` carries no table name. On a foreign-key violation from a delete, Postgres
-    reports the referencing table beside the constraint name, and `sqlate` exposes the name and
-    the class only. Evidence: `blobfs.ErrReferenced`'s message cannot say which consumer table
-    holds the reference. Workaround: the consumer maps the name. Change: a `Table` field.
-17. `query.Guard` reports only a version mismatch and cannot carry a second predicate. A guarded
-    statement that adds `AND status = 'pending'` (`complete_file_write`) or `AND status <>
-    'deleting'` (`move_file`) affects nothing when the status refuses the row, and the guard's
-    check then finds the expected version and reports `ErrVersionMismatch: expected 1, current 1`,
-    which is false. `Guard.Run` also returns the new version and not the row, so a begin that
-    needed the row could not use it. Evidence: `CompleteFileWrite` and `MoveFile` read the row
-    after a mismatch and reclassify (`TestCompleteFileWrite`, `TestMoveFile`). Two of the library's
-    four guarded statements carry the extra read. Change: a guard whose check returns the row, or
-    a check the caller extends with the same extra predicate. A related guarantee the write path
-    relies on should be documented: `Guard.Run` passes the command's `Args` to the check and `Args`
-    ignores an extra name, so the size, content type, and etag bound for the update do not fail
-    the version read.
+13. `UnknownFieldError` unwraps to `ErrDirectives`, the client-error sentinel. Sorted to the
+    backlog, as "no change; document the contract": the proposed separate sentinel would regress
+    `go-web-service`'s mapping of an unknown field to a 400 response; the correct fix is a
+    documented `errors.As` contract for a program that composes its own filters.
+14. `postgres.Dialect.MapError` does not map SQLSTATE 2BP01. Assigned to `blobfs.sources`
+    (`migration-sets.md`), since the multi-set migrator's `Down` refusal needs it.
+15. `postgres.Dialect.MapError` leaves SQLSTATE 40001 unmapped. Assigned to `blobfs.sources`
+    (`migration-sets.md`); this is also the sentinel a baseline caller's serializable-isolation
+    retry needs (decision 4).
+16. `ConstraintError` carries no table name. Sorted to `sources`: the driver already exposes the
+    table and column, and a not-null violation (Postgres sets no constraint name for that class)
+    has no usable handle today. Additive: `Table` and `Column` fields, no consumer change forced.
+17. `query.Guard` reports only a version mismatch and cannot carry a second predicate, so a guarded
+    statement with a status predicate misreports a status refusal as a version mismatch and cannot
+    return the row. Sorted to `sources`: a real correctness defect for any guarded write with a
+    lifecycle status, not only `blobfs`'s two instances. A typed guard whose check returns the row
+    and distinguishes no row, a version mismatch, and a status refusal; the existing `Guard` keeps
+    its shape for consumers with the plain predicate.
 
 ### Statements, tiers, and native declarations
 
-18. A `--| field:` timestamp type must be spelled `timestamp with time zone` in standard tier,
-    because `timestamptz` is a native form, and `Verify` never checks field types, so a wrong
-    spelling surfaces only when someone filters on the field. Evidence: every listing statement's
-    header. Change: `Verify` checks each declared field's type against the cast it renders, or the
-    loader normalizes the spelling.
-19. A library that ships statements hard-codes the `sql.` namespace, so a consumer that aliases
-    `sqlate`'s source with `As` breaks the library's compile. Evidence: `{{> sql.guard_where}}` in
-    `reparent_directory` and `complete_file_write`. Change: resolve the library's namespace by
-    identity rather than by name, or document that the library namespace is never aliased.
-20. A native statement's declaration is one line. `--| native: <feature and port>` is free text on
-    one line, so a port note of any length is one long line. Evidence:
-    `lib/blobfs/data/pgnative/statements/lock_tree.sql`. Change: a multi-line header value, or a
-    separate `port:` key.
-21. `Verify` prepares every statement whatever its tier and never asks the dialect whether a
-    native statement belongs to it, so a Postgres variant compiled against another engine's
-    dialect fails at prepare, not at compile. Evidence: `pgnative.New` compiles against any
-    dialect. Change: a dialect check at compile for a native file, or documentation that native
-    statements are verified only against a live engine.
-22. `sqlint`'s `native_forms` check keys on the tier, not the directory, so a directory listed
-    under `[statements]` may mix tiers. Evidence: `sqlint.toml`'s comment on the variant's
-    directory. Change: a per-directory `tier` requirement, so the configuration can state the
-    layout rule the experiment follows by convention.
-23. `Statement.Native()` is the only reader of the port note, and no tool lists a program's native
-    statements with their ports. Evidence: `pgnative`'s test asserts each note contains `Port:` by
-    convention. Change: an `sqlint` report, or a `query.Statements` method that lists native
-    statements and their declarations, so the port notes become the work list.
-24. A parameter inside a published pattern takes no cast. `sql.guard_where` binds `{{id}}`
-    untyped, so `complete_file_write` sends the id as an untyped parameter and Postgres infers
-    `uuid` from the column, while the library's own statements cast every uuid (`{{id:uuid}}`) for
-    `Verify`'s sake. Change: typed slots in a pattern, or a way for the including statement to
-    state the type.
-25. `StandardCatalog.HistoryExists` does not qualify by schema, so a same-named table in any
-    schema satisfies the check. Evidence: the ledger (stage 3). Change: qualify by the current
-    schema.
+18. A `--| field:` timestamp type must be spelled correctly for the standard tier, and `Verify`
+    never checks it. Sorted to `sources`: startup verification is the library's stated promise, and
+    every projection consumer is exposed. A companion `sqlint` change extends the native-forms
+    check to header values, shipped in lockstep, not trailing.
+19. A library that ships statements hard-codes the `sql.` namespace. Sorted to `sources`: settled
+    before `go-auth` becomes the second shipper. The namespace is reserved and resolved by
+    identity, and `As` no longer applies to it.
+20. A native statement's declaration is one line. Sorted to `sources`: every native port note in
+    the workspace is already an unreadably long single line. A header value may span lines under a
+    `port:` key, with the one-line form still accepted; the matching `sqlint` support ships in the
+    same release, not trailing.
+21. `Verify` never asks the dialect whether a native statement belongs to it. Sorted to the
+    backlog: the value is real only once a program can be compiled against more than one dialect,
+    which needs item 20's structured engine name and a second engine to be worth the lint
+    exemption.
+22. `sqlint`'s native-forms check keys on the tier, not the directory. Sorted to the backlog: a
+    `sqlint` release of its own, triggered when the promoted `blobfs` repository wants to state the
+    rule.
+23. No tool lists a program's native statements with their ports. Sorted to the backlog: a natural
+    addition once item 20 structures the port, not needed now.
+24. A parameter inside a published pattern takes no cast. Sorted to the backlog: neither consumer
+    has a failure from it, only a style inconsistency, and the two proposed grammars have no
+    evidence to choose between them.
+25. `StandardCatalog.HistoryExists` does not qualify by schema. Sorted to `sources`: a correctness
+    defect in `migrate` for any multi-schema consumer, and the history protocol is being reworked
+    anyway.
 
 ### `migrate` and the multi-set migrator
 
-The hooks that make `lib/migrator` disappear. The shim needed nothing outside the public API and
-repeats one constant and one statement; `blobfs.sources` promotes its shape into `sqlate` as
-`migrate.New(db, []migrate.Set{...}, opts)`, with the default set keeping `schema_version` so a
-v0.1.1 database needs no history migration.
+The hooks that make `lib/migrator` disappear, absorbed into `sqlate` under `blobfs.sources` rather
+than promoted with `blobfs`; the full design is in `context/concepts/migration-sets.md`.
 
-26. `migrate` does not export its default table name (`schema_version`) and offers no `Table()`
-    accessor. Evidence: `defaultTable` in `migrator.go`, repeated to refuse two sets on one table
-    and to report the table in `Status`. Change: export the constant, or add the accessor.
-27. `migrate` cannot run on a caller's connection. The shim pins its own connection for the outer
-    lock and each inner run pins a second one, so a run needs two pool connections. Evidence:
-    `Migrator.locked` in `migrator.go`. Change: a `Migrator` that takes a `*sql.Conn`, or a multi-set
-    `Migrator` that shares one.
-28. `migrate` has no operation that drops its history table, so `Reset` runs `DROP TABLE` on its
-    own. Evidence: `Reset` and `TestFreshReplay`. Change: a `Migrator.Drop` (or `Reset`) beside
-    `Force`.
-29. `Options.Unlocked` does what its comment says and is what the shim relies on. Its doc comment
-    should say that a caller holding its own lock is the intended use, beside the dialect without
-    the capability. Change: documentation.
-30. `Version` and `Verify` read without a lock and are enough for a status report, at four
-    queries per set. Change: a `Status` that returns head, dirty, and pending in one read.
-31. `Steps` tolerates a count larger than the applied prefix, and `Down(len(set))` is how the shim
-    reverts a whole set. Change: document it as a guarantee.
-32. `sqlate.Locker` is enough for the outer lock: the Postgres dialect's `Lock` and `Unlock` work on
-    any pinned connection, and `TestConcurrentStartersSerialize` shows two starters serialized
-    under `migrator.sets` (the control without the lock fails with a duplicate object, SQLSTATE
-    23505 on `pg_type_typname_nsp_index`). No change is needed; the finding supports the
+26. `migrate` does not export its default table name or offer a `Table()` accessor.
+27. `migrate` cannot run on a caller's connection, so a run needs two pool connections.
+28. `migrate` has no operation that drops its history table.
+29. `Options.Unlocked`'s doc comment should state that a caller holding its own lock is the
+    intended use.
+30. `Version` and `Verify` read without a lock at four queries per set; a `Status` returning head,
+    dirty, and pending in one read is the fix.
+31. `Steps` tolerates a count larger than the applied prefix, which should be documented as a
+    guarantee.
+32. `sqlate.Locker` is enough for the outer lock; no change is needed, and the finding supports the
     promotion. A related correction to the concept: multi-statement transactional migrations work
-    on pgx, which uses the simple protocol when a statement has no arguments, so the concept's
-    claim that v0.1.1 cannot host a source holds only for one merged `Migrator`; a `Migrator` per
-    set with its own `Options.Table` runs on v0.1.1, which is what the shim is.
+    on pgx's simple protocol, so v0.1.1 hosts one `Migrator` per set with its own `Options.Table`,
+    which is what the shim is; the concept's claim that v0.1.1 cannot host a source holds only for
+    one merged `Migrator`.
 
 ### Scanning
 
-33. `Scanner` refuses a column with no field. A page statement that carries `COUNT(*) OVER () AS
-    total` beside the entity columns cannot scan through `query.Scanner[T]`. Evidence: `scanner`
-    in `listing.go`, which reads the entity's fields by tag and the total into an `int`. Change: a
-    scanner that takes extra destinations, or an entity wrapper the mapper flattens.
-34. The scanner does not flatten embedded structs, so a consumer read model restates every column
-    of a library entity, including columns it never uses. Evidence: `OwnedDirectory` restates
-    `blobfs.Directory` beside `unit_id` and converts back to the library type, and `BookmarkedFile`
-    restates the file columns (`domain/files/entities.go`). Change: flatten embedded structs in
-    the mapper.
+33. `Scanner` refuses a column with no field, so a page statement carrying a window total needs its
+    own scanner. Sorted to the backlog, as "subsumed by item 2": once the total lives inside the
+    projection, no consumer needs extra scan destinations.
+34. The scanner does not flatten embedded structs. Sorted to `sources`: ordinary struct-mapper
+    behavior every consumer benefits from, and `go-web-service` already has a case (an `Identity`
+    type it cannot embed today).
+
+### The Phase 3 additions
+
+- **A. Engine-keyed statement overlays**, for a statement of the same shape declared once and
+  respelled per engine. Sorted to the backlog: no instance exists even inside `blobfs` — the
+  Postgres engine's `RETURNING` forms change the statement's shape from exec to query (addition B),
+  and its other two native statements have no standard twin.
+- **B. A statement that returns the changed row, declared once** (`RETURNING` on Postgres,
+  insert-then-read on the baseline). Sorted to the backlog: the right shape is not knowable from
+  one library; a second library with the same fallback need, or a settled protocol shape, would
+  decide it.
+- **C. The keyset predicate as a pattern overlay.** Sorted to `sources`, as the Postgres half of
+  item 6.
 
 ### What each adjustment unblocks
 
-| Roadmap task | What it needs from this list | What the evidence supports |
-|--------------|------------------------------|----------------------------|
-| `blobfs.sources` (the multi-set migrator in `sqlate` v0.2.0) | Items 26 to 31 are the hooks; item 32 confirms the lock; item 14 lets the promoted migrator classify a refused revert. | The shim's API is the multi-set API the concept describes, and the promotion adds exactly those hooks. |
-| `blobfs.build` (the library's own repository) | Nothing blocks it: the library builds and passes over v0.1.1 with the workarounds in place. Items 4, 5, 8, 9, 33 remove code from the composer; item 17 removes the extra read from two guarded steps; item 15 makes the documented serializable-isolation route portable; item 20 and item 23 make the port notes readable and listable. | The composer, the scan, and the two reclassifying reads are the code that leaves `blobfs` once these land. |
-| `v1.storage.service` (the consumer) | Items 2, 6, 11, and 34 are the consumer's awkward call sites (the dropped count, the missing cursor on the owner read model, the transaction the consumer opens, the restated columns). Item 1 is motivated, not required: the correlated shape serves the bookmark read model, and the parameterized base is needed only for a directory-anchored listing that must be a projection. | `evidence/bookmarks.txt` shows the correlated shape at 0.270 ms for 10 bookmarks; the parameterized base's shape (section d) is slower for a small unit. |
+| Roadmap task | What it needs from this list |
+|--------------|-------------------------------|
+| `blobfs.sources` (`sqlate` v0.2.0) | Items 26 to 31 are the migrator's hooks; 32 confirms the lock; 14 and 15 let the promoted migrator and a baseline caller classify SQLSTATEs; 1, 2, 6, 7, 16, 17, 18, 19, 20, 25, and C are the library-hosting adjustments the architect chose to fold into the same task. The task covers six areas — the collection read, the guard, verification and headers, the mapper, errors, and `migrate` — not the migrator alone. |
+| `blobfs.build` | Nothing blocks it: the library builds and passes over v0.1.1 with today's workarounds. If `sources` lands first, `blobfs.build` can collapse `listing.go` and `cursor.go` onto `query.Projection` instead of carrying them, and the eight-method `Variant` interface is expected to shrink to four. |
+| `v1.storage.service` | Items 2, 6, 11, and 34 are the consumer's awkward call sites; item 1 serves the directory-anchored listing a scoped read model needs. |
 
-## Finding 3: incorporation into `v1.storage`
+One answer stays only partly supported: whether any sort besides `created_at` earns an index was
+never measured; the answer for `size`, `status`, and the rest rests on the plan shape, not a
+measurement.
 
-### One install per configuration and per database
+## Incorporation into `v1.storage`
 
-An install is one database and one container, with fixed `blobfs_` object names. A service that
-serves several isolated trees runs one configuration per tree, a DSN and a container each.
-`TestIsolation` (`integration/integration_test.go`) is the evidence that two configurations share
-nothing: over the same binary and the same environment otherwise, both build `/docs/a.txt` with
-different bytes; `ls /` in each shows its own entries only; `cat` returns each configuration's
-bytes; a unit's directory and active bookmark in A are absent in B; each database holds exactly
-its own `blobfs_file`, `bookmark`, and `directory_owner` rows and each container exactly its own
-objects under the keys `stat` reports; `rm -r /docs` in A leaves B's row and object; `schema
-reset --yes` in A leaves B's tables; and after both are torn down neither database nor container
-exists. Nothing in the library or the consumer names a second database or container: no
-`volume_id`, no key prefix, no schema qualifier. One observation for the review: the object keys
-are `<file id>/<name>` and carry no mark of the configuration, so two configurations sharing one
-container would not collide (the ids are UUIDv7), but the design keeps one container per
-configuration so that a container-level operation belongs to exactly one tree.
+### One install per configuration
 
-The variant is a composition choice and reaches only the files store: a service on Postgres passes
-`files.WithVariant(pgnative.New)`, and the schema step is the same on either variant.
+Unchanged since stage 16. An install is one database and one container, with fixed `blobfs_`
+object names; a service serving several isolated trees runs one configuration per tree.
+`TestIsolation` is the evidence that two configurations share nothing.
 
 ### The migration source in the service's one migrator
 
-The service builds one `migrator.Migrator` (after `blobfs.sources`, `sqlate`'s own) over
-`[]Set{blobfs's set, its own set}`: the source's `Migrations(dialect)` under the source's `Table`,
-and its own under the default table. `admin/schema/database.go` is the model: `Sets` is one short
-function returning two `Set` literals, and `NewClient` is five lines over `migrator.New`. `Up` at
-start takes one lock for both sets,
-so several replicas starting together serialize and every one ends at head
-(`TestConcurrentStartersSerialize`). `Up` refuses before running anything when any set is dirty or
-its history does not match the binary's set, so a replica built from an older binary against a
-newer database fails at start with `migrate.ErrUnknownVersion` naming the set. `Reset` reverts the
-service's set before `blobfs`'s, so the service's foreign keys never block it, and drops both
-history tables; `Down` keeps them. The upgrade path is a `go.mod` bump: the next start finds
-`blobfs`'s new migration pending and applies only it, and the service's rows survive
-(`TestUpgradeAfterRestart`). The order of `Up` is `blobfs` first, consumer last; the order of `Down`
-and `Reset` is the reverse, and `TestResetOrderAcrossForeignKeys` shows the wrong order fails at
-`DROP TABLE blobfs_file` and leaves `blobfs`'s set partially reverted, with the history agreeing
-with the schema.
+Unchanged in shape; the migration source is now one value from `postgres.Migrations()` rather than
+assembled from a name, a table, and a migration list. The service builds one `migrator.Migrator`
+over `[]Set{blobfs's set, its own set}`, `blobfs`'s first in `Up`, last in `Down` and `Reset`.
 
 ### What the admin surface must expose
 
-`go-database`'s admin release (`blobfs.admin`) must expose `status` (one row per set: table,
-applied version, latest, pending, dirty), `up`, `down`, `reset` behind an explicit confirmation,
-and `force <set> <version>` for dirty recovery. The experiment's `schema` command exposes the
-first four (`schema reset` requires `--yes` and refuses with `schema.ErrResetNotConfirmed` before
-constructing the client) and leaves `force` out, because the stage list named four verbs; the
-migrator has `Force`, and the admin surface needs it because `Reset` refuses a dirty set and the
-operator's repair is to state the applied version through `Force` and then run `Up` or `Reset`. A
-refused revert in the wrong order leaves a set partially reverted, so the admin's `status` after a
-failed `reset` is what tells the operator where each set stands.
+Unchanged: `status`, `up`, `down`, `reset` behind confirmation, and `force <set> <version>` for
+dirty recovery, because `Reset` refuses a dirty set and the operator's repair states the applied
+version through `Force`. `Force` rather than a flag on `Reset` was chosen because a flag that
+cleared the dirty mark and tried the down would have to guess whether the failed migration's
+objects still exist; naming the version explicitly does not.
 
 ### Directory-grain ownership
 
-The `directory_owner` rehearsal is the document hierarchy per organization. An owner row binds a
-depth-one directory to a unit, written by `mkdir <path> --unit` in the same transaction as the
-directory (`TestMkdirWithUnitIsOneTransaction`); `mkdir --unit` below depth one is
-`files.ErrUnitDepth`, refused before any I/O. A scoped listing (`ls <path> --unit`) resolves the
-depth-one ancestor of the path, reads its owner row once, and refuses with `files.ErrNotOwned`
-before the rest of the path resolves, so a foreign unit learns nothing below the ancestor; the
-listing statements carry no owner predicate, so the library's listings run unchanged under a
-scope (`TestListScopedChecksTheAncestorOnce`). At `/` the scope is the owner projection filtered by
-the unit (`TestListScopedAtRootUsesTheOwnerProjection`), and the file half is empty with total 0: a
-file stored in the root has no top-level ancestor and belongs to no unit, so a service that keeps
-files at the root has no scope for them. `rmdir` of an owned directory removes the owner row and
-the directory in one transaction, because the owner row is the consumer's record of the directory
-and has no life of its own; the alternative, an `ErrOwned` mapped from
-`fk_directory_owner_directory`, would make an owned directory undeletable.
-
-The cost of the scope check is one owner read per scoped command, plus the ancestor resolved twice
-(`/first` for the check and the full path for the listing), because `ResolveDirectory` resolves
-from the root only (Finding 2, item 10).
+Unchanged since stage 16 (see "Findings against other repositories" for the auth-strategy
+amendment this section motivates).
 
 ### File-grain ownership
 
-The `bookmark` rehearsal is the `org_image` case. A `bookmark` row binds a file to a unit, the
-partial unique index `uq_bookmark_active` allows one active bookmark per unit, and the three
-constraints (`pk_bookmark`, `fk_bookmark_file`, `uq_bookmark_active`) reach the service as its own
-sentinels (`ErrAlreadyBookmarked`, `blobfs.ErrNotFound` for a file removed meanwhile,
-`ErrActiveBookmark`) through one table in its database file (`TestAddBookmarkClassifiesTheConstraints`,
-`TestAddBookmarkOfAFileRemovedMeanwhile`, `TestBookmarkOneActivePerUnit`). The `org_image` case
-maps onto it directly: the organization is the unit, the image row is the bookmark, "one logo per
-organization" is the partial index, and the refusal of a second active row is a classified error
-the handler turns into a conflict response. `add --active` is refused while another is active and
-leaves the other as it is; a swap is `rm` then `add --active`. A pending file can be bookmarked,
-which is the service's shape (the row beside the pending file row in the upload's first
-transaction); a deleting file cannot. The foreign key holds the file: a delete of a bookmarked
-file fails under `fk_bookmark_file` until the row goes.
-
-The service's listing of a unit's files with their paths is the `bookmarks` projection: the
-consumer's table joined to `blobfs_file`, the path computed per row by a recursion correlated on
-the file's directory, paged, sorted, and counted through `query.Projection` unchanged, with the
-count and the page in one read-only repeatable-read transaction
-(`TestBookmarkTotalAgreesUnderConcurrentWrites`). The cost is the unit's row count times the
-depth, and nothing grows with the tree or with other units' rows (`evidence/bookmarks.txt`,
-section a: 245 buffers for 10 bookmarks, 2371 for 100, 21940 for 1,000, against a tree of 10,003
-directories and a bookmark table of 53,110 rows).
+Unchanged since stage 16, with the reference-then-delete rule (see "The delete path" above) now
+the mechanism that closes the race a bookmark and a delete could otherwise hit.
 
 ### What a move may and may not do under directory-grain ownership
 
-A move stays under one top-level directory (`files.ErrMoveAcrossScopes`, checked inside the
-transaction after the destination resolves and before the source is touched,
-`TestMoveStaysUnderOneTopLevelDirectory`). A top-level directory may be renamed, and its owner row,
-keyed by id, stays; it may not be moved below another top-level directory. Nothing moves up to
-the top level or across two top-level directories, and a file in the root may be renamed but not
-moved under a top-level directory. The reason is structural: the owner row binds a top-level
-directory and the scope is checked once at that ancestor, so a move across two top-level
-directories would carry an entry from one unit's scope into another's without either unit's say,
-and a move that changed a top-level directory's depth would leave an owner row at a depth the
-scope check never reads. A move of a document across two organizations' trees is therefore not a
-move but a copy and a delete, cheap on the SQL side and expensive on the store side. `mv` takes no
-`--unit`: a unit's right to move within its own scope is the authorization the experiment does
-not prove (decision 6).
+Unchanged since stage 16: a move stays under one top-level directory, because the owner row binds
+one and the scope is checked once at that ancestor. A move across two top-level directories would
+carry an entry from one unit's scope into another's without either unit's say. `mv` takes no
+`--unit`; a unit's right to move within its own scope is the authorization the experiment does not
+prove (decision 6).
 
 ### The write, delete, and move protocols as the service must sequence them
 
-- The upload. In one transaction: the service resolves the parent, inserts the pending row through
-  `BeginFileWrite`, and writes its own rows (the owner or image row) beside it; the transaction
-  commits before any byte reaches the store. Outside any transaction: the service uploads under
-  the row's key. On the pool: `CompleteFileWrite` with the row's id and version and what the store
-  reported. A service that already runs `storage.Store` under its lifecycle hands the started
-  store to the adapter through `files.NewStorage`, and the adapter is the `KeyValidator` the begin
-  step takes. A `pending` row is the service's own state to sweep: no `failed` status exists, a
-  retry of the same upload resumes the row, and an abandoned row goes through the delete steps. A
-  time-bounded sweeper lists `status = 'pending'` under `updated_at < threshold` through the
-  library's listing filters and deletes each.
-- The delete. In one transaction: the service checks its own rows that reference the file (the
-  bookmark count) and refuses while any exist, then runs `BeginFileDelete`. Outside any
-  transaction: it deletes the object. On the pool: `CompleteFileDelete`. The service's foreign key
-  into `blobfs_file` is the backstop for a reference that arrives after the check, and the service
-  maps that key's name to its own error at the complete step. A sweeper for abandoned deletes lists
-  `status = 'deleting'` under `updated_at < threshold` and runs the same idempotent steps. A
-  directory removal removes the service's own rows about the directory in the same transaction as
-  the library's removal, and a recursive removal is the service's walk, children first.
-- The move. The service resolves both paths and runs `MoveDirectory` or `MoveFile` in one
-  transaction; a directory move takes the tree lock through the variant. On the baseline the
-  service serializes directory moves itself: one mover per process, or every moving transaction at
-  serializable isolation with a retry on SQLSTATE 40001; on `pgnative` the library's lock does it.
+Unchanged in shape from stage 16, with two updates: the upload's begin step is now
+`BeginOrResumeFileWrite`, shared with `put`, `cp`, and a seeder; the delete's first transaction now
+holds the file (through `HoldFile`, from the row that references it) before checking or inserting
+any row that references the file, per the reference-then-delete rule, rather than only checking a
+bookmark count before the begin.
 
 ### Deployment hazards the evidence found
 
-- The JIT threshold on the correlated recursion. The planner costs the recursive subquery at about
-  720 units per row, so a page over a unit with more than about 140 bookmarks crosses
-  `jit_above_cost` (100,000) on a server with the default settings and is JIT-compiled:
-  139.246 ms for 1,000 bookmarks with JIT on against 16.899 ms with it off
-  (`evidence/bookmarks.txt`, sections a and f), and the compile is more than the walk. A sort by
-  the key stays under the threshold and reads only the page's rows (0.234 ms and 493 buffers for
-  1,000 bookmarks). A service with large units sorts by the key or lowers `jit_above_cost` for the
-  session, which is a native form the standard tier cannot state.
-- The exact total on a very large directory. The window count makes the page statement read every
-  row of the directory with its columns: 6.275 ms and 2434 buffers for 10,008 files on every page,
-  against 0.023 ms and 12 buffers without the total (`evidence/read-model.txt`, sections b and c),
-  and `VACUUM` does not help it. The cost is bounded by the directory, never by the tree. A service
-  with directories of tens of thousands of files asks for the total once, on page one, and walks
-  by cursor (the last page costs 0.018 ms and 6 buffers by cursor against 7.696 ms and 2434
-  buffers by offset, section d).
-- The baseline's missing tree lock. On an engine without a native variant, two concurrent
-  directory moves can form a cycle, and a cycle makes every upward walk loop forever. The service
-  must serialize directory moves outside the database or run them at serializable isolation.
-- The bookmark-versus-delete race, closed after stage 16 (decision 10 of `DECISIONS.md`). At
-  stage 16, `rm` checked the bookmark count before the begin, and a bookmark added between that
-  check and the complete step made the foreign key refuse the row's removal after the object was
-  gone. The library's `HoldFile` now takes the file's row lock with an update that changes no
-  value and no version, `AddBookmark` holds the file before it inserts, and `deleteFile` begins
-  the delete before it reads the count, so the two operations serialize on the row. The rule for a
-  consumer is reference-then-delete: hold the file in the transaction that inserts a row
-  referencing it. A row inserted without the hold still meets the foreign key at the complete
-  step, which leaves the row `deleting` with its bookmark until the bookmark is removed
-  (`TestBookmarkAddedDuringTheDeleteIsRefused`, `TestDeleteDuringTheBookmarkAddIsRefused`).
-- The migrator's connection count. A run needs two pool connections until `sqlate` takes the
-  caller's connection (Finding 2, item 27).
-- The recursive delete under sustained writes. `rm -r` is not atomic and can loop; the experiment
-  bounds it (three rounds of emptying, three stalled passes) and reports `ErrNotEmpty` or
-  `ErrTreeBusy` with the tree consistent.
+Unchanged since stage 16, with the bookmark-versus-delete race removed (closed at stage 23) and one
+addition: the migrator needs two pool connections until `blobfs.sources` lands (Finding 2, item
+27).
 
 ### What stays undecided until `go-auth`
 
-Authorization. `--unit` rehearses the directive-filter shape of a scope predicate and nothing
-more: the experiment proves that the scope can be checked once at the depth-one ancestor and that
-the file-grain join carries the unit, but not the composed authorized listing under the auth
-strategy's scope predicate, which `v1.auth`'s storage sweep proves. Whether the directory-grain
-case joins the file-grain case in `design/auth-strategy.md` section 8 is an amendment for the
-review (see "Amendments to make at close"): the evidence shows the two grains differ in where the
-predicate sits (once at the ancestor, or on every row of the join), and both are consumer joins.
-A unit's right to move within its own scope, and whether `mv` should take `--unit`, wait for the
-same layer.
+Unchanged since stage 16.
 
 ## The proofs
 
-| Proof | The answer | The evidence | The decision it changes |
-|-------|------------|--------------|-------------------------|
-| 1. Read model | The path stays a read-time query, and no path or volume id is stored. The directory listing is a statement anchored on the directory (13 buffers for a page of a 10-file directory with its total). The consumer-anchored read model costs the unit's bookmark count times the depth: 245 buffers for 10 bookmarks and 21940 for 1,000, and nothing grows with the tree. | `TestListingMatchesForest`, `TestBookmarkTotalAgreesUnderConcurrentWrites`; `evidence/read-model.txt` sections b and c; `evidence/bookmarks.txt` section a. | The path decision holds. The parameterized base stays motivated for the shapes the correlated form cannot take (Finding 2, item 1). |
-| V3. Listing cost | The exact total stays the default: free on a small directory, and bounded by the directory's size on a large one (2434 buffers for 10,008 files). The cursor earns its place (6 buffers against 2434 for the last page). Composing at the base's level is required for a recursive base and the wrap suffices for a flat one. A capped total is not decided by the measurement. The `created_at` sort earns an index when listed without the total (25 buffers against 2436), and no other sort was measured. | `evidence/read-model.txt` sections 0, a to e; `evidence/sort-index.txt`. | The default holds; the cursor ships; the composer's design is required; the index's home is decision 5. |
-| 2. Statements and tiers | Every statement of the persistence package is standard tier (twenty, prepared with six renderings at startup) and `sqlint` reports ok. Two operations need a native variant, the tree lock and the file-delete begin, and only the lock changes behavior; the begin saves one round trip. | `TestNew`, `TestVerify`, `mise run lint`; the two files under `lib/blobfs/data/pgnative/statements`. | The two variation points are the whole native surface; no third was needed by the delete or move stages. |
-| 3. Two-phase write | The pending row survives a stop and a retry completes it. The step methods take `sqlate.Session`, not `*sqlate.Tx`, and the begin composes into the consumer's transaction. Failure is not a state; the pending row is. | `TestPutStopsAndResumes`, `TestFileWriteComposesIntoTheCallersTransaction`, `TestFileWriteRetryCompletesAPendingRow`, `TestPutIsThreeStepsWithTwoBoundaries`. | No fail step ships; the concept's "marks the write failed" is removed. |
-| 4. Move under a lock | The lock closes the race on `pgnative`; the baseline forms a cycle, so the lock is a caller requirement on the baseline. Serializable isolation refuses one of two opposing moves on both variants with no cycle. | The suite's `MoveDirectory/OpposingConcurrentMoves` and `OpposingSerializableMoves` on `TestStandardConformance` and `TestConformance`; `TestMoveOpposingConcurrentMoves`. | The variant takes the lock, which the concept said `blobfs` could not; the baseline's requirement is documented (decision 4). |
-| 5. Migrator | Integrated shipping. The shim is one file over the public API, needed nothing outside it, and its API is the multi-set API the concept describes; `Reset` and `Status` stay one operation each across both sets, an upgrade needs no consumer edit, and a consumer without `go-database` operates the schema in the two `Set` literals of `Sets` plus a command per verb. | `TestFreshReplay`, `TestUpgradeAfterRestart`, `TestResetOrderAcrossForeignKeys`, `TestConcurrentStartersSerialize`, `TestDirtyRefusalOnEngine`; `admin/schema/database.go`. | `blobfs.sources` promotes the shim's shape with the hooks of Finding 2, items 26 to 31. |
-| 6. Delete | The delete converges under retry at each step on both variants, the recursive delete is correct under a concurrent insert, and a bookmark meeting a delete yields a classifiable error. `deleting` is needed. `blobfs` classifies a consumer's constraint by class (`ErrReferenced`), never by name. | The suite's `FileDelete` group; `TestRemoveConvergesAtEachStep`, `TestRemoveTreeRacesAnInsert`, `TestRemoveMeetsABookmarkAfterTheBegin`, `TestClassifyDelete`. | The concept's "leaves violations of a consumer's join-table constraints unclassified" becomes "classifies by class on a delete and leaves the name to the consumer". |
-| 7. Key validation | The wiring is one method, `Storage.ValidateKey` over the provider's capability, and the interface carries no `MaxKeyLength`. A filename at the rune boundary is accepted and one rune over is refused before any SQL. The emulator proves nothing about the limit. | `TestBeginFileWriteKeyBoundary`, `TestNewKeyCountsRunes`, `TestPutNameAtTheRuneBoundary`, `TestAzuriteAndTheKeyLimit`, `TestStorageValidatesKeysWithTheProvidersRule`. | The concept's "key validation and a maximum key length" becomes "key validation". |
-| V. Variant seam | Both variants pass the conformance suite, and a consumer-supplied variant swaps one method without a fork. `pgnative` imports no driver and adds no dependency weight, so the evidence supports shipping it in the module. | `TestStandardConformance`, `TestConformance`, `TestConsumerVariantSwapsOneMethod`; `split-check`'s rule for `pgnative`. | Module or sub-module is decision 7. |
-| 8. Awkward call sites | Nineteen call sites had to work around what they were given: eleven sit in `sqlate` (Finding 2 has each), three in `go-storage` (no container delete, no blob listing, no flag beside the environment), four in the library's own layout rules (path resolution from the root, the shared field set, the storage type crossing the composition root, the variant constructor's type parameter), and one in the consumer's own constraint mapping, which is where it belongs. | `NOTES.md`, "Proof 8, the awkward call sites (stage 15)". | None directly; each names the entry that holds its evidence. |
+| Proof | The answer | The decision it changes |
+|-------|------------|--------------------------|
+| 1. Read model | The path stays a read-time query, and no path or volume id is stored. | The parameterized base stays motivated for shapes the correlated form cannot take. |
+| V3. Listing cost | The exact total stays the default; the cursor earns its place; the composer's design is required for a recursive base. | Decision 5 moved the `created_at` index to documentation. |
+| 2. Statements and tiers | Twenty-two standard statements, six native on Postgres, each shipped after a measurement. | The variation-point count grew from two to six at stage 29, each justified individually. |
+| 3. Two-phase write | The pending row survives a stop and a retry completes it; failure is not a state. | No fail step ships. |
+| 4. Move under a lock | The lock closes the race on Postgres; the baseline forms a cycle without one. | The variant takes the lock; the baseline's requirement is documented. |
+| 5. Migrator | Integrated shipping as a shim; the API is what `blobfs.sources` promotes. | `blobfs.sources` promotes the shim's shape with the migrate group's hooks. |
+| 6. Delete | The delete converges under retry at each step; a bookmark meeting a delete now serializes on the file's row rather than racing it. | Adjustment 10 closed the race `TestRemoveMeetsABookmarkAfterTheBegin` once demonstrated. |
+| 7. Key validation | One method, no maximum length; a filename at the rune boundary is accepted and one rune over is refused before any SQL. | The concept's key validation and length claim becomes key validation alone. |
+| V. Variant seam | Both variants pass the conformance suite; a consumer variant swaps one method without a fork; the engine package adds no dependency weight. | Shipped in the module, as a package (`lib/blobfs/postgres`). |
+| 8. Awkward call sites | Nineteen call sites at stage 16 had to work around what they were given, mostly in `sqlate`. | Each names the entry that holds its evidence; Finding 2's sort names which now have a path forward. |
 
-One answer is only partly supported. V3's question whether any sort earns an index was answered
-for `created_at` only; `size`, `status`, and the other declared fields were never timed, and the
-answer for them rests on the plan shape (a bitmap scan of the directory and a top-N sort) rather
-than a measurement.
+## The evidence
 
-## Amendments to make at close
+Buffer counts and plan shapes carry across machines; milliseconds do not.
 
-The concrete edits the concept and the design notes need, listed and not made. Each is file, what
-changes, and why.
+- **The listing cost (proof V3)**, `evidence/read-model.txt`. The exact-total page over the
+  biggest measured directory (10,008 files) costs about 2,434 buffers against 12 without a total.
+  A cursor page costs 6 buffers against 2,434 by offset at the end of the directory. Composing at
+  the base's own level (rather than wrapping a recursive base as a derived table) matters: the same
+  base pages in 21 buffers flat and 2,443 wrapped.
+- **The bookmark read model**, `evidence/bookmarks.txt`. The consumer-anchored shape (a scalar
+  subquery correlated on each row's directory) costs 245 buffers for 10 bookmarks, 2,371 for 100,
+  and 21,940 for 1,000, against a tree of 10,003 directories and a bookmark table of 53,110 rows,
+  and nothing grows with the tree. A top-level recursion over the whole table costs 164.7 ms and
+  3,023 buffers for the same 10 bookmarks. Stage 25's default statement omits this recursion
+  entirely; it runs only when a caller asks for paths.
+- **The `created_at` index**, `evidence/sort-index.txt`. Regenerated at stage 31: the index turns a
+  page sorted by `created_at` without a total into an index read at about 25 buffers against about
+  2,436 without it, and costs 3.99 MB for 100,000 files. The transcript's headers now read "the
+  library's set alone" and "after the index" rather than migration-version language, since the set
+  is two migrations and the index is created by the measurement itself, not shipped.
+- **`evidence/v1-read-model.txt`** is the volume-era measurement, kept as the record; nothing
+  regenerates it.
+- **The native variation points**, `evidence/native-variation/`, produced at stage 28. `RETURNING`
+  saves one round trip on the write steps in every outcome (a refusal drops from three round trips
+  to two). One-statement path resolution drops depth 10 from 11 round trips to 1, at a cost of 3
+  extra buffers the final query removes by selecting the maximum-depth row directly. The row-value
+  keyset predicate costs 35 buffers at any cursor position in an indexed directory, against up to
+  5,055 for the expanded chain at a middle cursor.
+- **The cost regression assertions**, stage 30 (`lib/blobfs/data/cost_integration_test.go`,
+  `lib/blobfs/postgres/cost_integration_test.go`). Seven tests assert a plan shape and a buffer
+  bound, with a wide margin, for the cursor page, the row-value cursor, the exact-total page,
+  one-statement path resolution, one step of the standard walk, and the primary-key lookups of the
+  write and delete steps, so a future plan regression fails a test rather than surfacing only in
+  production.
 
-| File | What changes | Why |
-|------|--------------|-----|
-| `context/concepts/blobfs.md`, "The schema" | Two tables with one seeded root (`RootID`, the nil UUID), the check constraint on the root's name, and the partial unique index `blobfs_uq_directory_root`; the sentence "Root directories need no constraint, since the consumer's table anchors every root" is removed; the constraint-naming scheme with `ix` is stated. | `0001_directory.up.sql`, `TestOneRoot`, `TestRootRule`. |
-| `context/concepts/blobfs.md`, "Reading and composing ownership" | Ownership is a consumer join at the file grain (`bookmark`, the `org_image` case) or the directory grain (`directory_owner`, the scope checked once at the depth-one ancestor); the interim directive-filter paragraph is replaced by the listing as built: a statement anchored on one directory with the exact total in the same select list, composed in Go, with offset and keyset paging, and never a projection. The "path projection" pattern is gone; the published patterns are the two column lists. | Finding 1, "The listing"; `TestListScopedChecksTheAncestorOnce`. |
-| `context/concepts/blobfs.md`, "The experiment", "Consumer side" | The `volume` and `volume_bookmark` paragraph is removed; the consumer keeps `directory_owner` and `bookmark`, and isolation is configuration (one database and one container per install). | The decisions log's "volume leaves blobfs" and `TestIsolation`. |
-| `context/concepts/blobfs.md`, "Layers" | The two packages beside the persistence layer are named (`pgnative`, `datatest`), and "a second engine adds a directory and not a module" becomes "a directory and a variant per native operation". | Finding 1, "The layers and their import boundaries". |
-| `context/concepts/blobfs.md`, "The write is a sequence of steps" | Step 3 loses "or marks the write failed"; "key validation and a maximum key length" becomes "key validation". | Proofs 3 and 7. |
-| `context/concepts/blobfs.md`, "Moving" | "`blobfs` cannot take the lock itself" becomes: the variant takes it where the engine has a transaction-scoped lock, the baseline's lock is a documented no-op, and a baseline caller serializes moves at serializable isolation or outside the database. | Proof 4. |
-| `context/concepts/blobfs.md`, "Deleting" | "leaves violations of a consumer's join-table constraints unclassified" becomes "classifies them by class on a delete as `ErrReferenced` and leaves the name to the consumer". | Proof 6. |
-| `context/concepts/blobfs.md`, "Migration sources" | "`sqlate/migrate` v0.1.1 cannot host a source" becomes "cannot host several sets in one `Migrator`; one `Migrator` per set runs on v0.1.1, which the shim is". | Finding 2, item 32. |
-| `context/concepts/blobfs.md`, "Assumptions" | "It walks from the roots" becomes "it walks upward from the directory"; "a file and a directory sharing a name stays unambiguous" gains "for every command that resolves one kind; `mv` resolves the directory first"; the "few lines" of key-validation wiring is confirmed at one method. | `directory_ancestors.sql`; the stage 13 decisions; proof 7. |
-| `context/design/auth-strategy.md`, section 8 | Decide whether the directory-grain case joins the file-grain case. The section states the file-grain shape (the join table carries the unit and drives every authorized listing). The experiment adds the directory grain: the owner row binds a depth-one directory, the predicate runs once at the ancestor, and the library's listings run unchanged under the scope. The recommendation is to state both as consumer joins, with the directory grain's predicate at the ancestor and its move constraint (Finding 3, "What a move may and may not do"). | Finding 3, the two ownership sections. |
-| `context/roadmap.toml`, `goals.blobfs.tasks.sources` | The summary is rewritten from Finding 2's `migrate` group: the multi-set `Migrator` over `Set` values with one lock and the hooks (exported default table, one connection per run, a drop of the history table, a one-read status, the documented `Steps` guarantee, and the mapped 2BP01). | Finding 2, items 26 to 32. |
-| `context/design/storage-strategy.md` (if it names `blobfs`'s schema or the volume) | Checked at the review for the same volume and ownership sentences. | The reset file's "Retained" line names only the concept; the design note should be read once. |
+One answer stays only partly supported: whether any sort besides `created_at` earns an index was
+never measured.
 
-## Decisions for the architect
+## The review: the fifteen questions and their answers
 
-The open review questions the stages flagged, each with its options and the recommendation the
-evidence supports.
+The open questions the post-execution review raised, each with the architect's decision, folded
+into the "as built" record above where the decision changed something; recorded here as the record
+of what was decided and why.
 
-1. The seeded root. Options: keep the migration's seed of `RootID` (as built), or an `EnsureRoot`
-   operation. Recommendation: keep the seed; it needs no lifecycle step, gives every consumer the
-   same id, and `Root` fails with `ErrNotFound` on an unapplied schema, which is the right signal.
-2. `NoTotal` on an empty page after the first. The library's window count travels on rows, so an
-   empty later page reports `NoTotal` (-1) while a projection's count twin reports the exact total,
-   and the binary's two read models differ on that edge. Options: keep the edge and document it
-   (as built); run a count statement for that one case, which breaks the one-statement rule; or
-   make the composer report the total from the previous page's cursor, which does not exist for an
-   offset page. Recommendation: keep it, and let `sqlate` document the edge if it adopts the window
-   total (Finding 2, item 2).
-3. The tie-breaker's direction. Stage 8 changed the appended `name` to take the caller's
-   direction when the terms share one, so a descending sort is the exact reverse of the ascending
-   one and can take a cursor; the stage 7 offset order changed with it and the engine baselines
-   were updated. Options: keep the rule (as built) or restore `name` ascending always and forgo
-   cursors on descending sorts. Recommendation: keep the rule; a listing whose descending page is
-   not the reverse of its ascending page surprises every reader.
-4. `MoveDirectory` on the baseline. Options: a second standard variant that serializes through the
-   root-row update idiom (`UPDATE blobfs_directory SET version = version WHERE id = root`, a row
-   lock held to commit on every mainstream engine, but a guarantee resting on each engine's
-   implementation rather than on the tier, and a write to the root on every move); document
-   serializable isolation with a retry on SQLSTATE 40001, which `OpposingSerializableMoves` proves
-   on both variants and which needs nothing from the variant seam; or both. Recommendation:
-   document both and build neither until a consumer on an engine without a native lock exists;
-   the isolation route is the one the evidence prefers, and `sqlate` should map 40001 first
-   (Finding 2, item 15).
-5. The `created_at` index. Migration 3 adds `blobfs_ix_file_directory_created`, which turns a
-   page sorted by `created_at` without the total into an index read (2436 buffers to 25) and buys
-   nothing for an exact-total page; it costs 3992 kB for 100,000 files against the name index's
-   8776 kB, and a library that ships an index imposes its write cost on every consumer. Options:
-   keep it in `blobfs`'s set (as built, because the rehearsal needed a real migration), or document
-   the index and let a consumer's own set add it. Recommendation: move it to the documentation and
-   the consumer's set before `blobfs.build`; the rehearsal has served its purpose, and nothing in
-   the set is released.
-6. Whether `mv` should take `--unit`. The scope rule is structural and needs no unit; a unit's
-   right to move within its scope is authorization. Options: no flag (as built), or `--unit` that
-   checks the source's top-level ancestor's owner. Recommendation: no flag until `go-auth`; the
-   check would rehearse nothing the listing's check does not.
-7. Whether `pgnative` ships in the module or a sub-module (proof V). The variant imports the
-   persistence package and `sqlate` and no driver, so it adds no dependency weight; a sub-module
-   would isolate nothing. Recommendation: in the module, as a package beside `data`.
-8. The `datatest` package living in `lib/` as a non-test package. It is the only way another
-   package's tests can import the suite, and it stays under `lib/` as a promotion candidate beside
-   the package it tests, the way `net/nettest` sits beside `net`. Options: keep it (as built), or
-   fold it into `data`'s tests and duplicate the checks in `pgnative`. Recommendation: keep it; a
-   consumer that supplies a variant of its own needs it too.
-9. The key validator as a parameter of the begin step (`BeginFileWrite(ctx, sess, keys, ...)`)
-   rather than an option of `data.New`. Options: per call (as built, so the persistence package
-   builds without the store and the consumer opens the store lazily), or a store-level option for
-   one wiring point. Recommendation: per call; the lazy store is what lets the directory commands
-   run without the object store's configuration.
-10. The bookmark-versus-delete race. Options: accept the race with the foreign key as the backstop
-    (as built), close it with serializable isolation on both first transactions and a retry, or a
-    native row lock (`SELECT ... FOR SHARE`) as a third variation point. Recommendation: accept it;
-    the outcome is a classified error and a state a rerun converges from, and the service's
-    handler already has to report a conflict.
-11. A capped total. The measurement does not decide it; `TotalNone` bounds the cost to zero and
-    the cursor pages a large directory without it. Recommendation: no cap; a consumer with very
-    large directories asks for the total once and walks by cursor.
-12. `ls`'s two cursor flags (`--after-dirs`, `--after-files`). A single `--after` was rejected
-    because a cursor is a position in one half's order. Recommendation: keep two; the service's
-    API will page directories and files as separate resources anyway.
-13. `Directory.Name` as `*string`. The root has no name, so every non-root call site nil-checks
-    or dereferences. Options: keep the pointer (as built, the documented NULL contract the cursor
-    also reads), or a string with the root's name empty and a check constraint that says so.
-    Recommendation: keep the pointer; the nullable contract is what the cursor's refusal rule
-    reads from the entity.
-14. `rmdir` removing the owner row silently rather than refusing an owned directory. The
-    alternative (`ErrOwned` mapped from `fk_directory_owner_directory`) would make an owned
-    directory undeletable. Recommendation: keep it; the owner row is the consumer's record of the
-    directory and nothing else removes it.
-15. The root package as a layer of its own. It compiles alone but is vocabulary and validation, not
-    a capability. Options: keep the three layers (as built), or fold the root into the persistence
-    package. Recommendation: keep it; the constraint constants and the sentinels must live below
-    the persistence package, and a consumer with its own persistence still takes them.
+1. **The seeded root.** Kept the migration's seed of `RootID`, the nil UUID; an `EnsureRoot`
+   operation was the alternative. The seed needs no lifecycle step and gives every consumer the
+   same id.
+2. **`NoTotal` on an empty page after the first.** Kept the edge and documented it, rather than
+   running a count statement for that one case or deriving the total from a prior cursor.
+3. **The tie-breaker's direction.** Kept the rule that the appended `name` follows the sort's
+   direction, so a descending page is the exact reverse of the ascending one and can take a cursor.
+4. **`MoveDirectory` on the baseline.** Documented serializable isolation with a retry on SQLSTATE
+   40001 as the caller's route, rather than building a second baseline lock, until a consumer on an
+   engine without a native lock exists.
+5. **The `created_at` index.** Moved to documentation before `blobfs.build`, rather than kept in
+   the shipped set; the rehearsal had served its purpose and nothing in the set was released.
+6. **Whether `mv` should take `--unit`.** No flag until `go-auth`; a unit's right to move within
+   its scope is authorization, which the scope check by id belongs to that layer.
+7. **Whether the Postgres variant ships in the module or a sub-module.** In the module, as a
+   package beside the persistence package, since it adds no dependency weight.
+8. **The `datatest` package living in `lib/` as a non-test package.** Kept; a consumer that
+   supplies a variant of its own needs the conformance suite too.
+9. **The key validator as a parameter of the begin step.** Kept per call, so the persistence
+   package builds without the object store and the consumer opens the store lazily.
+10. **The bookmark-versus-delete race.** Decided at the review to close it rather than accept it
+    with the foreign key as the backstop; adjustment 10 (stage 23) built `HoldFile` and the
+    reference-then-delete rule.
+11. **A capped total.** No cap; `TotalNone` bounds the cost to zero and the cursor pages a large
+    directory without a total.
+12. **`ls`'s two cursor flags.** Kept `--after-dirs` and `--after-files`; directories and files are
+    separate resources in a consumer's API.
+13. **`Directory.Name` as `*string`.** Decided to change it: the root is named `/`, and the field
+    becomes a plain `string` (stage 18), reversing the stage-16 position of keeping the pointer.
+14. **`rmdir` removing the owner row silently.** Kept; the alternative would make an owned
+    directory undeletable.
+15. **The root package as a layer of its own.** Kept; the constraint constants and sentinels must
+    sit below the persistence package.
+
+## The review: decisions added
+
+Beyond the fifteen questions, the review settled these:
+
+1. **Schema shape.** Design A, the two-table schema, over designs B, C, and D (see "The schema, and
+   the designs it was chosen over").
+2. **Name collisions.** No constraint; a directory and a file may share a name under one parent,
+   and a path resolves by kind.
+3. **Navigation principle.** The core API navigates one directory at a time; a subtree search is a
+   separate, deferred capability.
+4. **The cursor.** Kept, with its conventions (which sorts, the opaque token, bound to the listing
+   and sort).
+5. **Page state.** `Page.More` reports whether rows remain, independent of the total (stage 21).
+6. **File copy.** Added as its own stage (stage 26); directory copy stays out of scope.
+7. **The composition root's call sites.** Kept `files.WithVariant` with its type parameter and
+   `Infrastructure.Storage` naming `files.Storage`.
+8. **The migrator's two connections.** No pool validation added to the shim; the fix belongs in
+   `sqlate` (Finding 2, item 27).
+9. **Ids are first class.** Ids are the primary handle in the library and the consumer above it
+   (stage 25); paths are entry points and for display.
+10. **The command-line tool's scope.** The tool proves the concept and is not promoted; its
+    details are not reviewed further unless they block proving a library capability.
+11. **Native features are welcome.** The library does not constrain itself to the standard tier
+    where a native form measurably wins (stages 28 and 29).
+12. **Frictions become `sqlate` evolution.** The frictions Finding 2 records are carried to
+    `sqlate`'s roadmap, not fixed inside the experiment.
+13. **Migration sets are layers.** A migration set is a self-contained layer with its own name,
+    history table, and version numbering, declared bottom-first (see
+    `context/concepts/migration-sets.md`).
+
+## Phase 3: the adjustments and the stages that landed them
+
+Each adjustment the review queued, and the stage that implemented it, all committed on
+`blobfs-experiment`:
+
+1. `Page.More` — stage 21.
+2. File `cp` as its own stage — stage 26.
+3. Tool only: `--cursors` for the cursor lines — stage 27.
+4. Tool only: `--filter` on `ls` — stage 27.
+5. Regenerate the evidence transcripts — stage 31.
+6. Error output conventions — stage 20 (the library's side; the tool's prefixes were left optional
+   and not built).
+7. `GUIDE.md`, the evidence table, and the layout documentation — stage 32.
+8. Document the migrator's two-connection requirement and `NewStorage`'s composition — stage 32.
+9. Ids as the primary handle — stages 22 (seeding), 24 (relative path resolution), 25 (id-keyed
+   consumer operations and the scope check by id), 27 (the tool's `id:<uuid>` form).
+10. Close the bookmark-versus-delete race — stage 23.
+11. Decompose the large files — stage 17 (`domain/files`); `lib/blobfs/data` was not split in the
+    experiment (see "Findings against other repositories" for the promotion-time recommendation).
+12. Error wrapper (`ViolationError`) — stage 20.
+13. Root named `/` — stage 18.
+14. Native engine strategy — stage 19 (the engine package) and stage 29 (the variation points),
+    measured at stage 28.
+15. Remove the `created_at` index from the shipped migrations — stage 18.
+16. Engine package owns the DDL — stage 19.
+17. Reset before Phase 3 code runs against an old database — stated as a caution throughout, not a
+    stage of its own.
+18. The library's seeding API surface — stage 22.
+19. Cost regression assertions — stage 30.
+
+Stages 31 and 32 close the sequence: 31 regenerates the three evidence transcripts (every buffer
+count and plan shape unchanged; only timings and the random ids the fixtures mint differ), and 32
+rewrites `README.md` to the architect's specified shape (overview, a short layout table, starting
+up, the command guide, shutting down, remaining reference), rewrites `GUIDE.md` as the tour the
+architect's final review followed, corrects two claims `REVIEW.md` had made stale (the extra row
+fetched only when a cursor could continue, and the open bookmark-versus-delete race), and documents
+the migrator's connection requirement and the `NewStorage` composition pattern in code comments.
+Five commits follow stage 32 as further cleanup: a filter-example and cursor-output correction in
+`GUIDE.md` found while the architect walked through it, and a modernization pass applying `gopls`'s
+`modernize` analyzer to six loops (a range-over-int, a `slices.Backward` walk, a `reflect.Fields()`
+iteration, and three `strings.SplitSeq` loops), all behavior-preserving.
+
+## What left the experiment
+
+Promoted into the workspace's durable context, all concept-tier because nothing here is built yet:
+
+- `context/concepts/blobfs.md`, re-scoped to what the library is.
+- `context/concepts/blobfs-api.md`, the proposed API for `blobfs.build`.
+- `context/concepts/blobfs-composition.md`, how a consumer builds around the library.
+- `context/concepts/migration-sets.md`, the multi-set migrator `blobfs.sources` promotes.
+- `context/concepts/sqlate-library-support.md`, the scheduled and backlog `sqlate` adjustments.
+- `context/design/auth-strategy.md` section 8, amended for the directory grain.
+- `context/roadmap.toml`, `blobfs.sources`, `blobfs.build`, `blobfs.admin`, `v1.storage.tasks.service`,
+  and `v1.storage.tasks.suite` recite the new concept documents; `blobfs.experiment` is removed and
+  `next` advances.
+
+Nothing moved into `context/design/`: the repository the library's design notes would be about does
+not exist yet, and the API names are still proposals `blobfs.build`'s own SETTLE owns.
+
+## The promotion candidates, reviewed for `blobfs.build`
+
+Facts about the closed branch's code, for whoever starts `blobfs.build` to read from here rather
+than rediscover. Scope: `lib/blobfs`, `lib/blobfs/data` (with `datatest`), `lib/blobfs/postgres`,
+and `lib/migrator` only — the promotion candidates; the tool is not reviewed further (decision 10).
+
+**`lib/blobfs`.** Seven non-test files, 549 lines, none over 110. Clean; stays a package.
+`entities.go` holds `Directory`, `File`, `Object`, `RootID`, `NewID`, `ParseID`, and `IDError`
+together and could split by type (`directory.go`, `file.go`, `id.go`) once `Directory`/`File`
+become the organizing types elsewhere.
+
+**`lib/blobfs/data`.** Thirty-two files, about 7,600 lines, with `datatest` a further 1,872 (of
+which `datatest.go` alone is 1,209). Three files exceed 500 lines: `listing.go` (619), `data_test.go`
+(619), `data_integration_test.go` (793). The five operation files are organized by which stage
+added their contents, not by concern: `directories.go` holds the file listing, `variant.go` holds
+three `Store` methods and the delete's begin, `files.go` holds the delete's end, `paths.go` holds a
+`Standard` method, and `move.go` holds both types' moves. A split by entity (`Directory`/`File` as
+the organizing types, following `go-web-service/context/design/domain-architecture.md`'s
+role-prefix convention) resolves most of this; `listing.go` and `datatest.go` are generic over both
+types and need a concern-based split of their own regardless (a `listing_scan.go` for the scanner
+and clause-filling helpers is a real, non-cosmetic split). Other findings: `postgres.New` compiles
+the baseline statement set a second time through `data.NewStandard`, when the variant could borrow
+the store's own compiled set; `Store.Variant()` is unused by the library or the tool;
+`EnsureDirectory` and `BeginOrResumeFileWrite` are the same insert-or-find algorithm on two types
+and could share a private generic helper.
+
+**`lib/blobfs/postgres`.** Three non-test files, 366 lines. `TreeLockKey` is computed at init from
+a hash that a test already pins and could be a literal `const`. The package is otherwise the right
+home for both the variant and the DDL, and nothing in it is tool-shaped.
+
+**`lib/migrator`.** Four files, 1,322 lines with tests. One file of code over the public `migrate`
+API, well-shaped for absorption into `sqlate` (see `migration-sets.md`), needing no review beyond
+that disposition.
+
+## Findings against other repositories
+
+- **`go-storage` and `azureblob`.** `Put` returns the caller's content type, while `Stat` and `Get`
+  return the server's. `Delete` on a missing container returns `ErrNotFound`, which contradicts its
+  own doc comment — a real defect, routed to `go-storage` separately, not fixed here. `Store.Start`
+  wraps every failure, rejected credentials included, as `ErrUnavailable`. `go-storage` has no
+  container delete, so the experiment's own test support reaches for the Azure SDK directly
+  (`internal/livetest/storage.go`); a `DeleteContainer` on the provider or on `storagetest` would
+  remove that dependency. The storage configuration reads its own environment
+  (`Config.Finalize(prefix)`), so a consumer wanting a flag beside `--dsn` has to bypass it. One
+  correction to the concept: `go-storage`'s `*Store` has had `List` since v0.1.0
+  (`go-storage/store.go:210`); the earlier ledger's claim that the interface has no listing
+  operation was wrong. The argument the concept makes from it — that keys carry no directory prefix
+  and so foreign keys never cascade — holds regardless.
+- **`architecture/standards/go-elemental/principles/tests-and-docs.md`.** Its sentence "Production
+  source is written without doc comments; the agent writes godoc" was read by the experiment as
+  forbidding doc comments on exported identifiers; the experiment wrote godoc on every exported
+  identifier anyway, following what the sentence most likely states — who writes them, not that
+  none exist. Worth a one-line clarification there; not a finding of drift.
 
 ## What the experiment did not prove
 
@@ -944,52 +843,45 @@ evidence supports.
   under the auth strategy's scope predicate needs `go-auth` and is proven in `v1.auth`'s storage
   sweep.
 - The admin surface through `go-web-service`. `admin/schema` stands in for `go-database`'s admin
-  release; the migration path through the service's admin surface, including `Reset` and `force`,
-  is `v1.storage.service`'s and `blobfs.admin`'s to prove.
-- The documentation-only variant. It was estimated (the shim's 303 lines copied into every
-  consumer, one `migrate.Migrator` per set with its own loop, lock, and reset) and not built.
-- Other engines. The DDL is Postgres only, the baseline was run on Postgres only, and the port
-  notes are the work list for a second engine; no dialect other than `postgres` was exercised.
-- Sustained load. Every measurement is a median of five `EXPLAIN (ANALYZE, BUFFERS)` runs on one
-  laptop with everything in shared buffers; no concurrency beyond two connections was measured,
-  and the milliseconds depend on the machine, while the plan shapes and buffer counts do not.
-- The sweeper. No sweeper for abandoned `pending` or `deleting` rows ships; the listing filters
-  that a sweeper would use exist, and the concept's trigger is `v1.messaging`.
+  release; the migration path through the service's admin surface is `v1.storage.service`'s and
+  `blobfs.admin`'s to prove.
+- The documentation-only migrator. Estimated, not built.
+- Other engines. The DDL is Postgres only; the port notes are the work list for a second engine.
+  The tree lock's port is one sentence for the next engine to weigh: SQL Server has an equivalent
+  advisory lock; MySQL's `GET_LOCK` is session-scoped, not transaction-scoped; SQLite has neither.
+- Sustained load. Every measurement is a median of five runs on one machine with everything in
+  shared buffers; no concurrency beyond two connections was measured.
+- The sweeper for abandoned `pending` or `deleting` rows. The listing filters it would use exist;
+  the concept's trigger is `v1.messaging`.
 - Content replacement, versioning, soft delete, and checksums, which the concept defers.
-- Key validation against a real Azure account. Azurite accepts keys `azureblob` rejects, so the
-  provider's rule is proved by unit tests only.
-- `sqlint`'s `[export]` entry for the published namespace. `sqlint.toml` registers the patterns as a
-  bare directory under `[sources]`, which is what v0.1.1 offers.
+- Key validation against a real Azure account; Azurite accepts keys `azureblob` rejects.
+- `sqlint`'s `[export]` entry for the published namespace; v0.1.1 offers only a bare directory.
 - The interleaved directory-and-file listing, which the concept defers to a folder browser.
 
 ## Reproducing the results
 
 Every command runs from `experiments/blobfs`, with the toolchain `mise.toml` pins (Go 1.27 and
 `golangci-lint` 2.13.2) and the compose stack up. Every engine-backed test creates and drops its
-own database and container, and none touches the default `app` database.
+own database and container, and none touches the default `app` database. `README.md`'s "Remaining
+reference" table is the current, short version of this list; the detail below is what
+`README.md` intentionally leaves out.
 
-- `mise run up` starts Postgres 18 on `127.0.0.1:5434` and Azurite on `127.0.0.1:10000` and waits
-  for both to report healthy.
-- `mise run test` runs the hermetic tests (`go test -race ./...`). `go build ./...` and `go vet
-  ./...` are `mise run build` and `mise run vet`.
-- `mise run integration` runs every integration-tagged test (`go test -race -tags integration
-  -count=1 ./...`): the migrations and the conformance suite on both variants, the persistence
-  and consumer tests on the engine, the migrator's engine proofs, and the integration package.
-- `mise run demo` builds the binary and runs `integration.TestScript` verbosely, once per variant,
-  printing every command line and its output under `TestScript/<variant>/<step>`; the steps are
-  `schema-up`, `directories`, `writes`, `bookmarks`, `deletes`, `moves`, `tree-lock`, and
-  `schema-down`.
-- `mise run evidence` regenerates the three transcripts under `evidence/`: `TestListingCost` in
-  `lib/blobfs/data` writes `read-model.txt`, `TestBookmarkCost` in `domain/files` writes
-  `bookmarks.txt`, and `TestSortIndexCost` in `lib/blobfs/data` writes `sort-index.txt`. Each is
-  gated by `BLOBFS_EVIDENCE=1`, which the task sets, and each seeds its own throwaway database.
-  `evidence/v1-read-model.txt` is the volume-era measurement, produced by a test deleted at stage
-  6 and kept as the record; nothing regenerates it.
-- `mise run split-check` fails when a package imports what its layer may not, and prints
-  `split-check: ok` otherwise.
-- `mise run lint` runs `golangci-lint` and `sqlint` (`sqlint: ok`).
-- `mise run cli -- <command>` runs the binary against `BLOBFS_DSN` from `mise.toml`'s `[env]`
-  table, which names the compose stack's default `app` database, and mise's value overrides a
-  variable set on the command line. A command such as `schema up` therefore changes `app`. To
-  work in a throwaway database, create one and pass `--dsn` explicitly. `mise run cli -- --help`
-  lists the commands.
+- `mise run up` starts Postgres 18 and Azurite and waits for both to report healthy.
+- `mise run test`, `build`, `vet` run the hermetic checks.
+- `mise run integration` runs every integration-tagged test: the conformance suite on both
+  variants, the persistence and consumer tests on the engine, the migrator's engine proofs, the
+  cost regression assertions, and the integration package.
+- `mise run demo` builds the binary and runs the scripted end-to-end script once per variant.
+- `mise run evidence` regenerates the three transcripts under `evidence/`, each gated by
+  `BLOBFS_EVIDENCE=1` and seeding its own throwaway database.
+- `mise run split-check` and `mise run lint` run the layering check and `golangci-lint`/`sqlint`.
+- `mise run cli -- <command>` runs the binary against `BLOBFS_DSN`, which names the compose stack's
+  default `app` database by default; work in a throwaway database instead and pass `--dsn`
+  explicitly.
+
+**Adjustment 17's caution**, load-bearing for anyone resuming this branch or building against it:
+a database installed before stage 18 keeps a root row with no name, and the new code's `NOT NULL`
+column and `Directory.Name string` cannot scan it. Reset any such database — `app`,
+`blobfs_review`, `blobfs_review2`, `blobfs_tour` — before running Phase 3 code against it. A
+released migration is never amended this way; this applies only because nothing in `blobfs`'s set
+was ever released.

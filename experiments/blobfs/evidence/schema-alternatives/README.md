@@ -2,7 +2,7 @@
 
 Measurements of four candidate schema designs for `blobfs`, made during the post-execution review
 of the experiment. The architect kept design A, the two-table schema the experiment built.
-`DECISIONS.md` records the decision and its reasons. This directory holds the evidence.
+`REVIEW.md` records the decision and its reasons. This directory holds the evidence.
 
 ## The designs
 

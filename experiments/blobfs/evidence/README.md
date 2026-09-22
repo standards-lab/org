@@ -13,7 +13,7 @@ transcripts use buffers and round trips as the primary evidence.
 | `schema-alternatives/` | Four candidate schema designs measured on Postgres 18 at 10,003 directories and 100,000 files: listings, the file lifecycle protocol, races, and integrity. Its own `README.md` describes the method. | The numbered scripts in that directory. |
 | `native-variation/` | The three native variation points measured against the standard tier: `RETURNING` for the write steps, path resolution in one statement, and the row-value keyset predicate. | `10_write_returning.sh`, `20_path_resolution.sh`, and `30_keyset.sh`, each of which builds and drops its own scratch database on the compose Postgres. |
 
-`mise run evidence` rewrites the first three transcripts, which `NOTES.md` and `REVIEW.md` cite.
+`mise run evidence` rewrites the first three transcripts, which `REVIEW.md` cites.
 Run it only when the transcripts should change. The tests behind the transcripts are skipped
 unless `BLOBFS_EVIDENCE=1`, which the task sets, and each one creates and drops its own database.
 

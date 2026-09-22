@@ -3,7 +3,7 @@
 package postgres_test
 
 // This file holds the cost regression assertions of the Postgres
-// variant's variation points (adjustment 19 of DECISIONS.md): the
+// variant's variation points (REVIEW.md, "Phase 3", adjustment 19): the
 // row-value keyset predicate, the one-statement path resolution, and the
 // write steps that return the row. Each test seeds a fixture in its own
 // throwaway database, captures a statement as the store composes it or

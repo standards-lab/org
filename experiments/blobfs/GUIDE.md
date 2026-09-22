@@ -2,8 +2,8 @@
 
 A walk through what the `blobfs` command-line file system and its library do, one capability at a
 time. Each step gives a summary, the files that implement it, and commands to run yourself.
-`README.md` is the short reference for starting the stack and the commands, `DECISIONS.md`
-records the decisions behind the design, and `REVIEW.md` is the record of findings. All paths in
+`README.md` is the short reference for starting the stack and the commands, and `REVIEW.md`
+records the decisions behind the design and the findings. All paths in
 this guide are relative to `experiments/blobfs`.
 
 ## Setup

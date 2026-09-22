@@ -65,6 +65,6 @@
 // imports only sqlate and the standard library. The shim repeats sqlate's
 // default table name, because migrate does not export it, and runs the
 // history tables' DROP TABLE itself, because migrate offers no operation
-// that removes its table. NOTES.md records the hooks that let the shim
+// that removes its table. experiments/blobfs/REVIEW.md records the hooks that let the shim
 // move into sqlate.
 package migrator
