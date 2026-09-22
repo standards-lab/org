@@ -24,8 +24,13 @@
 # blobfs's design settled 2026-09-19 (`concepts/blobfs.md`) and found it ships its schema as a
 # migration source, which needs a multi-source migrator in sqlate and a matching go-database admin
 # release, so blobfs.sources follows the experiment and blobfs.admin follows the build.
+# blobfs.experiment closed 2026-09-22, deconstructed into blobfs.md, blobfs-api.md,
+# blobfs-composition.md, migration-sets.md, and sqlate-library-support.md
+# (`concepts/`). The post-execution review found the engine's variation-point interface needed
+# more of sqlate than the multi-source migrator alone, and the architect chose to fold every
+# adjustment that strengthens sqlate and its consumers generally into blobfs.sources rather than
+# schedule it separately, so that task now covers six areas of sqlate, not the migrator alone.
 next = [
-  "blobfs.experiment",
   "blobfs.sources",
   "blobfs.build",
   "blobfs.admin",
@@ -67,37 +72,37 @@ virtual-directory and file metadata layer over any object store, for any Go proj
 it ships DDL for (Postgres at v1). Surfaced by v1.storage's demonstration layer needing more than
 one attachment; not a v1 layer itself, the same standing sqlate and slab have. One module in
 three layers a consumer adopts by what it accepts: a Go-only root package, a persistence package
-over sqlate, and a migrations package shipping its DDL as a migration source. go-storage's own
-keys stay opaque and unaware of blobfs; a consuming domain composes ownership over blobfs_file
-through its own join table.
+over sqlate, and an engine package owning its DDL as a whole migration set and its native
+variant, selected by import. go-storage's own keys stay opaque and unaware of blobfs; a consuming
+domain composes ownership over blobfs_file through its own join table.
 '''
-context = ["standards-lab/context/concepts/blobfs.md"]
-
-[goals.blobfs.tasks.experiment]
-name = "The blobfs spike"
-repos = ["standards-lab"]
-summary = '''
-A simple command-line file system over blob storage at standards-lab/experiments/blobfs, built
-to validate the ergonomics of the design and expose what is painful, incorrect, or awkward before
-promotion. Coordinator-level, never inside a member repository, per
-references/workspace-coordination.md, and depending on published sqlate and go-storage versions.
-It builds the three blobfs layers and a multi-source migrator shim as promotion candidates, and
-tests whether shipping the Go and SQL layers integrated beats documenting the SQL. Authorization
-waits for go-auth and the admin-surface migration path for v1.storage.service.
-'''
-proof = "Each risk in the concept's proof list is answered with evidence, and the design adjustments the spike forced are recorded."
 context = ["standards-lab/context/concepts/blobfs.md"]
 
 [goals.blobfs.tasks.sources]
-name = "The multi-source migrator in sqlate"
+name = "sqlate v0.2.0: the multi-set migrator and the library-hosting adjustments"
 repos = ["sqlate"]
 summary = '''
-The experiment's multi-source migrator promoted into sqlate v0.2.0: one Migrator runs several
-migration sets, each with a source name and its own history table, under one lock, in the order
-the consumer declares them with its own set last. A v0.1.1 database needs no history migration.
+The experiment's multi-set migrator promoted into sqlate v0.2.0: one Migrator runs several
+migration sets, each with its own history table, under one lock, in the order the consumer
+declares them with its own set last. A v0.1.1 database needs no history migration.
+
+Folded in alongside it, sorted by whether each strengthens sqlate and its consumers generally
+rather than by how much work it is (concepts/sqlate-library-support.md, "Scheduled in
+blobfs.sources"): a projection base that binds its own parameters, additive via a variadic Args
+and the new query.With helper; a total mode and a keyset cursor on Directives, with a composite
+projection key at the same verification depth the single key already has; a guard whose check
+returns the row and can carry a status predicate; Verify checking declared field types; a
+multi-line native declaration with a matching sqlint release, shipped together; the library
+namespace sql reserved and resolved by identity; ConstraintError carrying the table and column
+name the driver exposes; the mapper flattening embedded structs; and HistoryExists qualified by
+the current schema. The Postgres module supplies its first pattern overlay, the row-value keyset
+predicate, alongside its migrate.Catalog implementation.
 '''
-proof = "sqlate v0.2.0 is released, and go-web-service's existing migrations still apply unchanged."
-context = ["standards-lab/context/concepts/blobfs.md"]
+proof = "sqlate v0.2.0 is released; go-web-service's existing migrations and its organization domain (projection, guards, startup verify) pass unchanged or with the one signature change item 1 may force; and the blobfs conformance suite's listing and guard cases pass over sqlate's own projection and guard."
+context = [
+  "standards-lab/context/concepts/migration-sets.md",
+  "standards-lab/context/concepts/sqlate-library-support.md",
+]
 
 [goals.blobfs.tasks.build]
 name = "Promotion to its own repository"
@@ -105,21 +110,35 @@ repos = ["blobfs"]
 summary = '''
 What the experiment proved out lands as blobfs's own repository and first release against sqlate
 v0.2.0, with the final module path checked against repository-topology.md and a references entry
-that carries no standard key. Recording the adjacent-repository position for the architecture
-layer waits on this task. Unblocks blobfs.admin and v1.storage.tasks.service.
+that carries no standard key. blobfs.sources must land first, since the engine package's
+migration set is the type sqlate v0.2.0 exports; if sources slips, the engine package returns its
+migrations as a plain list instead, and this task's fallback is worse for the first consumer.
+concepts/blobfs-api.md is this task's own SETTLE's starting point, not a finished design: it
+proposes a Directories and Files operation set over one compiled store, with several names (the
+persistence package's own, the two write and delete steps' verbs, whether a listing is scoped by
+directory only) still open. The command-line tool that proved the concept is not promoted.
+Recording the adjacent-repository position for the architecture layer waits on this task.
+Unblocks blobfs.admin and v1.storage.tasks.service.
 '''
-context = ["standards-lab/context/concepts/blobfs.md"]
+proof = "blobfs's first release passes its conformance suite on the standard tier and the Postgres engine, and go-storage's azureblob provider composes with it through the proposed key-validation adapter with no change to either library."
+context = [
+  "standards-lab/context/concepts/blobfs.md",
+  "standards-lab/context/concepts/blobfs-api.md",
+]
 
 [goals.blobfs.tasks.admin]
 name = "The admin service over several migration sets"
 repos = ["go-database"]
 summary = '''
 go-database's admin service takes a migrator running several sets: Reset reverts across all sets,
-Status reports each source's head, and Start logs the pending migrations by source. A minor
-release, and the last piece the service needs before it can run blobfs's migration source.
+Status reports each source's head and pending migrations, Start logs the pending migrations by
+set, and Force <set> <version> is the operator's repair for a dirty set, named explicitly rather
+than a flag on Reset because a flag would have to guess whether the failed migration's own
+objects still exist. A minor release, and the last piece the service needs before it can run
+blobfs's migration set.
 '''
-proof = "Reset and Status cover every set in a migrator built with a source, and the existing single-set behavior is unchanged."
-context = ["standards-lab/context/concepts/blobfs.md"]
+proof = "Reset, Status, and Force cover every set in a migrator built with several, dirty-set recovery through Force is proven, and the existing single-set behavior is unchanged."
+context = ["standards-lab/context/concepts/migration-sets.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -192,10 +211,12 @@ summary = '''
 The demonstration layer, built on the real blobfs library once goals.blobfs closes: an
 organization logo composed through a guarded single-active-record pattern (org_image mapping
 organization to blobfs_file) and a browsable document hierarchy beneath it, both proxied through
-the service per auth-strategy.md §8 and never a presigned-URL redirect. The service registers
-blobfs's migration source in its one migrator and proves it through the admin surface, including
-Reset. Schema and routes are blobfs-shaped decisions this goal does not make ahead of that
-goal's own plan session. The task
+the service per auth-strategy.md §8 (amended for the directory grain) and never a presigned-URL
+redirect. The service registers blobfs's migration set in its one migrator and proves it through
+the admin surface, including Reset and Force. It seeds the demonstration's named states through
+blobfs's own insert-or-find operations, and a Reset recreates the structural root and leaves
+orphaned objects, accepted in development. Schema and routes are blobfs-shaped decisions this
+goal does not make ahead of that goal's own plan session. The task
 also owns the go-web-service/admin/storage domain: a route group over the go-storage Store,
 mounted into the admin mount as admin/database is, with an endpoint for EnsureContainer and a
 diagnostics read composed from Ready, Capabilities, and Container. Its compose file gains the
@@ -204,6 +225,8 @@ version newer than the image accepts by default.
 '''
 context = [
   "standards-lab/context/concepts/blobfs.md",
+  "standards-lab/context/concepts/blobfs-composition.md",
+  "standards-lab/context/concepts/migration-sets.md",
   "standards-lab/context/design/auth-strategy.md",
 ]
 
@@ -212,11 +235,14 @@ name = "The integration cases and the close"
 repos = ["go-web-service", "go-storage"]
 summary = '''
 The integration tier's storage cases through the API — upload and read back, the proxied content
-read, the paged list, delete, the pending row a failed put leaves, and the 503 on an azurite
-outage through the existing loopback relay — then the promotion evaluation and the coordinated
-release snapshot.
+read, the paged list, delete, the pending row a failed put leaves, the deleting row a failed
+delete leaves and its retry, and the 503 on an azurite outage through the existing loopback
+relay — then the promotion evaluation and the coordinated release snapshot.
 '''
-context = ["standards-lab/context/design/testing-hierarchy.md"]
+context = [
+  "standards-lab/context/design/testing-hierarchy.md",
+  "standards-lab/context/concepts/blobfs-composition.md",
+]
 
 [goals.v1.auth]
 name = "Auth and authorization"

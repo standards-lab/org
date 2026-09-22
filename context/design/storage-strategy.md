@@ -332,7 +332,7 @@ v1. The row is queryable, which is what makes deferring the sweeper survivable r
 merely convenient, and a future reconciliation job — a natural fit once `v1.messaging`'s event
 infrastructure exists — is the named trigger for closing it, not a silent omission.
 
-The row and its schema belong to `blobfs`, which ships the schema as a migration source, and a
+The row and its schema belong to `blobfs`, which ships the schema as a migration set, and a
 consuming service's own join table carries ownership over the row
 (`standards-lab/context/concepts/blobfs.md`). None of it is this library's concern. `go-storage`
 supplies the object half of the two-phase write; the SQL half belongs to whatever owns the schema.
