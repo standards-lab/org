@@ -1,0 +1,34 @@
+# sqlint configuration for the experiment. The engine names the native forms a standard-tier
+# file may not use, and the sources name the pattern catalogs the linter resolves includes
+# against: sqlate's own patterns and the namespace blobfs publishes, a bare directory of pattern
+# files.
+engine = "github.com/standards-lab/sqlate/postgres"
+
+[sources]
+sql = "github.com/standards-lab/sqlate"
+blobfs = "lib/blobfs/data/patterns"
+
+# blobfs's own statements, the Postgres variant's, and the consumer's: named for their
+# operation, the delimiter kept out of comments and literals, no native form in a standard-tier
+# file, and the guard protocol's two includes appearing together. The native-forms check keys on
+# each file's declared tier, so the variant's directory keeps it on: a native file there is
+# exempt by its tier and must carry its port note to compile, and a file there that declares
+# the standard tier is still held to the standard forms.
+[statements]
+dirs = ["lib/blobfs/data/statements", "lib/blobfs/postgres/statements", "domain/files/statements"]
+verb_named = true
+delimiter = true
+native_forms = true
+guard = true
+
+# The published patterns: the same delimiter and native-form checks.
+[patterns]
+dirs = ["lib/blobfs/data/patterns"]
+delimiter = true
+native_forms = true
+
+# The two migration sets: blobfs's own DDL and the consumer's. The migrations role has no
+# native-forms check; the DDL is Postgres at v1 by design.
+[migrations]
+dirs = ["lib/blobfs/postgres/migrations", "migrations/postgres"]
+single_statement = true

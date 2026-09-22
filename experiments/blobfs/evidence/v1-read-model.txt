@@ -1,0 +1,1184 @@
+=== RUN   TestReadModelCost
+# blobfs proof V1: read-model cost by form
+# date: 2026-09-20
+# engine: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+# machine: linux/amd64, 22 cpus; go go1.27.1. Timings are machine-dependent; plan shapes and buffer counts are not.
+# fixtures: 3 volumes, one tree per volume up to depth 6, about one directory per ten files, file rows at [1000 10000 100000].
+#   A tenth of the files go to one depth-1 directory (the biggest); the rest spread uniformly over every directory, roots included.
+#   The listed directory is a deep directory with a modest file count, named per fixture below.
+# method: each query is EXPLAIN (ANALYZE, BUFFERS) once to warm the cache, then 5 times; the run with the median execution time is reported.
+#   EXPLAIN runs over pgx's simple protocol, so each run is planned with its literal values, as a custom plan is.
+#   Buffers are the top plan node's shared hit+read, in 8 KB pages.
+# forms:
+#   1  the shipped shape: file_view (blobfs.tree over the whole forest, then the files joined to the tree and to volume_owner), directory_id filter applied outside as a directive
+#   1b the same without the volume_owner join, to isolate the owner hop
+#   2  a plain parameterized statement for one directory: the path from a recursive walk up the directory's ancestors, owner joined through the walk's root
+#   3  volume_id denormalized onto blobfs_file in the throwaway database only, with an index on (volume_id, directory_id, name); flat listing, no recursion, no path
+# plan shapes (machine-independent), by fixture size, form, and query, the listed and the biggest directory together:
+#   1000    form 1  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, WorkTable Scan
+#   1000    form 1  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   1000    form 1b count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, WorkTable Scan
+#   1000    form 1b page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Sort, WorkTable Scan
+#   1000    form 2  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, WorkTable Scan
+#   1000    form 2  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   1000    form 3  count: Aggregate, Bitmap Heap Scan on blobfs_file, Nested Loop, Seq Scan on volume_owner
+#   1000    form 3  page: Bitmap Heap Scan on blobfs_file, Nested Loop, Seq Scan on volume_owner, Sort
+#   10000   form 1  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, WorkTable Scan
+#   10000   form 1  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   10000   form 1b count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, WorkTable Scan
+#   10000   form 1b page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Sort, WorkTable Scan
+#   10000   form 2  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_pk_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, WorkTable Scan
+#   10000   form 2  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_pk_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   10000   form 3  count: Aggregate, Bitmap Heap Scan on blobfs_file, Index Only Scan using ix_evidence, Nested Loop, Seq Scan on volume_owner
+#   10000   form 3  page: Incremental Sort, Index Scan using blobfs_uq_file_directory_name, Index Scan using ix_evidence, Nested Loop, Seq Scan on volume_owner, Sort
+#   100000  form 1  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, WorkTable Scan
+#   100000  form 1  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   100000  form 1b count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, WorkTable Scan
+#   100000  form 1b page: Bitmap Heap Scan on blobfs_file, CTE Scan, Hash Join, Index Scan using blobfs_uq_directory, Nested Loop, Recursive Union, Seq Scan on blobfs_directory, Sort, WorkTable Scan
+#   100000  form 2  count: Aggregate, Bitmap Heap Scan on blobfs_file, CTE Scan, Index Scan using blobfs_pk_directory, Nested Loop, Recursive Union, Seq Scan on volume_owner, WorkTable Scan
+#   100000  form 2  page: Bitmap Heap Scan on blobfs_file, CTE Scan, Incremental Sort, Index Scan using blobfs_pk_directory, Index Scan using blobfs_uq_file_directory_name, Nested Loop, Recursive Union, Seq Scan on volume_owner, Sort, WorkTable Scan
+#   100000  form 3  count: Aggregate, Bitmap Heap Scan on blobfs_file, Index Only Scan using ix_evidence, Nested Loop, Seq Scan on volume_owner
+#   100000  form 3  page: Incremental Sort, Index Scan using ix_evidence, Nested Loop, Seq Scan on volume_owner, Sort
+#
+# summary (median run; times in ms; buffers as hit+read pages):
+# files   form  dir      query     plan ms    exec ms    buffers
+# 1000    1     listed   count       0.185      0.437         26
+# 1000    1     listed   page        0.185      0.467         26
+# 1000    1     biggest  count       0.172      0.422         43
+# 1000    1     biggest  page        0.181      0.473         43
+# 1000    1b    listed   count       0.167      0.461         25
+# 1000    1b    listed   page        0.261      0.497         25
+# 1000    1b    biggest  count       0.134      0.379         42
+# 1000    1b    biggest  page        0.130      0.579         42
+# 1000    2     listed   count       0.090      0.181         24
+# 1000    2     listed   page        0.100      0.200         24
+# 1000    2     biggest  count       0.080      0.117         31
+# 1000    2     biggest  page        0.104      0.162         31
+# 1000    3     listed   count       0.033      0.031          9
+# 1000    3     listed   page        0.039      0.042          9
+# 1000    3     biggest  count       0.031      0.045         29
+# 1000    3     biggest  page        0.040      0.087         29
+# 10000   1     listed   count       0.219      1.879         99
+# 10000   1     listed   page        0.113      1.095         99
+# 10000   1     biggest  count       0.116      1.351        331
+# 10000   1     biggest  page        0.119      1.675        331
+# 10000   1b    listed   count       0.165      1.596         98
+# 10000   1b    listed   page        0.092      1.101         98
+# 10000   1b    biggest  count       0.089      1.504        330
+# 10000   1b    biggest  page        0.096      1.736        330
+# 10000   2     listed   count       0.100      0.522         88
+# 10000   2     listed   page        0.108      0.531         88
+# 10000   2     biggest  count       0.093      0.356        260
+# 10000   2     biggest  page        0.118      0.651        260
+# 10000   3     listed   count       0.066      0.056          5
+# 10000   3     listed   page        0.072      0.080          5
+# 10000   3     biggest  count       0.030      0.139         38
+# 10000   3     biggest  page        0.036      0.055         44
+# 100000  1     listed   count       0.120     10.810        815
+# 100000  1     listed   page        0.120     11.144        815
+# 100000  1     biggest  count       0.126     13.668       3236
+# 100000  1     biggest  page        0.141     16.556       3236
+# 100000  1b    listed   count       0.104     11.019        814
+# 100000  1b    listed   page        0.104     11.147        814
+# 100000  1b    biggest  count       0.122     14.823       3235
+# 100000  1b    biggest  page        0.126     17.502       3235
+# 100000  2     listed   count       0.094      0.084         35
+# 100000  2     listed   page        0.105      0.106         35
+# 100000  2     biggest  count       0.104      2.479       2441
+# 100000  2     biggest  page        0.121      0.099         19
+# 100000  3     listed   count       0.110      0.076          5
+# 100000  3     listed   page        0.070      0.076          5
+# 100000  3     biggest  count       0.036      1.131        337
+# 100000  3     biggest  page        0.040      0.046          5
+
+==================== fixture: 1000 files ====================
+directories: 100 generated under 3 roots; files: 1000; depth reached: 6
+listed directory: /d1/d3/d12/d22/d26/d47 (depth 6, 10 files) in volume 1
+biggest directory: /d0 (depth 1, 111 files) in volume 0
+
+---- 1: SQL as run ----
+count: SELECT COUNT(*) FROM (WITH RECURSIVE tree (id, volume_id, parent_id, path) AS (
+    SELECT d.id, d.volume_id, d.parent_id, CAST('' AS text)
+    FROM blobfs_directory d
+    WHERE d.volume_id IS NOT NULL
+  UNION ALL
+    SELECT d.id, t.volume_id, d.parent_id, t.path || '/' || d.name
+    FROM blobfs_directory d
+    JOIN tree t ON t.id = d.parent_id
+)
+SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, t.path || '/' || f.name AS path, t.volume_id, o.unit_id
+FROM blobfs_file f
+JOIN tree t ON t.id = f.directory_id
+JOIN volume_owner o ON o.volume_id = t.volume_id) q WHERE q.directory_id = CAST($1 AS uuid)
+page:  SELECT * FROM (WITH RECURSIVE tree (id, volume_id, parent_id, path) AS (
+    SELECT d.id, d.volume_id, d.parent_id, CAST('' AS text)
+    FROM blobfs_directory d
+    WHERE d.volume_id IS NOT NULL
+  UNION ALL
+    SELECT d.id, t.volume_id, d.parent_id, t.path || '/' || d.name
+    FROM blobfs_directory d
+    JOIN tree t ON t.id = d.parent_id
+)
+SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, t.path || '/' || f.name AS path, t.volume_id, o.unit_id
+FROM blobfs_file f
+JOIN tree t ON t.id = f.directory_id
+JOIN volume_owner o ON o.volume_id = t.volume_id) q WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.name, q.id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- 1b: SQL as run ----
+count: SELECT COUNT(*) FROM (WITH RECURSIVE tree (id, volume_id, parent_id, path) AS (
+    SELECT d.id, d.volume_id, d.parent_id, CAST('' AS text)
+    FROM blobfs_directory d
+    WHERE d.volume_id IS NOT NULL
+  UNION ALL
+    SELECT d.id, t.volume_id, d.parent_id, t.path || '/' || d.name
+    FROM blobfs_directory d
+    JOIN tree t ON t.id = d.parent_id
+)
+SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, t.path || '/' || f.name AS path, t.volume_id
+FROM blobfs_file f
+JOIN tree t ON t.id = f.directory_id) q WHERE q.directory_id = CAST($1 AS uuid)
+page:  SELECT * FROM (WITH RECURSIVE tree (id, volume_id, parent_id, path) AS (
+    SELECT d.id, d.volume_id, d.parent_id, CAST('' AS text)
+    FROM blobfs_directory d
+    WHERE d.volume_id IS NOT NULL
+  UNION ALL
+    SELECT d.id, t.volume_id, d.parent_id, t.path || '/' || d.name
+    FROM blobfs_directory d
+    JOIN tree t ON t.id = d.parent_id
+)
+SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, t.path || '/' || f.name AS path, t.volume_id
+FROM blobfs_file f
+JOIN tree t ON t.id = f.directory_id) q WHERE q.directory_id = CAST($1 AS uuid) ORDER BY q.name, q.id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- 2: SQL as run ----
+count: WITH RECURSIVE up (id, parent_id, volume_id, path) AS (SELECT d.id, d.parent_id, d.volume_id, CAST(COALESCE('/' || d.name, '') AS text) FROM blobfs_directory d WHERE d.id = $1 UNION ALL SELECT p.id, p.parent_id, p.volume_id, COALESCE('/' || p.name, '') || up.path FROM blobfs_directory p JOIN up ON p.id = up.parent_id) SELECT COUNT(*) FROM blobfs_file f JOIN up ON up.parent_id IS NULL JOIN volume_owner o ON o.volume_id = up.volume_id WHERE f.directory_id = $1
+page:  WITH RECURSIVE up (id, parent_id, volume_id, path) AS (SELECT d.id, d.parent_id, d.volume_id, CAST(COALESCE('/' || d.name, '') AS text) FROM blobfs_directory d WHERE d.id = $1 UNION ALL SELECT p.id, p.parent_id, p.volume_id, COALESCE('/' || p.name, '') || up.path FROM blobfs_directory p JOIN up ON p.id = up.parent_id) SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, up.path || '/' || f.name AS path, up.volume_id, o.unit_id FROM blobfs_file f JOIN up ON up.parent_id IS NULL JOIN volume_owner o ON o.volume_id = up.volume_id WHERE f.directory_id = $1 ORDER BY f.name, f.id OFFSET $2 ROWS FETCH NEXT $3 ROWS ONLY
+
+---- form 1, listed directory (10 files), count query: median of 5 runs: planning 0.185 ms, execution 0.437 ms, buffers 26 ----
+Aggregate  (cost=99.34..99.35 rows=1 width=8) (actual time=0.329..0.330 rows=1.00 loops=1)
+  Buffers: shared hit=26
+  ->  Nested Loop  (cost=65.58..99.33 rows=1 width=288) (actual time=0.288..0.328 rows=10.00 loops=1)
+        Buffers: shared hit=26
+        CTE tree
+          ->  Recursive Union  (cost=0.00..61.22 rows=573 width=80) (actual time=0.007..0.274 rows=103.00 loops=1)
+                Storage: Memory  Maximum Storage: 36kB
+                Buffers: shared hit=16
+                ->  Seq Scan on blobfs_directory d  (cost=0.00..3.03 rows=3 width=80) (actual time=0.006..0.010 rows=3.00 loops=1)
+                      Filter: (volume_id IS NOT NULL)
+                      Rows Removed by Filter: 100
+                      Buffers: shared hit=2
+                ->  Hash Join  (cost=0.97..5.25 rows=57 width=80) (actual time=0.019..0.029 rows=14.29 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=14
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..3.03 rows=103 width=35) (actual time=0.001..0.005 rows=103.00 loops=7)
+                            Buffers: shared hit=14
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.009..0.009 rows=14.71 loops=7)
+                            Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.001..0.002 rows=14.71 loops=7)
+        ->  Nested Loop  (cost=0.00..14.07 rows=1 width=16) (actual time=0.273..0.307 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = t.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=17
+              ->  CTE Scan on tree t  (cost=0.00..12.89 rows=3 width=32) (actual time=0.265..0.299 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Rows Removed by Filter: 102
+                    Storage: Memory  Maximum Storage: 25kB
+                    Buffers: shared hit=16
+              ->  Materialize  (cost=0.00..1.04 rows=3 width=16) (actual time=0.006..0.006 rows=2.00 loops=1)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.003..0.003 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=16) (actual time=0.014..0.018 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+              Heap Blocks: exact=7
+              Buffers: shared hit=9
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.010..0.010 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=2
+Planning Time: 0.185 ms
+Execution Time: 0.437 ms
+
+---- form 1, listed directory (10 files), page query: median of 5 runs: planning 0.185 ms, execution 0.467 ms, buffers 26 ----
+Limit  (cost=99.35..99.35 rows=1 width=234) (actual time=0.360..0.363 rows=10.00 loops=1)
+  Buffers: shared hit=26
+  ->  Sort  (cost=99.35..99.35 rows=1 width=234) (actual time=0.360..0.362 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=26
+        ->  Nested Loop  (cost=65.58..99.34 rows=1 width=234) (actual time=0.307..0.349 rows=10.00 loops=1)
+              Buffers: shared hit=26
+              CTE tree
+                ->  Recursive Union  (cost=0.00..61.22 rows=573 width=80) (actual time=0.008..0.296 rows=103.00 loops=1)
+                      Storage: Memory  Maximum Storage: 36kB
+                      Buffers: shared hit=16
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..3.03 rows=3 width=80) (actual time=0.007..0.011 rows=3.00 loops=1)
+                            Filter: (volume_id IS NOT NULL)
+                            Rows Removed by Filter: 100
+                            Buffers: shared hit=2
+                      ->  Hash Join  (cost=0.97..5.25 rows=57 width=80) (actual time=0.021..0.031 rows=14.29 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=14
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..3.03 rows=103 width=35) (actual time=0.002..0.006 rows=103.00 loops=7)
+                                  Buffers: shared hit=14
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.010..0.010 rows=14.71 loops=7)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.001 rows=14.71 loops=7)
+              ->  Nested Loop  (cost=0.00..14.07 rows=1 width=80) (actual time=0.291..0.325 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = t.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=17
+                    ->  CTE Scan on tree t  (cost=0.00..12.89 rows=3 width=64) (actual time=0.283..0.317 rows=1.00 loops=1)
+                          Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                          Rows Removed by Filter: 102
+                          Storage: Memory  Maximum Storage: 25kB
+                          Buffers: shared hit=16
+                    ->  Materialize  (cost=0.00..1.04 rows=3 width=32) (actual time=0.006..0.006 rows=2.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.003..0.003 rows=2.00 loops=1)
+                                Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=170) (actual time=0.015..0.018 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Heap Blocks: exact=7
+                    Buffers: shared hit=9
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.011..0.011 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.185 ms
+Execution Time: 0.467 ms
+
+---- form 1, biggest directory (111 files), count query: median of 5 runs: planning 0.172 ms, execution 0.422 ms, buffers 43 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Aggregate)
+
+---- form 1, biggest directory (111 files), page query: median of 5 runs: planning 0.181 ms, execution 0.473 ms, buffers 43 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Sort)
+
+---- form 1b, listed directory (10 files), count query: median of 5 runs: planning 0.167 ms, execution 0.461 ms, buffers 25 ----
+Aggregate  (cost=98.83..98.84 rows=1 width=8) (actual time=0.369..0.371 rows=1.00 loops=1)
+  Buffers: shared hit=25
+  ->  Nested Loop  (cost=65.58..98.46 rows=30 width=272) (actual time=0.322..0.368 rows=10.00 loops=1)
+        Buffers: shared hit=25
+        CTE tree
+          ->  Recursive Union  (cost=0.00..61.22 rows=573 width=80) (actual time=0.007..0.304 rows=103.00 loops=1)
+                Storage: Memory  Maximum Storage: 36kB
+                Buffers: shared hit=16
+                ->  Seq Scan on blobfs_directory d  (cost=0.00..3.03 rows=3 width=80) (actual time=0.006..0.012 rows=3.00 loops=1)
+                      Filter: (volume_id IS NOT NULL)
+                      Rows Removed by Filter: 100
+                      Buffers: shared hit=2
+                ->  Hash Join  (cost=0.97..5.25 rows=57 width=80) (actual time=0.021..0.033 rows=14.29 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=14
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..3.03 rows=103 width=35) (actual time=0.002..0.006 rows=103.00 loops=7)
+                            Buffers: shared hit=14
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.009..0.009 rows=14.71 loops=7)
+                            Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.002 rows=14.71 loops=7)
+        ->  CTE Scan on tree t  (cost=0.00..12.89 rows=3 width=16) (actual time=0.298..0.335 rows=1.00 loops=1)
+              Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+              Rows Removed by Filter: 102
+              Storage: Memory  Maximum Storage: 25kB
+              Buffers: shared hit=16
+        ->  Materialize  (cost=4.35..23.99 rows=10 width=16) (actual time=0.022..0.028 rows=10.00 loops=1)
+              Storage: Memory  Maximum Storage: 17kB
+              Buffers: shared hit=9
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=16) (actual time=0.019..0.024 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Heap Blocks: exact=7
+                    Buffers: shared hit=9
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.011..0.011 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.167 ms
+Execution Time: 0.461 ms
+
+---- form 1b, listed directory (10 files), page query: median of 5 runs: planning 0.261 ms, execution 0.497 ms, buffers 25 ----
+Limit  (cost=99.34..99.39 rows=20 width=218) (actual time=0.359..0.361 rows=10.00 loops=1)
+  Buffers: shared hit=25
+  ->  Sort  (cost=99.34..99.42 rows=30 width=218) (actual time=0.358..0.360 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=25
+        ->  Nested Loop  (cost=65.58..98.61 rows=30 width=218) (actual time=0.307..0.345 rows=10.00 loops=1)
+              Buffers: shared hit=25
+              CTE tree
+                ->  Recursive Union  (cost=0.00..61.22 rows=573 width=80) (actual time=0.012..0.293 rows=103.00 loops=1)
+                      Storage: Memory  Maximum Storage: 36kB
+                      Buffers: shared hit=16
+                      ->  Seq Scan on blobfs_directory d  (cost=0.00..3.03 rows=3 width=80) (actual time=0.011..0.018 rows=3.00 loops=1)
+                            Filter: (volume_id IS NOT NULL)
+                            Rows Removed by Filter: 100
+                            Buffers: shared hit=2
+                      ->  Hash Join  (cost=0.97..5.25 rows=57 width=80) (actual time=0.020..0.030 rows=14.29 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=14
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..3.03 rows=103 width=35) (actual time=0.001..0.006 rows=103.00 loops=7)
+                                  Buffers: shared hit=14
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.009..0.009 rows=14.71 loops=7)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.001 rows=14.71 loops=7)
+              ->  CTE Scan on tree t  (cost=0.00..12.89 rows=3 width=64) (actual time=0.286..0.317 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Rows Removed by Filter: 102
+                    Storage: Memory  Maximum Storage: 25kB
+                    Buffers: shared hit=16
+              ->  Materialize  (cost=4.35..23.99 rows=10 width=170) (actual time=0.019..0.024 rows=10.00 loops=1)
+                    Storage: Memory  Maximum Storage: 18kB
+                    Buffers: shared hit=9
+                    ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=170) (actual time=0.014..0.017 rows=10.00 loops=1)
+                          Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                          Heap Blocks: exact=7
+                          Buffers: shared hit=9
+                          ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.011..0.011 rows=10.00 loops=1)
+                                Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=2
+Planning Time: 0.261 ms
+Execution Time: 0.497 ms
+
+---- form 1b, biggest directory (111 files), count query: median of 5 runs: planning 0.134 ms, execution 0.379 ms, buffers 42 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Aggregate)
+
+---- form 1b, biggest directory (111 files), page query: median of 5 runs: planning 0.130 ms, execution 0.579 ms, buffers 42 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Sort)
+
+---- form 2, listed directory (10 files), count query: median of 5 runs: planning 0.090 ms, execution 0.181 ms, buffers 24 ----
+Aggregate  (cost=70.35..70.36 rows=1 width=8) (actual time=0.134..0.135 rows=1.00 loops=1)
+  Buffers: shared hit=24
+  CTE up
+    ->  Recursive Union  (cost=0.00..43.21 rows=101 width=80) (actual time=0.005..0.115 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=14
+          ->  Seq Scan on blobfs_directory d  (cost=0.00..3.29 rows=1 width=80) (actual time=0.005..0.006 rows=1.00 loops=1)
+                Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                Rows Removed by Filter: 102
+                Buffers: shared hit=2
+          ->  Hash Join  (cost=0.33..3.89 rows=10 width=80) (actual time=0.008..0.012 rows=0.86 loops=7)
+                Hash Cond: (p.id = up_1.parent_id)
+                Buffers: shared hit=12
+                ->  Seq Scan on blobfs_directory p  (cost=0.00..3.03 rows=103 width=51) (actual time=0.001..0.003 rows=103.00 loops=6)
+                      Buffers: shared hit=12
+                ->  Hash  (cost=0.20..0.20 rows=10 width=48) (actual time=0.003..0.003 rows=0.86 loops=7)
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7)
+  ->  Nested Loop  (cost=4.35..27.13 rows=1 width=0) (actual time=0.117..0.133 rows=10.00 loops=1)
+        Buffers: shared hit=24
+        ->  Nested Loop  (cost=0.00..3.09 rows=1 width=0) (actual time=0.109..0.122 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = up.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=15
+              ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=16) (actual time=0.105..0.118 rows=1.00 loops=1)
+                    Filter: (parent_id IS NULL)
+                    Rows Removed by Filter: 6
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=14
+              ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.003..0.003 rows=2.00 loops=1)
+                    Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=0) (actual time=0.008..0.010 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+              Heap Blocks: exact=7
+              Buffers: shared hit=9
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=2
+Planning Time: 0.090 ms
+Execution Time: 0.181 ms
+
+---- form 2, listed directory (10 files), page query: median of 5 runs: planning 0.100 ms, execution 0.200 ms, buffers 24 ----
+Limit  (cost=70.36..70.36 rows=1 width=234) (actual time=0.148..0.149 rows=10.00 loops=1)
+  Buffers: shared hit=24
+  CTE up
+    ->  Recursive Union  (cost=0.00..43.21 rows=101 width=80) (actual time=0.005..0.123 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=14
+          ->  Seq Scan on blobfs_directory d  (cost=0.00..3.29 rows=1 width=80) (actual time=0.005..0.006 rows=1.00 loops=1)
+                Filter: (id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                Rows Removed by Filter: 102
+                Buffers: shared hit=2
+          ->  Hash Join  (cost=0.33..3.89 rows=10 width=80) (actual time=0.008..0.013 rows=0.86 loops=7)
+                Hash Cond: (p.id = up_1.parent_id)
+                Buffers: shared hit=12
+                ->  Seq Scan on blobfs_directory p  (cost=0.00..3.03 rows=103 width=51) (actual time=0.001..0.003 rows=103.00 loops=6)
+                      Buffers: shared hit=12
+                ->  Hash  (cost=0.20..0.20 rows=10 width=48) (actual time=0.003..0.003 rows=0.86 loops=7)
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7)
+  ->  Sort  (cost=27.15..27.15 rows=1 width=234) (actual time=0.147..0.148 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=24
+        ->  Nested Loop  (cost=4.35..27.14 rows=1 width=234) (actual time=0.124..0.141 rows=10.00 loops=1)
+              Buffers: shared hit=24
+              ->  Nested Loop  (cost=0.00..3.09 rows=1 width=64) (actual time=0.112..0.126 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = up.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=15
+                    ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=48) (actual time=0.111..0.125 rows=1.00 loops=1)
+                          Filter: (parent_id IS NULL)
+                          Rows Removed by Filter: 6
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=14
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.001..0.001 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..23.94 rows=10 width=170) (actual time=0.010..0.012 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                    Heap Blocks: exact=7
+                    Buffers: shared hit=9
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.35 rows=10 width=0) (actual time=0.008..0.008 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.100 ms
+Execution Time: 0.200 ms
+
+---- form 2, biggest directory (111 files), count query: median of 5 runs: planning 0.080 ms, execution 0.117 ms, buffers 31 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Aggregate)
+
+---- form 2, biggest directory (111 files), page query: median of 5 runs: planning 0.104 ms, execution 0.162 ms, buffers 31 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Sort)
+
+---- 3: SQL as run ----
+count: SELECT COUNT(*) FROM blobfs_file f JOIN volume_owner o ON o.volume_id = f.volume_id WHERE f.volume_id = $1 AND f.directory_id = $2
+page:  SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at, f.volume_id, o.unit_id FROM blobfs_file f JOIN volume_owner o ON o.volume_id = f.volume_id WHERE f.volume_id = $1 AND f.directory_id = $2 ORDER BY f.name, f.id OFFSET $3 ROWS FETCH NEXT $4 ROWS ONLY
+
+---- form 3, listed directory (10 files), count query: median of 5 runs: planning 0.033 ms, execution 0.031 ms, buffers 9 ----
+Aggregate  (cost=23.24..23.25 rows=1 width=8) (actual time=0.014..0.014 rows=1.00 loops=1)
+  Buffers: shared hit=9
+  ->  Nested Loop  (cost=4.34..23.23 rows=6 width=0) (actual time=0.010..0.013 rows=10.00 loops=1)
+        Buffers: shared hit=9
+        ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=16) (actual time=0.002..0.002 rows=1.00 loops=1)
+              Filter: (volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid)
+              Rows Removed by Filter: 2
+              Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.34..22.13 rows=6 width=16) (actual time=0.008..0.009 rows=10.00 loops=1)
+              Recheck Cond: ((volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid) AND (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid))
+              Heap Blocks: exact=6
+              Buffers: shared hit=8
+              ->  Bitmap Index Scan on ix_evidence_file_volume_directory_name  (cost=0.00..4.33 rows=6 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                    Index Cond: ((volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid) AND (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid))
+                    Index Searches: 1
+                    Buffers: shared hit=2
+Planning Time: 0.033 ms
+Execution Time: 0.031 ms
+
+---- form 3, listed directory (10 files), page query: median of 5 runs: planning 0.039 ms, execution 0.042 ms, buffers 9 ----
+Limit  (cost=23.30..23.32 rows=6 width=202) (actual time=0.021..0.022 rows=10.00 loops=1)
+  Buffers: shared hit=9
+  ->  Sort  (cost=23.30..23.32 rows=6 width=202) (actual time=0.020..0.021 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=9
+        ->  Nested Loop  (cost=4.34..23.23 rows=6 width=202) (actual time=0.012..0.015 rows=10.00 loops=1)
+              Buffers: shared hit=9
+              ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=32) (actual time=0.002..0.002 rows=1.00 loops=1)
+                    Filter: (volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid)
+                    Rows Removed by Filter: 2
+                    Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.34..22.13 rows=6 width=186) (actual time=0.009..0.011 rows=10.00 loops=1)
+                    Recheck Cond: ((volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid) AND (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid))
+                    Heap Blocks: exact=6
+                    Buffers: shared hit=8
+                    ->  Bitmap Index Scan on ix_evidence_file_volume_directory_name  (cost=0.00..4.33 rows=6 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                          Index Cond: ((volume_id = '01a0bf8f-eb72-7d2c-ab59-450a53fdd959'::uuid) AND (directory_id = '01a0bf8f-eb75-7128-bdc0-f050659c386e'::uuid))
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.039 ms
+Execution Time: 0.042 ms
+
+---- form 3, biggest directory (111 files), count query: median of 5 runs: planning 0.031 ms, execution 0.045 ms, buffers 29 ----
+(plan shape: Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Nested Loop, Aggregate)
+
+---- form 3, biggest directory (111 files), page query: median of 5 runs: planning 0.040 ms, execution 0.087 ms, buffers 29 ----
+(plan shape: Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Nested Loop, Sort)
+
+cross-check: every form returns total 10 and the same first page of 10 ids for /d1/d3/d12/d22/d26/d47, form 2's paths equal form 1's, and every form counts 111 for /d0
+
+==================== fixture: 10000 files ====================
+directories: 1000 generated under 3 roots; files: 10000; depth reached: 6
+listed directory: /d1/d2/d3/d4/d28/d44 (depth 6, 10 files) in volume 1
+biggest directory: /d0 (depth 1, 1009 files) in volume 2
+
+---- form 1, listed directory (10 files), count query: median of 5 runs: planning 0.219 ms, execution 1.879 ms, buffers 99 ----
+Aggregate  (cost=344.90..344.91 rows=1 width=8) (actual time=1.725..1.726 rows=1.00 loops=1)
+  Buffers: shared hit=99
+  ->  Nested Loop  (cost=298.99..344.88 rows=1 width=288) (actual time=1.192..1.723 rows=10.00 loops=1)
+        Buffers: shared hit=99
+        CTE tree
+          ->  Recursive Union  (cost=0.15..294.64 rows=753 width=80) (actual time=0.014..1.459 rows=1003.00 loops=1)
+                Storage: Memory  Maximum Storage: 95kB
+                Buffers: shared hit=86
+                ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.15..8.20 rows=3 width=80) (actual time=0.013..0.014 rows=3.00 loops=1)
+                      Index Cond: (volume_id IS NOT NULL)
+                      Index Searches: 1
+                      Buffers: shared hit=2
+                ->  Hash Join  (cost=0.97..27.89 rows=75 width=80) (actual time=0.058..0.176 rows=142.86 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=84
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..22.03 rows=1003 width=36) (actual time=0.002..0.044 rows=1003.00 loops=7)
+                            Buffers: shared hit=84
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.034..0.034 rows=143.29 loops=7)
+                            Buckets: 1024  Batches: 1  Memory Usage: 41kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.009 rows=143.29 loops=7)
+        ->  Nested Loop  (cost=0.00..18.16 rows=1 width=16) (actual time=1.174..1.699 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = t.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=87
+              ->  CTE Scan on tree t  (cost=0.00..16.94 rows=4 width=32) (actual time=1.165..1.690 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Rows Removed by Filter: 1002
+                    Storage: Memory  Maximum Storage: 111kB
+                    Buffers: shared hit=86
+              ->  Materialize  (cost=0.00..1.04 rows=3 width=16) (actual time=0.007..0.008 rows=2.00 loops=1)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.006..0.007 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=16) (actual time=0.016..0.020 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+              Heap Blocks: exact=10
+              Buffers: shared hit=12
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.012..0.012 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=2
+Planning Time: 0.219 ms
+Execution Time: 1.879 ms
+
+---- form 1, listed directory (10 files), page query: median of 5 runs: planning 0.113 ms, execution 1.095 ms, buffers 99 ----
+Limit  (cost=344.90..344.90 rows=1 width=236) (actual time=1.018..1.020 rows=10.00 loops=1)
+  Buffers: shared hit=99
+  ->  Sort  (cost=344.90..344.90 rows=1 width=236) (actual time=1.018..1.019 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=99
+        ->  Nested Loop  (cost=298.99..344.89 rows=1 width=236) (actual time=0.692..1.011 rows=10.00 loops=1)
+              Buffers: shared hit=99
+              CTE tree
+                ->  Recursive Union  (cost=0.15..294.64 rows=753 width=80) (actual time=0.006..0.847 rows=1003.00 loops=1)
+                      Storage: Memory  Maximum Storage: 95kB
+                      Buffers: shared hit=86
+                      ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.15..8.20 rows=3 width=80) (actual time=0.005..0.006 rows=3.00 loops=1)
+                            Index Cond: (volume_id IS NOT NULL)
+                            Index Searches: 1
+                            Buffers: shared hit=2
+                      ->  Hash Join  (cost=0.97..27.89 rows=75 width=80) (actual time=0.033..0.105 rows=142.86 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=84
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..22.03 rows=1003 width=36) (actual time=0.001..0.025 rows=1003.00 loops=7)
+                                  Buffers: shared hit=84
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.019..0.019 rows=143.29 loops=7)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 41kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.006 rows=143.29 loops=7)
+              ->  Nested Loop  (cost=0.00..18.16 rows=1 width=80) (actual time=0.682..0.997 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = t.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=87
+                    ->  CTE Scan on tree t  (cost=0.00..16.94 rows=4 width=64) (actual time=0.679..0.994 rows=1.00 loops=1)
+                          Filter: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                          Rows Removed by Filter: 1002
+                          Storage: Memory  Maximum Storage: 111kB
+                          Buffers: shared hit=86
+                    ->  Materialize  (cost=0.00..1.04 rows=3 width=32) (actual time=0.002..0.002 rows=2.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.001..0.002 rows=2.00 loops=1)
+                                Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=172) (actual time=0.009..0.011 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=12
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.113 ms
+Execution Time: 1.095 ms
+
+---- form 1, biggest directory (1009 files), count query: median of 5 runs: planning 0.116 ms, execution 1.351 ms, buffers 331 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Aggregate)
+
+---- form 1, biggest directory (1009 files), page query: median of 5 runs: planning 0.119 ms, execution 1.675 ms, buffers 331 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Sort)
+
+---- form 1b, listed directory (10 files), count query: median of 5 runs: planning 0.165 ms, execution 1.596 ms, buffers 98 ----
+Aggregate  (cost=344.41..344.42 rows=1 width=8) (actual time=1.504..1.505 rows=1.00 loops=1)
+  Buffers: shared hit=98
+  ->  Nested Loop  (cost=298.99..344.01 rows=32 width=272) (actual time=1.166..1.503 rows=10.00 loops=1)
+        Buffers: shared hit=98
+        CTE tree
+          ->  Recursive Union  (cost=0.15..294.64 rows=753 width=80) (actual time=0.011..1.260 rows=1003.00 loops=1)
+                Storage: Memory  Maximum Storage: 95kB
+                Buffers: shared hit=86
+                ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.15..8.20 rows=3 width=80) (actual time=0.010..0.011 rows=3.00 loops=1)
+                      Index Cond: (volume_id IS NOT NULL)
+                      Index Searches: 1
+                      Buffers: shared hit=2
+                ->  Hash Join  (cost=0.97..27.89 rows=75 width=80) (actual time=0.043..0.154 rows=142.86 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=84
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..22.03 rows=1003 width=36) (actual time=0.001..0.038 rows=1003.00 loops=7)
+                            Buffers: shared hit=84
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.027..0.027 rows=143.29 loops=7)
+                            Buckets: 1024  Batches: 1  Memory Usage: 41kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.007 rows=143.29 loops=7)
+        ->  CTE Scan on tree t  (cost=0.00..16.94 rows=4 width=16) (actual time=1.153..1.485 rows=1.00 loops=1)
+              Filter: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+              Rows Removed by Filter: 1002
+              Storage: Memory  Maximum Storage: 111kB
+              Buffers: shared hit=86
+        ->  Materialize  (cost=4.35..32.04 rows=8 width=16) (actual time=0.012..0.016 rows=10.00 loops=1)
+              Storage: Memory  Maximum Storage: 17kB
+              Buffers: shared hit=12
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=16) (actual time=0.011..0.013 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=12
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.008..0.008 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.165 ms
+Execution Time: 1.596 ms
+
+---- form 1b, listed directory (10 files), page query: median of 5 runs: planning 0.092 ms, execution 1.101 ms, buffers 98 ----
+Limit  (cost=344.97..345.02 rows=20 width=220) (actual time=1.026..1.028 rows=10.00 loops=1)
+  Buffers: shared hit=98
+  ->  Sort  (cost=344.97..345.05 rows=32 width=220) (actual time=1.026..1.027 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=98
+        ->  Nested Loop  (cost=298.99..344.17 rows=32 width=220) (actual time=0.703..1.019 rows=10.00 loops=1)
+              Buffers: shared hit=98
+              CTE tree
+                ->  Recursive Union  (cost=0.15..294.64 rows=753 width=80) (actual time=0.005..0.850 rows=1003.00 loops=1)
+                      Storage: Memory  Maximum Storage: 95kB
+                      Buffers: shared hit=86
+                      ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.15..8.20 rows=3 width=80) (actual time=0.005..0.005 rows=3.00 loops=1)
+                            Index Cond: (volume_id IS NOT NULL)
+                            Index Searches: 1
+                            Buffers: shared hit=2
+                      ->  Hash Join  (cost=0.97..27.89 rows=75 width=80) (actual time=0.033..0.105 rows=142.86 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=84
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..22.03 rows=1003 width=36) (actual time=0.001..0.025 rows=1003.00 loops=7)
+                                  Buffers: shared hit=84
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.020..0.020 rows=143.29 loops=7)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 41kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.005 rows=143.29 loops=7)
+              ->  CTE Scan on tree t  (cost=0.00..16.94 rows=4 width=64) (actual time=0.689..1.000 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Rows Removed by Filter: 1002
+                    Storage: Memory  Maximum Storage: 111kB
+                    Buffers: shared hit=86
+              ->  Materialize  (cost=4.35..32.04 rows=8 width=172) (actual time=0.012..0.015 rows=10.00 loops=1)
+                    Storage: Memory  Maximum Storage: 18kB
+                    Buffers: shared hit=12
+                    ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=172) (actual time=0.012..0.014 rows=10.00 loops=1)
+                          Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                          Heap Blocks: exact=10
+                          Buffers: shared hit=12
+                          ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                                Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=2
+Planning Time: 0.092 ms
+Execution Time: 1.101 ms
+
+---- form 1b, biggest directory (1009 files), count query: median of 5 runs: planning 0.089 ms, execution 1.504 ms, buffers 330 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Aggregate)
+
+---- form 1b, biggest directory (1009 files), page query: median of 5 runs: planning 0.096 ms, execution 1.736 ms, buffers 330 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Sort)
+
+---- form 2, listed directory (10 files), count query: median of 5 runs: planning 0.100 ms, execution 0.522 ms, buffers 88 ----
+Aggregate  (cost=307.14..307.15 rows=1 width=8) (actual time=0.476..0.477 rows=1.00 loops=1)
+  Buffers: shared hit=88
+  CTE up
+    ->  Recursive Union  (cost=0.28..271.97 rows=101 width=80) (actual time=0.008..0.458 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=75
+          ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.28..8.29 rows=1 width=80) (actual time=0.007..0.007 rows=1.00 loops=1)
+                Index Cond: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                Index Searches: 1
+                Buffers: shared hit=3
+          ->  Hash Join  (cost=0.33..26.27 rows=10 width=80) (actual time=0.008..0.061 rows=0.86 loops=7)
+                Hash Cond: (p.id = up_1.parent_id)
+                Buffers: shared hit=72
+                ->  Seq Scan on blobfs_directory p  (cost=0.00..22.03 rows=1003 width=52) (actual time=0.001..0.026 rows=1003.00 loops=6)
+                      Buffers: shared hit=72
+                ->  Hash  (cost=0.20..0.20 rows=10 width=48) (actual time=0.002..0.002 rows=0.86 loops=7)
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.001 rows=1.00 loops=7)
+  ->  Nested Loop  (cost=4.35..35.17 rows=1 width=0) (actual time=0.402..0.475 rows=10.00 loops=1)
+        Buffers: shared hit=88
+        ->  Nested Loop  (cost=0.00..3.09 rows=1 width=0) (actual time=0.392..0.462 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = up.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=76
+              ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=16) (actual time=0.390..0.460 rows=1.00 loops=1)
+                    Filter: (parent_id IS NULL)
+                    Rows Removed by Filter: 6
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=75
+              ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.001..0.001 rows=2.00 loops=1)
+                    Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=0) (actual time=0.009..0.011 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+              Heap Blocks: exact=10
+              Buffers: shared hit=12
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.005..0.005 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=2
+Planning Time: 0.100 ms
+Execution Time: 0.522 ms
+
+---- form 2, listed directory (10 files), page query: median of 5 runs: planning 0.108 ms, execution 0.531 ms, buffers 88 ----
+Limit  (cost=307.15..307.15 rows=1 width=236) (actual time=0.479..0.481 rows=10.00 loops=1)
+  Buffers: shared hit=88
+  CTE up
+    ->  Recursive Union  (cost=0.28..271.97 rows=101 width=80) (actual time=0.007..0.453 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=75
+          ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.28..8.29 rows=1 width=80) (actual time=0.006..0.007 rows=1.00 loops=1)
+                Index Cond: (id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                Index Searches: 1
+                Buffers: shared hit=3
+          ->  Hash Join  (cost=0.33..26.27 rows=10 width=80) (actual time=0.007..0.060 rows=0.86 loops=7)
+                Hash Cond: (p.id = up_1.parent_id)
+                Buffers: shared hit=72
+                ->  Seq Scan on blobfs_directory p  (cost=0.00..22.03 rows=1003 width=52) (actual time=0.001..0.026 rows=1003.00 loops=6)
+                      Buffers: shared hit=72
+                ->  Hash  (cost=0.20..0.20 rows=10 width=48) (actual time=0.002..0.002 rows=0.86 loops=7)
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7)
+  ->  Sort  (cost=35.18..35.19 rows=1 width=236) (actual time=0.479..0.480 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=88
+        ->  Nested Loop  (cost=4.35..35.17 rows=1 width=236) (actual time=0.398..0.471 rows=10.00 loops=1)
+              Buffers: shared hit=88
+              ->  Nested Loop  (cost=0.00..3.09 rows=1 width=64) (actual time=0.390..0.459 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = up.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=76
+                    ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=48) (actual time=0.386..0.455 rows=1.00 loops=1)
+                          Filter: (parent_id IS NULL)
+                          Rows Removed by Filter: 6
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=75
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.002..0.002 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.35..32.00 rows=8 width=172) (actual time=0.008..0.010 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=12
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.34 rows=8 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+Planning Time: 0.108 ms
+Execution Time: 0.531 ms
+
+---- form 2, biggest directory (1009 files), count query: median of 5 runs: planning 0.093 ms, execution 0.356 ms, buffers 260 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_pk_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Aggregate)
+
+---- form 2, biggest directory (1009 files), page query: median of 5 runs: planning 0.118 ms, execution 0.651 ms, buffers 260 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_pk_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Sort)
+
+---- form 3, listed directory (10 files), count query: median of 5 runs: planning 0.066 ms, execution 0.056 ms, buffers 5 ----
+Aggregate  (cost=20.35..20.36 rows=1 width=8) (actual time=0.031..0.031 rows=1.00 loops=1)
+  Buffers: shared hit=5
+  ->  Nested Loop  (cost=0.29..20.34 rows=4 width=0) (actual time=0.024..0.029 rows=10.00 loops=1)
+        Buffers: shared hit=5
+        ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+              Filter: (volume_id = '01a0bf8f-ec33-7f12-9451-5b759743fd24'::uuid)
+              Rows Removed by Filter: 2
+              Buffers: shared hit=1
+        ->  Index Only Scan using ix_evidence_file_volume_directory_name on blobfs_file f  (cost=0.29..19.27 rows=4 width=16) (actual time=0.019..0.022 rows=10.00 loops=1)
+              Index Cond: ((volume_id = '01a0bf8f-ec33-7f12-9451-5b759743fd24'::uuid) AND (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid))
+              Heap Fetches: 10
+              Index Searches: 1
+              Buffers: shared hit=4
+Planning Time: 0.066 ms
+Execution Time: 0.056 ms
+
+---- form 3, listed directory (10 files), page query: median of 5 runs: planning 0.072 ms, execution 0.080 ms, buffers 5 ----
+Limit  (cost=5.31..20.54 rows=4 width=204) (actual time=0.048..0.050 rows=10.00 loops=1)
+  Buffers: shared hit=5
+  ->  Incremental Sort  (cost=5.31..20.54 rows=4 width=204) (actual time=0.048..0.049 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Presorted Key: f.name
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Buffers: shared hit=5
+        ->  Nested Loop  (cost=0.29..20.36 rows=4 width=204) (actual time=0.024..0.031 rows=10.00 loops=1)
+              Buffers: shared hit=5
+              ->  Index Scan using ix_evidence_file_volume_directory_name on blobfs_file f  (cost=0.29..19.27 rows=4 width=188) (actual time=0.010..0.012 rows=10.00 loops=1)
+                    Index Cond: ((volume_id = '01a0bf8f-ec33-7f12-9451-5b759743fd24'::uuid) AND (directory_id = '01a0bf8f-ec36-76fd-8b17-b4549445f3ff'::uuid))
+                    Index Searches: 1
+                    Buffers: shared hit=4
+              ->  Materialize  (cost=0.00..1.04 rows=1 width=32) (actual time=0.001..0.001 rows=1.00 loops=10)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=32) (actual time=0.008..0.008 rows=1.00 loops=1)
+                          Filter: (volume_id = '01a0bf8f-ec33-7f12-9451-5b759743fd24'::uuid)
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+Planning Time: 0.072 ms
+Execution Time: 0.080 ms
+
+---- form 3, biggest directory (1009 files), count query: median of 5 runs: planning 0.030 ms, execution 0.139 ms, buffers 38 ----
+(plan shape: Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Nested Loop, Aggregate)
+
+---- form 3, biggest directory (1009 files), page query: median of 5 runs: planning 0.036 ms, execution 0.055 ms, buffers 44 ----
+(plan shape: Index Scan using blobfs_uq_file_directory_name, Seq Scan on volume_owner, Nested Loop, Sort, Incremental Sort)
+
+cross-check: every form returns total 10 and the same first page of 10 ids for /d1/d2/d3/d4/d28/d44, form 2's paths equal form 1's, and every form counts 1009 for /d0
+
+==================== fixture: 100000 files ====================
+directories: 10000 generated under 3 roots; files: 100000; depth reached: 6
+listed directory: /d4/d5/d10/d13/d37/d57 (depth 6, 10 files) in volume 1
+biggest directory: /d0 (depth 1, 10008 files) in volume 2
+
+---- form 1, listed directory (10 files), count query: median of 5 runs: planning 0.120 ms, execution 10.810 ms, buffers 815 ----
+Aggregate  (cost=2615.16..2615.17 rows=1 width=8) (actual time=10.638..10.639 rows=1.00 loops=1)
+  Buffers: shared hit=815
+  ->  Nested Loop  (cost=2559.77..2615.15 rows=1 width=288) (actual time=6.266..10.636 rows=10.00 loops=1)
+        Buffers: shared hit=815
+        CTE tree
+          ->  Recursive Union  (cost=0.29..2555.28 rows=873 width=80) (actual time=0.007..9.018 rows=10003.00 loops=1)
+                Storage: Memory  Maximum Storage: 908kB
+                Buffers: shared hit=801
+                ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.29..8.34 rows=3 width=80) (actual time=0.007..0.007 rows=3.00 loops=1)
+                      Index Cond: (volume_id IS NOT NULL)
+                      Index Searches: 1
+                      Buffers: shared hit=3
+                ->  Hash Join  (cost=0.97..253.82 rows=87 width=80) (actual time=0.317..1.124 rows=1428.57 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=798
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..214.03 rows=10003 width=37) (actual time=0.001..0.272 rows=10003.00 loops=7)
+                            Buffers: shared hit=798
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.201..0.201 rows=1429.00 loops=7)
+                            Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 531kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.055 rows=1429.00 loops=7)
+        ->  Nested Loop  (cost=0.00..20.86 rows=1 width=16) (actual time=6.254..10.620 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = t.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=802
+              ->  CTE Scan on tree t  (cost=0.00..19.64 rows=4 width=32) (actual time=6.248..10.613 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Rows Removed by Filter: 10002
+                    Storage: Memory  Maximum Storage: 1122kB
+                    Buffers: shared hit=801
+              ->  Materialize  (cost=0.00..1.04 rows=3 width=16) (actual time=0.005..0.005 rows=2.00 loops=1)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.004..0.004 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=16) (actual time=0.011..0.014 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+              Heap Blocks: exact=10
+              Buffers: shared hit=13
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.007..0.007 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=3
+Planning Time: 0.120 ms
+Execution Time: 10.810 ms
+
+---- form 1, listed directory (10 files), page query: median of 5 runs: planning 0.120 ms, execution 11.144 ms, buffers 815 ----
+Limit  (cost=2615.17..2615.17 rows=1 width=238) (actual time=10.964..10.966 rows=10.00 loops=1)
+  Buffers: shared hit=815
+  ->  Sort  (cost=2615.17..2615.17 rows=1 width=238) (actual time=10.964..10.965 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=815
+        ->  Nested Loop  (cost=2559.77..2615.16 rows=1 width=238) (actual time=6.420..10.956 rows=10.00 loops=1)
+              Buffers: shared hit=815
+              CTE tree
+                ->  Recursive Union  (cost=0.29..2555.28 rows=873 width=80) (actual time=0.006..9.240 rows=10003.00 loops=1)
+                      Storage: Memory  Maximum Storage: 908kB
+                      Buffers: shared hit=801
+                      ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.29..8.34 rows=3 width=80) (actual time=0.006..0.006 rows=3.00 loops=1)
+                            Index Cond: (volume_id IS NOT NULL)
+                            Index Searches: 1
+                            Buffers: shared hit=3
+                      ->  Hash Join  (cost=0.97..253.82 rows=87 width=80) (actual time=0.327..1.143 rows=1428.57 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=798
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..214.03 rows=10003 width=37) (actual time=0.002..0.269 rows=10003.00 loops=7)
+                                  Buffers: shared hit=798
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.212..0.212 rows=1429.00 loops=7)
+                                  Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 531kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.001..0.055 rows=1429.00 loops=7)
+              ->  Nested Loop  (cost=0.00..20.86 rows=1 width=80) (actual time=6.404..10.934 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = t.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=802
+                    ->  CTE Scan on tree t  (cost=0.00..19.64 rows=4 width=64) (actual time=6.398..10.928 rows=1.00 loops=1)
+                          Filter: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                          Rows Removed by Filter: 10002
+                          Storage: Memory  Maximum Storage: 1122kB
+                          Buffers: shared hit=801
+                    ->  Materialize  (cost=0.00..1.04 rows=3 width=32) (actual time=0.005..0.005 rows=2.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.004..0.004 rows=2.00 loops=1)
+                                Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=174) (actual time=0.015..0.018 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=13
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.011..0.011 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=3
+Planning Time: 0.120 ms
+Execution Time: 11.144 ms
+
+---- form 1, biggest directory (10008 files), count query: median of 5 runs: planning 0.126 ms, execution 13.668 ms, buffers 3236 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Aggregate)
+
+---- form 1, biggest directory (10008 files), page query: median of 5 runs: planning 0.141 ms, execution 16.556 ms, buffers 3236 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Hash Join, Nested Loop, Sort)
+
+---- form 1b, listed directory (10 files), count query: median of 5 runs: planning 0.104 ms, execution 11.019 ms, buffers 814 ----
+Aggregate  (cost=2614.77..2614.78 rows=1 width=8) (actual time=10.850..10.851 rows=1.00 loops=1)
+  Buffers: shared hit=814
+  ->  Nested Loop  (cost=2559.77..2614.32 rows=36 width=272) (actual time=6.302..10.848 rows=10.00 loops=1)
+        Buffers: shared hit=814
+        CTE tree
+          ->  Recursive Union  (cost=0.29..2555.28 rows=873 width=80) (actual time=0.007..9.180 rows=10003.00 loops=1)
+                Storage: Memory  Maximum Storage: 908kB
+                Buffers: shared hit=801
+                ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.29..8.34 rows=3 width=80) (actual time=0.006..0.007 rows=3.00 loops=1)
+                      Index Cond: (volume_id IS NOT NULL)
+                      Index Searches: 1
+                      Buffers: shared hit=3
+                ->  Hash Join  (cost=0.97..253.82 rows=87 width=80) (actual time=0.317..1.143 rows=1428.57 loops=7)
+                      Hash Cond: (d_1.parent_id = t_1.id)
+                      Buffers: shared hit=798
+                      ->  Seq Scan on blobfs_directory d_1  (cost=0.00..214.03 rows=10003 width=37) (actual time=0.001..0.275 rows=10003.00 loops=7)
+                            Buffers: shared hit=798
+                      ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.201..0.201 rows=1429.00 loops=7)
+                            Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 531kB
+                            ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.054 rows=1429.00 loops=7)
+        ->  CTE Scan on tree t  (cost=0.00..19.64 rows=4 width=16) (actual time=6.288..10.827 rows=1.00 loops=1)
+              Filter: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+              Rows Removed by Filter: 10002
+              Storage: Memory  Maximum Storage: 1122kB
+              Buffers: shared hit=801
+        ->  Materialize  (cost=4.49..38.97 rows=9 width=16) (actual time=0.013..0.018 rows=10.00 loops=1)
+              Storage: Memory  Maximum Storage: 17kB
+              Buffers: shared hit=13
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=16) (actual time=0.012..0.016 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=13
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.008..0.008 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=3
+Planning Time: 0.104 ms
+Execution Time: 11.019 ms
+
+---- form 1b, listed directory (10 files), page query: median of 5 runs: planning 0.104 ms, execution 11.147 ms, buffers 814 ----
+Limit  (cost=2615.43..2615.48 rows=20 width=222) (actual time=10.970..10.972 rows=10.00 loops=1)
+  Buffers: shared hit=814
+  ->  Sort  (cost=2615.43..2615.52 rows=36 width=222) (actual time=10.969..10.971 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=814
+        ->  Nested Loop  (cost=2559.77..2614.50 rows=36 width=222) (actual time=6.503..10.961 rows=10.00 loops=1)
+              Buffers: shared hit=814
+              CTE tree
+                ->  Recursive Union  (cost=0.29..2555.28 rows=873 width=80) (actual time=0.007..9.302 rows=10003.00 loops=1)
+                      Storage: Memory  Maximum Storage: 908kB
+                      Buffers: shared hit=801
+                      ->  Index Scan using blobfs_uq_directory_volume on blobfs_directory d  (cost=0.29..8.34 rows=3 width=80) (actual time=0.006..0.007 rows=3.00 loops=1)
+                            Index Cond: (volume_id IS NOT NULL)
+                            Index Searches: 1
+                            Buffers: shared hit=3
+                      ->  Hash Join  (cost=0.97..253.82 rows=87 width=80) (actual time=0.320..1.163 rows=1428.57 loops=7)
+                            Hash Cond: (d_1.parent_id = t_1.id)
+                            Buffers: shared hit=798
+                            ->  Seq Scan on blobfs_directory d_1  (cost=0.00..214.03 rows=10003 width=37) (actual time=0.002..0.302 rows=10003.00 loops=7)
+                                  Buffers: shared hit=798
+                            ->  Hash  (cost=0.60..0.60 rows=30 width=64) (actual time=0.202..0.202 rows=1429.00 loops=7)
+                                  Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 531kB
+                                  ->  WorkTable Scan on tree t_1  (cost=0.00..0.60 rows=30 width=64) (actual time=0.000..0.056 rows=1429.00 loops=7)
+              ->  CTE Scan on tree t  (cost=0.00..19.64 rows=4 width=64) (actual time=6.487..10.938 rows=1.00 loops=1)
+                    Filter: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Rows Removed by Filter: 10002
+                    Storage: Memory  Maximum Storage: 1122kB
+                    Buffers: shared hit=801
+              ->  Materialize  (cost=4.49..38.97 rows=9 width=174) (actual time=0.014..0.018 rows=10.00 loops=1)
+                    Storage: Memory  Maximum Storage: 18kB
+                    Buffers: shared hit=13
+                    ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=174) (actual time=0.013..0.017 rows=10.00 loops=1)
+                          Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                          Heap Blocks: exact=10
+                          Buffers: shared hit=13
+                          ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.007..0.007 rows=10.00 loops=1)
+                                Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=3
+Planning Time: 0.104 ms
+Execution Time: 11.147 ms
+
+---- form 1b, biggest directory (10008 files), count query: median of 5 runs: planning 0.122 ms, execution 14.823 ms, buffers 3235 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Aggregate)
+
+---- form 1b, biggest directory (10008 files), page query: median of 5 runs: planning 0.126 ms, execution 17.502 ms, buffers 3235 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Seq Scan on blobfs_directory, Index Scan using blobfs_uq_directory, Bitmap Heap Scan on blobfs_file, Hash Join, Nested Loop, Sort)
+
+---- form 2, listed directory (10 files), count query: median of 5 runs: planning 0.094 ms, execution 0.084 ms, buffers 35 ----
+Aggregate  (cost=844.18..844.19 rows=1 width=8) (actual time=0.040..0.041 rows=1.00 loops=1)
+  Buffers: shared hit=35
+  CTE up
+    ->  Recursive Union  (cost=0.29..802.08 rows=101 width=80) (actual time=0.010..0.022 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=21
+          ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=80) (actual time=0.009..0.010 rows=1.00 loops=1)
+                Index Cond: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                Index Searches: 1
+                Buffers: shared hit=3
+          ->  Nested Loop  (cost=0.29..79.28 rows=10 width=80) (actual time=0.001..0.001 rows=0.86 loops=7)
+                Buffers: shared hit=18
+                ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7)
+                ->  Index Scan using blobfs_pk_directory on blobfs_directory p  (cost=0.29..7.90 rows=1 width=53) (actual time=0.001..0.001 rows=0.86 loops=7)
+                      Index Cond: (id = up_1.parent_id)
+                      Index Searches: 6
+                      Buffers: shared hit=18
+  ->  Nested Loop  (cost=4.49..42.10 rows=1 width=0) (actual time=0.035..0.039 rows=10.00 loops=1)
+        Buffers: shared hit=35
+        ->  Nested Loop  (cost=0.00..3.09 rows=1 width=0) (actual time=0.026..0.027 rows=1.00 loops=1)
+              Join Filter: (o.volume_id = up.volume_id)
+              Rows Removed by Join Filter: 1
+              Buffers: shared hit=22
+              ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=16) (actual time=0.023..0.024 rows=1.00 loops=1)
+                    Filter: (parent_id IS NULL)
+                    Rows Removed by Filter: 6
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=21
+              ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=16) (actual time=0.002..0.002 rows=2.00 loops=1)
+                    Buffers: shared hit=1
+        ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=0) (actual time=0.009..0.011 rows=10.00 loops=1)
+              Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+              Heap Blocks: exact=10
+              Buffers: shared hit=13
+              ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.006..0.006 rows=10.00 loops=1)
+                    Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=3
+Planning Time: 0.094 ms
+Execution Time: 0.084 ms
+
+---- form 2, listed directory (10 files), page query: median of 5 runs: planning 0.105 ms, execution 0.106 ms, buffers 35 ----
+Limit  (cost=844.19..844.20 rows=1 width=238) (actual time=0.048..0.049 rows=10.00 loops=1)
+  Buffers: shared hit=35
+  CTE up
+    ->  Recursive Union  (cost=0.29..802.08 rows=101 width=80) (actual time=0.007..0.019 rows=7.00 loops=1)
+          Storage: Memory  Maximum Storage: 33kB
+          Buffers: shared hit=21
+          ->  Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=80) (actual time=0.006..0.007 rows=1.00 loops=1)
+                Index Cond: (id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                Index Searches: 1
+                Buffers: shared hit=3
+          ->  Nested Loop  (cost=0.29..79.28 rows=10 width=80) (actual time=0.001..0.001 rows=0.86 loops=7)
+                Buffers: shared hit=18
+                ->  WorkTable Scan on up up_1  (cost=0.00..0.20 rows=10 width=48) (actual time=0.000..0.000 rows=1.00 loops=7)
+                ->  Index Scan using blobfs_pk_directory on blobfs_directory p  (cost=0.29..7.90 rows=1 width=53) (actual time=0.001..0.001 rows=0.86 loops=7)
+                      Index Cond: (id = up_1.parent_id)
+                      Index Searches: 6
+                      Buffers: shared hit=18
+  ->  Sort  (cost=42.11..42.12 rows=1 width=238) (actual time=0.048..0.048 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=35
+        ->  Nested Loop  (cost=4.49..42.10 rows=1 width=238) (actual time=0.035..0.040 rows=10.00 loops=1)
+              Buffers: shared hit=35
+              ->  Nested Loop  (cost=0.00..3.09 rows=1 width=64) (actual time=0.023..0.024 rows=1.00 loops=1)
+                    Join Filter: (o.volume_id = up.volume_id)
+                    Rows Removed by Join Filter: 1
+                    Buffers: shared hit=22
+                    ->  CTE Scan on up  (cost=0.00..2.02 rows=1 width=48) (actual time=0.020..0.021 rows=1.00 loops=1)
+                          Filter: (parent_id IS NULL)
+                          Rows Removed by Filter: 6
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=21
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.03 rows=3 width=32) (actual time=0.002..0.002 rows=2.00 loops=1)
+                          Buffers: shared hit=1
+              ->  Bitmap Heap Scan on blobfs_file f  (cost=4.49..38.92 rows=9 width=174) (actual time=0.012..0.014 rows=10.00 loops=1)
+                    Recheck Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                    Heap Blocks: exact=10
+                    Buffers: shared hit=13
+                    ->  Bitmap Index Scan on blobfs_uq_file_directory_name  (cost=0.00..4.49 rows=9 width=0) (actual time=0.005..0.005 rows=10.00 loops=1)
+                          Index Cond: (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid)
+                          Index Searches: 1
+                          Buffers: shared hit=3
+Planning Time: 0.105 ms
+Execution Time: 0.106 ms
+
+---- form 2, biggest directory (10008 files), count query: median of 5 runs: planning 0.104 ms, execution 2.479 ms, buffers 2441 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Index Scan using blobfs_pk_directory, Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Nested Loop, Aggregate)
+
+---- form 2, biggest directory (10008 files), page query: median of 5 runs: planning 0.121 ms, execution 0.099 ms, buffers 19 ----
+(plan shape: Recursive Union, WorkTable Scan, CTE Scan, Index Scan using blobfs_pk_directory, Index Scan using blobfs_uq_file_directory_name, Seq Scan on volume_owner, Nested Loop, Sort, Incremental Sort)
+
+---- form 3, listed directory (10 files), count query: median of 5 runs: planning 0.110 ms, execution 0.076 ms, buffers 5 ----
+Aggregate  (cost=24.73..24.74 rows=1 width=8) (actual time=0.044..0.045 rows=1.00 loops=1)
+  Buffers: shared hit=5
+  ->  Nested Loop  (cost=0.42..24.72 rows=5 width=0) (actual time=0.036..0.042 rows=10.00 loops=1)
+        Buffers: shared hit=5
+        ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=16) (actual time=0.007..0.007 rows=1.00 loops=1)
+              Filter: (volume_id = '01a0bf8f-ee4b-7686-9a17-d3385cd1061b'::uuid)
+              Rows Removed by Filter: 2
+              Buffers: shared hit=1
+        ->  Index Only Scan using ix_evidence_file_volume_directory_name on blobfs_file f  (cost=0.42..23.63 rows=5 width=16) (actual time=0.029..0.032 rows=10.00 loops=1)
+              Index Cond: ((volume_id = '01a0bf8f-ee4b-7686-9a17-d3385cd1061b'::uuid) AND (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid))
+              Heap Fetches: 10
+              Index Searches: 1
+              Buffers: shared hit=4
+Planning Time: 0.110 ms
+Execution Time: 0.076 ms
+
+---- form 3, listed directory (10 files), page query: median of 5 runs: planning 0.070 ms, execution 0.076 ms, buffers 5 ----
+Limit  (cost=5.29..24.96 rows=5 width=206) (actual time=0.045..0.047 rows=10.00 loops=1)
+  Buffers: shared hit=5
+  ->  Incremental Sort  (cost=5.29..24.96 rows=5 width=206) (actual time=0.045..0.046 rows=10.00 loops=1)
+        Sort Key: f.name, f.id
+        Presorted Key: f.name
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Buffers: shared hit=5
+        ->  Nested Loop  (cost=0.42..24.73 rows=5 width=206) (actual time=0.024..0.029 rows=10.00 loops=1)
+              Buffers: shared hit=5
+              ->  Index Scan using ix_evidence_file_volume_directory_name on blobfs_file f  (cost=0.42..23.63 rows=5 width=190) (actual time=0.010..0.012 rows=10.00 loops=1)
+                    Index Cond: ((volume_id = '01a0bf8f-ee4b-7686-9a17-d3385cd1061b'::uuid) AND (directory_id = '01a0bf8f-ee4e-7312-835d-87c3e4d40686'::uuid))
+                    Index Searches: 1
+                    Buffers: shared hit=4
+              ->  Materialize  (cost=0.00..1.04 rows=1 width=32) (actual time=0.001..0.001 rows=1.00 loops=10)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on volume_owner o  (cost=0.00..1.04 rows=1 width=32) (actual time=0.008..0.008 rows=1.00 loops=1)
+                          Filter: (volume_id = '01a0bf8f-ee4b-7686-9a17-d3385cd1061b'::uuid)
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+Planning Time: 0.070 ms
+Execution Time: 0.076 ms
+
+---- form 3, biggest directory (10008 files), count query: median of 5 runs: planning 0.036 ms, execution 1.131 ms, buffers 337 ----
+(plan shape: Bitmap Heap Scan on blobfs_file, Seq Scan on volume_owner, Nested Loop, Aggregate)
+
+---- form 3, biggest directory (10008 files), page query: median of 5 runs: planning 0.040 ms, execution 0.046 ms, buffers 5 ----
+(plan shape: Index Scan using ix_evidence, Seq Scan on volume_owner, Nested Loop, Sort, Incremental Sort)
+
+cross-check: every form returns total 10 and the same first page of 10 ids for /d4/d5/d10/d13/d37/d57, form 2's paths equal form 1's, and every form counts 10008 for /d0
+--- PASS: TestReadModelCost (4.55s)
+PASS
+ok  	github.com/standards-lab/org/experiments/blobfs/domain/volume	4.560s

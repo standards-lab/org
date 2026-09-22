@@ -1,0 +1,61 @@
+# Contention: two sessions over each schema, the same interleaving each time.
+# s1 opens a transaction and runs the first step; s2 then runs the second step
+# in its own transaction; the harness reports whether s2 waited on a row lock;
+# s1 commits; the row is read afterwards. UPDATE n is the rows the update
+# affected. The file starts in the small directory and the move sends it to
+# another depth-six directory.
+
+## Case 1. A file's delete-begin, written as the column layout invites, against a move
+##   s1 runs the delete's begin step; s2 runs the guarded move at the version it read.
+  a   seeded race-ac9d1ddf | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status only): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-ac9d1ddf | 02d013ca-7000-8000-9000-0000000013ca | deleting | v1
+  b   seeded race-c62ea6a8 | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status only): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-c62ea6a8 | 02d013ca-7000-8000-9000-0000000013ca | deleting | v1
+  c   seeded race-042cb0ad | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status only): (no output)
+      s2 move file, guard version=1: ran straight through, (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | deleting | v2
+  c2  seeded race-b7f79734 | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status only): (no output)
+      s2 move file, guard version=1: ran straight through, (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | deleting | v2
+
+## Case 2. The same, with the delete's begin step bumping the version too
+  a   seeded race-a925b242 | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status and version): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-a925b242 | 02d013ca-7000-8000-9000-0000000013ca | deleting | v2
+  b   seeded race-d2ea9f82 | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status and version): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-d2ea9f82 | 02d013ca-7000-8000-9000-0000000013ca | deleting | v2
+  c   seeded race-cef81abb | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status and version): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-cef81abb | 02d013ca-7000-8000-9000-0000000013ca | deleting | v2
+  c2  seeded race-073a8518 | 02d013ca-7000-8000-9000-0000000013ca | available | v1
+      s1 begin delete (status and version): (no output)
+      s2 move file, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final race-073a8518 | 02d013ca-7000-8000-9000-0000000013ca | deleting | v2
+
+## Case 3. A move against the write's complete step on a pending row
+  a   seeded race-43466d18 | 02d013ca-7000-8000-9000-0000000013ca | pending | v1
+      s1 move file, guard version=1: (no output)
+      s2 complete write, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | pending | v2
+  b   seeded race-5c5ac8a0 | 02d013ca-7000-8000-9000-0000000013ca | pending | v1
+      s1 move file, guard version=1: (no output)
+      s2 complete write, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | pending | v2
+  c   seeded race-b2672daf | 02d013ca-7000-8000-9000-0000000013ca | pending | v1
+      s1 move file, guard version=1: (no output)
+      s2 complete write, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | available | v2
+  c2  seeded race-7e4f5568 | 02d013ca-7000-8000-9000-0000000013ca | pending | v1
+      s1 move file, guard version=1: (no output)
+      s2 complete write, guard version=1: BLOCKED on a row lock until s1 committed, then (no output)
+      final moved.txt | 02d013cb-7000-8000-9000-0000000013cb | available | v2

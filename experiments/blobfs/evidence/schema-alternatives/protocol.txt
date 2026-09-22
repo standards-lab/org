@@ -1,0 +1,27 @@
+# The protocol between the database record and the object store: round trips
+# and latency per whole lifecycle, one client, 10 s per run, pgbench inside the
+# container so the client and the server share a host. Every statement, and
+# every explicit BEGIN and COMMIT, is one round trip.
+#
+# The file lifecycle is the four steps the consumer sequences around the two
+# object-store calls: write begin, write complete, delete begin, delete
+# complete. The measurement omits the path resolution, which is the same in
+# every design, and the object-store calls, which the library never makes.
+
+file lifecycle, design A           blobfs_opus_bench_a      9 round trips       3.450 ms/cycle  289.878172 cycles/s
+number of failed transactions: 0 (0.000%)
+file lifecycle, design B           blobfs_opus_bench_b      9 round trips       3.424 ms/cycle  292.056893 cycles/s
+number of failed transactions: 0 (0.000%)
+file lifecycle, design C           blobfs_opus_bench_c     19 round trips       3.876 ms/cycle  257.976111 cycles/s
+number of failed transactions: 0 (0.000%)
+file lifecycle, design C2          blobfs_opus_bench_c2     19 round trips       3.861 ms/cycle  259.004040 cycles/s
+number of failed transactions: 0 (0.000%)
+
+directory lifecycle, design A      blobfs_opus_bench_a      3 round trips       1.511 ms/cycle  661.656085 cycles/s
+number of failed transactions: 0 (0.000%)
+directory lifecycle, design B      blobfs_opus_bench_b      3 round trips       1.799 ms/cycle  555.908903 cycles/s
+number of failed transactions: 0 (0.000%)
+directory lifecycle, design C      blobfs_opus_bench_c      9 round trips       1.923 ms/cycle  520.010504 cycles/s
+number of failed transactions: 0 (0.000%)
+directory lifecycle, design C2     blobfs_opus_bench_c2      3 round trips       1.706 ms/cycle  586.032642 cycles/s
+number of failed transactions: 0 (0.000%)

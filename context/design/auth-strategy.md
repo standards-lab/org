@@ -263,8 +263,20 @@ object needs a SQL row regardless of authorization — content type, size, soft 
 since an object store cannot itself be queried. The row lives in the virtual-directory library's
 tables, which hold no owner and no unit (`concepts/blobfs.md`). The consuming domain's own join table
 references the file's row and carries the domain's `unit_id`, so it carries the same scope predicate as
-any other read model, at no additional cost, and it drives every authorized listing: the library's tables
-are joined detail and never the anchor of an authorized read. The object store itself never
+any other read model, at no additional cost, and at the file grain it drives every authorized listing:
+the library's tables are joined detail and the join table is the anchor of the authorized read.
+
+The library also supports a directory grain, which anchors the read differently. An owner row binds
+one top-level directory to a unit, and a scoped listing checks that row once, at the top-level
+ancestor of the path being read, before the path resolves any further; the library's own
+directory-anchored listings run unchanged beneath that check and carry no ownership predicate of
+their own (`concepts/blobfs-composition.md`). At this grain the read is anchored on a directory whose
+ancestor the owner row already authorized, not on a join row per file. The same binding is why a move
+never crosses one top-level directory into another: the owner row is read only at that one depth, so
+carrying an entry across two top-level directories would move it out of one unit's scope and into
+another's without either unit's own say. A unit's right to move within its own scope, and whether that
+right needs its own check beyond the structural one, is authorization and is proven in the storage
+domain's auth sweep, not by the virtual-directory library itself. The object store itself never
 authorizes: no per-object ACLs, no bucket policies keyed to end users. The service holds one
 credential per environment and is the sole authority, because S3's and Azure Blob's own per-object
 authorization models share nothing standard tier could express without putting the security-critical

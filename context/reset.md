@@ -1,62 +1,60 @@
-# reset · blobfs-design
+# reset · blobfs-experiment
 
 - **Status:** closeout
-- **Session:** plan
+- **Session:** experiment
 - **Project:** standards-lab
-- **Branch:** blobfs-design
+- **Branch:** blobfs-experiment
 
 ## Disposition
 
-- **Settled:** the `blobfs` design, in `concepts/blobfs.md` (`blobfs.design`), as a provisional
-  concept. `blobfs` is one module in three layers a consumer adopts by what it accepts: a Go-only
-  root package, a persistence package over `sqlate`, and a migrations package. It ships its DDL as
-  a migration source with its own version line and history table, and every object it owns starts
-  with the source name (`blobfs_directory`, `blobfs_file`, `blobfs_schema_version`). Deletes have
-  no cascade: a directory delete is refused by the foreign key while children exist, a file
-  delete is two steps around the object delete, and a consumer layers recursive delete itself.
-  Writes are steps the consumer sequences, and `blobfs` never calls the object store. It publishes
-  a `sqlate` pattern namespace, and the consumer's join table anchors every authorized listing.
-  The experiment is a command-line file system over blob storage with a multi-source migrator
-  shim, and its proofs are ordered by risk in the concept.
-- **Integrated:** nothing decayed.
-- **Promoted:** nothing. The shape was designed this session, so it waits for the experiment to
-  exercise it before the note moves to `design/`.
-- **Culled:** the concept's open-questions section, and the claims the reviews found wrong: the
-  `sqlate` precedent (its spike redesigned a capability `go-database` had already built), the
-  placement rationale (the `go-<technology>` naming rule, not the list alone), the `inventory`
-  custody ledger cited as existing precedent, the `org_image` content-type check that a `CHECK`
-  constraint cannot express across tables, and the `List` aside that implied a sweeper nothing
-  owns.
-- **Retained:** `concepts/blobfs.md`, provisional, with its assumptions named: pattern publication
-  carries a hierarchy query at standard tier, the migrator shim moves into `sqlate` almost
-  unchanged, the key-validation wiring stays small, the directive filter is acceptable until the
-  projection-base lift, the file delete steps are idempotent as stated, and the three-layer split
-  earns its exception to the split rule.
-- **Corrected:** `design/auth-strategy.md` §8 no longer sketches an `owner_kind`, `owner_id`
-  attachment table; the consumer's join table carries `unit_id` and drives the listing.
-  `design/storage-strategy.md` §6 assigns the row and schema to `blobfs` as a migration source and
-  ownership to the consumer's join table. The `context` path on `backlog.sql-meta-language`
-  pointed at a `docs` repository that no longer exists and now points at
-  `architecture/context/concepts/sql-meta-language.md`.
-- **Roadmap:** `blobfs.sources` (the `sqlate` v0.2.0 promotion of the migrator) and `blobfs.admin`
-  (the `go-database` admin release over several sets) were added, and `next` now runs
-  `blobfs.experiment`, `blobfs.sources`, `blobfs.build`, `blobfs.admin`, then
-  `v1.storage.service`. The `blobfs`, `blobfs.experiment`, `blobfs.build`, `v1.storage.service`,
-  and `v1.auth` summaries state what each now proves or waits on. `blobfs.design` is deleted with
-  its `next` entry.
-- **Cross-repo:** none written. Two architecture-layer promotions wait on later triggers: the
-  adjacent-repository position, when `blobfs.build` closes, and a library shipping its own object
-  namespace as a migration source, when `go-auth` is the second shipper. The `google/uuid` example
-  in `architecture`'s `go-elemental/principles/dependencies.md` is still true; Go 1.27's standard
-  library now also has `uuid`.
+- **Promoted:** `context/concepts/blobfs.md` deconstructed into five concept documents, all
+  concept-tier since nothing built from the experiment yet exists: `blobfs.md` re-scoped to what
+  the library is; `blobfs-api.md` (new), the proposed `Directories`/`Files` operation set and
+  repository layout for `blobfs.build`'s own SETTLE; `blobfs-composition.md` (new), how a consumer
+  builds around the library; `migration-sets.md` (new), the multi-set migrator model
+  `blobfs.sources` promotes into `sqlate`; `sqlate-library-support.md` (new), the coordinator's
+  ledger of every other `sqlate` adjustment, split into what `sources` schedules and what stays an
+  unscheduled backlog.
+- **Integrated:** `experiments/blobfs/REVIEW.md`, `DECISIONS.md`, and `NOTES.md` merged into one
+  closed-experiment record, describing the experiment as it stood at close (stage 32 and five
+  follow-up commits) rather than at stage 16; `DECISIONS.md` and `NOTES.md` removed, and every
+  stale reference to either repointed at `REVIEW.md`. `design/auth-strategy.md` §8 amended to
+  state the directory grain alongside the file grain (the read anchored on a directory an owner
+  row authorized, not a join row per file, and why a move never crosses one top-level directory
+  into another). `design/storage-strategy.md`'s "migration source" corrected to "migration set."
+  Two claims `REVIEW.md` had made stale by later stages were corrected in the same pass:
+  `go-storage`'s object-store interface has had `List` since v0.1.0 (the concept's contrary claim
+  was wrong), and the bookmark-versus-delete race is closed, not open (adjustment 10, stage 23).
+- **Culled:** the `blobfs.experiment` roadmap task, finished, and its entry in `next`. The
+  original `blobfs.md`'s CLI-shaped and ownership-shaped content (the directive-filter workaround,
+  the interim "path projection" pattern, the consumer's ownership vocabulary) is gone from the
+  library concept; it was never the library's, only the tool's, and now lives, correctly
+  attributed, in `blobfs-composition.md`.
+- **Retained:** every other design note and concept the review touched only by citation, unchanged.
+- **Roadmap:** `blobfs.sources`'s summary and proof grew to six areas of `sqlate` (the collection
+  read, the guard, verification and headers, the mapper, errors, and `migrate`), not the migrator
+  alone — the architect's call, sorted by whether each adjustment strengthens `sqlate` and its
+  consumers generally rather than by how much work it is. `blobfs.build`'s summary states that
+  `blobfs-api.md` is input to its own SETTLE, not a finished design. `blobfs.admin` and
+  `v1.storage`'s two tasks pick up small corrections (`Force` named explicitly, the seed step, the
+  new documents cited).
+- **Architecture layer:** nothing promoted at this close. The candidates the earlier handoff named
+  (navigation one directory at a time; engine packages owning their DDL and native variants;
+  migration sets as layers; ids as the primary handle) stay recorded as deferred, with their
+  triggers, in `concepts/blobfs.md`'s "Deferred, with triggers" section; `blobfs.build` is the
+  named trigger for the adjacency position, and `go-auth` as the second shipper for the
+  object-namespace amendment.
+- **Cross-repo:** none; every edit this close made lands in `standards-lab`, the coordinator.
 
 ## Next-focus
 
-`blobfs.experiment`, an `experiment` session in `standards-lab`, at
-`standards-lab/experiments/blobfs`: the command-line file system that `concepts/blobfs.md`
-defines, built against published `sqlate` v0.1.1 and `go-storage` v0.1.0 with `azureblob`, and
-never a `replace` to a sibling checkout. Start with the consumer-shaped read model (a paged,
-filtered, sorted listing anchored on the `volume` table through the published patterns), because
-it can invalidate composition-based ownership. The multi-source migrator shim follows. The session
-settles its own stage list at SETTLE. It changes no member repository, and `blobfs.sources`
-promotes the shim into `sqlate` afterward.
+`blobfs.sources`, in the `sqlate` repository: promote the experiment's multi-set migrator shim into
+`sqlate` v0.2.0 alongside the `sqlate` adjustments the architect chose to fold in at close — a
+parameterized projection base, a total mode and keyset cursor on `Directives`, a guard that returns
+the row and can carry a status predicate, verified field types, a resolved library namespace, a
+multi-line native declaration (with `sqlint` updated in lockstep, not trailing), a schema-qualified
+history check, and a mapper that flattens embedded structs. Start from
+`context/concepts/migration-sets.md` and `sqlate-library-support.md`'s "Scheduled in
+`blobfs.sources`" section; both already carry the exact shapes settled in this session's SETTLE.
+`sqlate`'s own repository does not yet have a marathon `context/`; the first session there should
+check whether to initialize one before planning the task in earnest.

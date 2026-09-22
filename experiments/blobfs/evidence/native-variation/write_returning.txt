@@ -1,0 +1,453 @@
+# Candidate 1: RETURNING for the write protocol's begin and complete steps and for Mkdir.
+# Round trips are statements sent (pgbench script lines); buffers are EXPLAIN (ANALYZE, BUFFERS)
+# top-node shared hit+read per statement, summed over a multi-statement form; wall time is the
+# median pgbench per-transaction latency (secondary, one machine).
+NOTICE:  database "blobfs_m28_write" does not exist, skipping
+psql:<stdin>:16: NOTICE:  table "gen_dir" does not exist, skipping
+psql:<stdin>:17: NOTICE:  table "gen_file" does not exist, skipping
+# fixture blobfs_m28_write: 10016 directories (incl. root), 100000 files; biggest directory 10009 files; deepest directory at depth 10
+# engine: PostgreSQL 18.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+# date: 2026-09-21
+# host: Linux 7.2.3-arch1-3 x86_64; client and server on one machine, everything in shared buffers.
+# parent of every written row: 02d013ca-7000-8000-9000-0000000013ca (the small depth-6 directory).
+
+==================== the native candidates as they would ship (sqlate spelling) ====================
+-- begin_file_write.sql (native): one round trip, the row comes back from the insert
+INSERT INTO blobfs_file AS f (id, directory_id, name, status, key, content_type)
+VALUES ({{id:uuid}}, {{directory_id:uuid}}, {{name}}, 'pending', {{key}}, {{content_type}})
+RETURNING {{> blobfs.file_columns}}
+
+-- create_directory.sql (native)
+INSERT INTO blobfs_directory AS d (id, parent_id, name)
+VALUES ({{id:uuid}}, {{parent_id:uuid}}, {{name}})
+RETURNING {{> blobfs.directory_columns}}
+
+-- complete_file_write.sql (native, plain RETURNING): one round trip on success; no row returned
+-- means the variant reads the row once (file_by_id) to tell not found / version mismatch /
+-- wrong status apart, exactly as the standard guard's check + read-back does today.
+UPDATE blobfs_file AS f
+SET status = 'available', size = {{size:bigint}}, content_type = {{content_type}}, etag = {{etag}},
+    updated_at = CURRENT_TIMESTAMP, version = f.version + 1
+WHERE f.id = {{id:uuid}} AND f.version = {{version:bigint}} AND f.status = 'pending'
+RETURNING {{> blobfs.file_columns}}
+
+-- complete_file_write.sql (native, one-statement classification): every outcome in one round
+-- trip. completed = TRUE carries the updated row; completed = FALSE carries the row as it stands
+-- (locked FOR UPDATE, so under READ COMMITTED it is the latest committed version, not the
+-- statement's snapshot) and the caller classifies by version and status; no row is not found.
+WITH completed AS (
+  UPDATE blobfs_file AS f
+  SET status = 'available', size = {{size:bigint}}, content_type = {{content_type}}, etag = {{etag}},
+      updated_at = CURRENT_TIMESTAMP, version = f.version + 1
+  WHERE f.id = {{id:uuid}} AND f.version = {{version:bigint}} AND f.status = 'pending'
+  RETURNING {{> blobfs.file_columns}}
+)
+SELECT TRUE AS completed, {{> blobfs.file_columns}} FROM completed f
+UNION ALL
+SELECT FALSE, {{> blobfs.file_columns}}
+FROM (SELECT {{> blobfs.file_columns}} FROM blobfs_file f
+      WHERE f.id = {{id:uuid}} AND NOT EXISTS (SELECT 1 FROM completed) FOR UPDATE) f
+
+==================== 1. round trips and wall time (pgbench, one client, ~200 transactions per form) ====================
+# The label names the shared setup/cleanup statements; the step's own round trips = script count minus those.
+
+---- BeginFileWrite: insert + read-back (standard) vs INSERT ... RETURNING (native); +1 cleanup delete in both ----
+begin, standard (step 2 + 1 cleanup)                  3 round trips  median    1.329 ms  p10    1.253  p90    1.611  (n=198)
+begin, native RETURNING (step 1 + 1 cleanup)          2 round trips  median    1.313 ms  p10    1.217  p90    1.549  (n=202)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 1.388 ms
+    SQL script 1: /tmp/begin_std.sql
+     - latency average = 1.400 ms
+             0.701           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.108           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.592           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/begin_ret.sql
+     - latency average = 1.370 ms
+             0.757           0 INSERT INTO blobfs_file AS f (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid
+             0.612           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+
+---- CompleteFileWrite, success: guarded update + read-back (standard) vs UPDATE ... RETURNING vs the CTE form; +1 setup insert, +1 cleanup delete ----
+complete ok, standard (step 2 + 2 shared)             4 round trips  median    1.982 ms  p10    1.889  p90    2.335  (n=186)
+complete ok, native RETURNING (step 1 + 2 shared)     3 round trips  median    1.933 ms  p10    1.847  p90    2.301  (n=198)
+complete ok, native CTE (step 1 + 2 shared)           3 round trips  median    2.123 ms  p10    2.016  p90    2.625  (n=216)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 2.132 ms
+    SQL script 1: /tmp/complete_std.sql
+     - latency average = 2.068 ms
+             0.689           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.680           0 UPDATE blobfs_file SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURRENT_T
+             0.109           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.589           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/complete_ret.sql
+     - latency average = 2.026 ms
+             0.684           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.727           0 UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURR
+             0.616           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 3: /tmp/complete_cte.sql
+     - latency average = 2.276 ms
+             0.708           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.957           0 WITH completed AS (UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n
+             0.611           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+
+---- CompleteFileWrite, version mismatch: update (0 rows) + guard check + read-back (standard, 3) vs RETURNING (0 rows) + read-back (2) vs CTE (1); +2 shared ----
+complete mismatch, standard (step 3 + 2 shared)       5 round trips  median    1.470 ms  p10    1.404  p90    1.787  (n=206)
+complete mismatch, native RETURNING (step 2 + 2 shared)  4 round trips  median    1.449 ms  p10    1.376  p90    1.807  (n=203)
+complete mismatch, native CTE (step 1 + 2 shared)     3 round trips  median    2.124 ms  p10    2.016  p90    2.568  (n=191)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 1.767 ms
+    SQL script 1: /tmp/mismatch_std.sql
+     - latency average = 1.553 ms
+             0.708           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.124           0 UPDATE blobfs_file SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURRENT_T
+             0.066           0 SELECT f.version FROM blobfs_file f WHERE f.id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+             0.068           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.587           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/mismatch_ret.sql
+     - latency average = 1.536 ms
+             0.707           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.156           0 UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURR
+             0.078           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.595           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 3: /tmp/mismatch_cte.sql
+     - latency average = 2.233 ms
+             0.707           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, content_type) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CA
+             0.917           0 WITH completed AS (UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n
+             0.608           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+
+---- CompleteFileWrite, wrong status (row available at the expected version): same shapes ----
+complete wrong status, standard (step 3 + 2 shared)   5 round trips  median    1.504 ms  p10    1.422  p90    1.829  (n=198)
+complete wrong status, native RETURNING (step 2 + 2 shared)  4 round trips  median    1.478 ms  p10    1.401  p90    1.876  (n=186)
+complete wrong status, native CTE (step 1 + 2 shared)  3 round trips  median    2.154 ms  p10    2.042  p90    2.635  (n=216)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 1.826 ms
+    SQL script 1: /tmp/status_std.sql
+     - latency average = 1.574 ms
+             0.707           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, size, content_type, etag) VALUES (CAST(lpad(to_hex(:n), 32, '0') 
+             0.125           0 UPDATE blobfs_file SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURRENT_T
+             0.066           0 SELECT f.version FROM blobfs_file f WHERE f.id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+             0.067           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.608           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/status_ret.sql
+     - latency average = 1.571 ms
+             0.726           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, size, content_type, etag) VALUES (CAST(lpad(to_hex(:n), 32, '0') 
+             0.157           0 UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURR
+             0.079           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+             0.608           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 3: /tmp/status_cte.sql
+     - latency average = 2.268 ms
+             0.718           0 INSERT INTO blobfs_file (id, directory_id, name, status, key, size, content_type, etag) VALUES (CAST(lpad(to_hex(:n), 32, '0') 
+             0.917           0 WITH completed AS (UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n
+             0.633           0 DELETE FROM blobfs_file WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+
+---- CompleteFileWrite, not found: update (0 rows) + guard check (standard, 2) vs RETURNING (0 rows) + read-back (2) vs CTE (1); no setup or cleanup ----
+complete not found, standard (step 2)                 2 round trips  median    0.116 ms  p10    0.103  p90    0.134  (n=199)
+complete not found, native RETURNING (step 2)         2 round trips  median    0.143 ms  p10    0.129  p90    0.160  (n=212)
+complete not found, native CTE (step 1)               1 round trips  median    0.236 ms  p10    0.223  p90    0.248  (n=189)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 0.174 ms
+    SQL script 1: /tmp/notfound_std.sql
+     - latency average = 0.120 ms
+             0.074           0 UPDATE blobfs_file SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURRENT_T
+             0.046           0 SELECT f.version FROM blobfs_file f WHERE f.id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/notfound_ret.sql
+     - latency average = 0.159 ms
+             0.103           0 UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n, updated_at = CURR
+             0.055           0 SELECT f.id, f.directory_id, f.name, f.status, f.key, f.size, f.content_type, f.etag, f.version, f.created_at, f.updated_at FRO
+    SQL script 3: /tmp/notfound_cte.sql
+     - latency average = 0.244 ms
+             0.244           0 WITH completed AS (UPDATE blobfs_file AS f SET status = 'available', size = 1024, content_type = 'text/plain', etag = 'e' || :n
+
+---- Mkdir: insert + read-back (standard) vs INSERT ... RETURNING (native); +1 cleanup delete in both ----
+mkdir, standard (step 2 + 1 cleanup)                  3 round trips  median    1.397 ms  p10    1.311  p90    1.752  (n=183)
+mkdir, native RETURNING (step 1 + 1 cleanup)          2 round trips  median    1.325 ms  p10    1.251  p90    1.591  (n=217)
+  per-statement average latency in ms (pgbench -r; the column after it is the failure count):
+    latency average = 1.439 ms
+    SQL script 1: /tmp/mkdir_std.sql
+     - latency average = 1.498 ms
+             0.700           0 INSERT INTO blobfs_directory (id, parent_id, name) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CAST('02d013ca-7000-8000-90
+             0.107           0 SELECT d.id, d.parent_id, d.name, d.version, d.created_at, d.updated_at FROM blobfs_directory d WHERE d.id = CAST(lpad(to_hex(:
+             0.691           0 DELETE FROM blobfs_directory WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+    SQL script 2: /tmp/mkdir_ret.sql
+     - latency average = 1.385 ms
+             0.694           0 INSERT INTO blobfs_directory AS d (id, parent_id, name) VALUES (CAST(lpad(to_hex(:n), 32, '0') AS uuid), CAST('02d013ca-7000-80
+             0.690           0 DELETE FROM blobfs_directory WHERE id = CAST(lpad(to_hex(:n), 32, '0') AS uuid);
+
+# rows left by pgbench (every script removed what it wrote; the not-found scripts wrote nothing):
+files under the parent now: 9
+
+==================== 2. buffers per statement (EXPLAIN (ANALYZE, BUFFERS), median of 5 after a warm-up, inside BEGIN ... ROLLBACK) ====================
+
+---- BeginFileWrite ----
+begin std (1/2) insert                                       plan   0.176 ms  exec    1.334 ms  buffers     68  Insert on,Result
+    Insert on blobfs_file  (cost=0.00..0.01 rows=0 width=0) (actual time=0.299..0.300 rows=0.00 loops=1)
+      Buffers: shared hit=68
+      ->  Result  (cost=0.00..0.01 rows=1 width=224) (actual time=0.002..0.002 rows=1.00 loops=1)
+    Planning:
+      Buffers: shared hit=23
+    Planning Time: 0.176 ms
+    Trigger for constraint blobfs_fk_file_directory: time=1.014 calls=1
+    Execution Time: 1.334 ms
+begin std (2/2) read-back after the insert                   plan   0.139 ms  exec    0.017 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=151) (actual time=0.008..0.008 rows=1.00 loops=1)
+      Index Cond: (id = '0000000a-0000-0000-0000-00000000ab01'::uuid)
+      Index Searches: 1
+      Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=35
+    Planning Time: 0.139 ms
+    Execution Time: 0.017 ms
+    => begin, standard, 2 statements: 72 buffers
+begin native INSERT ... RETURNING                            plan   0.186 ms  exec    0.967 ms  buffers     68  Insert on,Result
+    Insert on blobfs_file f  (cost=0.00..0.01 rows=1 width=224) (actual time=0.324..0.325 rows=1.00 loops=1)
+      Buffers: shared hit=68
+      ->  Result  (cost=0.00..0.01 rows=1 width=224) (actual time=0.002..0.002 rows=1.00 loops=1)
+    Planning:
+      Buffers: shared hit=23
+    Planning Time: 0.186 ms
+    Trigger for constraint blobfs_fk_file_directory: time=0.623 calls=1
+    Execution Time: 0.967 ms
+    => begin, native, 1 statement: 68 buffers
+
+---- CompleteFileWrite, success (pending row at version 1) ----
+complete ok std (1/2) guarded update                         plan   0.572 ms  exec    0.193 ms  buffers     16  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+    Update on blobfs_file  (cost=0.42..8.45 rows=0 width=0) (actual time=0.128..0.128 rows=0.00 loops=1)
+      Buffers: shared hit=16
+      ->  Index Scan using blobfs_pk_file on blobfs_file  (cost=0.42..8.45 rows=1 width=126) (actual time=0.031..0.032 rows=1.00 loops=1)
+            Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+            Filter: ((version = 1) AND (status = 'pending'::text))
+            Index Searches: 1
+            Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=124
+    Planning Time: 0.572 ms
+    Execution Time: 0.193 ms
+complete ok std (2/2) read-back after the update             plan   0.103 ms  exec    0.017 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=151) (actual time=0.008..0.009 rows=1.00 loops=1)
+      Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+      Index Searches: 1
+      Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=24
+    Planning Time: 0.103 ms
+    Execution Time: 0.017 ms
+    => complete ok, standard, 2 statements: 20 buffers
+complete ok native UPDATE ... RETURNING                      plan   0.939 ms  exec    0.314 ms  buffers     16  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+    Update on blobfs_file f  (cost=0.42..8.45 rows=1 width=126) (actual time=0.200..0.202 rows=1.00 loops=1)
+      Buffers: shared hit=16
+      ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.45 rows=1 width=126) (actual time=0.049..0.050 rows=1.00 loops=1)
+            Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+            Filter: ((version = 1) AND (status = 'pending'::text))
+            Index Searches: 1
+            Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=124
+    Planning Time: 0.939 ms
+    Execution Time: 0.314 ms
+    => complete ok, native RETURNING, 1 statement: 16 buffers
+complete ok native CTE                                       plan   1.232 ms  exec    0.270 ms  buffers     16  CTE Scan,Subquery Scan,Append,Update on,Filter:,Index Cond:,InitPlan,Result,idx:blobfs_pk_file
+    Append  (cost=8.45..16.95 rows=2 width=188) (actual time=0.155..0.161 rows=1.00 loops=1)
+      Buffers: shared hit=16
+      CTE completed
+        ->  Update on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.152..0.153 rows=1.00 loops=1)
+              Buffers: shared hit=16
+              ->  Index Scan using blobfs_pk_file on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.033..0.034 rows=1.00 loops=1)
+                    Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+                    Filter: ((version = 1) AND (status = 'pending'::text))
+                    Index Searches: 1
+                    Buffers: shared hit=4
+      ->  CTE Scan on completed f  (cost=0.00..0.02 rows=1 width=225) (actual time=0.155..0.155 rows=1.00 loops=1)
+            Storage: Memory  Maximum Storage: 17kB
+            Buffers: shared hit=16
+      ->  Subquery Scan on f_1  (cost=0.44..8.47 rows=1 width=152) (actual time=0.004..0.004 rows=0.00 loops=1)
+            ->  LockRows  (cost=0.44..8.46 rows=1 width=157) (actual time=0.004..0.004 rows=0.00 loops=1)
+                  InitPlan 2
+                    ->  CTE Scan on completed  (cost=0.00..0.02 rows=1 width=0) (actual time=0.003..0.003 rows=1.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                  ->  Result  (cost=0.42..8.44 rows=1 width=157) (actual time=0.004..0.004 rows=0.00 loops=1)
+                        One-Time Filter: (NOT (InitPlan 2).col1)
+                        ->  Index Scan using blobfs_pk_file on blobfs_file f_2  (cost=0.42..8.44 rows=1 width=157) (never executed)
+                              Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+                              Index Searches: 0
+    Planning:
+      Buffers: shared hit=148
+    Planning Time: 1.232 ms
+    Execution Time: 0.270 ms
+    => complete ok, native CTE, 1 statement: 16 buffers
+
+---- CompleteFileWrite, version mismatch (pending row at version 1, caller expects 7) ----
+mismatch std (1/3) guarded update, 0 rows                    plan   0.535 ms  exec    0.084 ms  buffers      4  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+    Update on blobfs_file  (cost=0.42..8.45 rows=0 width=0) (actual time=0.026..0.026 rows=0.00 loops=1)
+      Buffers: shared hit=4
+      ->  Index Scan using blobfs_pk_file on blobfs_file  (cost=0.42..8.45 rows=1 width=126) (actual time=0.025..0.025 rows=0.00 loops=1)
+            Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+            Filter: ((version = 7) AND (status = 'pending'::text))
+            Rows Removed by Filter: 1
+            Index Searches: 1
+            Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=124
+    Planning Time: 0.535 ms
+    Execution Time: 0.084 ms
+mismatch std (2/3) guard check file_version                  plan   0.656 ms  exec    0.099 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=8) (actual time=0.038..0.039 rows=1.00 loops=1)
+      Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+      Index Searches: 1
+      Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=85
+    Planning Time: 0.656 ms
+    Execution Time: 0.099 ms
+mismatch std (3/3) read-back to classify                     plan   0.420 ms  exec    0.078 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.44 rows=1 width=151) (actual time=0.022..0.022 rows=1.00 loops=1)
+      Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+      Index Searches: 1
+      Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=112
+    Planning Time: 0.420 ms
+    Execution Time: 0.078 ms
+    => mismatch, standard, 3 statements: 12 buffers
+mismatch native (1/2) UPDATE ... RETURNING, 0 rows           plan   0.958 ms  exec    0.148 ms  buffers      4  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+    Update on blobfs_file f  (cost=0.42..8.45 rows=1 width=126) (actual time=0.045..0.045 rows=0.00 loops=1)
+      Buffers: shared hit=4
+      ->  Index Scan using blobfs_pk_file on blobfs_file f  (cost=0.42..8.45 rows=1 width=126) (actual time=0.044..0.044 rows=0.00 loops=1)
+            Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+            Filter: ((version = 7) AND (status = 'pending'::text))
+            Rows Removed by Filter: 1
+            Index Searches: 1
+            Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=124
+    Planning Time: 0.958 ms
+    Execution Time: 0.148 ms
+mismatch native (2/2) read-back to classify                  plan   0.831 ms  exec    0.113 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    => mismatch, native RETURNING, 2 statements: 8 buffers
+mismatch native CTE, completed = false                       plan   1.382 ms  exec    0.192 ms  buffers      9  CTE Scan,Subquery Scan,Append,Update on,Filter:,Index Cond:,InitPlan,Result,idx:blobfs_pk_file
+    Append  (cost=8.45..16.95 rows=2 width=188) (actual time=0.061..0.063 rows=1.00 loops=1)
+      Buffers: shared hit=9
+      CTE completed
+        ->  Update on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.031..0.032 rows=0.00 loops=1)
+              Buffers: shared hit=4
+              ->  Index Scan using blobfs_pk_file on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.030..0.030 rows=0.00 loops=1)
+                    Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+                    Filter: ((version = 7) AND (status = 'pending'::text))
+                    Rows Removed by Filter: 1
+                    Index Searches: 1
+                    Buffers: shared hit=4
+      ->  CTE Scan on completed f  (cost=0.00..0.02 rows=1 width=225) (actual time=0.032..0.032 rows=0.00 loops=1)
+            Storage: Memory  Maximum Storage: 17kB
+            Buffers: shared hit=4
+      ->  Subquery Scan on f_1  (cost=0.44..8.47 rows=1 width=152) (actual time=0.029..0.030 rows=1.00 loops=1)
+            Buffers: shared hit=5
+            ->  LockRows  (cost=0.44..8.46 rows=1 width=157) (actual time=0.028..0.029 rows=1.00 loops=1)
+                  Buffers: shared hit=5
+                  InitPlan 2
+                    ->  CTE Scan on completed  (cost=0.00..0.02 rows=1 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                  ->  Result  (cost=0.42..8.44 rows=1 width=157) (actual time=0.009..0.009 rows=1.00 loops=1)
+                        One-Time Filter: (NOT (InitPlan 2).col1)
+                        Buffers: shared hit=4
+                        ->  Index Scan using blobfs_pk_file on blobfs_file f_2  (cost=0.42..8.44 rows=1 width=157) (actual time=0.008..0.008 rows=1.00 loops=1)
+                              Index Cond: (id = '0000000a-0000-0000-0000-00000000aa01'::uuid)
+                              Index Searches: 1
+                              Buffers: shared hit=4
+    Planning:
+      Buffers: shared hit=148
+    Planning Time: 1.382 ms
+    Execution Time: 0.192 ms
+    => mismatch, native CTE, 1 statement: 9 buffers
+
+---- CompleteFileWrite, wrong status (available row at version 1, caller expects 1) ----
+status std (1/3) guarded update, 0 rows                      plan   0.577 ms  exec    0.092 ms  buffers      4  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+status std (2/3) guard check file_version                    plan   0.654 ms  exec    0.099 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+status std (3/3) read-back to classify                       plan   0.603 ms  exec    0.084 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    => wrong status, standard, 3 statements: 12 buffers
+status native (1/2) UPDATE ... RETURNING, 0 rows             plan   0.603 ms  exec    0.094 ms  buffers      4  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+status native (2/2) read-back to classify                    plan   0.522 ms  exec    0.081 ms  buffers      4  Index Cond:,idx:blobfs_pk_file
+    => wrong status, native RETURNING, 2 statements: 8 buffers
+status native CTE, completed = false                         plan   1.220 ms  exec    0.257 ms  buffers      9  CTE Scan,Subquery Scan,Append,Update on,Filter:,Index Cond:,InitPlan,Result,idx:blobfs_pk_file
+    => wrong status, native CTE, 1 statement: 9 buffers
+
+---- CompleteFileWrite, not found ----
+not found std (1/2) guarded update, 0 rows                   plan   0.621 ms  exec    0.104 ms  buffers      3  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+not found std (2/2) guard check file_version, 0 rows         plan   0.652 ms  exec    0.091 ms  buffers      3  Index Cond:,idx:blobfs_pk_file
+    => not found, standard, 2 statements: 6 buffers
+not found native (1/2) UPDATE ... RETURNING, 0 rows          plan   0.675 ms  exec    0.094 ms  buffers      3  Update on,Filter:,Index Cond:,idx:blobfs_pk_file
+not found native (2/2) read-back, 0 rows                     plan   0.813 ms  exec    0.106 ms  buffers      3  Index Cond:,idx:blobfs_pk_file
+    => not found, native RETURNING, 2 statements: 6 buffers
+not found native CTE, no row                                 plan   0.676 ms  exec    0.142 ms  buffers      6  CTE Scan,Subquery Scan,Append,Update on,Filter:,Index Cond:,InitPlan,Result,idx:blobfs_pk_file
+    Append  (cost=8.45..16.95 rows=2 width=188) (actual time=0.038..0.039 rows=0.00 loops=1)
+      Buffers: shared hit=6
+      CTE completed
+        ->  Update on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.030..0.030 rows=0.00 loops=1)
+              Buffers: shared hit=3
+              ->  Index Scan using blobfs_pk_file on blobfs_file f_3  (cost=0.42..8.45 rows=1 width=126) (actual time=0.028..0.029 rows=0.00 loops=1)
+                    Index Cond: (id = '0000000a-0000-0000-0000-00000000ab09'::uuid)
+                    Filter: ((version = 1) AND (status = 'pending'::text))
+                    Index Searches: 1
+                    Buffers: shared hit=3
+      ->  CTE Scan on completed f  (cost=0.00..0.02 rows=1 width=225) (actual time=0.031..0.031 rows=0.00 loops=1)
+            Storage: Memory  Maximum Storage: 17kB
+            Buffers: shared hit=3
+      ->  Subquery Scan on f_1  (cost=0.44..8.47 rows=1 width=152) (actual time=0.007..0.007 rows=0.00 loops=1)
+            Buffers: shared hit=3
+            ->  LockRows  (cost=0.44..8.46 rows=1 width=157) (actual time=0.007..0.007 rows=0.00 loops=1)
+                  Buffers: shared hit=3
+                  InitPlan 2
+                    ->  CTE Scan on completed  (cost=0.00..0.02 rows=1 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+                          Storage: Memory  Maximum Storage: 17kB
+                  ->  Result  (cost=0.42..8.44 rows=1 width=157) (actual time=0.006..0.006 rows=0.00 loops=1)
+                        One-Time Filter: (NOT (InitPlan 2).col1)
+                        Buffers: shared hit=3
+                        ->  Index Scan using blobfs_pk_file on blobfs_file f_2  (cost=0.42..8.44 rows=1 width=157) (actual time=0.005..0.005 rows=0.00 loops=1)
+                              Index Cond: (id = '0000000a-0000-0000-0000-00000000ab09'::uuid)
+                              Index Searches: 1
+                              Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=148
+    Planning Time: 0.676 ms
+    Execution Time: 0.142 ms
+    => not found, native CTE, 1 statement: 6 buffers
+
+---- Mkdir ----
+mkdir std (1/2) insert                                       plan   0.190 ms  exec    0.734 ms  buffers     89  Insert on,Result
+    Insert on blobfs_directory  (cost=0.00..0.01 rows=0 width=0) (actual time=0.333..0.333 rows=0.00 loops=1)
+      Buffers: shared hit=89
+      ->  Result  (cost=0.00..0.01 rows=1 width=88) (actual time=0.001..0.001 rows=1.00 loops=1)
+    Planning:
+      Buffers: shared hit=32
+    Planning Time: 0.190 ms
+    Trigger for constraint blobfs_fk_directory_parent: time=0.383 calls=1
+    Execution Time: 0.734 ms
+mkdir std (2/2) read-back after the insert                   plan   0.052 ms  exec    0.013 ms  buffers      3  Index Cond:,idx:blobfs_pk_directory
+    Index Scan using blobfs_pk_directory on blobfs_directory d  (cost=0.29..8.30 rows=1 width=61) (actual time=0.006..0.006 rows=1.00 loops=1)
+      Index Cond: (id = '0000000a-0000-0000-0000-00000000ab01'::uuid)
+      Index Searches: 1
+      Buffers: shared hit=3
+    Planning:
+      Buffers: shared hit=15
+    Planning Time: 0.052 ms
+    Execution Time: 0.013 ms
+    => mkdir, standard, 2 statements: 92 buffers
+mkdir native INSERT ... RETURNING                            plan   0.310 ms  exec    1.289 ms  buffers     89  Insert on,Result
+    Insert on blobfs_directory d  (cost=0.00..0.01 rows=1 width=88) (actual time=0.595..0.596 rows=1.00 loops=1)
+      Buffers: shared hit=89
+      ->  Result  (cost=0.00..0.01 rows=1 width=88) (actual time=0.002..0.002 rows=1.00 loops=1)
+    Planning:
+      Buffers: shared hit=32
+    Planning Time: 0.310 ms
+    Trigger for constraint blobfs_fk_directory_parent: time=0.665 calls=1
+    Execution Time: 1.289 ms
+    => mkdir, native, 1 statement: 89 buffers
+
+==================== 3. outcomes the CTE form returns (functional check; columns: completed|id|directory_id|name|status|key|size|content_type|etag|version|created_at|updated_at) ====================
+-- pending row at version 1, caller expects 1: completed = t, the row as updated
+   t|0000000a-0000-0000-0000-00000000aa01|02d013ca-7000-8000-9000-0000000013ca|pend.txt|available|0000000a-0000-0000-0000-00000000aa01/pend.txt|1024|text/plain|e1|2|2026-09-21 22:38:33.82197+00|2026-09-21 22:38:43.375726+00
+-- pending row at version 1, caller expects 7: completed = f, the row unchanged (version 1 <> 7: a version mismatch)
+   f|0000000a-0000-0000-0000-00000000aa01|02d013ca-7000-8000-9000-0000000013ca|pend.txt|pending|0000000a-0000-0000-0000-00000000aa01/pend.txt||text/plain||1|2026-09-21 22:38:33.82197+00|2026-09-21 22:38:43.375726+00
+   (1 row(s))
+-- available row at version 1, caller expects 1: completed = f, the row unchanged (version matches, status is not pending: a transition refusal)
+   f|0000000a-0000-0000-0000-00000000aa02|02d013ca-7000-8000-9000-0000000013ca|avail.txt|available|0000000a-0000-0000-0000-00000000aa02/avail.txt|1024|text/plain|e|1|2026-09-21 22:38:33.830891+00|2026-09-21 22:38:33.830891+00
+   (1 row(s))
+-- no row: nothing comes back (not found)
+   (0 row(s))
