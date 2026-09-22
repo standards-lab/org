@@ -37,18 +37,19 @@
 # design/concepts split (concepts/flat-context.md), first-class isolated experiments outside the
 # workspace tree (concepts/isolated-experiments.md), and roadmap waves for parallel-safe
 # sequencing (concepts/roadmap-waves.md) — plus the migrations those changes require at this
-# repository and go-web-service, gathered as new tasks under goals.v1.harness. The work exists
+# repository and go-web-service, gathered as new tasks under goals.v1.harness. The four
+# claude-plugins changes run as one session, workflow-refinement, rather than four, and the two
+# repositories' context migrations run as one cross-repo session, context-migration, rather than
+# two: the architect judged both delicate enough to want one continuous session's attention each,
+# and the claude-plugins changes land in the same repository and touch overlapping files
+# regardless. The work exists
 # because the per-stage review cadence and the single-session-per-workspace limit were exposing
 # real friction, most visibly the wish to run v1.messaging and v1.ai in parallel once planned;
 # landing it first means every session after it, including blobfs.sources, runs under the
 # improved workflow instead of needing a later retrofit.
 next = [
-  "v1.harness.autonomy",
-  "v1.harness.flat-context",
-  "v1.harness.isolated-experiments",
-  "v1.harness.roadmap-waves",
-  "v1.harness.context-migration-coordinator",
-  "v1.harness.context-migration-service",
+  "v1.harness.workflow-refinement",
+  "v1.harness.context-migration",
   "blobfs.sources",
   "blobfs.build",
   "blobfs.admin",
@@ -388,82 +389,50 @@ held, adopted here as this goal's own tasks; none is yet in `next`.
 '''
 context = ["standards-lab/context/concepts/tooling-principles.md"]
 
-[goals.v1.harness.tasks.autonomy]
-name = "Checkpoint execution and the closing branch review"
+[goals.v1.harness.tasks.workflow-refinement]
+name = "Checkpoint execution, flat context, isolated experiments, and roadmap waves"
 repos = ["claude-plugins"]
 summary = '''
-Replace per-stage architect review with autonomous stage commits gated by behavioral checkpoints
-settled into the stage list, plus a closing branch-review step in `close` that defaults to a
-project's declared review agent and produces an overview/changelog/verification report. The
-review's alignment check defaults to ecosystem idiom, never an assumed architecture. marathon
-0.13.0.
+One session, not four: checkpoint execution replacing per-stage review plus the closing
+branch-review/report pattern (concepts/checkpoint-execution.md); the flat context/ tier replacing
+design/concepts, including marathon-architecture's promotion-source update
+(concepts/flat-context.md); first-class isolated experiments outside the workspace tree
+(concepts/isolated-experiments.md); and roadmap waves plus the active list in marathon-roadmap
+(concepts/roadmap-waves.md). Run as a single session because all four land in the same
+repository, touch overlapping files (pipeline.md, close.md, init.md), and would execute
+sequentially either way; the architect judged the combined change delicate enough to want one
+continuous session's attention rather than four disjoint ones with a reinstall between each.
+marathon -> 0.13.0, marathon-architecture -> 0.2.0, marathon-roadmap -> 0.2.0, one release.
 '''
-proof = "scripts/check.sh passes; the reinstalled 0.13.0 skill runs a start session whose stages commit without pausing, whose checkpoints stop exactly where the stage list places them, and whose close fires the declared review agent's branch review and produces the report."
-context = ["claude-plugins/context/concepts/checkpoint-execution.md"]
+proof = "scripts/check.sh passes; the reinstalled skill and extensions run a start session whose stages commit without pausing, whose checkpoints stop where the stage list places them, whose close fires the declared review agent's branch review, whose context/ is flat with no design/ or concepts/ reference, whose experiment command offers the isolated grain, and whose roadmap.toml parses in both flat and wave form."
+context = [
+  "claude-plugins/context/concepts/checkpoint-execution.md",
+  "claude-plugins/context/concepts/flat-context.md",
+  "claude-plugins/context/concepts/isolated-experiments.md",
+  "claude-plugins/context/concepts/roadmap-waves.md",
+]
 
-[goals.v1.harness.tasks.flat-context]
-name = "Flatten context/design and context/concepts into one tier"
-repos = ["claude-plugins"]
+[goals.v1.harness.tasks.context-migration]
+name = "Migrate design/ and concepts/ notes to flat context/, coordinator and service together"
+repos = ["standards-lab", "go-web-service"]
 summary = '''
-Collapse the two-tier context model to flat `context/*.md` notes with no `design/` or `concepts/`
-subdirectory; a note states its own settledness instead of the directory doing it. Decay inverts:
-a note is deleted once built work or its own documentation expresses it. `marathon-architecture`'s
-promotion source moves from `design/` to `context/`. marathon 0.14.0, marathon-architecture 0.2.0.
+One cross-repo session, not two: disposition every note under context/design/ and
+context/concepts/ at both standards-lab (15 notes) and go-web-service (4 notes) into one of four
+outcomes — moved to flat context/ with a status line, split (built-work reasoning moved to the
+owning repository's own docs as a Cross-repo edit), promoted to the architecture repository, or
+collapsed into that repository's own CLAUDE.md. Rewrite standards-lab's next as waves and add
+active. The two repositories share no dependency, but the architect chose one session over two,
+consistent with workflow-refinement; the stage list groups by repository per the coordinator's
+order map (standards-lab as coordinator, go-web-service downstream), one branch per repository
+under a shared slug. Depends on workflow-refinement landing and being reinstalled; likely more
+than one sitting given the volume and the Cross-repo edits several standards-lab notes require
+into go-storage and go-observability.
 '''
-proof = "scripts/check.sh passes; the reinstalled 0.14.0 skill and marathon-architecture 0.2.0 read and write flat context/ notes correctly, with no remaining design/ or concepts/ reference in either."
-context = ["claude-plugins/context/concepts/flat-context.md"]
-
-[goals.v1.harness.tasks.isolated-experiments]
-name = "First-class isolated experiments outside the workspace tree"
-repos = ["claude-plugins"]
-summary = '''
-A standalone marathon project (`~/experiments/<slug>`, architect's own convention) declaring
-`[experiment] workspace = "<coordinator key>"`, connected back to the workspace read-only through
-the references convention, graduated by a coordinator `plan` session reading the closed
-experiment rather than the experiment writing into the workspace. marathon 0.15.0.
-'''
-proof = "scripts/check.sh passes; the reinstalled 0.15.0 experiment command offers the isolated grain, and running it against a throwaway ~/experiments/ slug produces an independent context/reset.md the coordinator's own session never touches."
-context = ["claude-plugins/context/concepts/isolated-experiments.md"]
-
-[goals.v1.harness.tasks.roadmap-waves]
-name = "Roadmap waves and the active list"
-repos = ["claude-plugins"]
-summary = '''
-`next` becomes a list of waves in the same shape `[workspace] order` already uses (a string, or
-an array of concurrent peers); a root `active` list tracks tasks in flight outside the
-coordinator's own session, populated when an isolated experiment starts. marathon-roadmap 0.2.0.
-'''
-proof = "roadmap.toml continues to parse under marathon-roadmap 0.2.0's manifest schema in both flat and wave form; on-start correctly reports the current wave and which of its members are active."
-context = ["claude-plugins/context/concepts/roadmap-waves.md"]
-
-[goals.v1.harness.tasks.context-migration-coordinator]
-name = "Migrate standards-lab's design/ and concepts/ notes to flat context/"
-repos = ["standards-lab"]
-summary = '''
-Disposition each of the 15 notes under context/design/ and context/concepts/: moved to flat
-context/ with a status line, split (built-work reasoning moved to the owning repository's own
-docs as a Cross-repo edit), promoted to the architecture repository, or collapsed into this
-repository's own CLAUDE.md. Rewrite next as waves and add active. Depends on flat-context and
-roadmap-waves landing; likely two sessions given the Cross-repo edits several notes require into
-go-storage and go-observability.
-'''
-proof = "no remaining reference to context/design/ or context/concepts/ in standards-lab; every roadmap context = [...] citation still resolves; next expressed as waves with active present."
+proof = "no remaining reference to context/design/ or context/concepts/ in either repository; every roadmap context = [...] citation and every cross-repository note citation still resolves; standards-lab's next is expressed as waves with active present."
 context = [
   "claude-plugins/context/concepts/flat-context.md",
   "claude-plugins/context/concepts/roadmap-waves.md",
 ]
-
-[goals.v1.harness.tasks.context-migration-service]
-name = "Migrate go-web-service's design/ and concepts/ notes to flat context/"
-repos = ["go-web-service"]
-summary = '''
-The same disposition pass as context-migration-coordinator, scoped to go-web-service's 4 notes
-under context/design/ and context/concepts/. Depends on flat-context landing; independent of
-context-migration-coordinator (no shared repository), so the two may run in either order or, once
-roadmap-waves has landed, in the same wave.
-'''
-proof = "no remaining reference to context/design/ or context/concepts/ in go-web-service; every note elsewhere in the workspace that cites one of its notes still resolves."
-context = ["claude-plugins/context/concepts/flat-context.md"]
 
 [goals.v1.harness.tasks.sitrep]
 name = "The marathon-sitrep extension"

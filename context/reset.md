@@ -18,11 +18,15 @@
   a coordinator `plan` session reading the closed experiment), and `roadmap-waves.md` (`next` as a
   list of waves in the shape `[workspace] order` already uses, plus a root `active` list). Each
   states what it touches and the open questions left for its implementing session.
-- **Roadmap:** six new tasks under `goals.v1.harness.tasks` (`autonomy`, `flat-context`,
-  `isolated-experiments`, `roadmap-waves`, `context-migration-coordinator`,
-  `context-migration-service`), moved to the head of `next` ahead of `blobfs.sources` — the third
-  sequence jump the header comment narrates. `blobfs.sources` and everything after it is
-  unaffected in substance, only in when it starts.
+- **Roadmap:** two new tasks under `goals.v1.harness.tasks` (`workflow-refinement`,
+  `context-migration`), moved to the head of `next` ahead of `blobfs.sources` — the third sequence
+  jump the header comment narrates. `workflow-refinement` consolidates what was drafted as four
+  separate `claude-plugins` tasks (checkpoint execution, flat context, isolated experiments,
+  roadmap waves) into one session; `context-migration` consolidates what was drafted as two
+  separate repository reviews (`standards-lab`, `go-web-service`) into one cross-repo session. Both
+  consolidations are the architect's direction — each combined change is delicate enough to want
+  one continuous session's attention. `blobfs.sources` and everything after it is unaffected in
+  substance, only in when it starts.
 - **Cleanup:** four unused plugins uninstalled directly (`claude plugin uninstall`), not through a
   marathon session, per the architect's confirmation they're unused on this workspace or any
   active project: `dev-workflow`, `iterative-dev`, `project-management`, `go-patterns` (all
@@ -35,15 +39,17 @@
 
 ## Next-focus
 
-`v1.harness.autonomy`, in the `claude-plugins` repository: a `start` session implementing
-checkpoint execution and the closing branch-review pattern. Start from
-`context/concepts/checkpoint-execution.md`, which carries the settled design and the open
-questions left for SETTLE (report file location/lifecycle, whether `[agents]` needs a review-role
-key, whether Interrupt needs a hook). The session ends with `scripts/check.sh` passing and marathon
-reinstalled at 0.13.0; reinstalling is required before the new pipeline is the one actually running
-(`claude-plugins/CLAUDE.md`: "changes here take effect once reinstalled"). `v1.harness.flat-context`
-follows it, then `v1.harness.isolated-experiments`, then `v1.harness.roadmap-waves` — all four stay
-in `claude-plugins` and touch overlapping files (`pipeline.md`, `close.md`, `init.md`), so they run
-in sequence, not parallel, even once roadmap waves exist to express parallelism. The two
-context-migration tasks and the first two isolated experiments (`v1.messaging`, `v1.ai`) wait
-behind them, per the roadmap's own dependency ordering.
+`v1.harness.workflow-refinement`, in the `claude-plugins` repository: one `start` session
+implementing all four settled changes — checkpoint execution and the closing branch-review
+pattern, the flat `context/` tier, isolated experiments, and roadmap waves. Start from the four
+concept notes in dependency order: `context/concepts/checkpoint-execution.md`,
+`flat-context.md`, `isolated-experiments.md`, `roadmap-waves.md` — each carries its own settled
+design and the open questions left for that portion's stages (report file location/lifecycle,
+whether `[agents]` needs a review-role key, whether Interrupt needs a hook, and so on). Stage the
+session's own list by the same order; each note's "Files this touches" section names where the
+stages land. The session ends with `scripts/check.sh` passing and marathon 0.13.0,
+marathon-architecture 0.2.0, and marathon-roadmap 0.2.0 all reinstalled — reinstalling is required
+before the new pipeline is the one actually running (`claude-plugins/CLAUDE.md`: "changes here
+take effect once reinstalled"). `v1.harness.context-migration` — one cross-repo session covering
+both `standards-lab` and `go-web-service` — and the first two isolated experiments (`v1.messaging`,
+`v1.ai`) wait behind it, per the roadmap's own dependency ordering.
