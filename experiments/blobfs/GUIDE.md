@@ -157,6 +157,7 @@ a sort on a column that can be NULL like `size`, so read the next page by number
 Files: `lib/blobfs/data/cursor.go`, and the paging logic in `lib/blobfs/data/listing.go`.
 
 ```bash
+bfs ls /reports --size 3 --total none --cursors
 C=$(bfs ls /reports --size 3 --total none --cursors | sed -n 's/^next-dirs: //p')
 bfs ls /reports --size 3 --after-dirs "$C"
 bfs ls /reports --size 3 --after-dirs "${C}x"                  # refused: edited
