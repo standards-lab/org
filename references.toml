@@ -69,11 +69,6 @@ standard = "go-elemental"
 [repos.sqlate]
 remote = "https://github.com/standards-lab/sqlate.git"
 
-# External references — repositories outside the effort, cited as illustrations.
-# The maintainer's user-scoped Claude Code configuration, symlinked into ~/.claude.
-[repos.claude-settings]
-remote = "https://github.com/JaimeStill/claude-settings.git"
-
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"

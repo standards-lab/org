@@ -121,7 +121,7 @@ schema dependent on nothing in any domain's own tables, matching the Go package 
 domain packages import the root `auth` package, never the reverse — and it is what makes the authorization
 schema portable if organization or grants are ever extracted into their own service (§9).
 
-`person.id` stays the stable anchor `identity-linking.md` states: a UUID never reused, free of
+`person.id` stays the data layer's stable anchor: a UUID never reused, free of
 authentication meaning. It additionally is a `subject.id`; the anchor adds authorization vocabulary to
 it, not authentication vocabulary, and the promise the data layer makes about it is unchanged.
 
@@ -167,7 +167,7 @@ one, and native tier only for that one conditional case.
 The companion requirement on `sqlint`: a `scope` check in the `statements` role, verifying every
 projection base under its configured globs includes at least one configured scope pattern, with per-glob
 exemptions for reference data no subject's grant should ever need to reach (a catalog table, for
-instance). This is the same declaration-plus-lint discipline `dsl-driven-services.md` §2.3 chose for the
+instance). This is the same declaration-plus-lint discipline the DSL-driven services principle ("Which artifact is portable") chose for the
 dialect axis, closing the one silent failure the model has: a read model whose author forgot its scope
 include, unauthorized and passing every test written about it.
 
@@ -339,8 +339,8 @@ already in hand; the dominant read here is a paged collection, where the questio
 subject may see, not a decision about one. Answering that with ABAC means either fetching everything and
 filtering in the application, wrong at any size and incompatible with a correct paging total, or partial
 evaluation of the policy into a database filter — making a policy engine responsible for generating SQL
-this architecture deliberately authors by hand. It is also a second DSL-driven service (`dsl-driven-services.md`
-§2.1 names Rego and Cedar as exactly this category): a second language with expressive content the host
+this architecture deliberately authors by hand. It is also a second DSL-driven service (the DSL-driven services principle's
+"The two categories of infrastructure service" names Rego and Cedar as exactly this category): a second language with expressive content the host
 cannot type-check, its own runtime, its own release cadence, its own vulnerability history, on the
 request path of every endpoint. Revisit only for a genuinely attribute-shaped, resource-in-hand
 requirement — time-boxed access, break-glass, IP restriction — each expressible as a condition column on
@@ -358,7 +358,7 @@ permission — SpiceDB's `LookupResources` degrades past roughly 10,000 permitte
 Materialize) is commercial-only. The swap class across candidates is schema-bound: SpiceDB's, OpenFGA's,
 and Ory's schema languages are three incompatible languages, so committing to one on the information one
 service has about a fundamentally cross-service problem is the expensive mistake this architecture avoids
-elsewhere by keeping SQL the one portable artifact (`dsl-driven-services.md` §2.3). If this ever becomes
+elsewhere by keeping SQL the one portable artifact (the DSL-driven services principle, "Which artifact is portable"). If this ever becomes
 the right tool, OpenFGA is the better candidate of the two: per-store isolated, immutable versioned
 schemas callers pin explicitly, versus SpiceDB's one mutable global schema per cluster with no
 per-caller pinning.

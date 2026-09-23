@@ -59,8 +59,8 @@ workflow plugin and its `marathon-roadmap` and `marathon-architecture` extension
 ### architecture
 The organization's architecture layer: the canonical home for its architectures, standards,
 principles, and a catalog of the repositories that implement them, published as plain markdown
-with YAML front matter. The workspace's architecture repository
-(`context/design/architecture-layer.md`); anticipated host content for the organization documentation site.
+with YAML front matter. The workspace's architecture repository, and
+anticipated host content for the organization documentation site.
 
 ### org
 This repository: the workspace context that coordinates the organization — `context/`, the
@@ -128,16 +128,6 @@ sub-module. A standalone library any Go project can adopt, adjacent to the `go-e
 standard rather than a member of it: the standard's libraries consume it, and it is the
 blueprint for how a domain-specific language gains host-language support. The base module
 depends on the standard library alone; the base and each sub-module are tagged independently.
-
-## External references
-
-Repositories outside the effort, cited as illustrations.
-
-### claude-settings
-The maintainer's user-scoped Claude Code configuration, kept under source control on a personal
-account and symlinked into `~/.claude`: identity-level behavior (`behavior/`) loaded with every
-session, per-tool notes (`tools/`) consulted on demand. Illustrates the user-scope harness
-programming responsibility layer the docs harness pages describe.
 
 ## Prior R&D — Go web service architecture
 

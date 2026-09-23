@@ -32,7 +32,7 @@ The name `blobfs` stays. The final module path is checked against `repository-to
 
 ### Why a separate library
 
-`dsl-driven-services.md` §2.1 classifies object storage as protocol-driven and SQL as the
+The DSL-driven services principle ("The two categories of infrastructure service") classifies object storage as protocol-driven and SQL as the
 organization's one DSL-driven capability. If the virtual-directory metadata lived inside
 `go-storage`, that library would own SQL text and schema, duplicating the reason `sqlate` exists.
 Keeping `go-storage` protocol-driven (go-storage's `docs/design.md`) and putting the SQL-backed
@@ -335,7 +335,7 @@ at a time; that path is worse for the first consumer and is taken only if `sourc
   the five tiers, which makes `repository-topology.md`'s "every module repository of a standard
   belongs to exactly one" false unless adjacency is named as a position; the trigger is
   `blobfs.build`. A library shipping its own object namespace as a migration source amends
-  `baseline-standards.md`, which says nothing above the standard tier may harden into a library's
+  go-elemental's `baseline-standards.md`, which says nothing above the standard tier may harden into a library's
   contract; the trigger is `go-auth` as the second shipper.
 
 ## Assumptions
