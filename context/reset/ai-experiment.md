@@ -35,12 +35,12 @@
       harness in `v1.harness.local-models`, and go-ai and the service layer here. go-ai's
       two-surface shape and tau's retirement depend on spike-harness-driver.
     - Add `context = ["standards-lab/context/ai-strategy.md", "standards-lab/context/ai-hosting.md"]`.
-  - `goals.v1.ai.tasks.experiment`: the plan session and the spike-harness-driver session are
-    done. Two `experiment` sessions remain, run in order:
-    - setting up spike-local-subagents
-    - adopting personal-agents as the hosting spike
-
-    Each session catalogs its experiment. The task stays in `next`.
+  - `goals.v1.ai.tasks.experiment` stays in `next`. Its summary becomes: the three spikes' setup
+    (spike-harness-driver, then spike-local-subagents, then personal-agents adopted as the hosting
+    spike), each spike's run through its own path, and one combined intake session after all
+    three close. The intake session's close records the task's deletion.
+  - The `next` header comment's lane-as-goal rule is recorded once, in the messaging-experiment
+    lane's record, and this lane follows it.
   - Add `goals.v1.ai.tasks.hosting`, the task `v1.ai` opens on:
     - name "The ai-hosting specification repository"
     - repos `["ai-hosting", "architecture", "standards-lab"]`
@@ -69,17 +69,37 @@
     matches `origin/main`. The architect confirmed the publish.
   - Every path, section name, and roadmap path this record and `ai-strategy.md` cite resolves.
   - The editor pass ran on Opus over this record and the changed `ai-strategy.md` passages.
+  - The architect's calls after the first publish: the lane runs until its spikes' results are
+    taken in, through one combined intake session. spike-harness-driver's `main` now carries its
+    six-step path, pushed.
 
 ## Next-focus
 
-`goals.v1.ai.tasks.experiment`, third session. This is an `experiment` session in standards-lab
-that sets up spike-local-subagents:
+The lane stays open until all three spikes finish and their results are taken in. Its remaining
+steps, in order:
 
-- the local directory is `~/experiments/spike-local-subagents`
-- the remote is `github.com/JaimeStill/spike-local-subagents`
-- the question and the decision come from `context/ai-strategy.md`, "Experiment:
-  spike-local-subagents"
+1. `goals.v1.ai.tasks.experiment`, third session: an `experiment` session here that sets up
+   spike-local-subagents.
+   - The local directory is `~/experiments/spike-local-subagents`.
+   - The remote is `github.com/JaimeStill/spike-local-subagents`.
+   - The question and the decision come from `context/ai-strategy.md`, "Experiment:
+     spike-local-subagents".
+   - The spike's README gets a path whose last step answers the question.
 
-Its catalog entry goes in this lane's Disposition and is applied at the wave fold. One session
-follows: adopting personal-agents as the hosting spike (`context/ai-hosting.md`). After that, the
-lane is finished.
+   Its catalog entry goes in this lane's Disposition and is applied at the wave fold.
+2. An `experiment` session here that adopts personal-agents as the hosting spike
+   (`context/ai-hosting.md`). It gives the spike a path the same way.
+3. The spikes' own `start` sessions, each run in its project from that project's own reset file
+   and following the path in its `context/README.md`. spike-harness-driver's path has six steps,
+   and step 1 is the session interface and a Pi adapter. The spikes never edit this repository,
+   so this record doesn't change while they run.
+4. After all three spikes' final closes, one `plan` session here on `v1.ai.experiment`. It reads
+   each close Disposition (the question, the answer, and the evidence), and decides with the
+   architect:
+   - go-ai's shape, and whether a service's container carries a harness
+   - the `v1.harness.local-models` convention
+   - what `v1.ai.hosting` builds
+
+   It records the decisions as notes, and as roadmap edits for the fold. It confirms each spike
+   is pushed, archives the spikes' remotes (personal-agents stays until `v1.ai.hosting`), and
+   writes `Lane finished.` here. If that finishes the wave's last lane, it folds the wave.
