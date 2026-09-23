@@ -1,2 +1,0 @@
---| tier: standard
- WHERE {{predicates}}
