@@ -78,6 +78,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   `sqlate-library-support.md` — the blobfs library, its proposed API, how a consumer composes it,
   what a shipped migration set requires of its shipper and consumers, and what sqlate needs to
   host a library.
+- `messaging.md`, with `messaging-api.md` — the event and reactor layer: the messaging
+  experiment's question, its decisions, and the capability ledger, and the API the experiment
+  starts from.
 - `staged-query-aggregation.md` — composing staged cross-service queries into one response.
 - `elemental-runtime-layers.md` — the elemental layers beyond the app class.
 - `docs-site.md` — the organization documentation site.
