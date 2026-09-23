@@ -119,7 +119,8 @@ A `subject` anchor table is the authorization model's root: `subject(id, kind)`,
 ('human','machine')`. `person` is one kind, sharing its primary key with its subject row through a
 composite foreign key (`person(id, kind) REFERENCES subject(id, kind)`, `CHECK (kind = 'human')`) — the
 standard-tier supertype/subtype pattern. The identity link table (issuer, subject claim, unique per
-identity) references `subject_id`, not `person_id`; so does `unit_grant`. This keeps the authorization
+identity) references `subject_id`, not `person_id`; so does `unit_grant`. A subject may carry more
+than one identity, as a provider migration requires, and an identity maps to exactly one subject. This keeps the authorization
 schema dependent on nothing in any domain's own tables, matching the Go package dependency it mirrors —
 domain packages import the root `auth` package, never the reverse — and it is what makes the authorization
 schema portable if organization or grants are ever extracted into their own service (§9).
@@ -156,9 +157,9 @@ one hop with no signature to put it on — middleware to handler — and nowhere
 
 ## 4. The sqlate requirement
 
-A sqlate projection base may bind its own parameters, arity one. This is what lets the scope predicate
-reach a read model's base statement at all — today a projection base may declare none. The requirement
-is exactly this lift, nothing more: base arguments occupy the leading placeholder positions, filter
+A sqlate projection base binds its own parameters, arity one, and sqlate v0.2.0 supports it. This is
+what lets the scope predicate reach a read model's base statement at all. The requirement is exactly
+this lift, nothing more: base arguments occupy the leading placeholder positions, filter
 values and paging follow, and `count` binds identically to the page so a total always matches it.
 Composing a subject and a capability into a base needs no parameter expansion, since both bind as a
 single scalar value each; sqlate's own parameter rewrite already rebinds repeated occurrences of one
@@ -167,7 +168,7 @@ one case that does need an expanded value — a cross-service unit-id set (§7) 
 array-typed parameter with an `= ANY(...)` membership test, one placeholder with one value, still arity
 one, and native tier only for that one conditional case.
 
-The companion requirement on `sqlint`: a `scope` check in the `statements` role, verifying every
+The companion requirement on `sqlint` is planned: a `scope` check in the `statements` role, verifying every
 projection base under its configured globs includes at least one configured scope pattern, with per-glob
 exemptions for reference data no subject's grant should ever need to reach (a catalog table, for
 instance). This is the same declaration-plus-lint discipline the DSL-driven services principle chose for

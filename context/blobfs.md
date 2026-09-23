@@ -97,7 +97,7 @@ are its work list.
 
 ## The opaque key convention
 
-`go-storage`'s own keys stay opaque (go-storage's `docs/design.md`). Authorization never
+Object keys stay opaque: nothing parses a key for meaning. Authorization never
 parses a key, because `auth-strategy.md` §8 routes it through the owning SQL row. The reason is
 that object stores have no atomic rename: a key that encodes hierarchical position turns a
 reorganization into a non-atomic copy-and-delete across everything beneath the moved node.
@@ -325,7 +325,7 @@ at a time; that path is worse for the first consumer and is taken only if `sourc
 - **File checksums.** `go-storage` exposes none, so `blobfs` would compute one while streaming.
 - **A checksum for migration text.** The trigger is a released migration changed in place that the
   golden test missed.
-- **The sweeper.** The trigger is `v1.messaging`, as go-storage's `docs/design.md` records. It is
+- **The sweeper.** The trigger is `v1.messaging`. It is
   a candidate command beside the library.
 - **A `blobfstest` toolkit.** The trigger is what `blobfs.build`'s own consumers show a test needs
   beyond the conformance suite.

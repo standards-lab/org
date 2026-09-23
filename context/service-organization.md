@@ -22,7 +22,7 @@ Each infrastructure library declares its swap class when it is built; the antici
   the minimal operation set common to both target APIs; those operations are interchangeable,
   and consistency is interchangeable with review.
 - **SQL** — one provider per engine. Built: `sqlate` with its `postgres` sub-module, and
-  go-database as the infrastructure service over it (sqlate's README). The
+  go-database as the infrastructure service over it (go-database's README). The
   service is schema-bound: a second engine is a second provider, and for an application a
   port, never a switch.
 - **Observability** — no provider pair the way the others have one. OpenTelemetry's OTLP
@@ -95,10 +95,8 @@ The reference architecture is marathon-managed, so every change is a session.
   defect fixed in the same change.
 - A refinement that proves a better pattern promotes outward — into the SDKs and the
   infrastructure libraries, the template, and the standard — so the seeded baseline never
-  drifts from the reference service. The criterion is fit, not a count of consumers: a piece
-  promotes when it is expressed in the lower layer's terms and depends on nothing above it. A
-  second consumer confirms the shape; it is not the license. Because the tiers co-evolve, a
-  library change and the service change that proves it release as a coordinated snapshot.
+  drifts from the reference service. The criterion and the coordinated release are
+  `architecture/context/promote-on-fit.md`.
 - A release in a member repository prompts a coordinator-side sweep in the session that follows
   it: the profiles and the references catalog are checked against what the organization now
   ships. Presentation states shipped-versus-planned without pinning versions; each repository's

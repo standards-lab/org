@@ -224,7 +224,7 @@ summary = '''
 The admin mount on its own listener, unreachable from the public API's network path,
 authenticated through the auth layer, with audit logging on anything that mutates and a
 confirmation token gating the destructive down, force, and state verbs; config rendering
-over a go-core redaction contract; go-web-sdk's config env segment made per-block; the
+over a go-core redaction contract; the
 composition-root reshape in go-web-service and the same reshape in go-web-sdk-template.
 Posture decisions on record: whether the serving role ever holds DDL, and whether off by
 default is mandated by the standard. The 2026-09-07 exploration and the touch points by
