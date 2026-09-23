@@ -23,11 +23,6 @@ appropriately layered boundaries, optimize the utility of agentic workflows in c
 well-structured software. The same structure that keeps a system legible to people is what lets
 agents build it well.
 
-While we are in a holding pattern waiting for our plans to materialize, I am taking the time to
-wrestle with the lessons we have learned and the progress we have made, and to find the
-principles and patterns that optimize the conditions for long-term success and the longevity of
-the capabilities we build.
-
 The boundaries in that thesis are concrete: the modern primitives of what software emits — the
 library, the binary, the container image. Each primitive is a modular boundary: the artifact
 where maintenance is contained, vulnerabilities and technical debt are mitigated, and a
@@ -63,20 +58,21 @@ treats how agents develop software — the workflows, conventions, and skills th
 something to engineer with the same discipline as the software itself, and its principles are
 part of the architecture this effort captures.
 
-The concrete workflow is the agent skill marathon (from the notion that it's a marathon, not a sprint).
-It is an extensible long-haul development skill built in this effort. Each session plans one concrete
-step, and a maintained reset context carries continuity from one session to the next. The
-written context lives alongside the code, layered by volatility, so knowledge graduates from
-concept to design to principle as the work proves it. Its workspace feature coordinates
-development across repositories, letting one step move the libraries, the service, and the docs
-together. Extensions attach at its hook points; the first is a roadmap extension that keeps the
+The concrete workflow is the agent skill marathon (from the notion that it's a marathon, not a
+sprint). It is an extensible long-haul development skill built in this effort. Each session
+plans one concrete step, and a maintained reset context carries continuity from one session to
+the next. The written context lives alongside the code and holds only what the code does not yet
+express: a note is deleted once the work expresses it, and knowledge that holds beyond one
+repository is promoted to a principle. Its workspace feature coordinates development across
+repositories, letting one step move the libraries, the service, and the docs together.
+Extensions attach at its hook points; the first is a roadmap extension that keeps the
 remaining path current as a side effect of the sessions themselves.
 
 The entire effort runs on this workflow, dogfooding it on the very system it exists to build:
 every session tunes it, and the principles it proves are captured as development evolves. In an
 agentic system, context maintenance matters as much as the source code: the written context is
 the specification that the agent and the developers working with it align on, the source of
-truth for the design. The reset context, the design notes, and the live roadmap are all public
+truth for the design. The reset context, the notes, and the live roadmap are all public
 in the working context.
 
 ## The roadmap at a glance
@@ -88,16 +84,7 @@ template that future services start from, and the underlying principles that sha
 architecture and standard. Solve a layer holistically once and it becomes a repeatable blueprint
 that does not need to be solved again.
 
-The remaining layers, in the roadmap's current order:
-- external middleware integrations
-- object storage
-- messaging / events
-- AI / agentic workflow integration
-- data composition and CQRS
-- auth and access control
-- private administrator listener
-- client architecture
-- deployment
+The [live roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) holds the remaining layers and their order.
 
 This is a comprehensive review of how we can optimize the way we build production software, worked
 out in running code toward the vision laid out above. It does not have all the answers yet. The
@@ -106,36 +93,13 @@ together well, and dialing it in takes time.
 
 ## Explore it yourself
 
-- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository: the canonical home
-  for the Elemental Architecture, its standards, and its principles.
-  - [Elemental Architecture](https://github.com/standards-lab/architecture/blob/main/architecture.md)
-    — the compositional elements a program is built from and the rules that bind them,
-    independent of technology.
-  - [Principles](https://github.com/standards-lab/architecture/blob/main/principles/README.md) — the
-    architecture's principles, which every standard enhances and never loosens.
+- [Organization profile](https://github.com/standards-lab) — the vision and the organization's
+  repositories.
+- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository: the Elemental Architecture, its principles,
+  and its standards.
+- [Standards](https://github.com/standards-lab/architecture/blob/main/standards/README.md) — each standard and its member repositories,
+  starting with Go Elemental.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace codifying the organization's development processes: the `marathon` workflow and
-  its `marathon-roadmap` and `marathon-architecture` extensions.
-- [Go Elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md)
-  — the Go implementation of the Elemental Architecture on the standard library, the
-  organization's first standard.
-  - [`go-core`](https://github.com/standards-lab/go-core) — the Core SDK: layered
-    configuration, the process lifecycle, and the logger.
-  - [`go-database`](https://github.com/standards-lab/go-database) — the SQL infrastructure
-    library, with the PostgreSQL provider as a sub-module.
-  - [`go-observability`](https://github.com/standards-lab/go-observability) — the observability
-    infrastructure library: process telemetry, a trace-correlating log handler, and HTTP
-    instrumentation, with the OTLP exporters as a sub-module.
-  - [`go-web-sdk`](https://github.com/standards-lab/go-web-sdk) — the Application SDK for web
-    services.
-  - [`go-web-sdk-template`](https://github.com/standards-lab/go-web-sdk-template) — scaffolds
-    an initial Go Elemental web service with `gonew`.
-  - [`go-web-service`](https://github.com/standards-lab/go-web-service) — the holistic
-    reference web service, grown in documented layers; versionless until its 1.0.
-    - [`slab`](https://github.com/standards-lab/go-web-service/tree/main/tools/slab) — the
-      service's own demonstration and briefing tool: narrated scenarios and direct commands over
-      its routes. Its `demo sqlate` scenario runs standalone; everything else needs the full
-      compose stack running.
-- [`sqlate`](https://github.com/standards-lab/sqlate) — the SQL templating library: authored
-  `.sql` files made dynamic and composable, with its own guide. A standalone library adjacent
-  to Go Elemental, which its libraries consume.
+  its extensions.
+- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what remains, with `next` as the order.
