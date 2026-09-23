@@ -29,10 +29,10 @@ The answer decides go-messaging's module API, which primitives go-core gains, an
 ## Decisions
 
 - **The envelope is CloudEvents 1.0.** It is carried in binary mode, with its attributes as
-  message headers under the CloudEvents NATS protocol binding. `service-tiers.md` says messaging has no formal standard.
-  That is true of broker operations, but not of the event's shape. CloudEvents is the standard
-  tier's event vocabulary, the way OpenTelemetry is observability's, and the organization
-  establishes only the operations. Rejected: an envelope of our own evolved from signal-lab's
+  message headers under the CloudEvents NATS protocol binding. `service-tiers.md` says messaging
+  has no formal standard. That is true of broker operations, but not of the event's shape.
+  CloudEvents is the standard tier's event vocabulary, the way OpenTelemetry is observability's,
+  and the organization establishes only the operations. Rejected: an envelope of our own evolved from signal-lab's
   `Signal`, which is already close to CloudEvents and would diverge from a standard for no gain.
 - **Emission goes through a transactional outbox.** The event row is written in the mutation's
   own transaction, and a relay publishes it afterward. Delivery is at least once, and a reactor is
