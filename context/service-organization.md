@@ -1,12 +1,13 @@
 # Service organization
 
 How the organization builds out its infrastructure services and the reference architecture that
-composes them. The principles live in the architecture repository — the
-[service tiers](https://github.com/standards-lab/architecture/blob/main/principles/service-tiers.md) and
+composes them. The principles live in the architecture repository: the
+[service tiers](https://github.com/standards-lab/architecture/blob/main/principles/service-tiers.md)
+and
 [repository topology](https://github.com/standards-lab/architecture/blob/main/principles/repository-topology.md)
-principles, and the Go Elemental pages — and this note keeps the planning direction the
-architecture repository does not document: which providers each service is expected to gain, and how the tiers
-co-evolve.
+principles, and the Go Elemental pages. This note keeps the planning direction the architecture
+repository does not document: which providers each service is expected to gain, how deployed
+services compose at run time, and how the tiers co-evolve.
 
 ## Anticipated services and their providers
 
@@ -32,18 +33,17 @@ Each infrastructure library declares its swap class when it is built; the antici
 
 ## Tier topology
 
-Application SDKs and infrastructure libraries are peers on the Core SDK. An application SDK
-never imports an infrastructure library, neither its base module nor a provider. Cross-tier
-composition happens in the application: the SDK exposes an extension point, and the
-application declares the policy. The web SDK's error writing is the worked example. The SDK
-defines the error-returning handler adapter and its writer; the application supplies, at its
-composition root, the matchers that map the database library's error types to HTTP statuses.
-The adapter moves the
-mechanics into the SDK without moving the vocabulary, so matcher policy stays the consumer's. When an
-infrastructure library contributes to an SDK-defined surface, as the management listener will
-(`v1.admin-listener`), the dependency points from the infrastructure library to
-the SDK, never the reverse. The cost is a small adapter per service; the return is independent
-releases and SDKs that accumulate no infrastructure vocabulary.
+Application SDKs and infrastructure libraries are peers on the Core SDK. An application SDK never
+imports an infrastructure library, neither its base module nor a provider. Cross-tier composition
+happens in the application: the SDK exposes an extension point, and the application declares the
+policy. The web SDK's error writing is the worked example. The SDK defines the error-returning
+handler adapter and its writer; the application supplies, at its composition root, the matchers that
+map the database library's error types to HTTP statuses. The adapter moves the mechanics into the
+SDK without moving the vocabulary, so matcher policy stays the consumer's. When an infrastructure
+library contributes to an SDK-defined surface, as the management listener will
+(`v1.admin-listener`), the dependency points from the infrastructure library to the SDK, never the
+reverse. The cost is a small adapter per service; the return is independent releases and SDKs that
+accumulate no infrastructure vocabulary.
 
 ## Runtime composition across services
 

@@ -4,11 +4,11 @@ The coordinator's ledger of what `sqlate` needs to host a library that ships its
 read models, native variants, and a schema over them, as `blobfs` is the first to do. It excludes
 the migrate group, which is `migration-sets.md`'s subject. Every entry states what fails or is
 awkward in `sqlate` as it stands, the smallest change that removes it, and what it unblocks;
-evidence and every workaround `blobfs.experiment` used live in [spike-blobfs](https://github.com/JaimeStill/spike-blobfs)'s `REVIEW.md`,
-cited once here and not restated. An entry moves from the backlog to a scheduled task by whether
-the change makes `sqlate` and its consumers generally stronger, not by whether it is easy or
-touches a lot of existing code. An entry `sqlate` lands independently of this ledger is removed
-once it does.
+evidence and every workaround `blobfs.experiment` used live in
+[spike-blobfs](https://github.com/JaimeStill/spike-blobfs)'s `REVIEW.md`, cited once here and not
+restated. An entry moves from the backlog to a scheduled task by whether the change makes `sqlate`
+and its consumers generally stronger, not by whether it is easy or touches a lot of existing code.
+An entry `sqlate` lands independently of this ledger is removed once it does.
 
 ## Backlog
 

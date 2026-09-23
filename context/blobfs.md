@@ -7,13 +7,14 @@ demonstration layer needs more than one attachment: a browsable document hierarc
 organization. Proving that layer correctly means proving directory listing, hierarchy, and a
 guarded single-active-record pattern against real storage, and not only a put and a get.
 
-This is a concept, provisional until `blobfs.build`. The spike that exercised it,
-`blobfs.experiment`, is closed; its record is `REVIEW.md` in the archived [spike-blobfs](https://github.com/JaimeStill/spike-blobfs)
-repository. Four companion documents carry what the spike settled: `blobfs-api.md` proposes the
-library's operation set for `blobfs.build`'s own planning, `blobfs-composition.md` states how a
-consumer builds around the library, `migration-sets.md` covers the multi-set migrator
-`blobfs.sources` promotes into `sqlate`, and `sqlate-library-support.md` is the coordinator's
-ledger of what else `sqlate` needs to host a library like this one.
+This note is provisional until `blobfs.build`. The spike that exercised it,
+`blobfs.experiment`, is closed; its record is `REVIEW.md` in the archived
+[spike-blobfs](https://github.com/JaimeStill/spike-blobfs) repository. Four companion documents
+carry what the spike settled: `blobfs-api.md` proposes the library's operation set for
+`blobfs.build`'s own planning, `blobfs-composition.md` states how a consumer builds around the
+library, `migration-sets.md` covers the multi-set migrator `blobfs.sources` promotes into `sqlate`,
+and `sqlate-library-support.md` is the coordinator's ledger of what else `sqlate` needs to host a
+library like this one.
 
 ## Position and audience
 
@@ -32,22 +33,22 @@ The name `blobfs` stays. The final module path is checked against `repository-to
 
 ### Why a separate library
 
-The DSL-driven services principle ("The two categories of infrastructure service") classifies object storage as protocol-driven and SQL as the
-organization's one DSL-driven capability. If the virtual-directory metadata lived inside
-`go-storage`, that library would own SQL text and schema, duplicating the reason `sqlate` exists.
-Keeping `go-storage` protocol-driven (go-storage's `docs/design.md`) and putting the SQL-backed
-hierarchy in its own library, consuming `sqlate` the way `go-database` does, keeps the DSL-driven
-and protocol-driven boundary intact.
+The DSL-driven services principle ("The two categories of infrastructure service") classifies object
+storage as protocol-driven and SQL as the organization's one DSL-driven capability. If the
+virtual-directory metadata lived inside `go-storage`, that library would own SQL text and schema,
+duplicating the reason `sqlate` exists. Keeping `go-storage` protocol-driven (go-storage's
+`docs/design.md`) and putting the SQL-backed hierarchy in its own library, consuming `sqlate` the
+way `go-database` does, keeps the DSL-driven and protocol-driven boundary intact.
 
 Staging the capability as application code in `go-web-service`'s `sdk` package, the existing
-promotion-candidate convention (`domain-architecture.md`), was set aside. The architecture's rule
-is that a pattern is proven in application code first and then graduates, and `blobfs` departs from
-it on the architect's judgment that its shape is general enough to build as its own repository. The
+promotion-candidate convention (`domain-architecture.md`), was set aside. The architecture's rule is
+that a pattern is proven in application code first and then graduates, and `blobfs` departs from it
+on the architect's judgment that its shape is general enough to build as its own repository. The
 departure has a cost the `sqlate` precedent does not remove: the `sqlate` experiment
-([spike-sql-dsl](https://github.com/JaimeStill/spike-sql-dsl)) redesigned a capability `go-database` had already built,
-released, and reviewed against a real consumer, while `blobfs` has no predecessor and no consumer.
-`blobfs.experiment` carried the proving burden instead, through a consumer-shaped command-line file
-system.
+([spike-sql-dsl](https://github.com/JaimeStill/spike-sql-dsl)) redesigned a capability `go-database`
+had already built, released, and reviewed against a real consumer, while `blobfs` has no predecessor
+and no consumer. `blobfs.experiment` carried the proving burden instead, through a consumer-shaped
+command-line file system.
 
 ## The library, not the tool
 
@@ -128,9 +129,9 @@ The schema is two tables, `blobfs_directory` and `blobfs_file`.
   operation can create a second root or a name-`/` non-root: `Mkdir` always binds a parent and a
   validated name.
 - **`blobfs_file`** carries `id`, `directory_id` (`NOT NULL`), `name`, `status` (`pending`,
-  `available`, or `deleting`, the vocabulary of the two-phase write in go-storage's `docs/design.md`), `key`, and the
-  facts `go-storage`'s `Object` carries (size, content type, entity tag), plus a version guard and
-  timestamps.
+  `available`, or `deleting`, the vocabulary of the two-phase write in go-storage's
+  `docs/design.md`), `key`, and the facts `go-storage`'s `Object` carries (size, content type,
+  entity tag), plus a version guard and timestamps.
 - **Uniqueness** is per table and exact match: `(parent_id, name)` on directories and
   `(directory_id, name)` on files, each in its own name space, so a file and a directory may share
   a name under one parent. `blobfs` normalizes names to NFC in Go with
@@ -142,15 +143,15 @@ The schema is two tables, `blobfs_directory` and `blobfs_file`.
 Three alternative schemas were measured against the one built, on Postgres 18 at 10,003 directories
 and 100,000 files. A single `blobfs_entry` table with a `kind` column served an interleaved listing
 in fewer buffers, but cost about 6% more buffers on an exact-total page and about 21% more storage,
-and needed a generated `kind` column and NULL-safe check constraints per kind. A `blobfs_node`
-table with directory and file subtype tables needed roughly twice the round trips for a file's
-whole lifecycle, and a name-sorted page cost about eight times the buffers; a node with no subtype
-row was representable, which let a row hide from every listing while still holding its name. A
-two-table design with an added interleaved-listing statement cost about the same as the design
-built, with no schema advantage. The design built won because the storage medium is a web-based
-virtual file system, and consumers address directories and files as separate resources; an
-interleaved listing was not needed. The full method and every number are in
-`evidence/schema-alternatives/README.md` in [spike-blobfs](https://github.com/JaimeStill/spike-blobfs).
+and needed a generated `kind` column and NULL-safe check constraints per kind. A `blobfs_node` table
+with directory and file subtype tables needed roughly twice the round trips for a file's whole
+lifecycle, and a name-sorted page cost about eight times the buffers; a node with no subtype row was
+representable, which let a row hide from every listing while still holding its name. A two-table
+design with an added interleaved-listing statement cost about the same as the design built, with no
+schema advantage. The design built won because the storage medium is a web-based virtual file
+system, and consumers address directories and files as separate resources; an interleaved listing
+was not needed. The full method and every number are in `evidence/schema-alternatives/README.md` in
+[spike-blobfs](https://github.com/JaimeStill/spike-blobfs).
 
 ### The `created_at` index
 
@@ -200,15 +201,15 @@ input; a consumer's own variant embeds a base variant and overrides only the met
 
 ### The write
 
-`blobfs` never calls the object store. It exposes the steps of go-storage's two-phase write,
-two-phase write, and the consumer sequences them: `blobfs` inserts the `pending` row in the
-caller's session, in the same transaction as the consumer's own rows, or resumes a `pending` row an
-earlier attempt left; the consumer puts the object; `blobfs` marks the row `available` with what
-the consumer's store reported. There is no failed status and no fail step: a stop between the steps
-leaves the row `pending`, a retry of the same write resumes it, and an abandoned write is removed
-through the delete steps. Every method takes a `sqlate.Session` and passes it through unwrapped
-except the few whose correctness requires a transaction, which say so in their own signature. No
-sweeper ships in v1; `v1.messaging` is the trigger.
+`blobfs` never calls the object store. It exposes the steps of go-storage's two-phase write, and the
+consumer sequences them: `blobfs` inserts the `pending` row in the caller's session, in the same
+transaction as the consumer's own rows, or resumes a `pending` row an earlier attempt left; the
+consumer puts the object; `blobfs` marks the row `available` with what the consumer's store
+reported. There is no failed status and no fail step: a stop between the steps leaves the row
+`pending`, a retry of the same write resumes it, and an abandoned write is removed through the
+delete steps. Every method takes a `sqlate.Session` and passes it through unwrapped except the few
+whose correctness requires a transaction, which say so in their own signature. No sweeper ships in
+v1; `v1.messaging` is the trigger.
 
 `blobfs` declares its own object-store interface, one method, key validation, with no maximum
 length declared on it. A small adapter at the consumer's composition root wires the object store's
@@ -335,8 +336,8 @@ at a time; that path is worse for the first consumer and is taken only if `sourc
   the five tiers, which makes `repository-topology.md`'s "every module repository of a standard
   belongs to exactly one" false unless adjacency is named as a position; the trigger is
   `blobfs.build`. A library shipping its own object namespace as a migration source amends
-  go-elemental's `baseline-standards.md`, which says nothing above the standard tier may harden into a library's
-  contract; the trigger is `go-auth` as the second shipper.
+  go-elemental's `baseline-standards.md`, which says nothing above the standard tier may harden into
+  a library's contract; the trigger is `go-auth` as the second shipper.
 
 ## Assumptions
 

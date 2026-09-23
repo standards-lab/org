@@ -1,7 +1,8 @@
 # Elemental layers beyond the app class
 
-The architect's direction beyond the module level (architecture → standard → module, classes
-library | template | app). Raw and deliberately unprojected; nothing here is convention.
+This note records the architect's direction for elemental layers beyond the module level
+(architecture → standard → module, classes library | template | app). The direction is raw and
+deliberately not projected further; nothing here is convention.
 
 ## The direction
 
@@ -15,6 +16,6 @@ The app class's output has a follow-on elemental sequence:
 
 ## When to revisit
 
-When the reference service's deployment work (`goals.v1.deployment`) or the runtime story makes
-the container layer concrete. Until then the module classes and tier vocabulary in the
-architecture repository are the extent of the hierarchy.
+Revisit this note when the reference service's deployment work (`goals.v1.deployment`) or the
+runtime story makes the container layer concrete. Until then the module classes and tier vocabulary
+in the architecture repository are the extent of the hierarchy.

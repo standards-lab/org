@@ -72,8 +72,8 @@ The entire effort runs on this workflow, dogfooding it on the very system it exi
 every session tunes it, and the principles it proves are captured as development evolves. In an
 agentic system, context maintenance matters as much as the source code: the written context is
 the specification that the agent and the developers working with it align on, the source of
-truth for the design. The reset context, the notes, and the live roadmap are all public
-in the working context.
+truth for the design. The reset context, the notes, and the live roadmap are all public in the
+working context.
 
 ## The roadmap at a glance
 
@@ -84,7 +84,8 @@ template that future services start from, and the underlying principles that sha
 architecture and standard. Solve a layer holistically once and it becomes a repeatable blueprint
 that does not need to be solved again.
 
-The [live roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) holds the remaining layers and their order.
+The [live roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) holds the
+remaining layers and their order.
 
 This is a comprehensive review of how we can optimize the way we build production software, worked
 out in running code toward the vision laid out above. It does not have all the answers yet. The
@@ -95,11 +96,12 @@ together well, and dialing it in takes time.
 
 - [Organization profile](https://github.com/standards-lab) — the vision and the organization's
   repositories.
-- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository: the Elemental Architecture, its principles,
-  and its standards.
-- [Standards](https://github.com/standards-lab/architecture/blob/main/standards/README.md) — each standard and its member repositories,
-  starting with Go Elemental.
+- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository:
+  the Elemental Architecture, its principles, and its standards.
+- [Standards](https://github.com/standards-lab/architecture/blob/main/standards/README.md) —
+  each standard and its member repositories, starting with Go Elemental.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace codifying the organization's development processes: the `marathon` workflow and
   its extensions.
-- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what remains, with `next` as the order.
+- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what
+  remains, with `next` as the order.

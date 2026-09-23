@@ -1,19 +1,21 @@
 # Authentication and authorization
 
-The strategy for authentication and authorization across the reference architecture: OAuth 2.0 and
-OpenID Connect with Keycloak as the declared provider, a relationship-derived authorization model
-evaluated as SQL inside each service's own database, the subject and identity carrier every domain
-method builds against, and the rule that lets services compose across a runtime boundary without a
-shared authorization store. It is the counterpart of the Go Elemental [DSL-driven services](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/dsl-driven-services.md) principle: every domain built
-after go-auth lands builds to the contract this record states directly; a domain built ahead of it in
-the roadmap sequence (`standards-lab/context/roadmap.toml`) adopts the contract in a sweep task of its
-own once go-auth ships. The build of go-auth itself is `goals.v1.auth`'s remainder.
+The strategy for authentication and authorization across the reference architecture: OAuth 2.0 and OpenID
+Connect with Keycloak as the declared provider, a relationship-derived authorization model evaluated as
+SQL inside each service's own database, the subject and identity carrier every domain method builds
+against, and the rule that lets services compose across a runtime boundary without a shared authorization
+store. It is the counterpart of the Go Elemental [DSL-driven
+services](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/dsl-driven-services.md)
+principle: every domain built after go-auth lands builds to the contract this record states directly; a
+domain built ahead of it in the roadmap sequence (`roadmap.toml`) adopts the
+contract in a sweep task of its own once go-auth ships. The build of go-auth itself is `goals.v1.auth`'s
+remainder.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and the shape
 of the result. Implementation detail lives elsewhere: go-auth's own `doc.go`, README, and CHANGELOG for
-what it ships and at which version; each consuming service's `context/domain-architecture.md` for
-how its own domains apply this contract; `service-organization.md` for the
-runtime cross-service rules this record depends on and contributes to.
+what it ships and at which version; each consuming service's `context/domain-architecture.md` for how
+its own domains apply this contract; `service-organization.md` for the runtime cross-service rules this
+record depends on and contributes to.
 
 ## 1. Authentication
 
@@ -36,9 +38,10 @@ identity — they are mutable and not guaranteed unique. The service reads no ro
 scope claim; authorization is decided entirely from the service's own grant model (§2), never from a
 token.
 
-Cryptography is sourced, not hand-rolled (`architecture/context/dependency-sourcing.md`): `github.com/coreos/go-oidc/v3`
-is go-auth's verification library. go-auth's own README states its admitted dependency line (specification
-surface, threat model, cryptography) as the enhancement that rule requires.
+Cryptography is sourced, not hand-rolled (`architecture/context/dependency-sourcing.md`):
+`github.com/coreos/go-oidc/v3` is go-auth's verification library. go-auth's own README states its
+admitted dependency line (specification surface, threat model, cryptography) as the enhancement that rule
+requires.
 
 Auth's swap-cost class is interchangeable with review. Token verification is fully interchangeable:
 discovery, JWKS, and the registered-claim checks are provider-neutral, and a provider swap is a
@@ -121,9 +124,9 @@ schema dependent on nothing in any domain's own tables, matching the Go package 
 domain packages import the root `auth` package, never the reverse — and it is what makes the authorization
 schema portable if organization or grants are ever extracted into their own service (§9).
 
-`person.id` stays the data layer's stable anchor: a UUID never reused, free of
-authentication meaning. It additionally is a `subject.id`; the anchor adds authorization vocabulary to
-it, not authentication vocabulary, and the promise the data layer makes about it is unchanged.
+`person.id` stays the data layer's stable anchor: a UUID never reused, free of authentication meaning. It
+additionally is a `subject.id`; the anchor adds authorization vocabulary to it, not authentication
+vocabulary, and the promise the data layer makes about it is unchanged.
 
 A `human` subject holds a `person` row only when the service has a business record for that human;
 `person` is optional, not implied by kind. This is what lets an operator hold ordinary authorization
@@ -167,9 +170,9 @@ one, and native tier only for that one conditional case.
 The companion requirement on `sqlint`: a `scope` check in the `statements` role, verifying every
 projection base under its configured globs includes at least one configured scope pattern, with per-glob
 exemptions for reference data no subject's grant should ever need to reach (a catalog table, for
-instance). This is the same declaration-plus-lint discipline the DSL-driven services principle ("Which artifact is portable") chose for the
-dialect axis, closing the one silent failure the model has: a read model whose author forgot its scope
-include, unauthorized and passing every test written about it.
+instance). This is the same declaration-plus-lint discipline the DSL-driven services principle chose for
+the dialect axis ("Which artifact is portable"), closing the one silent failure the model has: a read
+model whose author forgot its scope include, unauthorized and passing every test written about it.
 
 ## 5. Organization lineage
 
@@ -213,10 +216,10 @@ run upward is an interface the consuming domain declares and injects at the comp
 A service reaches another service's data only through that service's own API — never its database, never
 a replica of its tables, never a re-derivation of its rules. The consuming service declares the question
 it needs answered; the owning service answers it from its own data, under its own rules — the same
-cross-domain rule `go-web-service/context/data-layer.md` states for domains inside one service, applied at the
-process boundary with configuration in place of the composition root and an HTTP contract in place of an
-injected interface. A client to another service is a capability-named translation file, the same shape as
-any other infrastructure integration.
+cross-domain rule `go-web-service/context/data-layer.md` states for domains inside one service, applied at
+the process boundary with configuration in place of the composition root and an HTTP contract in place of
+an injected interface. A client to another service is a capability-named translation file, the same shape
+as any other infrastructure integration.
 
 A cross-service call carries the end user's identity as a token the owning service verifies for itself;
 the calling service never asserts a subject on its own authority, which would make it a confused deputy.
@@ -339,12 +342,12 @@ already in hand; the dominant read here is a paged collection, where the questio
 subject may see, not a decision about one. Answering that with ABAC means either fetching everything and
 filtering in the application, wrong at any size and incompatible with a correct paging total, or partial
 evaluation of the policy into a database filter — making a policy engine responsible for generating SQL
-this architecture deliberately authors by hand. It is also a second DSL-driven service (the DSL-driven services principle's
-"The two categories of infrastructure service" names Rego and Cedar as exactly this category): a second language with expressive content the host
-cannot type-check, its own runtime, its own release cadence, its own vulnerability history, on the
-request path of every endpoint. Revisit only for a genuinely attribute-shaped, resource-in-hand
-requirement — time-boxed access, break-glass, IP restriction — each expressible as a condition column on
-a grant row, needing no policy engine.
+this architecture deliberately authors by hand. It is also a second DSL-driven service (the DSL-driven
+services principle's "The two categories of infrastructure service" names Rego and Cedar as exactly this
+category): a second language with expressive content the host cannot type-check, its own runtime, its own
+release cadence, its own vulnerability history, on the request path of every endpoint. Revisit only for a
+genuinely attribute-shaped, resource-in-hand requirement — time-boxed access, break-glass, IP restriction
+— each expressible as a condition column on a grant row, needing no policy engine.
 
 **An externalized relationship store** (Zanzibar's model: SpiceDB, OpenFGA, Ory Keto). The relations this
 service authorizes against are database-enforced invariants — custody's partial unique index guaranteeing
@@ -354,14 +357,14 @@ write (an outbox, a strictly serialized relay, a reconciliation job) in every se
 forever, whether or not that service has a cross-service relation. The decisive technical objection is
 independent of that cost: every candidate documents a hard ceiling on filtering a paged collection by
 permission — SpiceDB's `LookupResources` degrades past roughly 10,000 permitted resources, OpenFGA's
-`ListObjects` past roughly 1,000 — exactly where scale would motivate adopting one, and the fix (SpiceDB's
-Materialize) is commercial-only. The swap class across candidates is schema-bound: SpiceDB's, OpenFGA's,
-and Ory's schema languages are three incompatible languages, so committing to one on the information one
-service has about a fundamentally cross-service problem is the expensive mistake this architecture avoids
-elsewhere by keeping SQL the one portable artifact (the DSL-driven services principle, "Which artifact is portable"). If this ever becomes
-the right tool, OpenFGA is the better candidate of the two: per-store isolated, immutable versioned
-schemas callers pin explicitly, versus SpiceDB's one mutable global schema per cluster with no
-per-caller pinning.
+`ListObjects` past roughly 1,000 — exactly where scale would motivate adopting one, and the fix
+(SpiceDB's Materialize) is commercial-only. The swap class across candidates is schema-bound: SpiceDB's,
+OpenFGA's, and Ory's schema languages are three incompatible languages, so committing to one on the
+information one service has about a fundamentally cross-service problem is the expensive mistake this
+architecture avoids elsewhere by keeping SQL the one portable artifact (the DSL-driven services
+principle, "Which artifact is portable"). If this ever becomes the right tool, OpenFGA is the better
+candidate of the two: per-store isolated, immutable versioned schemas callers pin explicitly, versus
+SpiceDB's one mutable global schema per cluster with no per-caller pinning.
 
 **Keycloak's native Authorization Services** (the UMA 2.0 resource-server model). Rejected on a ground
 internal to the architecture alone: it is Keycloak's own API, unambiguously native tier, and Entra — the

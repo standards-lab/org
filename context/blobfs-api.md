@@ -1,10 +1,10 @@
 # blobfs's proposed API
 
 Input to `blobfs.build`'s own planning, not a design ready to implement verbatim: `blobfs.build`'s
-own session owns the final names, signatures, and file map. What follows is what
-`blobfs.experiment` proposes, drawn from the closed, archived spike [spike-blobfs](https://github.com/JaimeStill/spike-blobfs); every claim below is verifiable
-there. `blobfs.md` states what the
-library is and why; this document states what it would expose.
+own session owns the final names, signatures, and file map. What follows is what `blobfs.experiment`
+proposes, drawn from the closed spike [spike-blobfs](https://github.com/JaimeStill/spike-blobfs),
+now archived; every claim below is verifiable there. `blobfs.md` states what the library is and why;
+this document states what it would expose.
 
 ## Shape: one compiled store, two operation handles
 

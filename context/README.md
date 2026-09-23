@@ -7,7 +7,7 @@ coordinator. Authoritative context lives at its single home and is linked from h
 
 - **The vision** — the opening of the profiles: `../public/profile/README.md`, the authored
   baseline, mirrored into the extended profile at `../private/profile/README.md` (the mirror
-  convention is in `CLAUDE.md`).
+  convention is in `../CLAUDE.md`).
 - **The definitions** — the three-level hierarchy (architecture → standard → module) and the
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
@@ -50,16 +50,16 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   the organization contents index; the authored source of the profile body.
 - **Extended profile** (`private/profile/README.md`) — what members see in place of the
   baseline profile: the baseline body mirrored verbatim, plus the appended member-only
-  orientation. `CLAUDE.md` states the mirror convention.
+  orientation. `../CLAUDE.md` states the mirror convention.
 - **The workspace roadmap** (`context/roadmap.toml`) — the goal tree, tasks, and backlog for
-  the buildout, citable by slug path; the only sequence it asserts is `next`.
-- **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership;
-  `../briefs/orientation.md` is the first, paired with the agent-interview prompt
-  `../interview.md`.
+  the buildout, each citable by slug path; the only sequence it asserts is `next`.
+- **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership.
+  `../briefs/orientation.md` is the first, and the agent-interview prompt `../interview.md`
+  accompanies it.
 - **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
   — portable identity for every repository in the effort, with a per-machine local-directory
-  map, the standards declarations, and a private annex in `../private/`. `references.md` states
-  the mechanics.
+  map, the standards declarations, and a private annex in `../private/`. `../references.md`
+  states the mechanics.
 - **Experiments** (`../experiments.md`) — the catalog of spikes and their hosting convention.
 - **Cross-repo coordination** — the references catalog is the repository list, and the
   workspace order in `.claude/marathon.toml` is its dependency graph in machine-readable form.
@@ -76,7 +76,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   build found.
 - `blobfs.md`, with `blobfs-api.md`, `blobfs-composition.md`, `migration-sets.md`, and
   `sqlate-library-support.md` — the blobfs library, its proposed API, how a consumer composes it,
-  shipped migration sets, and what sqlate needs to host a library.
+  what a shipped migration set requires of its shipper and consumers, and what sqlate needs to
+  host a library.
 - `staged-query-aggregation.md` — composing staged cross-service queries into one response.
 - `elemental-runtime-layers.md` — the elemental layers beyond the app class.
 - `docs-site.md` — the organization documentation site.

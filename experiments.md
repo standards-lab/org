@@ -1,7 +1,8 @@
 # Experiments
 
-The spikes run for this workspace. Each is a standalone marathon project outside the workspace,
-and marathon's `experiment` command proposes this hosting convention when it sets one up:
+This file catalogs the spikes run for this workspace. Each spike is a standalone marathon project
+outside the workspace, and marathon's `experiment` command proposes this hosting convention when it
+sets one up:
 
 - **Local directory:** `~/experiments/spike-<slug>`.
 - **Remote:** `github.com/JaimeStill/spike-<slug>`, public, with the module path to match.

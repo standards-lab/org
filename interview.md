@@ -47,8 +47,8 @@ Start from these; every other repository is linked from them.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace: the `marathon` workflow and its extensions.
 - [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what
-  remains, with `next` as the order; the `org` repository beside it holds the session record
-  and the references catalog.
+  remains, with `next` as the order. It lives in the `org` repository, which also holds the
+  session record and the references catalog.
 
 ## Behavior
 
@@ -84,4 +84,4 @@ available to explore:". An example of the shape and granularity:
 - Go Elemental — the SDKs, the infrastructure libraries, the template, and the reference
   service that proves them.
 - The marathon workflow — how sessions, context, and the roadmap keep long-haul work coherent.
-- Where the effort stands — the roadmap, what is settled, and what is still concept-stage.
+- Where the effort stands — the roadmap, what is settled, and what is still open.

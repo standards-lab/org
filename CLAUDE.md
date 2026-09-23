@@ -19,12 +19,12 @@ repositories are checked out nested inside it, each with its own `.git`, both gi
 
 Git routes commits by working tree, with no configuration: edits under `public/` belong to
 `.github`, edits under `private/` to `.github-private`, and everything else to `org`. A session
-that changes more than one makes one commit and one pull request per touched remote.
+that changes more than one repository makes one commit and one pull request per touched remote.
 
-The profile mirror: the baseline profile is authored first, and any edit to its body is copied to
-the extended profile in the same session. Member-only material lives only in the extended
-profile's appended `## Member orientation` section, and a divergence between the two shared
-bodies is a defect.
+The profile mirror convention keeps the two profiles in step: the baseline profile is authored
+first, and any edit to its body is copied to the extended profile in the same session. Member-only
+material lives only in the extended profile's appended `## Member orientation` section, and a
+divergence between the two shared bodies is a defect.
 
 ## A documented marathon exception
 
@@ -46,9 +46,9 @@ Material belongs to exactly one visibility tier (distinct from the service tiers
 architecture repository). Place it where it goes and do not duplicate it upward:
 
 - **Public** — `context/`, the references catalog, and `public/profile/README.md`. The working
-  context is public by design: the blueprint's lived context (roadmap, design notes, session
-  records) is part of what it demonstrates. The baseline profile is the most curated surface;
-  nothing internal.
+  context is public by design: the blueprint's lived context (roadmap, notes, session records) is
+  part of what it demonstrates. The baseline profile is the most curated surface; nothing
+  internal.
 - **Member** — the appended member-only section of `private/profile/README.md`. The rest of that
   file is the baseline body mirrored verbatim; the mirror is the one sanctioned duplication:
   GitHub renders exactly one profile per viewer, so the extended file must carry the baseline body

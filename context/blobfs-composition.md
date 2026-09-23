@@ -5,9 +5,8 @@ composition root, ownership at two grains, the write, delete, and move protocols
 sequences them, seeding, and the operating constraints `blobfs.experiment`'s evidence established.
 It excludes the library's own protocol semantics and listing conventions, which are `blobfs.md`'s
 subject, the multi-set migrator's mechanics, which are `migration-sets.md`'s, and authorization,
-which waits for `go-auth` (`auth-strategy.md` §8). Its
-worked example is the organization: an image at the file grain, a document hierarchy at the
-directory grain.
+which waits for `go-auth` (`auth-strategy.md` §8). Its worked example is the organization: an image
+at the file grain, a document hierarchy at the directory grain.
 
 ## One install per configuration
 

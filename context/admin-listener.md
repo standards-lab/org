@@ -1,7 +1,7 @@
 # The management listener
 
-The admin mount on its own listener, the `v1.admin-listener` goal. The mount today serves on
-the API listener of go-web-service, which the service's README states is not for a public
+The `v1.admin-listener` goal moves the admin mount onto its own listener. The mount today serves
+on the API listener of go-web-service, which the service's README states is not for a public
 deployment. This note holds the requirement and what an exploration of the build found. Nothing
 below is decided; the goal's own sessions settle it.
 
@@ -12,7 +12,7 @@ unreachable from the public API's network path, with audit logging on anything t
 That isolation is a design constraint, not a deployment detail. `down`, `force`, and `state` are
 destructive and require an explicit confirmation token. The listener's authentication comes from
 `goals.v1.auth`, and the audit record from the observability layer. Rendering configuration on
-it waits on a redaction contract in go-core.
+the listener waits on a redaction contract in go-core.
 
 ## Why it waits
 
@@ -25,7 +25,7 @@ does not repeat it.
 
 ## What the exploration found
 
-The findings are grouped by repository, lowest dependency first. A later build rechecks each
+The findings are grouped by repository, lowest dependency first. The build rechecks each finding
 against the code.
 
 ### go-core
@@ -54,7 +54,7 @@ against the code.
 
 - `web.Config.FinalizeBlock` finalizes a second `web.Config` under a caller-named block, so a
   management listener's configuration composes under the same prefix as the API server's.
-  `database.NewEnv` still hardcodes its block, and needs the same change if a second database
+  `database.NewEnv` hardcodes its block, and needs the same change if a second database
   block is ever needed.
 - `web.Server` holds no package state; two servers are two `NewServer` calls. The listener is
   TCP only; no Unix socket option exists. `RegisterHealth` is written to be called once; whether
@@ -91,7 +91,7 @@ against the code.
 
 ## The posture questions
 
-Open, and this goal's to decide:
+These questions are open, and the goal decides them:
 
 - **DDL in the serving role.** Whether a process that serves traffic should hold DDL privileges,
   and whether the standard should mandate a separate migration role and a one-shot invocation of
