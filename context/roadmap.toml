@@ -2,10 +2,9 @@
 # Maintained by the marathon-roadmap extension; the format is the plugin's
 # references/manifest.md.
 
-# The v1 order. context-migration aligns the workspace with marathon first, alone. Then one wave:
-# the storage lane (blobfs build and admin, then v1.storage's service and suite, in order) runs
-# beside the planning and experiment setup for v1.messaging and v1.ai, whose experiments then run
-# in their own repositories. blobfs is its own repository rather than a v1 layer, the standing
+# The v1 order. One wave leads: the storage lane (blobfs build and admin, then v1.storage's
+# service and suite, in order) runs beside the planning and experiment setup for v1.messaging
+# and v1.ai, whose experiments then run in their own repositories. blobfs is its own repository rather than a v1 layer, the standing
 # slab and sqlate have, so its tasks sit in `next` directly; v1.storage's demonstration layer
 # needs it (`standards-lab/context/blobfs.md`). The infrastructure libraries come before the
 # data layer, and the data layer before auth by design: the architect wants to see how the domain
@@ -15,7 +14,6 @@
 # finish v1. Middleware is last: CORS waits for v1.client, and real client IP and compression stay
 # in the backlog until their triggers fire. A goal cited late reads as what remains of it.
 next = [
-  "v1.harness.context-migration",
   [
     ["blobfs.build", "blobfs.admin", "v1.storage.service", "v1.storage.suite"],
     "v1.messaging.experiment",
@@ -338,37 +336,6 @@ situational-awareness, extraction, references, and deterministic-tooling work th
 held, adopted here as this goal's own tasks; none is yet in `next`.
 '''
 context = ["architecture/harness/tool-based-skills.md"]
-
-[goals.v1.harness.tasks.context-migration]
-name = "Align the workspace with marathon 0.14"
-repos = [
-  "claude-plugins",
-  "go-core",
-  "sqlate",
-  "go-database",
-  "go-web-sdk",
-  "go-observability",
-  "go-storage",
-  "go-web-sdk-template",
-  "go-web-service",
-  "architecture",
-  "standards-lab",
-]
-summary = '''
-One cross-repo session, alone, aligning every workspace repository with marathon 0.14 (its
-CHANGELOG's Migrating section). Flatten each repository still on context/design/ and
-context/concepts/ (standards-lab 15 and 11 notes, go-web-service 4 and 4, architecture 2,
-go-web-sdk 2, go-web-sdk-template 1): each note moves to context/ under the current-truth rule, splits
-its built-work reasoning into the owning repository's docs as a Cross-repo edit, is promoted to
-the architecture repository, or is integrated or culled. Move standards-lab/experiments/ (blobfs,
-sql-dsl) out of the workspace to ~/experiments/<slug>, each its own repository at
-github.com/JaimeStill/<slug>, cataloged in standards-lab/experiments.md, and record that hosting
-convention in the coordinator's context so experiment proposes it. Fix every citation and
-convention that names the old layout: roadmap context paths, cross-repository note citations,
-READMEs, CLAUDE.md files, and the references catalog. Likely more than one sitting.
-'''
-proof = "no context/design/, context/concepts/, or experiments/ directory remains in the workspace; every roadmap context path and cross-repository citation resolves; experiments.md lists both experiments with their remotes; the first session under 0.14 runs its pipeline without meeting the old layout."
-context = ["claude-plugins/plugins/marathon/CHANGELOG.md"]
 
 [goals.v1.harness.tasks.sitrep]
 name = "The marathon-sitrep extension"
