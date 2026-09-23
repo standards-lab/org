@@ -27,10 +27,10 @@ infrastructure. It has four kinds of responsibility:
   events.
 - **Domain logic**: this stays in each consumer.
 
-herald is the proof workload (`references.md`, "herald"). Its `internal/workflow/` is a four-node
-graph (init, classify, enhance, finalize). It uses only the Chat and Vision calls and the state
-graph, on Azure AI Foundry with managed identity, deployed to commercial Azure and to air-gapped
-IL6.
+herald (`references.md`, "herald") is the workload that shaped tau. It is prior art here, not a
+workload to rerun. Its `internal/workflow/` is a four-node graph (init, classify, enhance,
+finalize). It uses only the Chat and Vision calls and the state graph, on Azure AI Foundry with
+managed identity, deployed to commercial Azure and to air-gapped IL6.
 
 `tau-platform/archive/tau-runtime/claude-classify-docs/` in `~/tau` is the prior art that
 motivates the pivot. It re-expressed herald's predecessor workflow as a Claude Code project:
@@ -47,31 +47,43 @@ The hypothesis follows. go-ai may need two surfaces:
   directly
 
 These are surfaces, not the standard and native tiers of `service-tiers.md`. Each surface has its
-own tiers once it exists. If the harness-session surface can serve herald's workflow too, go-ai
-has only that surface, and tau retires. tau also retires if go-ai has both surfaces, because the
-model-client surface is rebuilt under go-elemental's rules rather than carried over.
+own tiers once it exists. If the harness-session surface also covers the native capabilities and
+the long-running workflows, go-ai has only that surface, and tau retires. tau also retires if
+go-ai has both surfaces, because the model-client surface is rebuilt under go-elemental's rules
+rather than carried over.
 
 ## Experiment: spike-harness-driver
 
-**Question.** Can one Go interface run agentic sessions through Pi (`--mode rpc` or `json`),
-Claude Code (`claude -p --output-format stream-json`, or the Agent SDK), and OpenCode (its server
-API), against local and cloud models? And how does herald's classification workflow compare when
-it runs through a harness inside the service's container, versus direct model calls in tau's
-style?
+**Question.** Can Go drive an external harness as the infrastructure for agentic work, and what
+does that infrastructure need to be? The harnesses are Pi (`--mode rpc` or `json`), Claude Code
+(`claude -p --output-format stream-json`, or the Agent SDK), and OpenCode (its server API),
+against local and cloud models. The question has four parts:
+
+- **Capabilities.** Which of skills, tool calls, and the native model capabilities beyond chat
+  (vision, embeddings, audio) does a harness expose, and which need a direct model client?
+- **Sessions.** How is work that spans several agent turns established and managed, and how is a
+  session kept beyond a single call and resumed?
+- **Exchanges.** How is a payload sent and the response payload interpreted? How is one
+  request-and-response block scoped and identified against a persistent session?
+- **Workflows.** How are long-running workflows coordinated over those sessions: progress, event
+  streaming, cancellation, and concurrency?
 
 **Decision it changes.** go-ai's shape: a harness-session surface only, both surfaces, or a
 model-client surface only. It also decides whether the service's container image carries a
 harness.
 
-**Evidence.** Run herald's workflow both ways on the same document set, and compare:
+**Evidence.** For each harness and model target, the spike records what the Go interface achieves
+on each of the four parts. It also records:
 
-- accuracy parity
-- latency
-- tokens and cost
-- control of concurrency and cancellation
 - event streaming to SSE
+- tokens and cost
 - the container image's footprint
 - the Azure managed-identity path, with IL6 checked on paper
+
+**Home.** The experiment lives in `~/experiments/spike-harness-driver`, and its remote is
+[JaimeStill/spike-harness-driver](https://github.com/JaimeStill/spike-harness-driver). Its first
+step drives Pi against the Framework desktop's router: one session, two scoped exchanges, and a
+cancel.
 
 ## Experiment: spike-local-subagents
 
