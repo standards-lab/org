@@ -22,13 +22,14 @@
 - **Validated:** checkpoint 1, a note written under the new rules and traced rule by rule.
   Checkpoint 2, a cross-repo `start` traced through the rewritten files, `scripts/check.sh`, and
   CI on PR #31.
-- **Pending:** the architect's go-ahead on the `~/claude-settings` cleanup, carried from the
-  previous closeout.
+- **Cleanup:** the architect deleted `~/claude-settings` and archived its repository. `~/.claude`
+  holds no symlinks to it any more. The plugins are reloaded, with marathon 0.14.0,
+  marathon-architecture 0.2.1, marathon-roadmap 0.2.1, and the `marathon:editor` agent loaded.
 
 ## Next-focus
 
-`v1.harness.context-migration`, resumed under marathon 0.14.0 after the architect reloads the
-plugins. Run it from the coordinator.
+`v1.harness.context-migration`, resumed under marathon 0.14.0, which is loaded. Run it from the
+coordinator.
 
 Stages: 6/19 · checkpoints 1 and 2 of 6 confirmed · stage 6 committed and published · the
 claude-plugins branch is merged and deleted. The standards-lab branch holds only this record, and
@@ -79,6 +80,8 @@ The remaining stage list, in `order`:
     - Land notes on dependency-sourcing, the testing harness rules, the "promote on fit" rule,
       and the middleware-placement contradiction.
     - Update `CLAUDE.md:19-22` and add `.gitignore`.
+    - Remove or replace the `claude-settings` example at
+      `harness/configuration-boundaries.md:25`, since that repository is archived.
 - **Checkpoint 5: standards-lab.**
   - 15 · Move the experiments out:
     - `git subtree split` each into `~/experiments/spike-<slug>`, and rewrite its module path to
@@ -116,9 +119,9 @@ The remaining stage list, in `order`:
   - Build and test pass, and `check.sh` passes.
   - No settledness lines remain.
   - The spikes are archived.
-  - The editor pass, and the architect's sample read.
+  - The editor pass, using the `marathon:editor` agent on Opus, and the architect's sample read.
 
 The per-note trimming detail comes from the three triage passes. Re-derive it at each stage from
 the notes themselves, applying the current-truth rule.
 
-Next move: after the reload, run `/marathon:marathon start`. It resumes at stage 7.
+Next move: run `/marathon:marathon start`. It resumes at stage 7.
