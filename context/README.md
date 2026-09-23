@@ -81,6 +81,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `messaging.md`, with `messaging-api.md` — the event and reactor layer: the messaging
   experiment's question, its decisions, and the capability ledger, and the API the experiment
   starts from.
+- `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers and their homes, the
+  pivot from tau to external harnesses, the library and harness experiments' questions, and the
+  hosting layer's decomposition of personal-agents.
 - `staged-query-aggregation.md` — composing staged cross-service queries into one response.
 - `elemental-runtime-layers.md` — the elemental layers beyond the app class.
 - `docs-site.md` — the organization documentation site.
