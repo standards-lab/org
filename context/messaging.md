@@ -115,6 +115,15 @@ some turn out to strengthen a different architecture layer:
 - Where the outbox writer lives. Whether the relay polls or listens for notifications. Whether a
   consumer-side inbox table backs idempotency.
 - Whether `reactor` is its own go-core package or part of `lifecycle`.
+- Whether go-core's `lifecycle` gains a component interface: `Start`, `Shutdown`, and `Ready`,
+  registered by name and stage, with a `Stage` type. go-storage's `Store` and go-database's pool
+  already have those methods, and every composition root copies them into a `lifecycle.Service`
+  by hand. The stage stays with the composition root, because a library can't know a process's
+  dependency order (go-database's `admin.Stage` constant is the counterexample). The spike tests
+  this against published go-core, with the reactor as the next component. It also settles which
+  stage a reactor takes: `StageRoot` beside the server, or a stage of its own. The change isn't
+  a prerequisite. It would fix the API before the evidence exists, and it touches go-web-service,
+  where the blobfs-build lane works.
 - Who provisions a stream, since signal-lab solved startup ordering with a retry. How readiness and
   drain run through the coordinator.
 - How trace context propagates as the CloudEvents `traceparent` extension alongside

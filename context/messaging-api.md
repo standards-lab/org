@@ -3,7 +3,9 @@
 This is the messaging experiment's starting point, not a design to implement verbatim. The
 experiment's own sessions own the final names, signatures, and package homes. `messaging.md` states
 what the layer is and why. This document states what it would expose. Each package is labeled
-with its intended home, and that home is the experiment's hypothesis.
+with its intended home, and that home is the experiment's hypothesis. spike-messaging's
+`context/api.md` now owns the API, and it recasts the reactor as a lifecycle component whose stage
+the composition root chooses.
 
 ## `reactor` (intended home: go-core)
 
@@ -19,7 +21,7 @@ type Source[T any] interface {
 	Ready() bool
 }
 
-func Register[T any](lc *lifecycle.Coordinator, name string, stage lifecycle.Stage, src Source[T], fn Func[T])
+func Register[T any](lc *lifecycle.Coordinator, name string, stage int, src Source[T], fn Func[T])
 
 // Every is the interval source. Its presence proves the contract is not
 // shaped by messaging.
