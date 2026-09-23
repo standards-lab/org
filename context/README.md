@@ -72,3 +72,11 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `naming.md` — how the organization and its standards are named in prose.
 - `graduation.md` — what graduating a standard to its own organization implies, and its open
   questions.
+- `admin-listener.md` — the management listener's requirement and what an exploration of the
+  build found.
+- `blobfs.md`, with `blobfs-api.md`, `blobfs-composition.md`, `migration-sets.md`, and
+  `sqlate-library-support.md` — the blobfs library, its proposed API, how a consumer composes it,
+  shipped migration sets, and what sqlate needs to host a library.
+- `staged-query-aggregation.md` — composing staged cross-service queries into one response.
+- `elemental-runtime-layers.md` — the elemental layers beyond the app class.
+- `docs-site.md` — the organization documentation site.

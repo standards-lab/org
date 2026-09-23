@@ -8,7 +8,7 @@ organization. Proving that layer correctly means proving directory listing, hier
 guarded single-active-record pattern against real storage, and not only a put and a get.
 
 This is a concept, provisional until `blobfs.build`. The spike that exercised it,
-`blobfs.experiment`, is closed; its record is `experiments/blobfs/REVIEW.md` in the `standards-lab`
+`blobfs.experiment`, is closed; its record is `REVIEW.md` in the archived [spike-blobfs](https://github.com/JaimeStill/spike-blobfs)
 repository. Four companion documents carry what the spike settled: `blobfs-api.md` proposes the
 library's operation set for `blobfs.build`'s own planning, `blobfs-composition.md` states how a
 consumer builds around the library, `migration-sets.md` covers the multi-set migrator
@@ -35,7 +35,7 @@ The name `blobfs` stays. The final module path is checked against `repository-to
 `dsl-driven-services.md` §2.1 classifies object storage as protocol-driven and SQL as the
 organization's one DSL-driven capability. If the virtual-directory metadata lived inside
 `go-storage`, that library would own SQL text and schema, duplicating the reason `sqlate` exists.
-Keeping `go-storage` protocol-driven (`design/storage-strategy.md`) and putting the SQL-backed
+Keeping `go-storage` protocol-driven (go-storage's `docs/design.md`) and putting the SQL-backed
 hierarchy in its own library, consuming `sqlate` the way `go-database` does, keeps the DSL-driven
 and protocol-driven boundary intact.
 
@@ -44,7 +44,7 @@ promotion-candidate convention (`domain-architecture.md`), was set aside. The ar
 is that a pattern is proven in application code first and then graduates, and `blobfs` departs from
 it on the architect's judgment that its shape is general enough to build as its own repository. The
 departure has a cost the `sqlate` precedent does not remove: the `sqlate` experiment
-(`standards-lab/experiments/sql-dsl`) redesigned a capability `go-database` had already built,
+([spike-sql-dsl](https://github.com/JaimeStill/spike-sql-dsl)) redesigned a capability `go-database` had already built,
 released, and reviewed against a real consumer, while `blobfs` has no predecessor and no consumer.
 `blobfs.experiment` carried the proving burden instead, through a consumer-shaped command-line file
 system.
@@ -96,7 +96,7 @@ are its work list.
 
 ## The opaque key convention
 
-`go-storage`'s own keys stay opaque (`design/storage-strategy.md` §6, §7). Authorization never
+`go-storage`'s own keys stay opaque (go-storage's `docs/design.md`). Authorization never
 parses a key, because `auth-strategy.md` §8 routes it through the owning SQL row. The reason is
 that object stores have no atomic rename: a key that encodes hierarchical position turns a
 reorganization into a non-atomic copy-and-delete across everything beneath the moved node.
@@ -128,7 +128,7 @@ The schema is two tables, `blobfs_directory` and `blobfs_file`.
   operation can create a second root or a name-`/` non-root: `Mkdir` always binds a parent and a
   validated name.
 - **`blobfs_file`** carries `id`, `directory_id` (`NOT NULL`), `name`, `status` (`pending`,
-  `available`, or `deleting`, the vocabulary of `design/storage-strategy.md` §6), `key`, and the
+  `available`, or `deleting`, the vocabulary of the two-phase write in go-storage's `docs/design.md`), `key`, and the
   facts `go-storage`'s `Object` carries (size, content type, entity tag), plus a version guard and
   timestamps.
 - **Uniqueness** is per table and exact match: `(parent_id, name)` on directories and
@@ -150,7 +150,7 @@ two-table design with an added interleaved-listing statement cost about the same
 built, with no schema advantage. The design built won because the storage medium is a web-based
 virtual file system, and consumers address directories and files as separate resources; an
 interleaved listing was not needed. The full method and every number are in
-`experiments/blobfs/evidence/schema-alternatives/README.md`.
+`evidence/schema-alternatives/README.md` in [spike-blobfs](https://github.com/JaimeStill/spike-blobfs).
 
 ### The `created_at` index
 
@@ -200,7 +200,7 @@ input; a consumer's own variant embeds a base variant and overrides only the met
 
 ### The write
 
-`blobfs` never calls the object store. It exposes the steps of `design/storage-strategy.md` §6's
+`blobfs` never calls the object store. It exposes the steps of go-storage's two-phase write,
 two-phase write, and the consumer sequences them: `blobfs` inserts the `pending` row in the
 caller's session, in the same transaction as the consumer's own rows, or resumes a `pending` row an
 earlier attempt left; the consumer puts the object; `blobfs` marks the row `available` with what
@@ -324,7 +324,7 @@ at a time; that path is worse for the first consumer and is taken only if `sourc
 - **File checksums.** `go-storage` exposes none, so `blobfs` would compute one while streaming.
 - **A checksum for migration text.** The trigger is a released migration changed in place that the
   golden test missed.
-- **The sweeper.** The trigger is `v1.messaging`, as `design/storage-strategy.md` §6 records. It is
+- **The sweeper.** The trigger is `v1.messaging`, as go-storage's `docs/design.md` records. It is
   a candidate command beside the library.
 - **A `blobfstest` toolkit.** The trigger is what `blobfs.build`'s own consumers show a test needs
   beyond the conformance suite.

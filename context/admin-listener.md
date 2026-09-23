@@ -2,16 +2,17 @@
 
 The admin mount on its own listener, the `v1.admin-listener` goal. The mount today serves on
 the API listener of go-web-service, which the service's README states is not for a public
-deployment. The strategy record `design/dsl-driven-services.md` (§6.3) states the requirement;
-this note carries what a session found when it explored the build on 2026-09-07 and settled
-that the build waits on the auth layer. It is a concept: nothing below is decided, and the goal's
-own sessions settle it.
+deployment. This note holds the requirement and what an exploration of the build found. Nothing
+below is decided; the goal's own sessions settle it.
 
 ## The requirement
 
-The requirement is `design/dsl-driven-services.md` §6.3. The listener is a consumer of what two
-later layers settle: its authentication comes from `goals.v1.auth`, and the audit record on
-anything that mutates from `goals.v1.observability`.
+In production the admin mount lives on its own listener: its own port or socket, authenticated,
+unreachable from the public API's network path, with audit logging on anything that mutates.
+That isolation is a design constraint, not a deployment detail. `down`, `force`, and `state` are
+destructive and require an explicit confirmation token. The listener's authentication comes from
+`goals.v1.auth`, and the audit record from the observability layer. Rendering configuration on
+it waits on a redaction contract in go-core.
 
 ## Why it waits
 
@@ -24,8 +25,8 @@ does not repeat it.
 
 ## What the exploration found
 
-The findings are grouped by repository, lowest dependency first. Line references are as of
-2026-09-07 and drift with the code; the claims are what matter.
+The findings are grouped by repository, lowest dependency first. A later build rechecks each
+against the code.
 
 ### go-core
 
@@ -51,15 +52,14 @@ The findings are grouped by repository, lowest dependency first. Line references
 
 ### go-web-sdk
 
-- `web.NewEnv` hardcodes the `"server"` segment in every composed name, so a second `web.Config`
-  block cannot exist under one prefix. Recorded as item 6 of
-  `go-web-sdk/context/concepts/error-handling.md`; the fix is a block-name parameter on the env
-  composition, owned by the SDK and released ahead of the listener. `database.NewEnv` has the
-  same shape and the same fix if a second database block is ever needed.
+- `web.Config.FinalizeBlock` finalizes a second `web.Config` under a caller-named block, so a
+  management listener's configuration composes under the same prefix as the API server's.
+  `database.NewEnv` still hardcodes its block, and needs the same change if a second database
+  block is ever needed.
 - `web.Server` holds no package state; two servers are two `NewServer` calls. The listener is
   TCP only; no Unix socket option exists. `RegisterHealth` is written to be called once; whether
   the management listener serves probes is the goal's decision.
-- No auth, token, or recoverer middleware exists. `concepts/middleware-sourcing.md` keeps
+- No auth or token middleware exists. `go-web-sdk/context/middleware-sourcing.md` keeps
   cryptographic token verification out of the SDK and in the auth library; a shared-secret
   comparison has no stated home yet.
 
@@ -68,7 +68,7 @@ The findings are grouped by repository, lowest dependency first. Line references
 - The composition root is singular by shape: `App` holds one server, `routes()` feeds one router,
   `middleware()` is one stack, `RegisterHealth` is called once. The second listener reshapes
   `internal/app`, which already gains an `auth.go` layer file for the API module's authentication
-  middleware (`context/design/auth-strategy.md` §6).
+  middleware (`auth-strategy.md` §6).
 - `admin/database.Routes` has no gate on the three destructive verbs. The route group is unsealed
   until `NewModule`, so a per-route middleware on `down`, `force`, and `state` is the seam; the
   handler's error vocabulary already maps refusals to 400, 403, and 409.
@@ -91,7 +91,7 @@ The findings are grouped by repository, lowest dependency first. Line references
 
 ## The posture questions
 
-Open in `design/dsl-driven-services.md` §9 and reassigned to this goal:
+Open, and this goal's to decide:
 
 - **DDL in the serving role.** Whether a process that serves traffic should hold DDL privileges,
   and whether the standard should mandate a separate migration role and a one-shot invocation of
@@ -109,9 +109,9 @@ Open in `design/dsl-driven-services.md` §9 and reassigned to this goal:
 
 ## Assumptions
 
-- Assumes the auth layer produces a middleware the listener can mount, per
-  `go-web-sdk/context/concepts/service-middleware.md`: infrastructure-backed middleware lives in
-  the infrastructure library, exported over stdlib types.
+- Assumes the auth layer produces a middleware the listener can mount: infrastructure-backed
+  middleware lives in the infrastructure library, exported as `func(http.Handler) http.Handler`
+  (the architecture repository's go-elemental `dependencies.md`).
 - Assumes the observability layer produces the audit record; if it does not, the listener's
   request logger is the audit log.
 - Assumes go-core's redaction contract lands before config rendering, and that go-database's

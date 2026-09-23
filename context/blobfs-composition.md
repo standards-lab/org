@@ -5,7 +5,7 @@ composition root, ownership at two grains, the write, delete, and move protocols
 sequences them, seeding, and the operating constraints `blobfs.experiment`'s evidence established.
 It excludes the library's own protocol semantics and listing conventions, which are `blobfs.md`'s
 subject, the multi-set migrator's mechanics, which are `migration-sets.md`'s, and authorization,
-which waits for `go-auth` (`design/auth-strategy.md` §8, amended alongside this document). Its
+which waits for `go-auth` (`auth-strategy.md` §8). Its
 worked example is the organization: an image at the file grain, a document hierarchy at the
 directory grain.
 
@@ -121,8 +121,9 @@ full and is not restated here.
   computes a path per row through a correlated recursion should expect the planner's JIT compiler
   to trigger once a unit's row count crosses roughly a hundred and forty, which costs more than the
   walk itself; sorting by an indexed key instead of relying on the recursion's own order, or
-  lowering the JIT threshold for the session, avoids it. `experiments/blobfs/REVIEW.md`'s evidence
-  section has the measured numbers.
+  lowering the JIT threshold for the session, avoids it. The evidence section of
+  [spike-blobfs](https://github.com/JaimeStill/spike-blobfs)'s `REVIEW.md` has the measured
+  numbers.
 - **An exact total reads the whole directory.** The window count that produces an exact total costs
   in proportion to the directory's own size, never the whole tree, but a directory with tens of
   thousands of files should read its total once, on the first page, and walk the rest by cursor.
