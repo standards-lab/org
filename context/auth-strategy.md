@@ -4,21 +4,21 @@ The strategy for authentication and authorization across the reference architect
 OpenID Connect with Keycloak as the declared provider, a relationship-derived authorization model
 evaluated as SQL inside each service's own database, the subject and identity carrier every domain
 method builds against, and the rule that lets services compose across a runtime boundary without a
-shared authorization store. It is the counterpart of `design/dsl-driven-services.md`: every domain built
+shared authorization store. It is the counterpart of the Go Elemental [DSL-driven services](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/dsl-driven-services.md) principle: every domain built
 after go-auth lands builds to the contract this record states directly; a domain built ahead of it in
 the roadmap sequence (`standards-lab/context/roadmap.toml`) adopts the contract in a sweep task of its
 own once go-auth ships. The build of go-auth itself is `goals.v1.auth`'s remainder.
 
 This is a strategy record. It contains the principles, the reasoning that produced them, and the shape
 of the result. Implementation detail lives elsewhere: go-auth's own `doc.go`, README, and CHANGELOG for
-what it ships and at which version; each consuming service's `context/design/domain-architecture.md` for
-how its own domains apply this contract; `standards-lab/context/design/service-organization.md` for the
+what it ships and at which version; each consuming service's `context/domain-architecture.md` for
+how its own domains apply this contract; `service-organization.md` for the
 runtime cross-service rules this record depends on and contributes to.
 
 ## 1. Authentication
 
 The standard tier is OAuth 2.0, OpenID Connect, and JWT; Keycloak is the declared provider, Entra the
-anticipated second (`design/service-organization.md`). Every service in the reference architecture is a
+anticipated second (`service-organization.md`). Every service in the reference architecture is a
 resource server only — never an OAuth client — with one narrow exception: a service calling another on
 an end user's behalf is a client for the RFC 8693 token-exchange grant alone, never
 authorization-code, refresh, or session management (§7).
@@ -36,7 +36,7 @@ identity — they are mutable and not guaranteed unique. The service reads no ro
 scope claim; authorization is decided entirely from the service's own grant model (§2), never from a
 token.
 
-Cryptography is sourced, not hand-rolled (`design/dependency-sourcing.md`): `github.com/coreos/go-oidc/v3`
+Cryptography is sourced, not hand-rolled (`architecture/context/dependency-sourcing.md`): `github.com/coreos/go-oidc/v3`
 is go-auth's verification library. go-auth's own README states its admitted dependency line (specification
 surface, threat model, cryptography) as the enhancement that rule requires.
 
@@ -206,14 +206,14 @@ required fields at construction and naming what's missing, rather than silently 
 `Authz`. `Deps` is sized to `DB` and `Authz` only — no logger, no tracer, no cross-domain interface —
 until a layer that needs one exists. It is per-domain, not shared: a cross-domain invariant that would
 run upward is an interface the consuming domain declares and injects at the composition root
-(`context/concepts/data-layer.md`), and a domain's own `Deps` struct is that injection point.
+(`go-web-service/context/data-layer.md`), and a domain's own `Deps` struct is that injection point.
 
 ## 7. Cross-service authorization and staged resolution
 
 A service reaches another service's data only through that service's own API — never its database, never
 a replica of its tables, never a re-derivation of its rules. The consuming service declares the question
 it needs answered; the owning service answers it from its own data, under its own rules — the same
-cross-domain rule `context/concepts/data-layer.md` states for domains inside one service, applied at the
+cross-domain rule `go-web-service/context/data-layer.md` states for domains inside one service, applied at the
 process boundary with configuration in place of the composition root and an HTTP contract in place of an
 injected interface. A client to another service is a capability-named translation file, the same shape as
 any other infrastructure integration.
@@ -261,7 +261,7 @@ action. Nothing in the workspace currently asks for this; it is recorded as the 
 The rule for authorizing access to an object: authorize the record, then reach the technology. Every
 object needs a SQL row regardless of authorization — content type, size, soft delete, audit, lifecycle,
 since an object store cannot itself be queried. The row lives in the virtual-directory library's
-tables, which hold no owner and no unit (`concepts/blobfs.md`). The consuming domain's own join table
+tables, which hold no owner and no unit (`blobfs.md`). The consuming domain's own join table
 references the file's row and carries the domain's `unit_id`, so it carries the same scope predicate as
 any other read model, at no additional cost, and at the file grain it drives every authorized listing:
 the library's tables are joined detail and the join table is the anchor of the authorized read.
@@ -270,7 +270,7 @@ The library also supports a directory grain, which anchors the read differently.
 one top-level directory to a unit, and a scoped listing checks that row once, at the top-level
 ancestor of the path being read, before the path resolves any further; the library's own
 directory-anchored listings run unchanged beneath that check and carry no ownership predicate of
-their own (`concepts/blobfs-composition.md`). At this grain the read is anchored on a directory whose
+their own (`blobfs-composition.md`). At this grain the read is anchored on a directory whose
 ancestor the owner row already authorized, not on a join row per file. The same binding is why a move
 never crosses one top-level directory into another: the owner row is read only at that one depth, so
 carrying an entry across two top-level directories would move it out of one unit's scope and into
@@ -330,7 +330,7 @@ stable key available — the `(issuer, subject claim)` pair.
 mechanism (a materialized, event-driven read model) so building it later is a known answer, not a new
 design. A live-orchestrated alternative to that mechanism — composing the staged hops of a single request
 into one response graph, each hop still independently authorized — is a separate, later question,
-captured in `concepts/staged-query-aggregation.md`.
+captured in `staged-query-aggregation.md`.
 
 ## 10. Alternatives considered
 
@@ -391,11 +391,3 @@ service), couples the organization's code charset permanently to an index's labe
 separator mismatch against the HTTP contract's `/`-delimited path. A materialized text path loses exactly
 where it must win: its prefix-scan optimization needs a plan-time-known prefix, and the authorization
 predicate's prefix comes from a joined grant row at runtime, so the subtree test degrades to a scan.
-
-## Record
-
-This strategy was settled through a single `plan` session, working the model, its multi-service
-implications, cross-service composition, and the subject and identity shape through with the architect
-before any context changed. The reasoning trace — every alternative's full technical evaluation, the
-rounds that stress-tested and revised the model as scope widened — lives in this session's own record;
-nothing here restates it a second time.

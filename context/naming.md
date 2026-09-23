@@ -15,8 +15,9 @@ and changelogs, license notices, GitHub repository descriptions, and the context
 
 The same pattern names the standards: Go Elemental in prose, `go-elemental` where an identifier
 is required. A standard's name carries the architecture it implements — Go Elemental is the Go
-implementation of the Elemental Architecture — not an inherited property of that architecture;
-`design/blueprint-organization.md` records the reasoning.
+implementation of the Elemental Architecture — not an inherited property of that architecture. A
+framework-heavy Go standard would not be a competing implementation of Elemental; it would not
+implement Elemental at all.
 
 ## Repositories
 

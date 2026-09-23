@@ -1,7 +1,7 @@
 # Service organization
 
 How the organization builds out its infrastructure services and the reference architecture that
-composes them. The settled principles migrated to the architecture repository — the
+composes them. The principles live in the architecture repository — the
 [service tiers](https://github.com/standards-lab/architecture/blob/main/principles/service-tiers.md) and
 [repository topology](https://github.com/standards-lab/architecture/blob/main/principles/repository-topology.md)
 principles, and the Go Elemental pages — and this note keeps the planning direction the
@@ -21,14 +21,14 @@ Each infrastructure library declares its swap class when it is built; the antici
   the minimal operation set common to both target APIs; those operations are interchangeable,
   and consistency is interchangeable with review.
 - **SQL** — one provider per engine. Built: `sqlate` with its `postgres` sub-module, and
-  go-database as the infrastructure service over it (`design/dsl-driven-services.md`). The
+  go-database as the infrastructure service over it (sqlate's README). The
   service is schema-bound: a second engine is a second provider, and for an application a
   port, never a switch.
 - **Observability** — no provider pair the way the others have one. OpenTelemetry's OTLP
   exporter is already the boundary a backend sits behind, so `go-observability` is one base
   module, split from its `otlp` sub-module by dependency weight rather than by a swap axis; the
   LGTM stack (or a managed backend in its place) never enters the Go dependency graph at all.
-  Swap-cost class: interchangeable with review. See `design/observability-strategy.md`.
+  Swap-cost class: interchangeable with review. See go-observability's README.
 
 ## Tier topology
 
@@ -38,13 +38,12 @@ composition happens in the application: the SDK exposes an extension point, and 
 application declares the policy. The web SDK's error writing is the worked example. The SDK
 defines the error-returning handler adapter and its writer; the application supplies, at its
 composition root, the matchers that map the database library's error types to HTTP statuses.
-The adapter (settled at the 2026-08-31 retrospective, built in go-web-sdk v0.6.0) moves the
+The adapter moves the
 mechanics into the SDK without moving the vocabulary, so matcher policy stays the consumer's. When an
 infrastructure library contributes to an SDK-defined surface, as the management listener will
 (`v1.admin-listener`), the dependency points from the infrastructure library to
 the SDK, never the reverse. The cost is a small adapter per service; the return is independent
-releases and SDKs that accumulate no infrastructure vocabulary. Settled at the service's
-first write layer.
+releases and SDKs that accumulate no infrastructure vocabulary.
 
 ## Runtime composition across services
 
@@ -57,7 +56,7 @@ deployed service exists to confirm the shape.
 A service reaches another service's data only through that service's own API. It does not connect to
 another service's database, does not replicate its tables to read them, and does not re-derive its
 rules. A consuming service declares the question it needs answered; the owning service answers it from
-its own data, under its own rules — the cross-domain rule `go-web-service/context/concepts/data-layer.md`
+its own data, under its own rules — the cross-domain rule `go-web-service/context/data-layer.md`
 states for domains inside one service, applied at the process boundary: configuration stands in for the
 composition root, an HTTP contract for the injected interface. A client to another service is a
 capability-named translation file, the same shape as any other infrastructure integration.

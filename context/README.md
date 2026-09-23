@@ -7,7 +7,7 @@ coordinator. Authoritative context lives at its single home and is linked from h
 
 - **The vision** — the opening of the profiles: `../public/profile/README.md`, the authored
   baseline, mirrored into the extended profile at `../private/profile/README.md` (the mirror
-  convention is `design/workspace-structure.md`).
+  convention is in `CLAUDE.md`).
 - **The definitions** — the three-level hierarchy (architecture → standard → module) and the
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
@@ -34,7 +34,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - A baseline catalog and a conformance suite.
 - The full source-control topology.
 - Documentation, diagram, and voice standards, and the organization documentation site that
-  serves the architecture repository's content (`concepts/docs-site.md`).
+  serves the architecture repository's content (`docs-site.md`).
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — command-line, worker, and others — as a
@@ -50,51 +50,25 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   the organization contents index; the authored source of the profile body.
 - **Extended profile** (`private/profile/README.md`) — what members see in place of the
   baseline profile: the baseline body mirrored verbatim, plus the appended member-only
-  orientation. The mirror convention is `design/workspace-structure.md`.
+  orientation. `CLAUDE.md` states the mirror convention.
 - **The workspace roadmap** (`context/roadmap.toml`) — the goal tree, tasks, and backlog for
-  the buildout, ephemeral and citable by slug path; the only sequence it asserts is `next`.
-- **Leadership briefs** (`../briefs/`) — standardized orientation briefs for technical
-  leadership; `../briefs/orientation.md` is the first, paired with the agent-interview prompt
-  `../interview.md` at the repo root that initializes an interview session over the
-  organization's context and source.
+  the buildout, citable by slug path; the only sequence it asserts is `next`.
+- **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership;
+  `../briefs/orientation.md` is the first, paired with the agent-interview prompt
+  `../interview.md`.
 - **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
   — portable identity for every repository in the effort, with a per-machine local-directory
-  map and the standard grouping. A private annex in `../private/` extends it with the prior
-  R&D that cannot be catalogued publicly. See `design/repo-references.md`.
-- **Standards declaration** — how standards, architectures, and principles are declared in the
-  catalog and the repositories, with definitions in the architecture repository. See
-  `design/standards.md`.
-- **Blueprint organization** — the blueprint / boundary / catalog roles, the graduation model,
-  and the agentic thesis. See `design/blueprint-organization.md`.
-- **The architecture layer** — the workspace's architecture repository, what it holds, and how
-  a page reaches it by promotion; each repository documents its own implementation. See
-  `design/architecture-layer.md`.
-- **Service organization** — the anticipated services and providers, and how the tiers
-  co-evolve. See `design/service-organization.md`.
-- **DSL-driven services** — the strategy that distinguishes DSL-driven infrastructure (SQL
-  first) from protocol-driven, and the authored-SQL direction it produced, all shipped:
-  `sqlate`, the SQL templating library, adjacent to the standard with its own guide
-  (`github.com/standards-lab/sqlate`); go-database's infrastructure service and the `admin`
-  package over `sqlate` with named states; and the reference service on authored SQL. See
-  `design/dsl-driven-services.md`.
-- **Testing hierarchy** — the two-tier testing strategy: the unit tier on every pull request
-  for every layer, needing no external service, and the integration tier that runs the composed
-  service black-box through the API against its own compose project on merge, built in the
-  reference service and the template, with its toolkit shipped beside the SDKs. See
-  `design/testing-hierarchy.md`.
-- **Context architecture** — the single-source-of-truth principle for every layer of written
-  context. See `design/context-architecture.md`.
-- **Dependency sourcing** — when the organization hand-rolls a capability and when it sources
-  an industry-standard one, and how a sourced dependency stays inside the dependency-line
-  principle. See `design/dependency-sourcing.md`.
-- **Workspace structure** — the three-repository layout that lets one tree coordinate the
-  coordinator and the public and member profiles, the profile mirror convention, and the home
-  of the workspace's experiments (`../experiments/`). See `design/workspace-structure.md`.
-- **Reference-architecture context authoring** — how each reference architecture's stable
-  context stands on its own. See `design/reference-architecture-context.md`.
-- **Naming** — how the organization and its standards are named in prose. See
-  `design/naming.md`.
-- **Cross-repo coordination** — coordinating the Standards Lab repositories as a group: the
-  references catalog (`../references.md`) is the repository list, and the workspace order in
-  `.claude/marathon.toml` is its dependency graph in machine-readable form. Kept minimal; it
-  grows only as concrete needs appear.
+  map, the standards declarations, and a private annex in `../private/`. `references.md` states
+  the mechanics.
+- **Experiments** (`../experiments.md`) — the catalog of spikes and their hosting convention.
+- **Cross-repo coordination** — the references catalog is the repository list, and the
+  workspace order in `.claude/marathon.toml` is its dependency graph in machine-readable form.
+
+## Notes
+
+- `auth-strategy.md` — authentication and authorization across the reference architecture.
+- `service-organization.md` — the anticipated services and providers, runtime composition
+  across services, and how the tiers co-evolve.
+- `naming.md` — how the organization and its standards are named in prose.
+- `graduation.md` — what graduating a standard to its own organization implies, and its open
+  questions.
