@@ -1,127 +1,74 @@
 # reset · context-migration
 
-- **Status:** handoff
+- **Status:** closeout
 - **Session:** start
-- **Project:** claude-plugins, standards-lab
+- **Project:** claude-plugins, go-core, sqlate, go-database, go-web-sdk, go-observability, go-storage, go-web-sdk-template, go-web-service, architecture, standards-lab (with .github and .github-private)
 - **Branch:** context-migration
 
 ## Disposition
 
-- **Cross-repo:** claude-plugins PR #31, merged and tagged `marathon/v0.14.0`,
-  `marathon-architecture/v0.2.1`, and `marathon-roadmap/v0.2.1`, with all three release
-  workflows passing.
-  - marathon 0.14.0 replaces settledness lines with the current-truth rule. A note or document
-    states what exists, in the present tense, or what is planned, marked as planned. The roadmap
-    and the reset file track status, and CHANGELOGs are exempt.
-  - It adds the `editor` profile, which makes one pass over a branch's prose before the final
-    checkpoint.
-  - It rewrites the marathon, marathon-architecture, and marathon-roadmap prose for clarity. A
-    rule-inventory check of old against new confirmed the rules are unchanged.
-  - `claude-plugins/context/marathon-extraction.md` now holds the coordinator's
-    `concepts/marathon-extraction.md`, rewritten. The coordinator copy is deleted in stage 17.
-- **Validated:** checkpoint 1, a note written under the new rules and traced rule by rule.
-  Checkpoint 2, a cross-repo `start` traced through the rewritten files, `scripts/check.sh`, and
-  CI on PR #31.
-- **Cleanup:** the architect deleted `~/claude-settings` and archived its repository. `~/.claude`
-  holds no symlinks to it any more. The plugins are reloaded, with marathon 0.14.0,
-  marathon-architecture 0.2.1, marathon-roadmap 0.2.1, and the `marathon:editor` agent loaded.
+- **Integrated:**
+  - standards-lab: `architecture-layer`, `context-architecture`, `testing-hierarchy`, and
+    `reference-architecture-context` (the architecture repository's principles);
+    `dsl-driven-services` (sqlate `docs/concepts.md` and the go-elemental DSL-driven principle);
+    `observability-strategy` (the go-observability README's Design section); `storage-strategy`
+    (go-storage `docs/design.md`); `standards` and `repo-references` (`references.md`);
+    `workspace-structure` (`CLAUDE.md`); `blueprint-organization`'s roles (the profile and the
+    architecture README); `tooling-principles` (the architecture's harness and principle pages).
+  - go-web-service: `documented-layers` (`CLAUDE.md`), `stack` (the README's Stack section),
+    `slab-conventions` (`tools/slab/README.md` and six new `doc.go` files).
+  - go-web-sdk: the wiring-time-methods idiom (`doc.go`).
+- **Culled:** go-web-service `identity-linking` and `organization-lineage` (the auth strategy
+  holds both); standards-lab `marathon-extraction` (claude-plugins holds it) and
+  `dependency-sourcing` (landed in architecture).
+- **Add or sharpen:** every remaining note moved to a flat `context/` under the current-truth rule
+  in go-web-sdk, go-web-sdk-template, go-web-service, architecture, and standards-lab; new
+  `sqlate/context/dollar-quoting.md`, `go-storage/context/provider-assumptions.md`, and
+  `standards-lab/context/graduation.md`; `admin-listener.md` carries its requirement and current
+  findings.
+- **Promoted:** `dependency-sourcing`, the harness rules from `testing-hierarchy`, and the
+  promote-on-fit rule landed as notes in `architecture/context/` for pages a session there
+  writes.
+- **Cross-repo:**
+  - architecture: go-elemental `dependencies.md` now separates a library with no HTTP concern,
+    which supplies a collaborator, from an HTTP-shaped one, which exposes
+    `func(http.Handler) http.Handler` over `net/http` alone; `configuration-boundaries.md` and
+    the harness README drop the archived claude-settings example.
+  - go-observability: the docs said `Telemetry` registers at stage 0; they now say startup and
+    shutdown hooks, as the service wires it.
+  - Spikes: `JaimeStill/spike-blobfs` and `JaimeStill/spike-sql-dsl`, split with history,
+    public and archived; `experiments.md` catalogs them with the hosting convention.
+  - Profiles: `.github` and `.github-private` list only the organization-level repositories.
+  - `.claude/report.md` is gitignored in all 11 repositories; `~/architecture/voice.md` is
+    deleted.
+- **Roadmap:** deleted `v1.harness.context-migration`; `next` now opens on the wave. Added
+  `backlog.entrypoint-composition-split`; `docs-clarity` dropped at the architect's call. Every
+  context path resolves, and principle numbers are section names.
+- **Validated:**
+  - Checkpoint 1: a note written under the new rules, traced rule by rule.
+  - Checkpoint 2: a cross-repo `start` traced through marathon 0.14, `check.sh`, and CI on
+    claude-plugins PR #31.
+  - Checkpoint 3: the lower-layer repositories' docs, with each module's build, vet, test, and
+    lint.
+  - Checkpoint 4: a real-client-IP walkthrough through the sourcing note, the dependency-sourcing
+    note, and `dependencies.md`.
+  - Checkpoint 5: a profile-to-standard-to-roadmap walkthrough; relative links, backticked
+    paths, GitHub URLs, and roadmap paths all resolve.
+  - Checkpoint 6: no old directories; citations resolve; 15 Go modules build (`GOWORK=off`),
+    vet, test, and lint; `sqlint` and `check.sh` pass; no settledness lines; the editor pass on
+    Opus; the branch review's 11 findings fixed as an Adjust and rechecked.
 
 ## Next-focus
 
-`v1.harness.context-migration`, resumed under marathon 0.14.0, which is loaded. Run it from the
-coordinator.
+The wave `next` opens on, from the coordinator. Three lanes, each with its record at
+`context/reset/<lane>.md`:
 
-Stages: 6/19 · checkpoints 1 and 2 of 6 confirmed · stage 6 committed and published · the
-claude-plugins branch is merged and deleted. The standards-lab branch holds only this record, and
-no other repository has a branch yet.
+- **blobfs-build**: `blobfs.build`, `blobfs.admin`, `v1.storage.service`, `v1.storage.suite`,
+  in order.
+- **messaging-experiment**: `v1.messaging.experiment`, a `plan` session settling the question
+  and the decision it changes, then an `experiment` session setting up the spike.
+- **ai-experiment**: `v1.ai.experiment`, the same two sessions for AI.
 
-Rules for every remaining stage:
-- Notes follow the current-truth rule.
-- Repository docs match sqlate's README and `docs/`: concise and current.
-- The editor pass runs once per repository at final validation.
-- Delegate to Opus only; there is no Sonnet delegation until Sonnet 5.5 releases.
-
-The remaining stage list, in `order`:
-
-- **Checkpoint 3: the lower-layer repositories.**
-  - 7 · go-core and go-database: add `.claude/report.md` to `.gitignore`.
-  - 8 · sqlate:
-    - Add the rejected alternatives from `dsl-driven-services` §3 to `docs/concepts.md`.
-    - Add a note on the §9 dollar-quote stripper to `context/`.
-    - `.gitignore`.
-  - 9 · go-web-sdk:
-    - Add the wiring-time-methods idiom to `doc.go`.
-    - Move `error-handling.md` and `middleware-sourcing.md` flat, trimmed.
-    - The Placement bullet 3 contradiction goes to architecture in stage 14.
-    - `.gitignore`.
-  - 10 · go-observability:
-    - Add the reasoning from `observability-strategy` to the README.
-    - Resolve the stage-0 contradiction against the code.
-    - Repoint `otlp/doc.go:7` and the `context/README.md` citations.
-    - `.gitignore`.
-  - 11 · go-storage:
-    - Add the reasoning from `storage-strategy` to the README or `docs/`.
-    - Add `context/provider-assumptions.md`.
-    - `.gitignore`.
-- **Checkpoint 4: the template, the service, and architecture.**
-  - 12 · go-web-sdk-template:
-    - Move `scaffolding-cli.md` flat and fix `infrastructure.New` to `newInfrastructure`.
-    - `.gitignore`.
-  - 13 · go-web-service:
-    - Merge `documented-layers` into `CLAUDE.md`.
-    - Move `stack` into the README.
-    - Move `slab-conventions` into `tools/slab/README.md`, plus `doc.go` files for `demo`,
-      `scenario`, `httpx`, `env`, `repo`, and `statement`.
-    - Move `domain-architecture`, `data-layer`, and `integration-tier` flat.
-    - Cull `identity-linking` and `organization-lineage`.
-    - Fix the citations and add `.gitignore`.
-  - 14 · architecture:
-    - Move `entrypoint-composition-split` and `sql-meta-language` flat.
-    - Land notes on dependency-sourcing, the testing harness rules, the "promote on fit" rule,
-      and the middleware-placement contradiction.
-    - Update `CLAUDE.md:19-22` and add `.gitignore`.
-    - Remove or replace the `claude-settings` example at
-      `harness/configuration-boundaries.md:25`, since that repository is archived.
-- **Checkpoint 5: standards-lab.**
-  - 15 · Move the experiments out:
-    - `git subtree split` each into `~/experiments/spike-<slug>`, and rewrite its module path to
-      `github.com/JaimeStill/spike-<slug>`.
-    - Create each remote with `gh repo create`, push it, and archive it.
-    - Delete `experiments/`.
-    - Add `experiments.md` with the hosting convention.
-  - 16 · Design notes:
-    - Integrate `architecture-layer`, `context-architecture`, `standards`, `repo-references`,
-      `workspace-structure`, `dsl-driven-services`, `observability-strategy`, `storage-strategy`,
-      `testing-hierarchy`, and `reference-architecture-context`.
-    - Split `blueprint-organization`, with its open questions moving to `graduation.md`.
-    - Delete `dependency-sourcing`, which stage 14 promotes.
-    - Move `auth-strategy`, `service-organization`, and `naming` flat.
-  - 17 · Concept notes:
-    - Integrate `tooling-principles` and delete `marathon-extraction`.
-    - Move the rest flat, trimmed.
-  - 18 · The brief, the interview, and the profiles:
-    - Single homes: the go-elemental README holds the module list, and the profile holds only
-      the organization-level repositories.
-    - The brief and the interview link only the fixed entry points: the profile, the architecture
-      repository, the standards index, the harness, and the roadmap.
-    - The v1 target links the live roadmap.
-    - The architect confirms whether to cut the "holding pattern" paragraph.
-    - Touches `.github` and `.github-private`.
-  - 19 · Citations:
-    - `CLAUDE.md`, `references.*` (including `private/`), and the capability map.
-    - The `roadmap.toml` paths, and principle numbers renamed to section names.
-    - Backlog items `entrypoint-composition-split` and `docs-clarity`.
-    - Widen `repos`.
-    - Delete `~/architecture/voice.md`.
-- **Checkpoint 6: final validation.**
-  - No `design/`, `concepts/`, or `experiments/` directories remain, and every citation resolves.
-  - `.gitignore` in all 11 repositories.
-  - Build and test pass, and `check.sh` passes.
-  - No settledness lines remain.
-  - The spikes are archived.
-  - The editor pass, using the `marathon:editor` agent on Opus, and the architect's sample read.
-
-The per-note trimming detail comes from the three triage passes. Re-derive it at each stage from
-the notes themselves, applying the current-truth rule.
-
-Next move: run `/marathon:marathon start`. It resumes at stage 7.
+The lanes share no member repository. Edits a lane would make to shared coordinator files —
+`roadmap.toml` and `experiments.md` — go in its Disposition and are applied when the wave folds.
+The architect names each session's lane.
