@@ -7,19 +7,38 @@ Two kinds of entry: the **effort repositories** that make up the Standards Lab o
 **prior R&D** that informs the standard. The prior R&D is input, not infrastructure to inherit: carry
 its strengths, correct its debts, and re-derive a clean standard.
 
+An entry's key joins the two manifests: to clone a missing repository, look up its remote in
+`references.toml` and its directory in `references.local.toml`. Remotes live only in
+`references.toml` and local paths only in the gitignored `references.local.toml`. An access caveat,
+such as an account switch required before cloning, is recorded beside the affected entries here and
+in the `references.toml` header.
+
 A private annex extends this catalog: prior R&D from private engagements is catalogued in the
-private repository, whose annex `references.toml` and `references.md` join this catalog under the
-same key namespace when the member checkout is present at `private/`. The layering rule is
-`context/design/repo-references.md`.
+private repository, whose annex `references.toml` and `references.md` join this catalog when the
+member checkout is present at `private/`. The two share one key namespace, and the annex only adds
+entries, never redefining a public one, so a key resolves to the same entry in every checkout that
+has it.
+
+This catalog records the relationships between repositories and the prior R&D. A repository's stable
+documentation describes itself and the repositories it depends on, and never cites prior R&D or a
+sibling; it justifies a convention by what the convention does.
 
 ## Standards
 
 A standard is a named, technology-specific implementation of an architecture that a set of
 repositories declares alignment to. Definitions live in the
-[architecture repository](https://github.com/standards-lab/architecture); the declaration mechanics are in
-`context/design/standards.md`. Each standard has a `[standards.<key>]` entry in
-`references.toml` with a `definition` URL and the `architecture` it implements, and a member
-repository's entry declares `standard = "<key>"`.
+[architecture repository](https://github.com/standards-lab/architecture). Each standard has a
+`[standards.<key>]` entry in `references.toml` with a `definition` URL and the `architecture` it
+implements. A member repository's entry declares `standard = "<key>"`, so membership is declared
+where the repository is cataloged and never listed a second time, and a derived standard
+declares `derives = "<key>"`. A repository also declares its standard in its README's Standard
+section: a link to the definition, and its own principles stated as enhancements.
+
+A repository belongs to exactly one standard, the one whose author answers for it. Another
+standard that finds its modules sufficient adopts them as ordinary dependencies at pinned
+releases, never as members, per the
+[downward-dependencies](https://github.com/standards-lab/architecture/blob/main/principles/downward-dependencies.md)
+principle.
 
 ### go-elemental
 
@@ -41,8 +60,8 @@ workflow plugin and its `marathon-roadmap` and `marathon-architecture` extension
 ### architecture
 The organization's architecture layer: the canonical home for its architectures, standards,
 principles, and a catalog of the repositories that implement them, published as plain markdown
-with YAML front matter. The workspace's architecture repository
-(`context/design/architecture-layer.md`); anticipated host content for the organization documentation site.
+with YAML front matter. It is the workspace's architecture repository, and its content is what the
+planned organization documentation site will serve.
 
 ### org
 This repository: the workspace context that coordinates the organization — `context/`, the
@@ -110,16 +129,6 @@ sub-module. A standalone library any Go project can adopt, adjacent to the `go-e
 standard rather than a member of it: the standard's libraries consume it, and it is the
 blueprint for how a domain-specific language gains host-language support. The base module
 depends on the standard library alone; the base and each sub-module are tagged independently.
-
-## External references
-
-Repositories outside the effort, cited as illustrations.
-
-### claude-settings
-The maintainer's user-scoped Claude Code configuration, kept under source control on a personal
-account and symlinked into `~/.claude`: identity-level behavior (`behavior/`) loaded with every
-session, per-tool notes (`tools/`) consulted on demand. Illustrates the user-scope harness
-programming responsibility layer the docs harness pages describe.
 
 ## Prior R&D — Go web service architecture
 

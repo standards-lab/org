@@ -21,56 +21,34 @@ what remains, not a complete and holistic reference.
 The repositories are developed with marathon, a long-haul development workflow, and their layout
 follows its conventions:
 
-- Each repository keeps its working context in a top-level `context/` directory, layered by
-  volatility: `concepts/` notes hold ideas not yet executed, `design/` notes record settled
-  decisions, and `README.md` maps the repository's capabilities. Knowledge graduates from
-  concept to design to principle as the work proves it, with principles centralized in the
-  architecture documentation of the `architecture` repository. The written context is the specification
-  the agent and developers align on — the source of truth for the design — so ground design and
-  intent questions in `context/` and implementation questions in the source.
+- Each repository keeps its working context in a flat, top-level `context/` directory:
+  `README.md` maps the repository's capabilities, and each note holds intent the built work does
+  not express yet, such as a decision with its reasoning or an idea with its open questions. A
+  note is deleted once the work expresses it, and knowledge that holds beyond one repository is
+  promoted to a principle in the `architecture` repository. Ground design and intent questions
+  in `context/` and each repository's documentation, and implementation questions in the source.
 - Work advances one session at a time, and a workspace feature coordinates steps that span the
   organization's repositories. The coordinator repository (`org`) carries the session record in
   `context/reset.md` and the remaining path in `context/roadmap.toml`: a goal tree and backlog
   holding only what remains, with `next` as the only sequence it asserts.
-- The workflow is itself a product of this organization:
-  [marathon](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon) and its
-  [marathon-roadmap](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon-roadmap)
-  and
-  [marathon-architecture](https://github.com/standards-lab/claude-plugins/tree/main/plugins/marathon-architecture)
-  extensions.
+- The workflow is itself a product of this organization: the harness repository below holds
+  marathon and its marathon-roadmap and marathon-architecture extensions.
 
-## Organization
+## Entry points
 
-- [.github](https://github.com/standards-lab/.github) — the organizational profile: the vision
-  and the organization contents index.
-- [architecture](https://github.com/standards-lab/architecture) — the architecture repository: the Elemental
-  Architecture, its principles, and its standards.
-- [org](https://github.com/standards-lab/org) — the workspace coordination context: the roadmap,
-  the references catalog, the session record, and the briefs.
+Start from these; every other repository is linked from them.
 
-## Architecture
-
-Go Elemental, the Go implementation of the Elemental Architecture and the organization's first
-standard:
-
-- [go-core](https://github.com/standards-lab/go-core) — the Core SDK: layered configuration, the
-  process lifecycle, and the logger.
-- [go-database](https://github.com/standards-lab/go-database) — the SQL infrastructure library,
-  with the PostgreSQL provider as a sub-module.
-- [go-observability](https://github.com/standards-lab/go-observability) — the observability
-  infrastructure library: process telemetry, a trace-correlating log handler, and HTTP
-  instrumentation, with the OTLP exporters as a sub-module.
-- [go-web-sdk](https://github.com/standards-lab/go-web-sdk) — the Application SDK for web
-  services.
-- [go-web-sdk-template](https://github.com/standards-lab/go-web-sdk-template) — scaffolds an
-  initial Go Elemental web service with `gonew`.
-- [go-web-service](https://github.com/standards-lab/go-web-service) — the holistic reference web
-  service, grown in documented layers; versionless until its 1.0.
-
-Adjacent to the standard, consumed by its libraries:
-
-- [sqlate](https://github.com/standards-lab/sqlate) — the SQL templating library: authored `.sql`
-  files made dynamic and composable, with its own guide.
+- [Organization profile](https://github.com/standards-lab) — the vision and the organization's
+  repositories.
+- [Architecture](https://github.com/standards-lab/architecture) — the architecture repository:
+  the Elemental Architecture, its principles, and its standards.
+- [Standards](https://github.com/standards-lab/architecture/blob/main/standards/README.md) —
+  each standard and its member repositories, starting with Go Elemental.
+- [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
+  marketplace: the `marathon` workflow and its extensions.
+- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what
+  remains, with `next` as the order. It lives in the `org` repository, which also holds the
+  session record and the references catalog.
 
 ## Behavior
 
@@ -106,4 +84,4 @@ available to explore:". An example of the shape and granularity:
 - Go Elemental — the SDKs, the infrastructure libraries, the template, and the reference
   service that proves them.
 - The marathon workflow — how sessions, context, and the roadmap keep long-haul work coherent.
-- Where the effort stands — the roadmap, what is settled, and what is still concept-stage.
+- Where the effort stands — the roadmap, what is settled, and what is still open.

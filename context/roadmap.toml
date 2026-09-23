@@ -2,41 +2,18 @@
 # Maintained by the marathon-roadmap extension; the format is the plugin's
 # references/manifest.md.
 
-# The v1 execution sequence, settled 2026-09-07, resequenced 2026-09-16: the workspace context
-# brought into alignment first, then the harness, then the infrastructure libraries — storage,
-# messaging (the event/reactor infrastructure the domains and the admin listener build against),
-# and AI — proven out before auth complicates the composition root. The data layer follows,
-# ahead of auth by design: the architect wants to see how the domain layer scales before auth
-# constrains it, and each domain adopts the auth contract in a sweep task of its own once
-# go-auth lands (`design/auth-strategy.md`). Auth and its consumer, the admin listener, close
-# the integration standards; the client and deployment layers finish v1. A goal cited late reads
-# as what remains of it. slab jumped the sequence twice, 2026-09-15 and 2026-09-17 (a way to
-# brief colleagues and leadership on the effort's progress, then a styling system its surface
-# task surfaced but didn't anticipate); both tasks are closed, so v1 resumed at the head. Moved
-# to the end 2026-09-18: rate limiting closed, and CORS, real client IP, and compression stay
-# backlogged until their own triggers fire, leaving no task in front to run next. v1.storage's
-# design settled 2026-09-18 (`design/storage-strategy.md`) and found its demonstration layer
-# needs a virtual-directory metadata library, blobfs, significant and reusable enough to build
-# as its own repository rather than a task under this goal — not a v1 layer, the same standing
-# slab and sqlate have, so its tasks interleave directly in `next` rather than sitting under
-# `goals.v1`: the go-storage library and azureblob tasks closed 2026-09-18 without it, so
-# blobfs's own tasks follow in full; service and suite close v1.storage once blobfs is built.
-# blobfs's design settled 2026-09-19 (`concepts/blobfs.md`) and found it ships its schema as a
-# migration source, which needs a multi-source migrator in sqlate and a matching go-database admin
-# release, so blobfs.sources follows the experiment and blobfs.admin follows the build.
-# blobfs.experiment closed 2026-09-22, deconstructed into blobfs.md, blobfs-api.md,
-# blobfs-composition.md, migration-sets.md, and sqlate-library-support.md
-# (`concepts/`). The post-execution review found the engine's variation-point interface needed
-# more of sqlate than the multi-source migrator alone, and the architect chose to fold every
-# adjustment that strengthens sqlate and its consumers generally into blobfs.sources rather than
-# schedule it separately, so that task now covers six areas of sqlate, not the migrator alone.
-# workflow-refinement closed 2026-09-22, releasing marathon 0.13 (checkpoints, agent profiles, flat
-# context/, standalone experiments, and waves). context-migration aligns the whole workspace with
-# it, alone. Then one wave: the storage lane (blobfs build and admin, then v1.storage's service and
-# suite, in order) runs beside the planning and experiment setup for v1.messaging and v1.ai, whose
-# experiments then run in their own repositories while the storage lane finishes.
+# The v1 order. One wave leads: the storage lane (blobfs build and admin, then v1.storage's
+# service and suite, in order) runs beside the planning and experiment setup for v1.messaging
+# and v1.ai, whose experiments then run in their own repositories. blobfs is its own repository rather than a v1 layer, the standing
+# slab and sqlate have, so its tasks sit in `next` directly; v1.storage's demonstration layer
+# needs it (`standards-lab/context/blobfs.md`). The infrastructure libraries come before the
+# data layer, and the data layer before auth by design: the architect wants to see how the domain
+# layer scales before auth constrains it, and each domain adopts the auth contract in a sweep
+# task of its own once go-auth lands (`standards-lab/context/auth-strategy.md`). Auth and its
+# consumer, the admin listener, close the integration standards; the client and deployment layers
+# finish v1. Middleware is last: CORS waits for v1.client, and real client IP and compression stay
+# in the backlog until their triggers fire. A goal cited late reads as what remains of it.
 next = [
-  "v1.harness.context-migration",
   [
     ["blobfs.build", "blobfs.admin", "v1.storage.service", "v1.storage.suite"],
     "v1.messaging.experiment",
@@ -66,7 +43,7 @@ scripting against the running service without curl. Not a v1 layer; the architec
 instrument for briefing colleagues and leadership on the workspace's progress, and a self-serve
 path in for anyone exploring it themselves.
 '''
-context = ["go-web-service/context/design/slab-conventions.md"]
+context = ["go-web-service/tools/slab/README.md"]
 
 # ── blobfs ─────────────────────────────────────────────────────────────────────────────────
 
@@ -82,7 +59,7 @@ over sqlate, and an engine package owning its DDL as a whole migration set and i
 variant, selected by import. go-storage's own keys stay opaque and unaware of blobfs; a consuming
 domain composes ownership over blobfs_file through its own join table.
 '''
-context = ["standards-lab/context/concepts/blobfs.md"]
+context = ["standards-lab/context/blobfs.md"]
 
 [goals.blobfs.tasks.build]
 name = "Promotion to its own repository"
@@ -92,7 +69,7 @@ What the experiment proved out lands as blobfs's own repository and first releas
 v0.2.0, with the final module path checked against repository-topology.md and a references entry
 that carries no standard key. blobfs.sources closed 2026-09-22 and released sqlate v0.2.0, so the
 engine package's migration set is the type sqlate v0.2.0 exports.
-concepts/blobfs-api.md is this task's own SETTLE's starting point, not a finished design: it
+standards-lab/context/blobfs-api.md is this task's own SETTLE's starting point, not a finished design: it
 proposes a Directories and Files operation set over one compiled store, with several names (the
 persistence package's own, the two write and delete steps' verbs, whether a listing is scoped by
 directory only) still open. The command-line tool that proved the concept is not promoted.
@@ -101,8 +78,8 @@ Unblocks blobfs.admin and v1.storage.tasks.service.
 '''
 proof = "blobfs's first release passes its conformance suite on the standard tier and the Postgres engine, and go-storage's azureblob provider composes with it through the proposed key-validation adapter with no change to either library."
 context = [
-  "standards-lab/context/concepts/blobfs.md",
-  "standards-lab/context/concepts/blobfs-api.md",
+  "standards-lab/context/blobfs.md",
+  "standards-lab/context/blobfs-api.md",
 ]
 
 [goals.blobfs.tasks.admin]
@@ -117,7 +94,7 @@ objects still exist. A minor release, and the last piece the service needs befor
 blobfs's migration set.
 '''
 proof = "Reset, Status, and Force cover every set in a migrator built with several, dirty-set recovery through Force is proven, and the existing single-set behavior is unchanged."
-context = ["standards-lab/context/concepts/migration-sets.md"]
+context = ["standards-lab/context/migration-sets.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -131,11 +108,11 @@ infrastructure-library, and template features that emerge from it.
 '''
 criteria = [
   "Every capability goal beneath this one is closed: code, tests, and the layer's documentation in its repository (README, package documentation, and the docs/ guide of v1.repository-docs) complete; the standard tier used throughout with native use contained and entered in the port list; the capability's provider-swap class declared; and the promotion evaluation recorded — what moved outward into the SDKs, the libraries, and the template, and what stayed the service's own.",
-  "A layer goal closes once its extracted record has produced the library, the template element, and the repository documentation, wherever the layer was proven (ruled 2026-09-07, standards-lab/context/concepts/marathon-extraction.md). v1.0 keeps the running composition: a layer proven outside go-web-service is adopted by the service in a sweep task of its own before this goal closes.",
+  "A layer goal closes once its extracted record has produced the library, the template element, and the repository documentation, wherever the layer was proven (ruled 2026-09-07, claude-plugins/context/marathon-extraction.md). v1.0 keeps the running composition: a layer proven outside go-web-service is adopted by the service in a sweep task of its own before this goal closes.",
   "The import-boundary lint is in place, and the service's README names each capability the service consumes, its class, and the port list.",
   "The service is versionless until 1.0: minor releases cut as layers complete in whatever order they land, v1.0.0 when this goal's tree is empty; -dev.N prerelease tags serve only the cross-module-resolution case the release-and-ci principle states, never routine between-session practice. Each release is a coherent snapshot with its pins; a library change and the service change that proves it release together; a member release prompts the coordinator sweep.",
 ]
-context = ["standards-lab/context/design/service-organization.md"]
+context = ["standards-lab/context/service-organization.md"]
 
 [goals.v1.observability]
 name = "Observability"
@@ -150,7 +127,7 @@ OpenTelemetry standard — OTLP to the collector, standard exporters onward — 
 deviation projected and never a Go dependency of its own. Sequenced before the layers that
 follow so each instruments as it lands.
 '''
-context = ["standards-lab/context/design/observability-strategy.md"]
+context = ["go-observability/README.md"]
 
 [goals.v1.middleware]
 name = "The sourced middleware set"
@@ -166,8 +143,8 @@ only other use, keying rate limiting, is covered by `RemoteAddr`; compression ha
 large-response case until more of the data layer lands.
 '''
 context = [
-  "go-web-sdk/context/concepts/middleware-sourcing.md",
-  "standards-lab/context/design/dependency-sourcing.md",
+  "go-web-sdk/context/middleware-sourcing.md",
+  "architecture/context/dependency-sourcing.md",
 ]
 
 [goals.v1.storage]
@@ -181,7 +158,7 @@ logo and document hierarchy in the service, built on blobfs's virtual-directory 
 once that goal lands, over a two-phase write since no transaction spans Postgres and an object
 store, and the integration cases that close the goal.
 '''
-context = ["standards-lab/context/design/storage-strategy.md"]
+context = ["go-storage/docs/design.md"]
 
 [goals.v1.storage.tasks.service]
 name = "The organization storage layer"
@@ -190,7 +167,7 @@ summary = '''
 The demonstration layer, built on the real blobfs library once goals.blobfs closes: an
 organization logo composed through a guarded single-active-record pattern (org_image mapping
 organization to blobfs_file) and a browsable document hierarchy beneath it, both proxied through
-the service per auth-strategy.md §8 (amended for the directory grain) and never a presigned-URL
+the service per auth-strategy.md §8 ("Object storage"), never a presigned-URL
 redirect. The service registers blobfs's migration set in its one migrator and proves it through
 the admin surface, including Reset and Force. It seeds the demonstration's named states through
 blobfs's own insert-or-find operations, and a Reset recreates the structural root and leaves
@@ -203,10 +180,10 @@ azurite service, which runs with --skipApiVersionCheck because azblob v1.8.1 sen
 version newer than the image accepts by default.
 '''
 context = [
-  "standards-lab/context/concepts/blobfs.md",
-  "standards-lab/context/concepts/blobfs-composition.md",
-  "standards-lab/context/concepts/migration-sets.md",
-  "standards-lab/context/design/auth-strategy.md",
+  "standards-lab/context/blobfs.md",
+  "standards-lab/context/blobfs-composition.md",
+  "standards-lab/context/migration-sets.md",
+  "standards-lab/context/auth-strategy.md",
 ]
 
 [goals.v1.storage.tasks.suite]
@@ -219,8 +196,8 @@ delete leaves and its retry, and the 503 on an azurite outage through the existi
 relay — then the promotion evaluation and the coordinated release snapshot.
 '''
 context = [
-  "standards-lab/context/design/testing-hierarchy.md",
-  "standards-lab/context/concepts/blobfs-composition.md",
+  "architecture/standards/go-elemental/principles/tests-and-docs.md",
+  "standards-lab/context/blobfs-composition.md",
 ]
 
 [goals.v1.auth]
@@ -236,9 +213,7 @@ sweep proves the composed authorized listing that the blobfs experiment cannot: 
 join table driving a blobfs listing under the scope predicate.
 '''
 context = [
-  "standards-lab/context/design/auth-strategy.md",
-  "go-web-service/context/concepts/identity-linking.md",
-  "go-web-service/context/concepts/organization-lineage.md",
+  "standards-lab/context/auth-strategy.md",
 ]
 
 [goals.v1.admin-listener]
@@ -247,17 +222,17 @@ summary = '''
 The admin mount on its own listener, unreachable from the public API's network path,
 authenticated through the auth layer, with audit logging on anything that mutates and a
 confirmation token gating the destructive down, force, and state verbs; config rendering
-over a go-core redaction contract; go-web-sdk's config env segment made per-block; the
+over a go-core redaction contract; the
 composition-root reshape in go-web-service and the same reshape in go-web-sdk-template.
 Posture decisions on record: whether the serving role ever holds DDL, and whether off by
 default is mandated by the standard. The 2026-09-07 exploration and the touch points by
 repository are the linked concept.
 '''
 context = [
-  "standards-lab/context/concepts/admin-listener.md",
-  "standards-lab/context/design/dsl-driven-services.md",
-  "standards-lab/context/design/auth-strategy.md",
-  "go-web-sdk/context/concepts/error-handling.md",
+  "standards-lab/context/admin-listener.md",
+  "architecture/standards/go-elemental/principles/dsl-driven-services.md",
+  "standards-lab/context/auth-strategy.md",
+  "go-web-sdk/context/error-handling.md",
 ]
 
 [goals.v1.messaging]
@@ -282,29 +257,29 @@ go-web-sdk, and the service's domain packages. The organization domain runs on a
 the remaining domains build once the integration standards they enhance exist: the web SDK's
 handler contract, observability, and messaging's event and reactor infrastructure. Sequenced
 ahead of auth by design, to prove out how the domain layer scales before auth constrains it;
-each domain adopts the auth contract (`design/auth-strategy.md`) in a sweep task of its own once
+each domain adopts the auth contract (`standards-lab/context/auth-strategy.md`) in a sweep task of its own once
 go-auth lands. The domain design direction — the four domains, their invariants, and the CQRS
 contract — lives in the linked note.
 '''
-context = ["go-web-service/context/concepts/data-layer.md"]
+context = ["go-web-service/context/data-layer.md"]
 
 [goals.v1.data.tasks.people]
 name = "People domain"
 repos = ["go-web-service"]
 summary = "The person anchor, record status, unit membership, and its action commands."
-context = ["go-web-service/context/concepts/data-layer.md"]
+context = ["go-web-service/context/data-layer.md"]
 
 [goals.v1.data.tasks.inventory]
 name = "Inventory domain"
 repos = ["go-web-service"]
 summary = "The item template/instance split and the custody ledger."
-context = ["go-web-service/context/concepts/data-layer.md"]
+context = ["go-web-service/context/data-layer.md"]
 
 [goals.v1.data.tasks.devices]
 name = "Devices domain"
 repos = ["go-web-service"]
 summary = "The branch domain — composition over inheritance."
-context = ["go-web-service/context/concepts/data-layer.md"]
+context = ["go-web-service/context/data-layer.md"]
 
 [goals.v1.data.tasks.evaluation]
 name = "Evaluation and close"
@@ -318,7 +293,7 @@ organization's code. Then the closing coordinated releases (purging any -dev.N t
 cross-module resolution) and the layer's docs/ page. The depguard import-boundary question
 re-asks here.
 '''
-context = ["standards-lab/context/concepts/marathon-extraction.md"]
+context = ["claude-plugins/context/marathon-extraction.md"]
 
 [goals.v1.ai]
 name = "AI"
@@ -355,36 +330,12 @@ The claude-plugins harness, kept current as the v1 build proves out what it need
 hardening pass closed: marathon v0.11.0 carries the plan-stage sufficiency question,
 delegation to an agent a project declares, and a stage's check running the repository's own
 tooling — the mechanism sqlint's guarded-statement check (sqlint/v0.1.1) now runs through
-rather than the harness restating it (tooling principles 1 and 8). What remains is the
+rather than the harness restating it (tool-based-skills.md, "What a tool carries and what a
+skill carries" and "How an extension uses the tooling"). What remains is the
 situational-awareness, extraction, references, and deterministic-tooling work the backlog
 held, adopted here as this goal's own tasks; none is yet in `next`.
 '''
-context = ["standards-lab/context/concepts/tooling-principles.md"]
-
-[goals.v1.harness.tasks.context-migration]
-name = "Align the workspace with marathon 0.13"
-repos = [
-  "standards-lab",
-  "go-web-service",
-  "architecture",
-  "go-web-sdk",
-  "go-web-sdk-template",
-]
-summary = '''
-One cross-repo session, alone, aligning every workspace repository with marathon 0.13 (its
-CHANGELOG's Migrating section). Flatten each repository still on context/design/ and
-context/concepts/ (standards-lab 15 and 11 notes, go-web-service 4 and 4, architecture 2,
-go-web-sdk 2, go-web-sdk-template 1): each note moves to context/ with a settledness line, splits
-its built-work reasoning into the owning repository's docs as a Cross-repo edit, is promoted to
-the architecture repository, or is integrated or culled. Move standards-lab/experiments/ (blobfs,
-sql-dsl) out of the workspace to ~/experiments/<slug>, each its own repository at
-github.com/JaimeStill/<slug>, cataloged in standards-lab/experiments.md, and record that hosting
-convention in the coordinator's context so experiment proposes it. Fix every citation and
-convention that names the old layout: roadmap context paths, cross-repository note citations,
-READMEs, CLAUDE.md files, and the references catalog. Likely more than one sitting.
-'''
-proof = "no context/design/, context/concepts/, or experiments/ directory remains in the workspace; every roadmap context path and cross-repository citation resolves; experiments.md lists both experiments with their remotes; the first session under 0.13 runs its pipeline without meeting the old layout."
-context = ["claude-plugins/plugins/marathon/CHANGELOG.md"]
+context = ["architecture/harness/tool-based-skills.md"]
 
 [goals.v1.harness.tasks.sitrep]
 name = "The marathon-sitrep extension"
@@ -404,7 +355,7 @@ taxonomy amendment lands with it if it ships before extraction.
 '''
 context = [
   "claude-plugins/context/marathon-sitrep.md",
-  "standards-lab/context/concepts/tooling-principles.md",
+  "architecture/harness/tool-based-skills.md",
 ]
 
 [goals.v1.harness.tasks.extraction]
@@ -418,7 +369,7 @@ data-layer record at v1.data.evaluation, crossing mechanics when a private consu
 them.
 '''
 context = [
-  "standards-lab/context/concepts/marathon-extraction.md",
+  "claude-plugins/context/marathon-extraction.md",
   "claude-plugins/context/marathon-sitrep.md",
 ]
 
@@ -426,8 +377,8 @@ context = [
 name = "The references system as a marathon extension"
 repos = ["claude-plugins"]
 summary = '''
-Evaluate promoting the workspace's references catalog (references.toml/local/md, the
-repo-references design note) to a marathon extension owning the three-file artifact; the
+Evaluate promoting the workspace's references catalog (references.toml/local/md, whose
+mechanics references.md states) to a marathon extension owning the three-file artifact; the
 proposal and its open questions — facet, hooks, artifact location — are the linked note.
 extraction's references append is its first concrete consumer.
 '''
@@ -438,12 +389,13 @@ name = "The tooling layer beneath the harness"
 repos = ["claude-plugins"]
 summary = '''
 The deterministic half of the harness as tools the skills call rather than process the skills
-describe (tooling principles 1, 2, and 8): schemas for the roadmap manifest and the reset
+describe (tool-based-skills.md, "What a tool carries and what a skill carries", "The three
+layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the roadmap manifest and the reset
 file, the validators over them, and the checks the extensions need (extraction's bundle
 schema, evidence gate, origin de-duplication, and want-list generation). First consumers:
 marathon-roadmap and extraction.
 '''
-context = ["standards-lab/context/concepts/tooling-principles.md"]
+context = ["architecture/harness/tool-based-skills.md"]
 
 [goals.v1.harness.tasks.testing]
 name = "Harness testing and its CI fit"
@@ -473,7 +425,7 @@ in the shape sqlate's guide established (concepts by example, a quick start, the
 package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
 changes it; sqlate's guide exists and is verified rather than written.
 '''
-context = ["standards-lab/context/design/architecture-layer.md"]
+context = ["architecture/principles/context-architecture.md"]
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 
@@ -498,7 +450,16 @@ summary = '''
 The documentation site serving the architecture repository's content. The sitrep blog's GitHub Pages
 blueprint (Jekyll, Actions deployment, the publish pipeline) is the starting point.
 '''
-context = ["standards-lab/context/concepts/docs-site.md"]
+context = ["standards-lab/context/docs-site.md"]
+
+[backlog.entrypoint-composition-split]
+name = "Split the entrypoint from the composition root"
+summary = '''
+Generalize the split Go Elemental already practices, a minimal entrypoint above an encapsulated
+composition root, into the architecture's own definitions. It reshapes how the architecture
+defines itself, so it takes a session of its own in the architecture repository.
+'''
+context = ["architecture/context/entrypoint-composition-split.md"]
 
 [backlog.sql-meta-language]
 name = "The SQL meta language"
@@ -510,7 +471,7 @@ from the migration set rather than declared) and portability by construction (co
 a dialect rather than declared by tier); the concept is reframed in the docs pass. Not a
 v1 dependency.
 '''
-context = ["architecture/context/concepts/sql-meta-language.md"]
+context = ["architecture/context/sql-meta-language.md"]
 
 [backlog.real-client-ip]
 name = "Real client IP"
@@ -523,7 +484,7 @@ under goals.v1.middleware.tasks once a reverse proxy sits in front of the servic
 goal) or a consumer other than logging needs a trustworthy client identity — geo-blocking,
 per-client abuse detection, an IP-keyed audit trail.
 '''
-context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
+context = ["go-web-sdk/context/middleware-sourcing.md"]
 
 [backlog.compression]
 name = "Compression"
@@ -534,13 +495,13 @@ wrapping and content negotiation. Becomes a task under goals.v1.middleware.tasks
 large-payload endpoint lands — the data layer's paginated lists once domains beyond organization
 exist, or a bulk admin export.
 '''
-context = ["go-web-sdk/context/concepts/middleware-sourcing.md"]
+context = ["go-web-sdk/context/middleware-sourcing.md"]
 
 [backlog.response-caching]
 name = "Response caching"
 summary = '''
 HTTP response caching, raised alongside rate limiting but not part of the recorded sourced
-middleware set (middleware-sourcing.md) or the declared stack (go-web-service's stack.md). Redis
+middleware set (middleware-sourcing.md) or the declared stack (go-web-service's README, Stack). Redis
 was the candidate provider; adopting it would be a new stack decision and most likely its own
 infrastructure library, the way storage, messaging, and AI are, rather than an SDK-level
 middleware. Split out of v1.middleware (2026-09-18) so caching gets its own planning session —
