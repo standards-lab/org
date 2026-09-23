@@ -1,6 +1,6 @@
 # AI
 
-The planned AI capability, split into four layers, each in its own home. `v1.ai` builds the
+The planned AI capability is split into four layers, each in its own home. `v1.ai` builds the
 library and service layers. Two experiments come first, one for the library layer and one for the
 harness layer. A third experiment, on hosting, is described in `ai-hosting.md`.
 
@@ -13,7 +13,7 @@ harness layer. A third experiment, on hosting, is described in `ai-hosting.md`.
 | Library | `go-ai`: a Go interface for running models and agent sessions from an application | `go-ai` (`topology-and-naming.md` reserves the name) |
 | Service | go-web-service's AI layer, which demonstrates go-ai | go-web-service's capability map ("AI") |
 
-## The pivot away from tau
+## External harnesses in place of tau
 
 tau (`references.md`, "Prior R&D — TAU ecosystem") is the organization's earlier agentic
 infrastructure. It has four kinds of responsibility:

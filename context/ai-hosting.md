@@ -7,14 +7,14 @@ machines that serve local models to the organization's consumers:
 - Claude Code subagents
 - the go-ai service
 
-Its planned home is a new workspace member repository, working name `ai-hosting`, built by
-`v1.ai.hosting`. It is written fresh from what personal-agents proved, rather than transferred
-with that repository's history.
+Its planned home is a new workspace member repository, working name `ai-hosting`.
+`v1.ai.hosting` builds it fresh from what personal-agents proved, rather than transferring that
+repository's history.
 
-## What exists
+## The existing setup: personal-agents
 
 personal-agents (`github.com/JaimeStill/personal-agents`, local `~/code/personal-agents`) is a
-marathon context project outside the workspace. It configures one host class today, the
+marathon context project outside the workspace. It configures one host class, the
 Framework desktop:
 
 - **Hardware**: AMD Strix Halo, 128GB of unified memory, about 96GB of it exposed to the GPU.
@@ -36,7 +36,7 @@ Its `reference/` directory holds the measured method:
 Claude Code subagents are that second client.
 
 The Dell NVIDIA workstations are a second host class, with CUDA instead of Vulkan and discrete
-VRAM instead of unified memory. Their specifications are gathered when their work starts.
+VRAM instead of unified memory. Their specifications are to be gathered when work on them starts.
 
 ## Experiment: personal-agents as the hosting spike
 
@@ -53,7 +53,7 @@ is lost by skipping a copy.
 - whether a gateway sits in front of the router
 - the form of the admin tooling
 
-## The decomposition
+## Where personal-agents' parts go
 
 - **Into `ai-hosting`**, one specification-level repository:
   - the host-class profiles and presets
