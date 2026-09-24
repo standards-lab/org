@@ -5,7 +5,7 @@ it, now that `sqlate` hosts the multi-set model itself (`docs/features.md`, "mig
 versioning," in the `sqlate` repository): what a shipper guarantees, what `go-database`'s admin
 surface exposes over a shipped set, and how a consumer adopts one. It concerns three
 repositories — `go-database`, the shippers `blobfs` and `go-auth`, and every consumer of a
-shipped set. It excludes the contents of `blobfs`'s own set, which is `blobfs.md`'s subject, and
+shipped set. It excludes the contents of `blobfs`'s own set, which `blobfs`'s `docs/features.md` documents, and
 every `sqlate` adjustment outside the migrate group, which is `sqlate-library-support.md`'s.
 
 ## What a shipper guarantees

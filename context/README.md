@@ -74,10 +74,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   questions.
 - `admin-listener.md` — the management listener's requirement and what an exploration of the
   build found.
-- `blobfs.md`, with `blobfs-api.md`, `blobfs-composition.md`, `migration-sets.md`, and
-  `sqlate-library-support.md` — the blobfs library, its proposed API, how a consumer composes it,
-  what a shipped migration set requires of its shipper and consumers, and what sqlate needs to
-  host a library.
+- `blobfs-composition.md`, with `migration-sets.md` and `sqlate-library-support.md` — how a
+  consumer composes the blobfs library, what a shipped migration set requires of its shipper and
+  consumers, and what sqlate needs to host a library.
 - `messaging.md`, with `messaging-api.md` — the event and reactor layer: the messaging
   experiment's question, its decisions, and the capability ledger, and the API the experiment
   starts from.
