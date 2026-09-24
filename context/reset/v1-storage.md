@@ -6,7 +6,7 @@
 - **Session:** start
 - **Project:** go-database, standards-lab
 - **Branch:** `blobfs-admin` in go-database; `v1-storage` at the coordinator (the lane's branch,
-  [PR #50](https://github.com/standards-lab/org/pull/50), open until the lane is complete)
+  [PR #51](https://github.com/standards-lab/org/pull/51), open until the lane is complete)
 
 ## Orchestration
 
@@ -22,7 +22,7 @@ these rules until the workflow carries them (see "Plugin" at the end of Pending 
 - The lane's worktree at the coordinator is `.claude/worktrees/v1-storage`, on the lane's own
   branch `v1-storage`. Both persist across the lane's sessions. Each session commits its record
   and note changes there and pushes to the open
-  [PR #50](https://github.com/standards-lab/org/pull/50). The PR merges, and the worktree is
+  [PR #51](https://github.com/standards-lab/org/pull/51). The PR merges, and the worktree is
   removed, only when the lane is complete.
 - In a member repository, branches stay per task, named after the task. A task starts only once
   the previous task's member branch has merged and any release it cut is tagged.
@@ -118,7 +118,7 @@ forward from the `blobfs.build` close.
 
 `goals.v1.storage.tasks.service`, in go-web-service, with the coordinator's record in the
 worktree `.claude/worktrees/v1-storage` on `v1-storage`. It starts once go-database PR #23 has
-merged and `v0.6.0` is tagged. PR #50 stays open.
+merged and `v0.6.0` is tagged. PR #51 stays open.
 - The organization storage layer registers blobfs's migration set beneath the service's own in
   its one migrator.
 - It proves the set through the admin surface, including Reset and Force by set name, on
