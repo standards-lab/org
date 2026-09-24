@@ -265,7 +265,7 @@ action. Nothing in the workspace currently asks for this; it is recorded as the 
 The rule for authorizing access to an object: authorize the record, then reach the technology. Every
 object needs a SQL row regardless of authorization — content type, size, soft delete, audit, lifecycle,
 since an object store cannot itself be queried. The row lives in the virtual-directory library's
-tables, which hold no owner and no unit (`blobfs.md`). The consuming domain's own join table
+tables, which hold no owner and no unit (`blobfs`'s `docs/concepts.md`). The consuming domain's own join table
 references the file's row and carries the domain's `unit_id`, so it carries the same scope predicate as
 any other read model, at no additional cost, and at the file grain it drives every authorized listing:
 the library's tables are joined detail and the join table is the anchor of the authorized read.

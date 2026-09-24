@@ -1,10 +1,10 @@
 # Composing `blobfs` into a consumer
 
-How a service builds around the `blobfs` library once it exists: one install per configuration, the
+How a service builds around the `blobfs` library: one install per configuration, the
 composition root, ownership at two grains, the write, delete, and move protocols as the consumer
 sequences them, seeding, and the operating constraints `blobfs.experiment`'s evidence established.
-It excludes the library's own protocol semantics and listing conventions, which are `blobfs.md`'s
-subject, the multi-set migrator's mechanics, which are `migration-sets.md`'s, and authorization,
+It excludes the library's own protocol semantics and listing conventions, which `blobfs`'s own
+guide documents (`docs/concepts.md` and `docs/features.md` in that repository), the multi-set migrator's mechanics, which are `migration-sets.md`'s, and authorization,
 which waits for `go-auth` (`auth-strategy.md` §8). Its worked example is the organization: an image
 at the file grain, a document hierarchy at the directory grain.
 
@@ -22,13 +22,13 @@ configuration and two configurations sharing one container would not literally c
 
 A consumer builds one pattern catalog for its program, combining `sqlate`'s own patterns with the
 library's published namespace, and compiles the library's statements against it along with its own.
-The engine is chosen by importing the engine package and passing its constructor as an option to the
-library's own constructor (`blobfs.md`, "Layers and the engine package"); nothing else in the
-consumer names the engine package.
+The engine is chosen by importing the engine sub-module and installing its engine on the library's
+own constructor, `data.New(catalog, dialect, data.WithEngine(postgres.Engine))`; nothing else in
+the consumer names the engine.
 
 The object-store adapter is the one place a consumer names its object-store library. It is the
 library's key-validation interface, built from a store the consumer has already started under its
-own lifecycle and handed to the library's constructor, so the library never reads an environment
+own lifecycle and passed to each write's first step, so the library never reads an environment
 variable of its own. The adapter's own job, learned from building one: a missing object on delete is
 success, the same way the library's own delete step treats it, but a missing *container* is not — it
 means the configured target itself is gone, and the object may well exist somewhere else, so the
@@ -85,9 +85,9 @@ each.
 **The delete.** In one transaction: hold the file (the reference-then-delete rule) if any of the
 consumer's own rows are about to reference it, or check the consumer's own referencing rows and
 refuse while any exist, then begin the library's delete. Outside any transaction: delete the object.
-On the pool: complete the delete. The consumer's own foreign key into the library's file table is
+On the pool: purge the row. The consumer's own foreign key into the library's file table is
 the backstop for a reference that slips in after the check, and the consumer maps that constraint's
-name to its own sentinel at the complete step. A directory removal removes the consumer's own rows
+name to its own sentinel at the purge step. A directory removal removes the consumer's own rows
 about that directory in the same transaction as the library's removal, and a recursive removal is
 the consumer's own walk, children before their parent.
 
@@ -125,13 +125,12 @@ full and is not restated here.
   numbers.
 - **An exact total reads the whole directory.** The window count that produces an exact total costs
   in proportion to the directory's own size, never the whole tree, but a directory with tens of
-  thousands of files should read its total once, on the first page, and walk the rest by cursor.
+  thousands of files should read its total once, on the first page, and walk the rest by cursor with
+  `query.TotalNone`.
 - **The baseline engine has no tree lock.** A consumer on an engine without a native one must
   serialize directory moves itself, as above.
-- **The migrator needs two pool connections** until `blobfs.sources` lands; `migration-sets.md`
-  covers this.
-- **A recursive removal is not atomic** and can loop under sustained concurrent writes; the
-  library's own walk bounds its retries and reports a busy error rather than looping forever.
+- **A recursive removal is not atomic.** It is the consumer's own walk, and under sustained
+  concurrent writes it can keep meeting new children; the consumer bounds its retries.
 
 ## Assumptions
 
