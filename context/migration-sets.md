@@ -17,8 +17,8 @@ never change once shipped, and each migration ships its own down, so a consumer'
 a path back; a change to already-seeded data is a new migration, never an amendment to a released
 one. A golden-hash test in the shipping library's own repository pins every released migration's
 text, so an accidental in-place edit is caught at the source, not by a consumer's migrator, which
-carries no checksum column of its own. A breaking schema change is a major release of the shipping
-library. No Postgres schema per set: `sqlate`'s migration catalog targets engines where a schema is
+carries no checksum column of its own. From v1.0, a breaking schema change is a major release of the shipping
+library; before it, a minor release whose changelog marks the break. No Postgres schema per set: `sqlate`'s migration catalog targets engines where a schema is
 a whole separate database, so a schema-qualified statement would not be portable and a foreign key
 across schemas would fail. `blobfs` is the first shipper of a set under this model; `go-auth` is the
 second.
@@ -35,6 +35,11 @@ every one ends at the same head. An upgrade is a `go.mod` bump: the next start f
 new pending migration and applies only it, leaving the consumer's own rows untouched. A consumer on
 a different migration tool entirely takes only the shipper's root and persistence layers and
 authors its own DDL from the documented schema.
+
+A consumer's own foreign key into a shipper's table may carry its own referential action, such as a
+cascade from an owner row; the shipper's no-cascade rule covers only its own keys. A consumer's
+background work that writes the shipper's tables must be quiesced around the schema-changing admin
+verbs, or a revert deadlocks against it (`blobfs-composition.md`, "Operating constraints").
 
 ## Assumptions
 

@@ -1,12 +1,13 @@
 # reset · v1-storage
 
-- **Status:** handoff (the `v1.storage.service` session, partway through; the lane stays open)
-- **Lane:** open. `blobfs.build` and `blobfs.admin` are done; `v1.storage.service` is in progress;
+- **Status:** closeout (the `v1.storage.service` task; the lane stays open)
+- **Lane:** open. `blobfs.build`, `blobfs.admin`, and `v1.storage.service` are done;
   `v1.storage.suite` follows.
 - **Session:** start
-- **Project:** go-web-service, blobfs, go-web-sdk, sqlate, go-database, standards-lab
-- **Branch:** `storage-service` in go-web-service (unpublished, last commit `cd35d5a`) and in blobfs
-  (unpublished, last commit `6a2cd30`, a WIP); `v1-storage` at the coordinator, in the worktree
+- **Project:** go-web-service, blobfs, standards-lab
+- **Branch:** `storage-service` in go-web-service
+  ([PR #33](https://github.com/standards-lab/go-web-service/pull/33)) and in blobfs
+  (merged as PR #2, released); `v1-storage` at the coordinator, in the worktree
   `.claude/worktrees/v1-storage` ([PR #51](https://github.com/standards-lab/org/pull/51) stays open)
 
 ## Orchestration
@@ -35,37 +36,47 @@ these rules until the workflow carries them (see "Plugin" at the end of Pending 
 
 ## Disposition
 
-This session is a handoff, so the notes are untouched: every note edit waits for the close, and
-this Disposition records what the session released and decided. Released and tagged:
+Released and tagged: **blobfs v0.2.0** and **postgres/v0.2.0**
+([PR #2](https://github.com/standards-lab/blobfs/pull/2)): version-guarded deletes and marks,
+directory status and migration 0003 with two partial indexes, closed deleting branches, hidden
+listings, `Store.Sweep` with stale reclaim, and a consolidation (Engine takes a Variant, one wrap
+per method, each documented fact one home). The tag was held until go-web-service's C5 proved the
+API.
 
-- **go-web-sdk v0.11.0** ([PR #30](https://github.com/standards-lab/go-web-sdk/pull/30)) and
-  `middleware/rate-limit/v0.1.1` (a pin commit on `main`). The read contract's cursor (opt-in through
-  `Limits.Cursor`; `Page` gains `more` and `next`; `Total` is omitted when uncounted; `NewPage` takes
-  `Paging`), `ReadUpload`/`UploadError` (415/411/413), `WriteObject` (an opener called only when bytes
-  are sent; ETag and date revalidation; nosniff), and `webtest.Raw`.
-- **sqlate v0.4.1** ([PR #12](https://github.com/standards-lab/sqlate/pull/12)): `Force` writes the
-  set's whole history prefix through the version. Found when the app set gained a second migration.
-- **go-database v0.6.1** (a pin commit on `main`): it requires sqlate v0.4.1.
-
-Decided with the architect (they bind the rest of the task):
-
-- The organization path read is `GET /organizations/lookup?path=`: ServeMux refuses
-  `/path/{path...}` beside any `GET /{id}/<sub>`.
-- The logo fallback and a base64 read are deferred to `v1.client`.
-- The rest are the re-plan's settled decisions, listed in Next-focus.
-
-**Promotion candidates for the close** (at a handoff, nothing is promoted):
-- the domain-coupling rule (downward: an SQL check in the consumer's transaction; upward: an
-  interface the consumer declares, injected);
-- the capability-named translation file, now proven by two layers.
+- **Add or sharpen (go-web-service):** `context/README.md` names the storage libraries and the
+  object store, and moves object storage into the baseline; `context/domain-architecture.md`
+  names both domain layers and records its three proven rules for promotion;
+  `context/data-layer.md` marks the coupling rule settled.
+- **Add or sharpen (coordinator):** `blobfs-composition.md` follows the validated composition:
+  the upload's pending transaction holds no consumer reference, the owner row cascades, a
+  recursive removal is mark and sweep, fixed-id seeds in two contribution kinds, and the
+  reset/sweep deadlock; `migration-sets.md` gains the from-v1.0 qualifier, the consumer's own
+  referential actions, and quiescing background work around schema changes.
+- **Promoted:** none landed (a wave's lane lands nothing); the three candidates are under Pending
+  at the fold.
+- **Retained:** `context/integration-tier.md` (its webtest helpers wait for `v1.data.people`).
+- **Validated:**
+  - Checkpoint 4b (blobfs v0.2.0): acceptance at every stage; the demonstration program
+    (mark, refusals, hidden listings, `Deleting`, one sweep of rows and objects, stale reclaim);
+    a consolidation review and a branch review, each applied as an Adjust; CI green on PR #2 and
+    acceptance on `main` with the released pins.
+  - Checkpoint 4c (go-web-service C1–C6): the slab demonstration (412/428, 202, deleting, 409
+    upload, swept 404, a kill -9 mid-sweep finished after restart).
+  - Checkpoint 4d (a layering review, S1–S5): the logo failed-put fix proven failing on the old
+    code; owner-row cascade; one stage table; the quiesce gate (a real 40P01 deadlock, 0/60 with
+    the gate); cross-organization isolation and the download and logo lifecycles in integration.
+  - Checkpoint 5 (13–15): storage seeds (7 logos, acme's tree, fixed ids), `slab demo storage`
+    16/16 twice live, the docs checked against the code, the editor pass; the architect's own
+    walkthrough of the logo and document features through slab.
+  - Close: a branch review, all twelve findings fixed in one Adjust (`fa6d099`); vet, `test
+    -race`, lint and sqlint, tidy, `mise run integration` (102s), and `slab demo storage` live.
+- **Cross-repo:** blobfs released as above; go-web-service `storage-service` published as
+  [PR #33](https://github.com/standards-lab/go-web-service/pull/33).
 
 ## Pending at the fold
 
 Every edit below is recorded for the wave's fold, not applied. The groups before "Added by the
 `v1.storage.service` session" carry forward from `blobfs.admin`.
-
-Every edit below is recorded for the wave's fold, not applied. The first four groups carry
-forward from the `blobfs.build` close.
 
 - **Roadmap:**
   - Delete `blobfs.build` and `blobfs.admin`; the lane in `next` becomes
@@ -140,143 +151,44 @@ Added by the `v1.storage.service` session (applied at the fold, alongside the ta
     meanwhile.
   - At their next release, go-database's, blobfs's, sqlate/postgres's, and sqlint's sqlate pin
     moves to v0.4.1.
-- **At the close** (go-web-service, no fold needed):
-  - `context/domain-architecture.md` gains the coupling rule and the promotion evaluation now that
-    a second layer exists.
-  - go-web-sdk's `context/README.md` capability map gains the cursor contract and the raw-body
-    helpers.
-  - `blobfs-composition.md` and `migration-sets.md` are tended against what validation proved.
 - **References:** unchanged from above.
 
+Added by the `v1.storage.service` close (applied at the fold):
+
+- **Roadmap:**
+  - Delete `v1.storage.service`; the lane in `next` becomes `["v1.storage.suite"]`.
+  - `v1.storage.suite` grows, as the architect approved at checkpoint 4d: its `repos` gain
+    `blobfs`, `go-web-sdk`, and `go-database`, and its summary gains the library promotions,
+    each proven by go-web-service in the same step:
+    - blobfs v0.3.0: `Store.Write`/`Remove` with an `ObjectPutter` (promoted from
+      go-web-service's `data` protocols), the sweep's more-loop, a listing type, a `Deleting`
+      error that tells a file from a directory, and scripted-test row builders;
+    - go-storage: a distinct `ErrContainerNotFound`, so a missing container on `Open` is a 503;
+    - go-web-sdk: the `Content-Disposition` builder, and the error writer logging a 500's cause;
+    - go-database: `admin.Stage`'s doc stops naming its consumers' stage;
+    - go-web-service adopts each and drops its staged copies.
+  - `v1.messaging`'s intake gains the lifecycle evidence from go-web-service, for the go-core
+    component interface (spike-messaging `design.md`, "Lifecycle registration"): the sweeper is
+    the service's first real reactor, registered with `Add` + `Monitor` and a `Grace` tied to
+    the drain timeout, its waker built before the domain; the schema service's stage is declared
+    at the call site (`internal/app/stages.go`) rather than taken from `admin.Stage`; the staged
+    reactor gained `Wake`, `Draining`, and a Shutdown guard, and `sdk.Gate` quiesces a reactor
+    against the admin verbs.
+  - A backlog entry: drop `organization_image.active`, now always true, in a schema cleanup.
+- **Architecture layer (promotion candidates, landed at the fold):** from go-web-service's
+  `context/domain-architecture.md`, "Promotion candidates", now proven by a second domain layer:
+  the domain layer as a compositional grouping; the capability-named translation file; and the
+  two-way cross-domain coupling rule (downward an SQL check in the consumer's transaction,
+  upward an interface the consumer declares and the root injects).
+- **Cross-repo notes:** go-web-sdk's `context/README.md` capability map gains the cursor contract
+  and the raw-body helpers of v0.11.0 (moved here from the close, since the lane doesn't own
+  go-web-sdk's context).
 
 ## Next-focus
 
-Resume `goals.v1.storage.tasks.service` at **Checkpoint 4b, stage B1**, from this record. Run the
-`start` handoff: check out `storage-service` in blobfs and go-web-service, then continue.
-
-**Position:**
-- Checkpoints A, 1, 2, and 3 are confirmed.
-- Checkpoint 4 (the owner-row migration `69a55ce`, `domain/document` `cbfb379`, `slab docs`
-  `cd35d5a`) was reported and then re-planned, not confirmed. Its behavior is superseded by 4b and 4c
-  below.
-- blobfs `6a2cd30` is a **WIP**: B1 is written, and its unit tier passes, but `mise run acceptance`
-  (the conformance suite live, over both engines) has not run. Finish B1 first: run acceptance and
-  fix what it finds.
-
-**Settled decisions** (from the architect's review of Checkpoint 4):
-- **Reactors:** a reactor is the background-service primitive; no new service kind.
-- **Promote on fit:** the reactor is staged in go-web-service, shaped like spike-messaging's
-  `core/reactor`.
-- **Reads:** deleting branches are hidden from every listing; only a read by id shows
-  `status: deleting`; a listing of a deleting directory is 404.
-- **Batches:** by record count (about 100), with no total bound; a marked branch takes no new writes.
-- **409:** `data.Status` sends a curated `Detail`, never raw error text.
-- **Deletes:** both document deletes take If-Match.
-- **The sweep:** blobfs owns it, including pending rows past a threshold; the service supplies the
-  trigger and the owner-row hook.
-- **The general sweeper:** captured as a concept with its activation rule (Pending at the fold).
-
-**Stages.** The delegation is noted per stage. Executors run on Opus and are read firsthand; each
-commit fires `on-commit`, which declares no hook.
-
-- **Checkpoint 4b: blobfs v0.2.0** (branch `storage-service`)
-  - **B1. Version-guarded deletes (WIP).**
-    - `VersionOption`/`AtVersion` on `Files.Delete` and `Directories.Delete`, in one guarded statement
-      each.
-    - Check: `mise run acceptance`.
-  - **B2. Directory status** (executor, with B3).
-    - Migration `postgres/migrations/0003_directory_status`: `status text NOT NULL DEFAULT 'active'`,
-      `blobfs_cc_directory_status`.
-    - Golden hashes (`postgres/golden_test.go`); the tests that assume two migrations; the constraint
-      constant.
-    - `blobfs.DirectoryStatus` (active, deleting) and `Directory.Status`; `directory_columns` gains
-      `d.status` (breaking for 0.x); `postgres/statements/resolve_path.sql` updated.
-  - **B3. Mark and refuse.**
-    - `Directories.MarkDeleting(ctx, tx, id)`: under `LockTree`, it refuses the root, then marks the
-      directory, every descendant, and every file beneath `deleting` in one recursive update, and
-      returns the counts.
-    - Refused with `ErrDeleting`: a create, ensure, or move of a directory or file whose
-      parent or destination is deleting, and a move out of a deleting branch.
-    - Inserts take the form `INSERT … SELECT … WHERE parent.status = 'active'`, with a parent read
-      to classify a refusal. `data/directories_move.go`'s `ErrRefused → ErrRootDirectory` mapping is
-      reworked.
-    - Stragglers from the race are caught by the sweep, not locks.
-  - **B4. Listings** (executor).
-    - A Go-appended filter excludes deleting entries; `IncludeDeleting()` opts out.
-    - `List`/`Continue` of a deleting directory is `ErrDeleting`.
-    - `Directories.Deleting(ctx, sess, limit)` returns the branch roots.
-    - The listing, keyset, refusals, and cost tests move to these defaults.
-  - **B5. `Store.Sweep(ctx, sess, objects ObjectDeleter, opts ...SweepOption) (SweepResult, error)`**
-    (executor).
-    - One stateless, bounded pass with `Batch(n)` (default 100), `OnRemoveDirectory(func(ctx, tx,
-      blobfs.Directory) error)` (run in the removal's transaction), and `PendingOlderThan(d)` (off by
-      default).
-    - The pass: files (object delete, then purge), stragglers marked, directories removed deepest
-      first, the branch root last.
-    - `SweepResult{Files, Directories, Pending int; More bool}`; convergent.
-    - Conformance cases: a full sweep, a crash midway then a finishing pass, stragglers, the hook,
-      pending reclaim, a fake deleter.
-    - It answers `context/deferred.md`'s sweeper.
-  - **B6. Docs and release.**
-    - `docs/concepts.md` (a new "Deleting a branch") and `docs/features.md` (every section the
-      surface touches); `data/doc.go`, `postgres/doc.go`, `context/deferred.md`; both changelogs at
-      `[v0.2.0]`.
-    - The editor pass, the branch review, and an Adjust; a PR, CI, merge; tags `v0.2.0` and
-      `postgres/v0.2.0`.
-  - **Demonstration:** acceptance, plus a scratch program:
-    - a stale `AtVersion` returns `ErrVersionMismatch`;
-    - mark a three-level branch;
-    - a create, an upload, and a move into it are each `ErrDeleting`;
-    - the listings hide the branch while `Find` shows `deleting`;
-    - `Deleting()` returns the branch root;
-    - one `Sweep` removes the branch's rows and objects and calls the hook once;
-    - a pending row past the threshold is reclaimed.
-- **Checkpoint 4c: go-web-service** (branch `storage-service`)
-  - **C1.** Pin blobfs and blobfs/postgres v0.2.0; directory `status` on a read by id; a listing
-    within a deleting branch is 404.
-  - **C2.** `data.Status` curated details: "an entry with that name already exists", "the directory
-    is not empty", "the directory is being deleted", "the file is referenced", and "the request
-    conflicts with the current state". Tests show no raw text reaches the wire.
-  - **C3.** Both document deletes take If-Match (428 when missing, 412 when stale).
-    - `?recursive=true` runs `MarkDeleting` guarded by the version, answers 202 with `Location`,
-      and nudges the sweeper.
-    - `maxWalk` and the synchronous walk are deleted.
-  - **C4. `sdk/reactor.go`** (executor, with C5), bound for go-core.
-    - Match spike-messaging's `/home/jaime/experiments/spike-messaging/core/reactor` and its
-      `design.md`: `Source`/`Func`, `New` with `Grace`, `Start`/`Shutdown`/`Ready`/`Err`, `Every`.
-    - New: `Wake(d)` with a coalescing `Nudge()`.
-    - The coordinator adapter is `lc.Add` plus `lc.Monitor(r.Err())`.
-  - **C5. The sweeper reactor** in `internal/app/reactors.go`.
-    - `Wake(interval)`, calling `Store.Sweep` with `data.Objects` as the deleter and the document
-      layer's owner-row unbind as `OnRemoveDirectory`; it loops while `More` is true.
-    - Stage 3 (below root, after the domains); a `sweep` config block (interval 30s, batch 100,
-      pending age 1h).
-    - Its doc comment carries the general sweeper's activation rule.
-    - Tests include a crash midway and a finishing pass.
-  - **C6.** slab: `--version` on both document deletes, `--recursive` printing the 202,
-    `dirs get` showing `status`. `usage.md`, the README, and the CHANGELOG.
-  - **Demonstration (slab):**
-    1. Build a tree and delete it with `--recursive --version N`: a 202, then `dirs get` shows
-       `deleting` and the listings hide it.
-    2. An upload into it is a 409 with the curated detail.
-    3. After a sweep interval it is a 404, and the container holds none of its objects.
-    4. A stale version is a 412; a missing one a 428.
-    5. Kill the service mid-sweep and restart it; the sweep finishes.
-- **Checkpoint 5 (final)**
-  - **13. Seeder:** `data.NewSeeder` takes the storage.
-    - `default` seeds a logo per organization from `data/seeds/fixtures/<code>.png`, plus a small
-      acme document tree, through `Ensure` with caller-supplied ids; idempotent.
-    - The logos: 80×80 PNGs sliced from the architect's `~/Pictures/org-logos.png` (a 3×3 grid:
-      acme, engineering, platform; product, operations, logistics; finance at the bottom middle),
-      each cropped to its content, padded square with 12% margin, whitened, and downscaled with
-      LANCZOS. The session's scratchpad copies are gone, so re-slice them.
-  - **13b. `slab demo storage`** (executor): the sets, the logo replace cycle, the document tree
-    with a cursor walk, the scoped refusals, a recursive delete swept to 404, and a Reset.
-  - **14.** README: Stack, the port list (the partial index), the logo and document API, the admin
-    storage group, `APP_STORAGE_*`, the reactor, and tests. The CHANGELOG with its pins; `doc.go`
-    files.
-  - **15.** The editor pass.
-  - **Validation:** build, vet, `test -race`, lint, sqlint, both modules' `tidy -diff`, and
-    `mise run integration`; `slab demo storage`; CI green on the PR.
-- **Then `close`:** the branch review, tending the notes (Pending's close items), the record at
-  closeout, and publishing go-web-service `storage-service`. Next is `v1.storage.suite`.
+Start `goals.v1.storage.tasks.suite`, the lane's last task, once go-web-service's
+[PR #33](https://github.com/standards-lab/go-web-service/pull/33) has merged. Its scope is the expanded one under Pending
+at the fold: the library promotions (blobfs v0.3.0, go-storage, go-web-sdk, go-database), each
+proven by go-web-service in the same step, plus the suite's original integration cases (the
+pending row a failed put leaves, the deleting row a failed delete leaves and its retry, the 503 on
+an Azurite outage) and the coordinated release snapshot. Its close writes `Lane finished.` here.

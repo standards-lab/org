@@ -4,9 +4,11 @@ How a service builds around the `blobfs` library: one install per configuration,
 composition root, ownership at two grains, the write, delete, and move protocols as the consumer
 sequences them, seeding, and the operating constraints `blobfs.experiment`'s evidence established.
 It excludes the library's own protocol semantics and listing conventions, which `blobfs`'s own
-guide documents (`docs/concepts.md` and `docs/features.md` in that repository), the multi-set migrator's mechanics, which are `migration-sets.md`'s, and authorization,
-which waits for `go-auth` (`auth-strategy.md` §8). Its worked example is the organization: an image
-at the file grain, a document hierarchy at the directory grain.
+guide documents (`docs/concepts.md` and `docs/features.md` in that repository), the multi-set
+migrator's mechanics, which are `migration-sets.md`'s, and authorization, which waits for
+`go-auth` (`auth-strategy.md` §8). Its worked example is go-web-service's organization: a logo at
+the file grain, a document hierarchy at the directory grain, both built and validated in
+`v1.storage.service`.
 
 ## One install per configuration
 
@@ -26,10 +28,11 @@ The engine is chosen by importing the engine sub-module and installing its engin
 own constructor, `data.New(catalog, dialect, data.WithEngine(postgres.Engine))`; nothing else in
 the consumer names the engine.
 
-The object-store adapter is the one place a consumer names its object-store library. It is the
-library's key-validation interface, built from a store the consumer has already started under its
-own lifecycle and passed to each write's first step, so the library never reads an environment
-variable of its own. The adapter's own job, learned from building one: a missing object on delete is
+The object-store adapter is where the domains' file operations reach the object-store library, so
+no domain imports it. It satisfies the library's two one-method interfaces, the key validator each
+write's first step takes and the object deleter the sweep takes, built from a store the consumer
+has already started under its own lifecycle, so the library never reads an environment variable of
+its own. The adapter's own job, learned from building one: a missing object on delete is
 success, the same way the library's own delete step treats it, but a missing *container* is not — it
 means the configured target itself is gone, and the object may well exist somewhere else, so the
 adapter refuses the step rather than treating it as done. A put should echo the content type the
@@ -51,10 +54,13 @@ table; a file stored at the root belongs to no unit, since it has no top-level a
 scoped by. Checking a client-named scope by id (rather than by a path already known to be inside
 it) reads the owner row of the named scope directory first and only then asks the library whether
 the target lies within it, so a unit that names a directory it does not own learns nothing about
-what is under it — the supplied id is an input to check, never a fact to trust. Removing an owned
-directory removes its owner row in the same transaction, since the owner row is the consumer's own
-record of the directory and has no life apart from it; refusing to remove an owned directory instead
-would make it permanently undeletable.
+what is under it — the supplied id is an input to check, never a fact to trust. The owner row's
+foreign key into the library's directory table cascades: the owner row is the consumer's own record
+of the directory and has no life apart from it, so whatever removes the directory, a plain delete or
+the sweep, removes the row with it. The library forbids a cascade only on its own keys, where one
+would strand objects; an owner row holds none. A removal hook instead would leak a session type into
+the domain, and the library keeps only one hook, so a second directory-grain domain would silently
+replace the first.
 
 A move stays under one top-level directory. The owner row binds a top-level directory and the scope
 is checked only at that ancestor, so a move across two top-level directories would carry an entry
@@ -73,23 +79,27 @@ listings of this kind don't display it.
 
 ## The protocols as the service sequences them
 
-**The upload.** In one transaction: resolve the parent, begin the file's write, and write the
-consumer's own row (the owner or the join row) beside it, so the pending row and the consumer's
-record of it commit together before any byte reaches the store. Outside any transaction: upload
-under the row's key. On the pool: complete the write with what the store reported. A `pending` row
-is the consumer's own state to sweep — there is no failed status, a retry of the same upload resumes
-the row, and an abandoned one is removed through the delete steps. A sweeper, when one is built,
-lists pending rows older than a threshold through the library's own listing filters and deletes
-each.
+**The upload.** In one transaction: check the scope and begin the file's write, and nothing else —
+no consumer row may reference the pending file, since a reference refuses the library's stale
+reclaim on every pass and strands the row (the logo's first write did exactly this, found by a
+layering review). Outside any transaction: upload under the row's key. On the pool: complete the
+write. A put or completion that fails abandons the row through the delete steps, on a context that
+outlives the request's cancellation; a completion refused because a sweep reached the row first
+deletes the object just stored (the writer rule). A consumer's reference to the file, such as the
+logo's join row, is written after completion, in the transaction that holds the file. The service
+stages these steps once, as shared protocols in its `data` package (write, ensure, retire, purge,
+serve), bound for the library.
 
 **The delete.** In one transaction: hold the file (the reference-then-delete rule) if any of the
 consumer's own rows are about to reference it, or check the consumer's own referencing rows and
 refuse while any exist, then begin the library's delete. Outside any transaction: delete the object.
 On the pool: purge the row. The consumer's own foreign key into the library's file table is
 the backstop for a reference that slips in after the check, and the consumer maps that constraint's
-name to its own sentinel at the purge step. A directory removal removes the consumer's own rows
-about that directory in the same transaction as the library's removal, and a recursive removal is
-the consumer's own walk, children before their parent.
+name to its own sentinel at the purge step. A recursive removal is the library's mark and sweep: the
+request marks the branch deleting at the version it read and answers 202, and the sweep, run as a
+background worker woken by the request, on an interval, and once at startup, removes the branch's
+objects and rows and reclaims stale pending and deleting rows past an age. The sweep's refusals are
+logged and retried, never fatal.
 
 **The move.** Resolve both paths and run the library's move in one transaction; a directory move
 takes the engine's lock through the variant. On an engine with no native lock, the consumer
@@ -99,14 +109,13 @@ serializable isolation with a retry on the driver's serialization-failure class.
 ## Seeding
 
 A service seeds named states through the library's insert-or-find operations, never by hand-rolled
-lookups. The root directory is structural, created by the schema itself, and every reset of the
-schema recreates it; named states beyond the root are the consumer's own, seeded through the
-directory insert-or-find (with the consumer's own owner row in the same transaction) and the file
-insert-or-resume operation, over a bytes source such as an embedded fixture. A seeder is idempotent
-by name: an available file is skipped, a pending one resumes, and the object store must already be
-started before the seed step runs. Caller-supplied ids on a seeded row keep its key stable across
-resets, so a reseed overwrites the same object rather than orphaning the old one; a reset otherwise
-leaves orphaned objects in the store, which is accepted in development.
+lookups, in two kinds of contribution each domain declares: rows applied in the seeder's one
+transaction, and stored files written once it commits, since a file's object is put outside any
+transaction. Every seeded row carries a fixed id, so a reseed finds it, a reset writes it again
+under the same key (the all-or-nothing put replacing the leftover object), and a row found under
+another id — a client's upload of the same name — is not the seed's and is left alone. The object
+store must already be started before the seed step runs. A reset otherwise leaves orphaned objects
+in the store, accepted in development.
 
 ## Registering the migration set
 
@@ -129,8 +138,11 @@ full and is not restated here.
   `query.TotalNone`.
 - **The baseline engine has no tree lock.** A consumer on an engine without a native one must
   serialize directory moves itself, as above.
-- **A recursive removal is not atomic.** It is the consumer's own walk, and under sustained
-  concurrent writes it can keep meeting new children; the consumer bounds its retries.
+- **Schema changes and the sweep deadlock.** Reverting a consumer migration that references the
+  library's directory table locks the two tables in the opposite order from a sweep's cascading
+  removal, and Postgres aborts one side. The service quiesces the sweep around its schema-changing
+  admin verbs with a per-process gate; a multi-replica reset would need a database lock the sweep
+  also takes.
 
 ## Assumptions
 
@@ -140,4 +152,3 @@ full and is not restated here.
   conflict responses.
 - The composition root can hand an already-started object store to the adapter and let the adapter
   own no lifecycle of its own.
-- A sweeper, when built, needs nothing beyond the library's own listing filters.
