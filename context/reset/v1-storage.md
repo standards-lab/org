@@ -1,15 +1,13 @@
 # reset · v1-storage
 
-- **Status:** handoff (the `v1.storage.suite` task, before its close; the lane stays open)
-- **Lane:** open. `blobfs.build`, `blobfs.admin`, and `v1.storage.service` are done;
-  `v1.storage.suite` is at its last checkpoint.
+- **Status:** closeout
+- **Lane:** finished. `blobfs.build`, `blobfs.admin`, `v1.storage.service`, and
+  `v1.storage.suite` are done.
 - **Session:** start
-- **Project:** go-core, go-storage, go-web-sdk, go-database, blobfs, go-web-sdk-template,
-  go-web-service, standards-lab
-- **Branch:** `storage-suite` in go-web-service (open, unpublished, at `b70f184`); every library
-  branch this task opened is merged and released; `v1-storage` at the coordinator, in the worktree
-  `.claude/worktrees/v1-storage` ([PR #51](https://github.com/standards-lab/org/pull/51) stays
-  open)
+- **Project:** go-storage, go-web-sdk, go-web-sdk-template, go-web-service, standards-lab
+- **Branch:** `storage-suite` in go-web-service; `storage-suite-timeouts` in go-storage,
+  go-web-sdk, and go-web-sdk-template (merged and released); `storage-suite-close` in go-storage;
+  `v1-storage` at the coordinator
 
 ## Orchestration
 
@@ -31,36 +29,61 @@ these rules until the workflow carries them (see "Plugin" at the end of Pending 
   the previous task's member branch has merged and any release it cut is tagged.
 - Each close rewrites the Disposition for its own step and carries every unapplied fold edit
   forward under Pending at the fold, so nothing a session records for the fold is lost.
+- This lane is finished: PR #51 merges and the worktree is removed at this close.
 - This departs from marathon 0.15's `mechanics/waves.md`, where a lane's record, worktree, and
   coordinator branch are named after its first step, the coordinator branch is per step, and
   the worktree is removed at each close.
 
 ## Disposition
 
-This session ran `v1.storage.suite` through checkpoints 1, 2, 2b, and 2c; the task's close is next.
+This session resumed `goals.v1.storage.tasks.suite` at checkpoint 2c, ran the architect's three
+adjustments, and closed the task, which finishes the lane.
 
-- **Released** (each tagged on a green `main`, after a branch review, an Adjust, and an editor pass):
-  - Checkpoint 1: go-storage v0.2.0 + azureblob/v0.2.0, go-web-sdk v0.12.0, go-database v0.6.2,
-    blobfs v0.3.0 + postgres/v0.3.0.
-  - Checkpoint 2b: go-storage v0.2.1, blobfs v0.4.0.
-  - Checkpoint 2c (the final whole-suite review, the architect's scope "everything, API
-    included"): go-core v0.5.0; go-storage v0.3.0 + azureblob/v0.3.0; go-web-sdk v0.13.0 +
-    middleware/rate-limit/v0.2.0; go-database v0.7.0 + postgres/v0.4.0; blobfs v0.5.0 (postgres
-    and example pinned, postgres untagged: comments and tests only); go-web-sdk-template
-    template/v0.10.0.
-- **go-web-service** `storage-suite` (unpublished): adopts every release above; the storage
-  suite's integration cases (paging, a refused upload and delete, a storage outage); the
-  final review's service findings. Checks at `b70f184`: GOWORK=off build, vet, test -race, lint,
-  sqlint, tidy (service and slab); `mise run integration` 65s; live `/readyz` all ready and
-  `slab demo storage` 16/16.
-- **Add or sharpen:** each member repository's `context/` notes were brought current in its own
-  branches (go-web-service's `context/domain-architecture.md`, `data-layer.md`,
-  `integration-tier.md`; blobfs's and go-storage's capability maps). No coordinator note changed:
-  the lane records coordinator edits for the fold.
-- **Promoted:** none at a handoff. Candidates for the close: the three domain-architecture rules
-  already under Pending at the fold, and the package-comment inventory rule (below).
-- **Validated:** see Next-focus for the checkpoint 2c evidence; the close's own validation is
-  still to run.
+- **Integrated:** none at the coordinator; the lane records coordinator edits for the fold.
+- **Add or sharpen:**
+  - go-web-service `context/domain-architecture.md`: the service exposes its store as
+    `Verifier`, the seeder verifies the stores the root lists, and a layer that moves bodies takes
+    the server's transfer factory at its construction site.
+  - go-storage `context/README.md`: the known limit "`Get` returns the raw body, nothing retries
+    it" is dropped; azureblob/v0.4.0 lifted it ([PR #9](https://github.com/standards-lab/go-storage/pull/9)).
+- **Promoted:** none at a lane's close; the candidates are under Pending at the fold, now five:
+  the three domain-architecture rules, the package-comment inventory rule, and the timeouts
+  convention.
+- **Promotion evaluation** (what the storage suite moved outward, and what stayed):
+  - Moved: the file protocols (`Write`, `Remove`, the `ObjectPutter`) to blobfs; the attachment
+    header, the 5xx cause logging, and `PathUUID` to go-web-sdk; `ErrContainerNotFound` to
+    go-storage; the per-route transfer deadlines to go-web-sdk (`Transfer`, v0.14.0); the resumed
+    and idle-bounded download body to go-storage (v0.4.0).
+  - Stayed in go-web-service: `Serve`, the sweep's gate and logging policy, the reactor and the
+    gate in `sdk` (they wait on `v1.messaging`'s reconciliation with spike-messaging), and
+    `data.ErrBodyTimeout`'s classification, which is the service's own policy.
+- **Cross-repo:**
+  - go-web-service `storage-suite`: the explicit verifier list, the rootless alias's refusals,
+    the transfer deadlines and the 408, the pins, and the close's Adjust
+    ([PR #34](https://github.com/standards-lab/go-web-service/pull/34), the architect merges).
+  - go-storage v0.4.0 and azureblob/v0.4.0 ([PR #8](https://github.com/standards-lab/go-storage/pull/8)):
+    `Config.ReadIdleTimeout`, and a `Get` body that resumes past `try_timeout` with its read
+    failures classified; the azureblob pin went straight to `main`, as earlier pins did.
+  - go-web-sdk v0.14.0 ([PR #33](https://github.com/standards-lab/go-web-sdk/pull/33)): `Transfer`
+    and `Config.TransferRate`, with the read and write timeouts' defaults down to 30s (breaking).
+  - go-web-sdk-template template/v0.11.0 ([PR #21](https://github.com/standards-lab/go-web-sdk-template/pull/21)):
+    the SDK's new defaults in `config.json`, pinned to go-web-sdk v0.14.0 (the architect's call
+    to carry the convention into the SDK and the template).
+- **Validated:**
+  - Checkpoint A (go-storage): a 48 MiB blob read in 1 MiB chunks over 4.9s through a 1s
+    `try_timeout` returned intact across 6 GETs; unit tests cover the idle cut-off; the Azurite
+    acceptance suite. Each library then had a branch review (Opus), an Adjust, an editor pass,
+    and green CI before its merge and tag.
+  - Checkpoint 3 (go-web-service): GOWORK=off build, vet, test -race, lint, sqlint, and tidy for
+    the service and slab; `mise run integration`; a live service with `/readyz` all ready and
+    `slab demo storage` 16/16. The architect ran a hand walkthrough on the live stack and
+    confirmed it: a slow 8 MiB download past `try_timeout` intact, an Azurite pause cut off at
+    about 33s with the service still ready, and a paced upload 201 while a slower one answered
+    408.
+  - The close: the branch review's ten findings fixed as an Adjust (a stalled store's 503 lost
+    past the write timeout, fixed by a 5s `try_timeout` and a budget test; the verifier list
+    tied to every registered statement by a test; the reset outside the tight timeouts), then
+    every check and `mise run integration` again, confirmed by the architect.
 
 ## Pending at the fold
 
@@ -187,7 +210,8 @@ Added by the `v1.storage.suite` session (applied at the fold, alongside the task
     a scalar-subquery count so a page past the last reports a total (sqlate); blobfs's orphan
     reconciler stays deferred to `v1.messaging` (blobfs `context/deferred.md`).
 - **References:** `references.md` and the profiles name the released versions: go-core v0.5.0,
-  go-storage v0.3.0, go-web-sdk v0.13.0, go-database v0.7.0, blobfs v0.5.0, template v0.10.0.
+  go-storage v0.4.0, go-web-sdk v0.14.0, go-database v0.7.0, blobfs v0.5.0, template v0.11.0
+  (superseded by the close, below).
 - **Architecture layer (candidate, landed at the fold):** the architect decided at the final
   review that each package comment (`doc.go`) stays the authoritative API description, carrying
   an inventory that names every exported identifier with a one-clause role, while each contract
@@ -195,45 +219,36 @@ Added by the `v1.storage.suite` session (applied at the fold, alongside the task
   first half; the inventory rule and "one contract, one home" are the addition to land there.
 - **Plugin:** unchanged from above.
 
+Added by the `v1.storage.suite` close (applied at the fold):
+
+- **Roadmap:** everything the `v1.storage.suite` session recorded above stands; the task's close
+  is this one, so `v1.storage.suite` is deleted, the lane leaves `next`, and `goals.v1.storage`,
+  then empty, is deleted. `backlog` gains, beside the pins the libraries owe: go-web-sdk's
+  `middleware/rate-limit` pin to go-web-sdk v0.14.0 (left at v0.13.0 rather than cut a release
+  for a pin; Go's version selection gives consumers v0.14.0 regardless).
+- **References:** the released versions `references.md` and the profiles name are go-core v0.5.0,
+  go-storage v0.4.0 with azureblob/v0.4.0, go-web-sdk v0.14.0, go-database v0.7.0 with
+  postgres/v0.4.0, blobfs v0.5.0 with postgres/v0.3.0, sqlate v0.4.1, and go-web-sdk-template
+  template/v0.11.0.
+- **Architecture layer (candidate, landed at the fold):** the timeouts convention, validated
+  across go-web-sdk, go-storage, and go-web-service (the architect's call at the close):
+  - the server's read and write timeouts are tight, sized for a request that moves no large
+    body; a route that moves one sets its own connection deadlines from the body's size, capped
+    at the route's limit, and a minimum client rate (go-web-sdk `Transfer`);
+  - a store's per-try deadline bounds one operation, never a transfer: a download's body resumes
+    past it, and an idle bound on each body read, counted only while a read is in progress, cuts
+    off a stalled store without cutting off a slow client (go-storage `ReadIdleTimeout`);
+  - a stalled store's whole retry budget fits inside the write timeout, so its 503 is written,
+    and a configuration test holds that budget;
+  - an upload body's read deadline is the client's (408); the store buffers far enough ahead
+    that a stalled store is never charged to the client.
+- **Coordinator record:** besides naming this lane `v1-storage`, `context/reset.md`'s lane list
+  records it finished.
+
 ## Next-focus
 
-Resume `goals.v1.storage.tasks.suite` in go-web-service on `storage-suite` (at `b70f184`), with
-two adjustments the architect approved after checkpoint 2c, then close the task and the lane.
+Lane finished.
 
-1. **Statement verification from an explicit list** (the architect's call): the composition root
-   hands the seeder every store as an explicit verifier list (both domain stores and blobfs's
-   `FS`), separate from the seed contributions, so a store that seeds nothing is still verified.
-   Verification stays one pass at the schema stage (go-database v0.7.0's `Start` runs the
-   seeder's `Verify` whenever a seeder is configured). `data.NewSeeder` gains the list;
-   `data.Contribution.Verifiers` goes. Test: a store with no seed contribution is verified.
-2. **The document root alias refuses what a real root refuses** (fix now): before its first
-   write, the `root` alias answers 200 with an empty page for a bad sort, filter, or cursor,
-   where a real root answers 400. Validate the query (directives and cursor) on the alias path
-   as the listing would (`domain/document/storage.go` `rootless`).
-3. **Timeouts by the Go convention** (the architect's call, "full convention"):
-   - the server: a short `ReadHeaderTimeout`; `ReadTimeout` and `WriteTimeout` tight
-     server-wide; the upload and download routes widen their own deadlines through
-     `http.ResponseController` (`SetReadDeadline`, `SetWriteDeadline`), sized from the route's
-     size limit and a minimum client rate;
-   - the store: `try_timeout` sized for a single operation, not a whole transfer; a download
-     body gets a read-idle (progress) timeout, reset on each read that makes progress, so a
-     stalled store is cut off and a slow, steady client is not. That is a go-storage feature (a
-     `read_idle_timeout`-style option on azureblob, or a Store-level reader): a go-storage
-     release, then the pin;
-   - classification by the deadline that fired: the request body's read deadline is the client's
-     (408), the store's context or idle deadline is the upstream's (503 or 504); `data.ErrBodyRead`
-     and the timeout ambiguity in `PutObject` resolve into that.
-   Each library change runs as before: branch `storage-suite-timeouts` (or similar), a branch
-   review, an Adjust, an editor pass, a PR, CI, merge, tag; go-web-service pins it.
-4. Then checkpoint 3's final validation (GOWORK=off checks, `mise run integration`,
-   `slab demo storage` on a live service) and `close`: the branch review, go-web-service's PR
-   (the architect merges), this record rewritten as the closeout with the promotion evaluation
-   (what moved outward: the file protocols to blobfs, the attachment and 5xx logging and
-   `PathUUID` to go-web-sdk, `ErrContainerNotFound` to go-storage; what stayed: `Serve`, the
-   sweep's gate and logging policy, the reactor and gate in `sdk`), `Lane finished.`, PR #51
-   merged, and the worktree removed. No other lane has finished, so the wave does not fold.
-
-Stages: the task's list (1–28) is committed and released; checkpoint 2c was reported and the
-architect answered it with items 1–3 above, which run before checkpoint 3. The dev stack
-(go-web-service's compose Postgres and Azurite) is up; a dev server built from `b70f184` was
-started for the checkpoint and may still be running on :8080.
+The wave does not fold: the `messaging-experiment` and `ai-experiment` lanes are still open. The
+session that finishes the last of them folds the wave and applies this record's Pending at the
+fold. The architect names the next session's lane.
