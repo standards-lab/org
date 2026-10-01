@@ -5,6 +5,13 @@
 - **Project:** standards-lab
 - **Branch:** spike-harness-driver
 
+> **Applied 2026-10-01** by the `software-factory` plan session (standards-lab): the catalog row,
+> the references entry, the notes index, and every roadmap edit below are in `experiments.md`,
+> `references.toml`/`.md`, `context/README.md`, and `context/roadmap.toml`. There is no fold:
+> this record is now the active goal `v1.ai.experiment`'s handoff state, and `factory.goals`
+> migrates it to a goal record. Its Next-focus stands, except that no wave
+> fold follows the intake: the intake session syncs the goal.
+
 ## Disposition
 
 - **Add or sharpen:** `context/ai-strategy.md`, "Experiment: spike-harness-driver". At SETTLE,
@@ -57,6 +64,38 @@
       spike-local-subagents' result. Waits on that spike's close.
     - context `["standards-lab/context/ai-strategy.md"]`
   - The go-ai library and service tasks stay unwritten until the spike-harness-driver intake.
+- **Add or sharpen** (at the architect's direction during spike-harness-driver's step 2, on
+  branch `cli-application-type`): `context/cli-applications.md`, new. It records the CLI
+  application layout that slab, spike-blobfs, and spike-harness-driver's `clutch` share, its
+  conventions, where the three differ, and the plan: decide whether `go-cli-sdk` exists, and
+  build the template either way.
+- **Notes index** (recorded for the wave fold, not applied): `context/README.md`'s Notes gains
+  `- \`cli-applications.md\` — the CLI application type: the layout three tools share, and the
+  SDK and template plan.` The "Further application SDKs and their templates" bullet under
+  Longer-term objectives drops "command-line", which now has a goal.
+- **Roadmap** (recorded for the wave fold, not applied). The architect places it in `next`:
+  - Add `goals.cli`:
+    - name "The CLI application type"
+    - summary: the Elemental Architecture's second application type, beside the web service,
+      from the layout slab, spike-blobfs, and spike-harness-driver share. It decides whether
+      `go-cli-sdk` exists, then builds the template.
+    - context `["standards-lab/context/cli-applications.md"]`
+  - Add `goals.cli.tasks.sdk-decision`:
+    - name "Decide the CLI application SDK"
+    - repos `["standards-lab", "architecture"]`
+    - summary: a `plan` session that reads the tools following the layout, spike-messaging
+      included once it aligns. It decides whether `go-cli-sdk` exists and what it holds, whether
+      cobra joins go-elemental's dependency line, and, with no SDK, how
+      `topology-and-naming.md` names the template.
+    - context `["standards-lab/context/cli-applications.md"]`
+  - Add `goals.cli.tasks.template`:
+    - name "The CLI template"
+    - repos `["architecture", "standards-lab"]`, plus the new template repository, and
+      `go-cli-sdk` if the decision creates it
+    - summary: `go-cli-sdk-template`, or `go-cli-template` with no SDK, scaffolding the layout
+      in `cli-applications.md`. It is added to the workspace's `order` and the references
+      catalog. Waits on `sdk-decision`.
+    - context `["standards-lab/context/cli-applications.md"]`
 - **Retained:**
   - personal-agents stays outside the workspace until `v1.ai.hosting`.
   - The architecture-layer candidates (model tiers, context sizing, the memory-footprint method,

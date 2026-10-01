@@ -69,6 +69,11 @@ standard = "go-elemental"
 [repos.sqlate]
 remote = "https://github.com/standards-lab/sqlate.git"
 
+# blobfs is adjacent to the standard, as sqlate is: a standalone library over
+# sqlate and any object store, so its entry declares no standard.
+[repos.blobfs]
+remote = "https://github.com/standards-lab/blobfs.git"
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"
@@ -88,6 +93,9 @@ remote = "https://github.com/tailored-agentic-units/agent.git"
 
 [repos.tau-orchestrate]
 remote = "https://github.com/tailored-agentic-units/orchestrate.git"
+
+[repos.tau-platform]
+remote = "https://github.com/tailored-agentic-units/tau-platform.git"
 
 [repos.tau-examples]
 remote = "https://github.com/tailored-agentic-units/examples.git"

@@ -5,6 +5,12 @@
 - **Project:** standards-lab
 - **Branch:** spike-messaging
 
+> **Applied 2026-10-01** by the `software-factory` plan session (standards-lab): the catalog row
+> and every roadmap edit below are in `experiments.md` and `context/roadmap.toml`. There is no fold:
+> this record is now the active goal `v1.messaging`'s handoff state, and `factory.goals`
+> migrates it to a goal record. Its Next-focus stands, except that no wave
+> fold follows the intake: the intake session syncs the goal.
+
 ## Disposition
 
 - **Add or sharpen:**
