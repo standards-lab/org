@@ -60,14 +60,9 @@ summary = '''
 marathon reshaped so the architect engages at two points per task, the plan and the brief, while
 an agent pipeline makes the work good in between: implementer, checks, standards and spec
 review, editor. Goals and tasks become the whole vocabulary of parallel work, with the wave,
-lane, and fold retired. Inspired by Matt Pocock's "Fixing the PR Bottleneck" and his skills.
+lane, and fold retired. marathon 0.16.0 expresses it; evals remain.
 '''
-context = [
-  "claude-plugins/context/marathon-factory.md",
-  "claude-plugins/context/marathon-goals.md",
-  "claude-plugins/context/marathon-briefs.md",
-  "claude-plugins/context/marathon-commands.md",
-]
+context = ["claude-plugins/context/harness-testing.md"]
 
 [goals.factory.tasks.pipeline]
 name = "The pipeline, profiles, commands, and briefs"
