@@ -12,11 +12,11 @@
 active = [
   "factory",
   "quality",
+  "cli",
   "experiment.ai",
 ]
 
 planned = [
-  "cli",
   "experiment.messaging",
   "v1.messaging",
   "v1.ai",
@@ -163,11 +163,10 @@ summary = '''
 The Elemental Architecture's second application type, beside the web service, from the layout
 slab, spike-blobfs, and spike-harness-driver's clutch share. It decides the SDK question, then
 builds the template. The existing workspace CLIs (slab) align to the result; CLIs in
-~/experiments stay as they are, and future spikes start from the template. Its root is the CLI
-repository `sdk-decision` creates; until then the goal stays planned, and the decision runs as a
-`plan` session that names the repository, runs `init` there, and stages the goal with that
-repository as `root` and `repos` (plus `go-cli-sdk` if the decision creates it, and slab if cobra
-goes). The architecture pages the goal settles are drafted in the root's `context/` and sync into
+~/experiments stay as they are, and future spikes start from the template. Active before its
+repositories exist: `sdk-decision` runs as the goal's `plan` session, which names the CLI
+repository, runs `init` there, and sets it as `root` and in `repos` (plus `go-cli-sdk` if the
+decision creates it, and slab if cobra goes), with the goal record created there. The architecture pages the goal settles are drafted in the root's `context/` and sync into
 `architecture` when the goal completes.
 '''
 context = ["standards-lab/context/cli-applications.md"]
