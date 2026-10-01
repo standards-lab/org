@@ -3,8 +3,9 @@
 Descriptive companion to `references.toml`. Each heading maps to one or more manifest keys; the remote
 is in `references.toml` and the local checkout path is in `references.local.toml`.
 
-Two kinds of entry: the **effort repositories** that make up the Standards Lab organization, and the
-**prior R&D** that informs the standard. The prior R&D is input, not infrastructure to inherit: carry
+Three kinds of entry: the **effort repositories** that make up the Standards Lab organization, the
+**archived experiments** whose results the effort took in, and the **prior R&D** that informs the
+standard. The prior R&D is input, not infrastructure to inherit: carry
 its strengths, correct its debts, and re-derive a clean standard.
 
 An entry's key joins the two manifests: to clone a missing repository, look up its remote in
@@ -55,7 +56,7 @@ until its 1.0).
 
 ### claude-plugins
 The plugin host for the organization, mirroring the structure of `tau-marketplace`. Ships the `marathon`
-workflow plugin and its `marathon-roadmap` and `marathon-architecture` extensions. The harness level of the reference architecture.
+workflow plugin and its `marathon-architecture` extension. The harness level of the reference architecture.
 
 ### architecture
 The organization's architecture layer: the canonical home for its architectures, standards,
@@ -137,6 +138,20 @@ object store, for any Go project on an engine it ships DDL for, with the Postgre
 `sqlate` is: go-web-service composes it, and go-storage's keys stay unaware of it. Promoted from
 spike-blobfs. Its `docs/` guide describes the library; the base and each sub-module are tagged
 independently.
+
+## Experiments — archived spikes
+
+A running spike is a task of an experiment goal in `context/roadmap.toml`, which records its remote
+and local path; the goal's sync moves each spike here and archives its remote. A new spike follows
+the hosting convention in `.claude/marathon.toml`'s `[workspace.experiments]`.
+
+### spike-sql-dsl
+Asked whether the whole SQL-to-Go layer can run on authored SQL files instead of a Go statement
+vocabulary. Its library became sqlate.
+
+### spike-blobfs
+Asked whether the blobfs design, a SQL-backed virtual directory and file-metadata library over any
+object store, holds up when built. Promoted to blobfs.
 
 ## Prior R&D — Go web service architecture
 

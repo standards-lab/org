@@ -24,15 +24,17 @@ follows its conventions:
 - Each repository keeps its working context in a flat, top-level `context/` directory:
   `README.md` maps the repository's capabilities, and each note holds intent the built work does
   not express yet, such as a decision with its reasoning or an idea with its open questions. A
-  note is deleted once the work expresses it, and knowledge that holds beyond one repository is
-  promoted to a principle in the `architecture` repository. Ground design and intent questions
-  in `context/` and each repository's documentation, and implementation questions in the source.
-- Work advances one session at a time, and a workspace feature coordinates steps that span the
-  organization's repositories. The coordinator repository (`org`) carries the session record in
-  `context/reset.md` and the remaining path in `context/roadmap.toml`: a goal tree and backlog
-  holding only what remains, with `next` as the only sequence it asserts.
+  note is deleted once the work expresses it, and knowledge that holds beyond one repository
+  becomes a principle in the `architecture` repository once code in more than one repository
+  proves it. Ground design and intent questions in `context/` and each repository's
+  documentation, and implementation questions in the source.
+- Work advances one task per session, active goals run side by side, and a task may span the
+  organization's repositories. The coordinator repository (`org`) carries the remaining path in
+  `context/roadmap.toml`: a goal tree holding only what remains, with each goal `active`,
+  `planned`, or `backlog`. Each active goal keeps its record in its home repository, at
+  `context/goals/<goal>.md`.
 - The workflow is itself a product of this organization: the harness repository below holds
-  marathon and its marathon-roadmap and marathon-architecture extensions.
+  marathon and its marathon-architecture extension.
 
 ## Entry points
 

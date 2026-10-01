@@ -60,7 +60,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   — portable identity for every repository in the effort, with a per-machine local-directory
   map, the standards declarations, and a private annex in `../private/`. `../references.md`
   states the mechanics.
-- **Experiments** (`../experiments.md`) — the catalog of spikes and their hosting convention.
+- **Experiments** — running spikes are tasks of the `experiment` goals in `roadmap.toml`;
+  archived spikes are in the references catalog, and the hosting convention is
+  `[workspace.experiments]` in `.claude/marathon.toml`.
 - **Cross-repo coordination** — the references catalog is the repository list, and the
   workspace order in `.claude/marathon.toml` is its dependency graph in machine-readable form.
 

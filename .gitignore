@@ -11,8 +11,5 @@ references.local.toml
 # Marathon session plan files.
 .claude/plans/
 
-# The branch review's report, read by the architect and deleted at closeout.
-.claude/report.md
-
-# Wave lanes' worktrees of this repository (marathon's mechanics/waves.md).
-.claude/worktrees/
+# The session brief: the architect's view of a finished task and its pull request's body.
+.claude/brief.md

@@ -1,29 +1,25 @@
-# Roadmap — the workspace's path to its target end state, holding only what remains.
+# Roadmap: the workspace's path to its target end state, holding only what remains. The format is
+# marathon's references/manifest.md, and each active goal's record is context/goals/<goal>.md in
+# its root repository.
 #
-# Every goal is in exactly one of three states, listed below by dotted path. A goal is a
-# directory: it holds sub-goals and tasks. A task is a file: one session's work. `active` is the
-# live snapshot of the goals running now, and is edited at any time; an active goal locks every
-# repository in its `repos`, and no two active goals share one. `planned` is the long-term order,
-# top first. `backlog` holds what is unscheduled. A goal's `home` names the repository holding its
-# goal record. The design is claude-plugins/context/marathon-goals.md; until the factory.goals
-# task lands, marathon-roadmap's references/manifest.md still describes the older format.
-#
-# Workspace policy: at most one active goal targets the reference-architecture member
-# repositories at a time; spikes and the harness run beside it. v1.messaging holds that slot, so
-# v1.ai stays planned until v1.messaging syncs. The infrastructure libraries come before the data
-# layer, and the data layer before auth by design: the architect wants to see how the domain layer
-# scales before auth constrains it. Middleware is last: CORS waits for v1.client.
+# The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
+# reference-architecture code repositories. quality holds that slot; once factory and quality
+# sync, experiment.messaging and v1.messaging stage next, as the first goals run on the 0.16
+# conventions. The infrastructure libraries come before the data layer, and the data layer before
+# auth by design: the architect wants to see how the domain layer scales before auth constrains
+# it. Middleware is last: CORS waits for v1.client.
 
 active = [
   "factory",
-  "v1.messaging",
-  "v1.ai.experiment",
+  "quality",
+  "cli",
+  "experiment.ai",
 ]
 
 planned = [
+  "experiment.messaging",
+  "v1.messaging",
   "v1.ai",
-  "quality",
-  "cli",
   "v1.data",
   "v1.auth",
   "v1.admin-listener",
@@ -58,20 +54,15 @@ backlog = [
 
 [goals.factory]
 name = "The workflow as a software factory"
-home = "claude-plugins"
+root = "claude-plugins"
 repos = ["claude-plugins"]
 summary = '''
 marathon reshaped so the architect engages at two points per task, the plan and the brief, while
 an agent pipeline makes the work good in between: implementer, checks, standards and spec
 review, editor. Goals and tasks become the whole vocabulary of parallel work, with the wave,
-lane, and fold retired. Inspired by Matt Pocock's "Fixing the PR Bottleneck" and his skills.
+lane, and fold retired. marathon 0.16.0 expresses it; evals remain.
 '''
-context = [
-  "claude-plugins/context/marathon-factory.md",
-  "claude-plugins/context/marathon-goals.md",
-  "claude-plugins/context/marathon-briefs.md",
-  "claude-plugins/context/marathon-commands.md",
-]
+context = ["claude-plugins/context/harness-testing.md"]
 
 [goals.factory.tasks.pipeline]
 name = "The pipeline, profiles, commands, and briefs"
@@ -88,10 +79,8 @@ name = "Goals as the unit of parallel work"
 repos = ["claude-plugins"]
 summary = '''
 The goal and task primitive, the active, planned, and backlog states, the repository lock in
-place of worktrees, goal records in each goal's home, and sync in place of the fold.
-marathon-roadmap folds into marathon core. The open lane records at the coordinator
-(`context/reset/messaging-experiment.md`, `context/reset/ai-experiment.md`) migrate to goal
-records, and this file's header stops pointing at the old manifest format.
+place of worktrees, goal records in each goal's root, and sync in place of the fold.
+marathon-roadmap folds into marathon core, and the open lane records migrate.
 '''
 
 [goals.factory.tasks.evals]
@@ -108,6 +97,7 @@ context = ["claude-plugins/context/harness-testing.md"]
 
 [goals.quality]
 name = "Checks and standards across the workspace"
+root = "architecture"
 repos = [
   "go-core",
   "sqlate",
@@ -123,7 +113,9 @@ repos = [
 summary = '''
 The first two layers of quality made trustworthy before human review: every repository's
 deterministic check, the standards the reviewer applies, and an architecture repository that
-guides without prescribing. Takes the member-repository slot.
+guides without prescribing. Takes the member-repository slot. Its tasks run checks, then
+architecture-diet, then standards, so each `STANDARDS.md` points into a layer already trimmed.
+It also brings each repository to marathon 0.16's conventions as it passes through.
 '''
 context = ["architecture/context/standards-audit.md"]
 
@@ -132,7 +124,9 @@ name = "One honest check per repository"
 summary = '''
 Each repository exposes one deterministic `check`. A sweep removes tests that lie (tautological,
 structure-sensitive, or unable to fail). Mechanical rules become checks rather than prose: import
-boundaries through depguard or a split check, and a version-currency check over the pins.
+boundaries through depguard or a split check, and a version-currency check over the pins. Each
+repository's `marathon.toml` names its check and gains the `merge` command, and its `.gitignore`
+swaps `.claude/report.md` for `.claude/briefs/` and drops `.claude/worktrees/`.
 '''
 
 [goals.quality.tasks.standards]
@@ -149,7 +143,10 @@ repos = ["architecture"]
 summary = '''
 A principle stays only if code expresses it or a check enforces it. Contradicted principles are
 fixed, speculation is cut, `harness/` moves to claude-plugins or goes, and the promotion
-candidates the v1-storage lane recorded land or are dropped.
+candidates the v1-storage audit recorded land or are dropped. `harness/` and `CLAUDE.md` still
+describe marathon 0.15's mechanics, and `context/promote-on-fit.md` predates the rule that a page
+arrives only from validated code. The repository's own `marathon.toml` and `.gitignore` move to
+0.16 here.
 '''
 context = ["architecture/context/standards-audit.md"]
 
@@ -161,25 +158,28 @@ summary = '''
 The Elemental Architecture's second application type, beside the web service, from the layout
 slab, spike-blobfs, and spike-harness-driver's clutch share. It decides the SDK question, then
 builds the template. The existing workspace CLIs (slab) align to the result; CLIs in
-~/experiments stay as they are, and future spikes start from the template.
+~/experiments stay as they are, and future spikes start from the template. Active before its
+repositories exist: `sdk-decision` runs as the goal's `plan` session, which names the CLI
+repository, runs `init` there, and sets it as `root` and in `repos` (plus `go-cli-sdk` if the
+decision creates it, and slab if cobra goes), with the goal record created there. The architecture pages the goal settles are drafted in the root's `context/` and sync into
+`architecture` when the goal completes.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
 [goals.cli.tasks.sdk-decision]
 name = "Decide the CLI application SDK"
-repos = ["standards-lab", "architecture"]
 summary = '''
 Whether cobra stays at all. The web service uses plain `net/http` with no framework, and the CLI
 should follow unless cobra earns its place: record what it provides beyond the standard
 library's `flag` (nested commands, persistent flags, help and usage, completion) and what
 reproducing the shared command tree without it costs. Then whether `go-cli-sdk` exists and what
-it holds, and with no SDK, how `topology-and-naming.md` names the template.
+it holds, and with no SDK, how `topology-and-naming.md` names the template (drafted for the
+sync into `architecture`).
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
 [goals.cli.tasks.template]
 name = "The CLI template"
-repos = ["architecture", "standards-lab"]
 summary = '''
 `go-cli-sdk-template`, or `go-cli-template` with no SDK, scaffolding the layout in
 `cli-applications.md`, plus the new template repository and `go-cli-sdk` if the decision creates
@@ -276,33 +276,14 @@ context = [
 
 [goals.v1.messaging]
 name = "Messaging and reactor services"
-home = "standards-lab"
-repos = ["spike-messaging", "go-core", "go-web-service"]
+repos = ["go-core", "go-web-service"]
 summary = '''
 The go-messaging infrastructure library with NATS as the declared provider, and the layer that
 makes the service's internal/reactors real: reactor services on the event-driven interface
 messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
 a CloudEvents envelope, outbox emission, and a source-agnostic reactor contract, with go-core
-gaining the `reactor` and `event` primitives. The experiment ran in spike-messaging; its intake
-is the rest of the goal. Its record is `context/reset/messaging-experiment.md` until
-factory.goals moves it to the goal's home.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.experiment]
-name = "The messaging experiment and its intake"
-repos = ["spike-messaging", "standards-lab"]
-summary = '''
-spike-messaging runs through its path (its final validation answered yes: one broker-agnostic
-contract runs the reactors on JetStream and in memory), then a `plan` session here takes the
-result in: what go-messaging's API gains (a binding start position, a bounded `MaxDeliver` with an
-error hook or dead-letter path), the lifecycle registration question, and the library and
-service tasks that follow. The intake also carries what v1.storage proved: reconcile the demand
-and schedule reactor flavors and the quiesce gate staged in go-web-service's `sdk` against the
-spike's `core/reactor` before go-core takes either; the lifecycle evidence (the sweeper as the
-service's first real reactor, registered with `Add` and `Monitor`, its `Grace` tied to the drain
-timeout; the schema stage declared at the call site); and blobfs's orphan reconciler, deferred
-here (blobfs `context/deferred.md`).
+gaining the `reactor` and `event` primitives. experiment.messaging settles it, and its intake
+writes this goal's library and service tasks.
 '''
 context = ["standards-lab/context/messaging.md"]
 
@@ -357,53 +338,19 @@ name = "AI"
 summary = '''
 The capability splits into four layers: hosting (`ai-hosting`), the harness
 (v1.harness.local-models), and go-ai and the service layer here. go-ai's two-surface shape and
-tau's retirement depend on spike-harness-driver. herald is prior art, not a workload to rerun.
-The go-ai library and service tasks stay unwritten until the experiment's intake.
+tau's retirement depend on experiment.ai. herald is prior art, not a workload to rerun. The
+go-ai library and service tasks stay unwritten until experiment.ai's intake.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
   "standards-lab/context/ai-hosting.md",
 ]
 
-[goals.v1.ai.experiment]
-name = "The AI experiments and their intake"
-home = "standards-lab"
-repos = ["spike-harness-driver", "spike-local-subagents", "personal-agents"]
-summary = '''
-Three spikes, each run through its own path, then one combined intake session here. Its record
-is `context/reset/ai-experiment.md` until factory.goals moves it to the goal's home.
-'''
-context = ["standards-lab/context/ai-strategy.md"]
-
-[goals.v1.ai.experiment.tasks.harness-driver]
-name = "spike-harness-driver"
-repos = ["spike-harness-driver"]
-summary = "Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the infrastructure for agentic work? Running its six-step path."
-
-[goals.v1.ai.experiment.tasks.local-subagents]
-name = "spike-local-subagents"
-repos = ["spike-local-subagents"]
-summary = "An `experiment` session sets it up from `ai-strategy.md`, \"Experiment: spike-local-subagents\", then it runs its path."
-
-[goals.v1.ai.experiment.tasks.hosting-spike]
-name = "personal-agents as the hosting spike"
-repos = ["personal-agents"]
-summary = "An `experiment` session adopts personal-agents as the hosting spike (`ai-hosting.md`) and gives it a path, then it runs."
-
-[goals.v1.ai.experiment.tasks.intake]
-name = "The combined intake"
-repos = ["standards-lab"]
-summary = '''
-After all three spikes close, one `plan` session decides go-ai's shape and whether a service's
-container carries a harness, the v1.harness.local-models convention, and what v1.ai.hosting
-builds. It archives the spikes' remotes; personal-agents stays until v1.ai.hosting.
-'''
-
 [goals.v1.ai.tasks.hosting]
 name = "The ai-hosting specification repository"
 repos = ["ai-hosting", "architecture", "standards-lab"]
 summary = '''
-Build `ai-hosting` fresh from the hosting spike's result, add it to the workspace's `order` and
+Build `ai-hosting` fresh from experiment.ai's personal-agents result, add it to the workspace's `order` and
 the references catalog, land the portable-method pages as notes in architecture, and archive
 personal-agents with a forward link. Waits on the hosting spike's close.
 '''
@@ -507,10 +454,10 @@ repos = ["claude-plugins"]
 summary = '''
 The deterministic half of the harness as tools the skills call rather than process the skills
 describe (tool-based-skills.md, "What a tool carries and what a skill carries", "The three
-layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the roadmap manifest and the reset
-file, the validators over them, and the checks the extensions need (extraction's bundle
+layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the
+roadmap manifest and the goal record, the validators over them, and the checks the extensions need (extraction's bundle
 schema, evidence gate, origin de-duplication, and want-list generation). First consumers:
-marathon-roadmap and extraction.
+marathon's manifest and goal records, and extraction.
 '''
 context = ["architecture/harness/tool-based-skills.md"]
 
@@ -519,10 +466,94 @@ name = "Local models as Claude Code subagents"
 repos = ["claude-plugins", "architecture"]
 summary = '''
 The convention for delegating subagent work to locally hosted models: profile format, routing
-mechanism, and which kinds of task may run locally, from spike-local-subagents' result. Waits on
-that spike's close.
+mechanism, and which kinds of task may run locally, from experiment.ai's spike-local-subagents
+result. Waits on experiment.ai's sync.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
+
+# ── experiment ─────────────────────────────────────────────────────────────────────────────
+
+[goals.experiment]
+name = "Experiments"
+summary = "The spikes that settle what a goal is built from, each topic a goal with an intake last."
+
+[goals.experiment.ai]
+name = "The AI experiments"
+root = "spike-harness-driver"
+repos = ["spike-harness-driver", "spike-local-subagents", "personal-agents"]
+summary = '''
+Three spikes that settle what v1.ai is built from, each run through its own path, then one
+combined intake.
+'''
+context = [
+  "standards-lab/context/ai-strategy.md",
+  "standards-lab/context/ai-hosting.md",
+]
+
+[goals.experiment.ai.tasks.spike-harness-driver]
+name = "spike-harness-driver"
+remote = "https://github.com/JaimeStill/spike-harness-driver.git"
+path = "~/experiments/spike-harness-driver"
+summary = '''
+Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the infrastructure for
+agentic work: capabilities, sessions, scoped exchanges, and long-running workflows? Finishing its
+six-step path under marathon 0.15; its closeout is the spike's own `context/reset.md`, which the
+goal's first 0.16 session carries into the goal record before deleting it.
+'''
+
+[goals.experiment.ai.tasks.spike-local-subagents]
+name = "spike-local-subagents"
+remote = "https://github.com/JaimeStill/spike-local-subagents.git"
+path = "~/experiments/spike-local-subagents"
+summary = "An `experiment` session sets it up from `ai-strategy.md`, \"Experiment: spike-local-subagents\", then it runs its path."
+
+[goals.experiment.ai.tasks.personal-agents]
+name = "personal-agents as the hosting spike"
+remote = "https://github.com/JaimeStill/personal-agents.git"
+path = "~/code/personal-agents"
+summary = "An `experiment` session adopts personal-agents as the hosting spike (`ai-hosting.md`) and gives it a path, then it runs."
+
+[goals.experiment.ai.tasks.intake]
+name = "The combined intake"
+summary = '''
+Decides go-ai's shape and whether a service's container carries a harness, the
+v1.harness.local-models convention, and what v1.ai.hosting builds, as pending edits for the
+coordinator. The architecture-layer candidates (model tiers, context sizing, the memory-footprint
+method, and the serving conventions) are decided here too, from the personal-agents result. The
+sync archives spike-harness-driver and spike-local-subagents; personal-agents stays unarchived
+until v1.ai.hosting.
+'''
+
+[goals.experiment.messaging]
+name = "The messaging experiment"
+root = "spike-messaging"
+repos = ["spike-messaging"]
+summary = "spike-messaging, which settles what v1.messaging is built from, then its intake."
+context = ["standards-lab/context/messaging.md"]
+
+[goals.experiment.messaging.tasks.spike-messaging]
+name = "spike-messaging"
+remote = "https://github.com/JaimeStill/spike-messaging.git"
+path = "~/experiments/spike-messaging"
+summary = '''
+Can one broker-agnostic event and reactor contract, built on CloudEvents with outbox emission,
+run a service's reactors on NATS JetStream and on an in-memory provider? Its path is complete
+under marathon 0.15, and its final validation answered yes; the goal's first 0.16 session checks
+this task in the new goal record.
+'''
+
+[goals.experiment.messaging.tasks.intake]
+name = "The messaging intake"
+summary = '''
+Takes the spike's result in, as pending edits for the coordinator: what go-messaging's API gains
+(a binding start position, a bounded `MaxDeliver` with an error hook or dead-letter path), the
+lifecycle registration question, and v1.messaging's library and service tasks. It also carries
+what v1.storage proved: reconcile the demand and schedule reactor flavors and the quiesce gate
+staged in go-web-service's `sdk` against the spike's `core/reactor` before go-core takes either;
+the lifecycle evidence (the sweeper as the service's first real reactor, registered with `Add` and
+`Monitor`, its `Grace` tied to the drain timeout; the schema stage declared at the call site); and
+blobfs's orphan reconciler, deferred here (blobfs `context/deferred.md`).
+'''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 

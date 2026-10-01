@@ -5,16 +5,30 @@ kind = "context"
 
 # Workspace coordinator: standards-lab is the org-context project for the
 # reference-architecture workspace (~/architecture/). It declares the dependency
-# order a cross-repo step flows through, lowest first. The order is the
+# order, lowest first, in which a cross-repo task changes repositories. The order is the
 # machine-readable dependency graph of the repositories the references
 # catalog (references.md) lists.
 [workspace]
 role = "coordinator"
-# Marathon extensions enabled for every project in the workspace. marathon-roadmap
-# maintains context/roadmap.toml here at the coordinator as the workspace's roadmap;
-# marathon-architecture maintains the architecture layer, named in its own
+# Marathon extensions enabled for every project in the workspace. marathon-architecture
+# finds the architecture layer each STANDARDS.md points to, named in its own
 # .claude/marathon-architecture.toml beside this file.
-extensions = ["marathon-roadmap", "marathon-architecture"]
+extensions = ["marathon-architecture"]
+# Workspace policy: at most one active goal touches the reference-architecture code
+# repositories at a time. Spikes and the harness run beside it.
+exclusive = [
+  [
+    "go-core",
+    "sqlate",
+    "go-database",
+    "go-web-sdk",
+    "go-observability",
+    "go-storage",
+    "blobfs",
+    "go-web-sdk-template",
+    "go-web-service",
+  ],
+]
 order = [
   "claude-plugins", # harness
   [
@@ -32,10 +46,17 @@ order = [
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
-# Remote platform and the command that publishes a finished branch.
+# The hosting convention `marathon experiment` proposes for a new spike.
+[workspace.experiments]
+path = "~/experiments/spike-<slug>"
+remote = "https://github.com/JaimeStill/spike-<slug>.git"
+
+# Remote platform, the command that publishes a finished branch, and the command that
+# merges it once its checks pass.
 # All three repositories rooted in this directory (org here, .github under public/,
 # .github-private under private/) are on GitHub and publish the same way; git routes
 # each commit to its remote by working tree.
 [remote]
 platform = "github"
 publish = "gh pr create"
+merge = "gh pr checks --watch && gh pr merge --merge --delete-branch"
