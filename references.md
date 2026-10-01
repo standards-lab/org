@@ -130,6 +130,14 @@ standard rather than a member of it: the standard's libraries consume it, and it
 blueprint for how a domain-specific language gains host-language support. The base module
 depends on the standard library alone; the base and each sub-module are tagged independently.
 
+### blobfs
+The virtual-directory metadata library: a SQL-backed directory and file-metadata layer over any
+object store, for any Go project on an engine it ships DDL for, with the PostgreSQL engine as the
+`postgres` sub-module owning its migration set. Adjacent to the `go-elemental` standard, as
+`sqlate` is: go-web-service composes it, and go-storage's keys stay unaware of it. Promoted from
+spike-blobfs. Its `docs/` guide describes the library; the base and each sub-module are tagged
+independently.
+
 ## Prior R&D — Go web service architecture
 
 ### herald
@@ -150,6 +158,11 @@ registration (no `init()` side effects); constructor DI; the hand-rolled Observe
 severity levels and event shape are mapped onto OpenTelemetry's model without taking an
 OpenTelemetry dependency; the `taiki-e/create-gh-release-action` + CHANGELOG release pattern
 inherited everywhere.
+
+### tau-platform
+The TAU ecosystem's coordination repository: standards drafts, planning artifacts, and an
+`archive/` of retired work. Draw from: `archive/tau-runtime/claude-classify-docs/`, the prior art
+`context/ai-strategy.md` cites for driving Claude Code as a harness.
 
 ### tau-marketplace
 The Claude Code plugin marketplace (dev-workflow, iterative-dev, github-cli, go-patterns,

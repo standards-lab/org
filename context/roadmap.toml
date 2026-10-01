@@ -1,26 +1,29 @@
 # Roadmap — the workspace's path to its target end state, holding only what remains.
-# Maintained by the marathon-roadmap extension; the format is the plugin's
-# references/manifest.md.
+#
+# Every goal is in exactly one of three states, listed below by dotted path. A goal is a
+# directory: it holds sub-goals and tasks. A task is a file: one session's work. `active` is the
+# live snapshot of the goals running now, and is edited at any time; an active goal locks every
+# repository in its `repos`, and no two active goals share one. `planned` is the long-term order,
+# top first. `backlog` holds what is unscheduled. A goal's `home` names the repository holding its
+# goal record. The design is claude-plugins/context/marathon-goals.md; until the factory.goals
+# task lands, marathon-roadmap's references/manifest.md still describes the older format.
+#
+# Workspace policy: at most one active goal targets the reference-architecture member
+# repositories at a time; spikes and the harness run beside it. v1.messaging holds that slot, so
+# v1.ai stays planned until v1.messaging syncs. The infrastructure libraries come before the data
+# layer, and the data layer before auth by design: the architect wants to see how the domain layer
+# scales before auth constrains it. Middleware is last: CORS waits for v1.client.
 
-# The v1 order. One wave leads: the storage lane (blobfs build and admin, then v1.storage's
-# service and suite, in order) runs beside the planning and experiment setup for v1.messaging
-# and v1.ai, whose experiments then run in their own repositories. blobfs is its own repository rather than a v1 layer, the standing
-# slab and sqlate have, so its tasks sit in `next` directly; v1.storage's demonstration layer
-# needs it (`standards-lab/context/blobfs.md`). The infrastructure libraries come before the
-# data layer, and the data layer before auth by design: the architect wants to see how the domain
-# layer scales before auth constrains it, and each domain adopts the auth contract in a sweep
-# task of its own once go-auth lands (`standards-lab/context/auth-strategy.md`). Auth and its
-# consumer, the admin listener, close the integration standards; the client and deployment layers
-# finish v1. Middleware is last: CORS waits for v1.client, and real client IP and compression stay
-# in the backlog until their triggers fire. A goal cited late reads as what remains of it.
-next = [
-  [
-    ["blobfs.build", "blobfs.admin", "v1.storage.service", "v1.storage.suite"],
-    "v1.messaging.experiment",
-    "v1.ai.experiment",
-  ],
+active = [
+  "factory",
   "v1.messaging",
+  "v1.ai.experiment",
+]
+
+planned = [
   "v1.ai",
+  "quality",
+  "cli",
   "v1.data",
   "v1.auth",
   "v1.admin-listener",
@@ -30,71 +33,160 @@ next = [
   "v1.middleware",
 ]
 
-# ── slab ───────────────────────────────────────────────────────────────────────────────────
-
-[goals.slab]
-name = "The showcase CLI"
-summary = '''
-`slab`, a cobra-based CLI in its own `go-web-service/tools/slab` module: narrated scenarios that
-drive the real running composition for briefing and exploration (sqlate's compile pipeline
-in-process, the organization domain's full CRUD, the service's RFC 9457 problem-response
-contract), and direct subcommands mapping the service's own domains (`admin`, `org`) for
-scripting against the running service without curl. Not a v1 layer; the architect's own
-instrument for briefing colleagues and leadership on the workspace's progress, and a self-serve
-path in for anyone exploring it themselves.
-'''
-context = ["go-web-service/tools/slab/README.md"]
-
-# ── blobfs ─────────────────────────────────────────────────────────────────────────────────
-
-[goals.blobfs]
-name = "The virtual-directory metadata library"
-summary = '''
-A standalone library, adjacent to the standard the way sqlate is, owning a SQL-backed
-virtual-directory and file metadata layer over any object store, for any Go project on an engine
-it ships DDL for (Postgres at v1). Surfaced by v1.storage's demonstration layer needing more than
-one attachment; not a v1 layer itself, the same standing sqlate and slab have. One module in
-three layers a consumer adopts by what it accepts: a Go-only root package, a persistence package
-over sqlate, and an engine package owning its DDL as a whole migration set and its native
-variant, selected by import. go-storage's own keys stay opaque and unaware of blobfs; a consuming
-domain composes ownership over blobfs_file through its own join table.
-'''
-context = ["standards-lab/context/blobfs.md"]
-
-[goals.blobfs.tasks.build]
-name = "Promotion to its own repository"
-repos = ["blobfs"]
-summary = '''
-What the experiment proved out lands as blobfs's own repository and first release against sqlate
-v0.2.0, with the final module path checked against repository-topology.md and a references entry
-that carries no standard key. blobfs.sources closed 2026-09-22 and released sqlate v0.2.0, so the
-engine package's migration set is the type sqlate v0.2.0 exports.
-standards-lab/context/blobfs-api.md is this task's own SETTLE's starting point, not a finished design: it
-proposes a Directories and Files operation set over one compiled store, with several names (the
-persistence package's own, the two write and delete steps' verbs, whether a listing is scoped by
-directory only) still open. The command-line tool that proved the concept is not promoted.
-Recording the adjacent-repository position for the architecture layer waits on this task.
-Unblocks blobfs.admin and v1.storage.tasks.service.
-'''
-proof = "blobfs's first release passes its conformance suite on the standard tier and the Postgres engine, and go-storage's azureblob provider composes with it through the proposed key-validation adapter with no change to either library."
-context = [
-  "standards-lab/context/blobfs.md",
-  "standards-lab/context/blobfs-api.md",
+backlog = [
+  "v1.observability",
+  "v1.harness",
+  "sweeper",
+  "library-pins",
+  "sqlate-past-last-total",
+  "organization-image-active",
+  "second-providers",
+  "dotnet-mirror",
+  "external-client",
+  "docs-site",
+  "entrypoint-composition-split",
+  "sql-meta-language",
+  "real-client-ip",
+  "compression",
+  "response-caching",
+  "elemental-runtime-layers",
+  "graduation",
+  "staged-query-aggregation",
 ]
 
-[goals.blobfs.tasks.admin]
-name = "The admin service over several migration sets"
-repos = ["go-database"]
+# ── factory ────────────────────────────────────────────────────────────────────────────────
+
+[goals.factory]
+name = "The workflow as a software factory"
+home = "claude-plugins"
+repos = ["claude-plugins"]
 summary = '''
-go-database's admin service takes a migrator running several sets: Reset reverts across all sets,
-Status reports each source's head and pending migrations, Start logs the pending migrations by
-set, and Force <set> <version> is the operator's repair for a dirty set, named explicitly rather
-than a flag on Reset because a flag would have to guess whether the failed migration's own
-objects still exist. A minor release, and the last piece the service needs before it can run
-blobfs's migration set.
+marathon reshaped so the architect engages at two points per task, the plan and the brief, while
+an agent pipeline makes the work good in between: implementer, checks, standards and spec
+review, editor. Goals and tasks become the whole vocabulary of parallel work, with the wave,
+lane, and fold retired. Inspired by Matt Pocock's "Fixing the PR Bottleneck" and his skills.
 '''
-proof = "Reset, Status, and Force cover every set in a migrator built with several, dirty-set recovery through Force is proven, and the existing single-set behavior is unchanged."
-context = ["standards-lab/context/migration-sets.md"]
+context = [
+  "claude-plugins/context/marathon-factory.md",
+  "claude-plugins/context/marathon-goals.md",
+  "claude-plugins/context/marathon-briefs.md",
+  "claude-plugins/context/marathon-commands.md",
+]
+
+[goals.factory.tasks.pipeline]
+name = "The pipeline, profiles, commands, and briefs"
+repos = ["claude-plugins"]
+summary = '''
+marathon's next minor release: the plan, build, brief, and ship pipeline with no checkpoints;
+the planner, implementer, standards-reviewer, spec-reviewer, and editor profiles, none pinning a
+model; the architect-facing formats; `close` absorbed into `start` and `review` into the new
+`retro`; the new `status`.
+'''
+
+[goals.factory.tasks.goals]
+name = "Goals as the unit of parallel work"
+repos = ["claude-plugins"]
+summary = '''
+The goal and task primitive, the active, planned, and backlog states, the repository lock in
+place of worktrees, goal records in each goal's home, and sync in place of the fold.
+marathon-roadmap folds into marathon core. The open lane records at the coordinator
+(`context/reset/messaging-experiment.md`, `context/reset/ai-experiment.md`) migrate to goal
+records, and this file's header stops pointing at the old manifest format.
+'''
+
+[goals.factory.tasks.evals]
+name = "Plugin evals as the harness's checks"
+repos = ["claude-plugins"]
+summary = '''
+An `evals/` suite per plugin, fed by observed failures through `retro`, with deterministic
+graders preferred, and `claude plugin eval --threshold 1.0` a required step of the release
+script. Seeds the cases for the new contract. Absorbs the former harness-testing task.
+'''
+context = ["claude-plugins/context/harness-testing.md"]
+
+# ── quality ────────────────────────────────────────────────────────────────────────────────
+
+[goals.quality]
+name = "Checks and standards across the workspace"
+repos = [
+  "go-core",
+  "sqlate",
+  "go-database",
+  "go-web-sdk",
+  "go-observability",
+  "go-storage",
+  "blobfs",
+  "go-web-sdk-template",
+  "go-web-service",
+  "architecture",
+]
+summary = '''
+The first two layers of quality made trustworthy before human review: every repository's
+deterministic check, the standards the reviewer applies, and an architecture repository that
+guides without prescribing. Takes the member-repository slot.
+'''
+context = ["architecture/context/standards-audit.md"]
+
+[goals.quality.tasks.checks]
+name = "One honest check per repository"
+summary = '''
+Each repository exposes one deterministic `check`. A sweep removes tests that lie (tautological,
+structure-sensitive, or unable to fail). Mechanical rules become checks rather than prose: import
+boundaries through depguard or a split check, and a version-currency check over the pins.
+'''
+
+[goals.quality.tasks.standards]
+name = "Standards for the reviewer"
+summary = '''
+A short `STANDARDS.md` per repository holding judgement calls only, with pointers to the
+architecture pages that apply; only the standards-reviewer reads it. Each `CLAUDE.md` is reduced
+to navigation pointers.
+'''
+
+[goals.quality.tasks.architecture-diet]
+name = "A reviewer-facing architecture repository"
+repos = ["architecture"]
+summary = '''
+A principle stays only if code expresses it or a check enforces it. Contradicted principles are
+fixed, speculation is cut, `harness/` moves to claude-plugins or goes, and the promotion
+candidates the v1-storage lane recorded land or are dropped.
+'''
+context = ["architecture/context/standards-audit.md"]
+
+# ── cli ────────────────────────────────────────────────────────────────────────────────────
+
+[goals.cli]
+name = "The CLI application type"
+summary = '''
+The Elemental Architecture's second application type, beside the web service, from the layout
+slab, spike-blobfs, and spike-harness-driver's clutch share. It decides the SDK question, then
+builds the template. The existing workspace CLIs (slab) align to the result; CLIs in
+~/experiments stay as they are, and future spikes start from the template.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.cli.tasks.sdk-decision]
+name = "Decide the CLI application SDK"
+repos = ["standards-lab", "architecture"]
+summary = '''
+Whether cobra stays at all. The web service uses plain `net/http` with no framework, and the CLI
+should follow unless cobra earns its place: record what it provides beyond the standard
+library's `flag` (nested commands, persistent flags, help and usage, completion) and what
+reproducing the shared command tree without it costs. Then whether `go-cli-sdk` exists and what
+it holds, and with no SDK, how `topology-and-naming.md` names the template.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.cli.tasks.template]
+name = "The CLI template"
+repos = ["architecture", "standards-lab"]
+summary = '''
+`go-cli-sdk-template`, or `go-cli-template` with no SDK, scaffolding the layout in
+`cli-applications.md`, plus the new template repository and `go-cli-sdk` if the decision creates
+it; added to the workspace's `order` and the references catalog. If cobra goes, slab aligns in
+the same goal. Waits on `sdk-decision`.
+'''
+context = ["standards-lab/context/cli-applications.md"]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -147,59 +239,6 @@ context = [
   "architecture/context/dependency-sourcing.md",
 ]
 
-[goals.v1.storage]
-name = "Object storage"
-summary = '''
-The go-storage library and its azureblob provider are built and released at v0.1.0: a
-five-operation standard tier derived from what Azure Blob and S3 share, plus container
-provisioning, all-or-nothing writes, and the storagetest conformance suite (azurite locally,
-S3/minio held in backlog.second-providers). What remains is the demonstration: an organization
-logo and document hierarchy in the service, built on blobfs's virtual-directory metadata layer
-once that goal lands, over a two-phase write since no transaction spans Postgres and an object
-store, and the integration cases that close the goal.
-'''
-context = ["go-storage/docs/design.md"]
-
-[goals.v1.storage.tasks.service]
-name = "The organization storage layer"
-repos = ["go-web-service"]
-summary = '''
-The demonstration layer, built on the real blobfs library once goals.blobfs closes: an
-organization logo composed through a guarded single-active-record pattern (org_image mapping
-organization to blobfs_file) and a browsable document hierarchy beneath it, both proxied through
-the service per auth-strategy.md §8 ("Object storage"), never a presigned-URL
-redirect. The service registers blobfs's migration set in its one migrator and proves it through
-the admin surface, including Reset and Force. It seeds the demonstration's named states through
-blobfs's own insert-or-find operations, and a Reset recreates the structural root and leaves
-orphaned objects, accepted in development. Schema and routes are blobfs-shaped decisions this
-goal does not make ahead of that goal's own plan session. The task
-also owns the go-web-service/admin/storage domain: a route group over the go-storage Store,
-mounted into the admin mount as admin/database is, with an endpoint for EnsureContainer and a
-diagnostics read composed from Ready, Capabilities, and Container. Its compose file gains the
-azurite service, which runs with --skipApiVersionCheck because azblob v1.8.1 sends a service
-version newer than the image accepts by default.
-'''
-context = [
-  "standards-lab/context/blobfs.md",
-  "standards-lab/context/blobfs-composition.md",
-  "standards-lab/context/migration-sets.md",
-  "standards-lab/context/auth-strategy.md",
-]
-
-[goals.v1.storage.tasks.suite]
-name = "The integration cases and the close"
-repos = ["go-web-service", "go-storage"]
-summary = '''
-The integration tier's storage cases through the API — upload and read back, the proxied content
-read, the paged list, delete, the pending row a failed put leaves, the deleting row a failed
-delete leaves and its retry, and the 503 on an azurite outage through the existing loopback
-relay — then the promotion evaluation and the coordinated release snapshot.
-'''
-context = [
-  "architecture/standards/go-elemental/principles/tests-and-docs.md",
-  "standards-lab/context/blobfs-composition.md",
-]
-
 [goals.v1.auth]
 name = "Auth and authorization"
 summary = '''
@@ -225,11 +264,11 @@ confirmation token gating the destructive down, force, and state verbs; config r
 over a go-core redaction contract; the
 composition-root reshape in go-web-service and the same reshape in go-web-sdk-template.
 Posture decisions on record: whether the serving role ever holds DDL, and whether off by
-default is mandated by the standard. The 2026-09-07 exploration and the touch points by
-repository are the linked concept.
+default is mandated by the standard. It waits on auth and observability, because each choice it
+would make (the token's mechanism, the listener's authentication, the audit record) is one those
+layers make.
 '''
 context = [
-  "standards-lab/context/admin-listener.md",
   "architecture/standards/go-elemental/principles/dsl-driven-services.md",
   "standards-lab/context/auth-strategy.md",
   "go-web-sdk/context/error-handling.md",
@@ -237,17 +276,35 @@ context = [
 
 [goals.v1.messaging]
 name = "Messaging and reactor services"
+home = "standards-lab"
+repos = ["spike-messaging", "go-core", "go-web-service"]
 summary = '''
 The go-messaging infrastructure library with NATS as the declared provider, and the layer that
 makes the service's internal/reactors real: reactor services on the event-driven interface
-messaging enables, fleshed out as first-class architecture alongside the domain layer.
+messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
+a CloudEvents envelope, outbox emission, and a source-agnostic reactor contract, with go-core
+gaining the `reactor` and `event` primitives. The experiment ran in spike-messaging; its intake
+is the rest of the goal. Its record is `context/reset/messaging-experiment.md` until
+factory.goals moves it to the goal's home.
 '''
-
+context = ["standards-lab/context/messaging.md"]
 
 [goals.v1.messaging.tasks.experiment]
-name = "Plan messaging and set up its experiment"
-repos = ["standards-lab"]
-summary = "A plan session settling what the messaging experiment tests, then an experiment session setting it up as its own repository and cataloging it. The experiment itself runs outside the workspace; its intake is the rest of this goal."
+name = "The messaging experiment and its intake"
+repos = ["spike-messaging", "standards-lab"]
+summary = '''
+spike-messaging runs through its path (its final validation answered yes: one broker-agnostic
+contract runs the reactors on JetStream and in memory), then a `plan` session here takes the
+result in: what go-messaging's API gains (a binding start position, a bounded `MaxDeliver` with an
+error hook or dead-letter path), the lifecycle registration question, and the library and
+service tasks that follow. The intake also carries what v1.storage proved: reconcile the demand
+and schedule reactor flavors and the quiesce gate staged in go-web-service's `sdk` against the
+spike's `core/reactor` before go-core takes either; the lifecycle evidence (the sweeper as the
+service's first real reactor, registered with `Add` and `Monitor`, its `Grace` tied to the drain
+timeout; the schema stage declared at the call site); and blobfs's orphan reconciler, deferred
+here (blobfs `context/deferred.md`).
+'''
+context = ["standards-lab/context/messaging.md"]
 
 [goals.v1.data]
 name = "Data composition and CQRS"
@@ -298,22 +355,69 @@ context = ["claude-plugins/context/marathon-extraction.md"]
 [goals.v1.ai]
 name = "AI"
 summary = '''
-The go-ai infrastructure library and the service layer that demonstrates it. Claim resolution
-only; the prior R&D is herald (Azure AI Foundry vision models), catalogued in the references.
+The capability splits into four layers: hosting (`ai-hosting`), the harness
+(v1.harness.local-models), and go-ai and the service layer here. go-ai's two-surface shape and
+tau's retirement depend on spike-harness-driver. herald is prior art, not a workload to rerun.
+The go-ai library and service tasks stay unwritten until the experiment's intake.
+'''
+context = [
+  "standards-lab/context/ai-strategy.md",
+  "standards-lab/context/ai-hosting.md",
+]
+
+[goals.v1.ai.experiment]
+name = "The AI experiments and their intake"
+home = "standards-lab"
+repos = ["spike-harness-driver", "spike-local-subagents", "personal-agents"]
+summary = '''
+Three spikes, each run through its own path, then one combined intake session here. Its record
+is `context/reset/ai-experiment.md` until factory.goals moves it to the goal's home.
+'''
+context = ["standards-lab/context/ai-strategy.md"]
+
+[goals.v1.ai.experiment.tasks.harness-driver]
+name = "spike-harness-driver"
+repos = ["spike-harness-driver"]
+summary = "Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the infrastructure for agentic work? Running its six-step path."
+
+[goals.v1.ai.experiment.tasks.local-subagents]
+name = "spike-local-subagents"
+repos = ["spike-local-subagents"]
+summary = "An `experiment` session sets it up from `ai-strategy.md`, \"Experiment: spike-local-subagents\", then it runs its path."
+
+[goals.v1.ai.experiment.tasks.hosting-spike]
+name = "personal-agents as the hosting spike"
+repos = ["personal-agents"]
+summary = "An `experiment` session adopts personal-agents as the hosting spike (`ai-hosting.md`) and gives it a path, then it runs."
+
+[goals.v1.ai.experiment.tasks.intake]
+name = "The combined intake"
+repos = ["standards-lab"]
+summary = '''
+After all three spikes close, one `plan` session decides go-ai's shape and whether a service's
+container carries a harness, the v1.harness.local-models convention, and what v1.ai.hosting
+builds. It archives the spikes' remotes; personal-agents stays until v1.ai.hosting.
 '''
 
-
-[goals.v1.ai.tasks.experiment]
-name = "Plan AI and set up its experiment"
-repos = ["standards-lab"]
-summary = "A plan session settling what the AI experiment tests, then an experiment session setting it up as its own repository and cataloging it. The experiment itself runs outside the workspace; its intake is the rest of this goal."
+[goals.v1.ai.tasks.hosting]
+name = "The ai-hosting specification repository"
+repos = ["ai-hosting", "architecture", "standards-lab"]
+summary = '''
+Build `ai-hosting` fresh from the hosting spike's result, add it to the workspace's `order` and
+the references catalog, land the portable-method pages as notes in architecture, and archive
+personal-agents with a forward link. Waits on the hosting spike's close.
+'''
+context = ["standards-lab/context/ai-hosting.md"]
 
 [goals.v1.client]
 name = "Embedded client"
 summary = '''
 A web client embedded in and served by the service binary — the herald precedent: an app/
 client with its own build, served from the server's routes. Its stack and scope are settled in
-its own planning session.
+its own planning session. Recorded inputs for that session: the organization logo's fallback
+and whether an image is fetched as an `<img>` with a cookie or with a bearer token
+(v1.storage); the WebSocket bridge and NATS-native chat as candidate transports
+(`standards-lab/context/messaging.md`).
 '''
 
 [goals.v1.deployment]
@@ -323,19 +427,32 @@ Deployment infrastructure in its own repository, separate from the service sourc
 are settled in its own planning session once the service is worth deploying.
 '''
 
+[goals.v1.repository-docs]
+name = "Repository documentation"
+repos = [
+  "go-core",
+  "sqlate",
+  "go-database",
+  "go-web-sdk",
+  "go-web-sdk-template",
+  "go-web-service",
+]
+summary = '''
+Each Go repository's docs/ guide, indexed by its README, written once the layers stop
+churning: the accessibility layer over the README, the package documentation, and the source,
+in the shape sqlate's guide established (concepts by example, a quick start, the features by
+package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
+changes it; sqlate's guide exists and is verified rather than written.
+'''
+context = ["architecture/principles/context-architecture.md"]
+
 [goals.v1.harness]
 name = "The harness at v1"
 summary = '''
-The claude-plugins harness, kept current as the v1 build proves out what it needs. The
-hardening pass closed: marathon v0.11.0 carries the plan-stage sufficiency question,
-delegation to an agent a project declares, and a stage's check running the repository's own
-tooling — the mechanism sqlint's guarded-statement check (sqlint/v0.1.1) now runs through
-rather than the harness restating it (tool-based-skills.md, "What a tool carries and what a
-skill carries" and "How an extension uses the tooling"). What remains is the
-situational-awareness, extraction, references, and deterministic-tooling work the backlog
-held, adopted here as this goal's own tasks; none is yet in `next`.
+The claude-plugins work beyond factory: situational awareness, extraction, the references
+extension, the deterministic tooling layer, and local models as subagents. Each waits for its
+trigger.
 '''
-context = ["architecture/harness/tool-based-skills.md"]
 
 [goals.v1.harness.tasks.sitrep]
 name = "The marathon-sitrep extension"
@@ -397,62 +514,46 @@ marathon-roadmap and extraction.
 '''
 context = ["architecture/harness/tool-based-skills.md"]
 
-[goals.v1.harness.tasks.testing]
-name = "Harness testing and its CI fit"
-repos = ["claude-plugins"]
+[goals.v1.harness.tasks.local-models]
+name = "Local models as Claude Code subagents"
+repos = ["claude-plugins", "architecture"]
 summary = '''
-The deferred deep dive from v0.9.0: what behavioral testing of a living workflow skill is
-functionally helpful, and how it fits a CI pipeline whose job is tangible validation. Gated on
-observed failure modes and on claude plugin eval enablement; the position on record is the
-linked note.
+The convention for delegating subagent work to locally hosted models: profile format, routing
+mechanism, and which kinds of task may run locally, from spike-local-subagents' result. Waits on
+that spike's close.
 '''
-context = ["claude-plugins/context/harness-testing.md"]
-
-[goals.v1.tasks.repository-docs]
-name = "Repository documentation"
-repos = [
-  "go-core",
-  "sqlate",
-  "go-database",
-  "go-web-sdk",
-  "go-web-sdk-template",
-  "go-web-service",
-]
-summary = '''
-Each Go repository's docs/ guide, indexed by its README, written once the layers stop
-churning: the accessibility layer over the README, the package documentation, and the source,
-in the shape sqlate's guide established (concepts by example, a quick start, the features by
-package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
-changes it; sqlate's guide exists and is verified rather than written.
-'''
-context = ["architecture/principles/context-architecture.md"]
+context = ["standards-lab/context/ai-strategy.md"]
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 
-[backlog.second-providers]
+[goals.second-providers]
 name = "Second providers"
 summary = '''
 Entra for auth, the storage counterpart, a second SQL engine — each proven by a focused
-reference or a real consumer, one session each. Post-1.0 candidate.
+reference or a real consumer, one session each. A second SQL engine includes blobfs's own engine
+sub-module; the NATS object store is a candidate go-storage provider, judged against go-storage's
+standard tier (`standards-lab/context/messaging.md`). Post-1.0 candidate.
 '''
 
-[backlog.dotnet-mirror]
+[goals.dotnet-mirror]
 name = "The .NET mirror"
 summary = "The reference architecture mirrored in .NET. Post-1.0 candidate."
 
-[backlog.external-client]
+[goals.external-client]
 name = "External client"
 summary = "An external web-platform-native client repository. Post-1.0 candidate."
 
-[backlog.docs-site]
+[goals.docs-site]
 name = "The organization docs site"
 summary = '''
 The documentation site serving the architecture repository's content. The sitrep blog's GitHub Pages
-blueprint (Jekyll, Actions deployment, the publish pipeline) is the starting point.
+blueprint (Jekyll, Actions deployment, the publish pipeline) is the starting point. Planned
+hosting: a thin `standards-lab.github.io` repository whose workflow builds `architecture` on a
+`repository_dispatch` and deploys with `actions/deploy-pages`. Waits until the initial reference
+architecture is in place; the diagram and voice standards are planned with it.
 '''
-context = ["standards-lab/context/docs-site.md"]
 
-[backlog.entrypoint-composition-split]
+[goals.entrypoint-composition-split]
 name = "Split the entrypoint from the composition root"
 summary = '''
 Generalize the split Go Elemental already practices, a minimal entrypoint above an encapsulated
@@ -461,7 +562,7 @@ defines itself, so it takes a session of its own in the architecture repository.
 '''
 context = ["architecture/context/entrypoint-composition-split.md"]
 
-[backlog.sql-meta-language]
+[goals.sql-meta-language]
 name = "The SQL meta language"
 summary = '''
 A provider-agnostic SQL meta language. Its first phase exists: the sqlate grammar —
@@ -473,7 +574,7 @@ v1 dependency.
 '''
 context = ["architecture/context/sql-meta-language.md"]
 
-[backlog.real-client-ip]
+[goals.real-client-ip]
 name = "Real client IP"
 summary = '''
 Already part of v1.middleware's recorded sourced set (chi/v5/middleware.RealIP's shape,
@@ -486,7 +587,7 @@ per-client abuse detection, an IP-keyed audit trail.
 '''
 context = ["go-web-sdk/context/middleware-sourcing.md"]
 
-[backlog.compression]
+[goals.compression]
 name = "Compression"
 summary = '''
 Already part of v1.middleware's recorded sourced set (github.com/klauspost/compress/gzhttp —
@@ -497,7 +598,7 @@ exist, or a bulk admin export.
 '''
 context = ["go-web-sdk/context/middleware-sourcing.md"]
 
-[backlog.response-caching]
+[goals.response-caching]
 name = "Response caching"
 summary = '''
 HTTP response caching, raised alongside rate limiting but not part of the recorded sourced
@@ -505,5 +606,63 @@ middleware set (middleware-sourcing.md) or the declared stack (go-web-service's 
 was the candidate provider; adopting it would be a new stack decision and most likely its own
 infrastructure library, the way storage, messaging, and AI are, rather than an SDK-level
 middleware. Split out of v1.middleware (2026-09-18) so caching gets its own planning session —
-including whether it belongs in v1 at all — before any adoption.
+including whether it belongs in v1 at all — before any adoption. NATS key-value is a candidate
+provider once messaging lands (`standards-lab/context/messaging.md`).
+'''
+
+[goals.sweeper]
+name = "The general sweeper"
+summary = '''
+A data-oriented garbage collector: a level-triggered reconciler whose durable state lives with the
+data owner, behind a `Reclaimer` contract, `Pass(ctx, budget) (more bool, err error)`, that is
+idempotent, convergent, and bounded; registered by name with a policy, as lifecycle's services
+register; claimed across replicas with `SKIP LOCKED` or an advisory lock; reporting backlog
+metrics, not readiness; run as a reactor, with blobfs's `Sweep` its first reclaimer. Activation
+rule (binding): the moment any other layer needs sweeper-like reclamation (outbox cleanup,
+expired sessions, soft-delete purge, or any cascade beyond pruning SQL rows), that step builds
+the general sweeper and moves blobfs's sweep onto it. It never builds a second standalone
+reactor.
+'''
+
+[goals.library-pins]
+name = "Pin moves the libraries owe"
+summary = '''
+At each library's next release: go-database's, blobfs's, sqlate/postgres's, and sqlint's sqlate
+pin to v0.4.1, and go-web-sdk's `middleware/rate-limit` pin to go-web-sdk v0.14.0. quality.checks'
+currency check makes these mechanical.
+'''
+
+[goals.sqlate-past-last-total]
+name = "A total on a page past the last"
+summary = "A scalar-subquery count in sqlate, so a page past the last still reports a total instead of `query.NoTotal`."
+
+[goals.organization-image-active]
+name = "Drop organization_image.active"
+summary = "The column is now always true; drop it in a schema cleanup."
+
+[goals.elemental-runtime-layers]
+name = "Elemental layers beyond the app class"
+summary = '''
+The architect's raw direction: an app's binary runs on bare metal or is wrapped in a container,
+the runtime layer, and application-layer hierarchies sit beyond it, differentiated by the
+external services they connect to. Revisit when v1.deployment makes the container layer
+concrete.
+'''
+
+[goals.graduation]
+name = "Graduating a standard to its own organization"
+summary = '''
+A standard meant for production graduates to an organization of its own; the blueprint's
+repositories keep their names, and the module namespace arrives with the new organization. Open:
+graduating at or before v1.0 so no production consumer pins the blueprint's paths, and whether
+repositories move or the new organization re-roots. Revisit as v1.0 nears.
+'''
+
+[goals.staged-query-aggregation]
+name = "Staged query aggregation"
+summary = '''
+An orchestration layer composing a request's staged cross-service hops into one response graph,
+each hop still authorized, filtered, and sorted in its own service: a live alternative to the
+materialized read model. Gated on the bounded, staged query strategy (`auth-strategy.md` §7)
+being built and on production experience with it.
 '''

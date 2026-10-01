@@ -26,6 +26,7 @@ order = [
     "go-web-sdk",       # web service application SDK
     "go-observability", # observability infrastructure library
     "go-storage",       # object storage infrastructure library
+    "blobfs",           # virtual-directory metadata library, adjacent to the standard
   ],
   "go-web-sdk-template", # web service application template
   "go-web-service", # reference web service

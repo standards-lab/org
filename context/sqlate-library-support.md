@@ -14,6 +14,9 @@ An entry `sqlate` lands independently of this ledger is removed once it does.
 
 Recorded with what would need to become true before each moves to a scheduled task.
 
+- **Classifying a connection lost mid-read** (`io.ErrUnexpectedEOF`) as `ErrConnectionFailed`.
+  Today it surfaces unclassified, and go-web-service's `data.Status` maps it to 503 in the
+  meantime. Trigger: the next sqlate release that touches error classification.
 - **Composing clauses over a recursive base at the base's own level**, rather than wrapping it in a
   derived table, which loses index order for the outer filter. The parameterized base removes
   most of the cost in the cases that matter, and the alternative composition contract would give up

@@ -1,74 +1,75 @@
-# reset · context-migration
+# reset · software-factory
 
 - **Status:** closeout
-- **Session:** start
-- **Project:** claude-plugins, go-core, sqlate, go-database, go-web-sdk, go-observability, go-storage, go-web-sdk-template, go-web-service, architecture, standards-lab (with .github and .github-private)
-- **Branch:** context-migration
+- **Session:** plan
+- **Project:** standards-lab, claude-plugins, architecture
+- **Branch:** software-factory
 
 ## Disposition
 
-- **Integrated:**
-  - standards-lab: `architecture-layer`, `context-architecture`, `testing-hierarchy`, and
-    `reference-architecture-context` (the architecture repository's principles);
-    `dsl-driven-services` (sqlate `docs/concepts.md` and the go-elemental DSL-driven principle);
-    `observability-strategy` (the go-observability README's Design section); `storage-strategy`
-    (go-storage `docs/design.md`); `standards` and `repo-references` (`references.md`);
-    `workspace-structure` (`CLAUDE.md`); `blueprint-organization`'s roles (the profile and the
-    architecture README); `tooling-principles` (the architecture's harness and principle pages).
-  - go-web-service: `documented-layers` (`CLAUDE.md`), `stack` (the README's Stack section),
-    `slab-conventions` (`tools/slab/README.md` and six new `doc.go` files).
-  - go-web-sdk: the wiring-time-methods idiom (`doc.go`).
-- **Culled:** go-web-service `identity-linking` and `organization-lineage` (the auth strategy
-  holds both); standards-lab `marathon-extraction` (claude-plugins holds it) and
-  `dependency-sourcing` (landed in architecture).
-- **Add or sharpen:** every remaining note moved to a flat `context/` under the current-truth rule
-  in go-web-sdk, go-web-sdk-template, go-web-service, architecture, and standards-lab; new
-  `sqlate/context/dollar-quoting.md`, `go-storage/context/provider-assumptions.md`, and
-  `standards-lab/context/graduation.md`; `admin-listener.md` carries its requirement and current
-  findings.
-- **Promoted:** `dependency-sourcing`, the harness rules from `testing-hierarchy`, and the
-  promote-on-fit rule landed as notes in `architecture/context/` for pages a session there
-  writes.
-- **Cross-repo:**
-  - architecture: go-elemental `dependencies.md` now separates a library with no HTTP concern,
-    which supplies a collaborator, from an HTTP-shaped one, which exposes
-    `func(http.Handler) http.Handler` over `net/http` alone; `configuration-boundaries.md` and
-    the harness README drop the archived claude-settings example.
-  - go-observability: the docs said `Telemetry` registers at stage 0; they now say startup and
-    shutdown hooks, as the service wires it.
-  - Spikes: `JaimeStill/spike-blobfs` and `JaimeStill/spike-sql-dsl`, split with history,
-    public and archived; `experiments.md` catalogs them with the hosting convention.
-  - Profiles: `.github` and `.github-private` list only the organization-level repositories.
-  - `.claude/report.md` is gitignored in all 11 repositories; `~/architecture/voice.md` is
-    deleted.
-- **Roadmap:** deleted `v1.harness.context-migration`; `next` now opens on the wave. Added
-  `backlog.entrypoint-composition-split`; `docs-clarity` dropped at the architect's call. Every
-  context path resolves, and principle numbers are section names.
+The architect's retrospective on marathon 0.15 became the design for reshaping the workflow into
+a software factory. The roadmap now follows that design: goals and tasks, with each goal
+`active`, `planned`, or `backlog`, and no wave, lane, fold, or `next`.
+
+- **Add or sharpen:**
+  - claude-plugins:
+    - `context/marathon-factory.md`: the pipeline and its two architect touchpoints, the five
+      profiles, checks first, plugin evals, and the retro.
+    - `context/marathon-goals.md`: goals as the unit of parallel work, the repository lock,
+      goal records, and sync.
+    - `context/marathon-briefs.md`: every format the architect reads.
+    - `context/marathon-commands.md`: the command set.
+    - `harness-testing.md`: rewritten to the evals convention.
+    - `README.md`: the capability map, updated.
+  - standards-lab:
+    - `roadmap.toml`: restructured into three states.
+      - Active: `factory`, `v1.messaging`, `v1.ai.experiment`.
+      - New goals: `factory`, `quality`, `cli`, and backlog entries for the sweeper, the pins
+        the libraries owe, a total past the last page, and `organization_image.active`.
+      - `v1.harness.testing` is folded into `factory.evals`.
+    - `cli-applications.md`: brought in from the `cli-application-type` worktree, with the
+      cobra question added.
+    - `sqlate-library-support.md`: gains the mid-read connection-loss entry.
+    - `blobfs-composition.md`: trimmed to the protocols and operating constraints that nothing
+      else states yet.
+  - architecture:
+    - `context/standards-audit.md`: principles the code contradicts, premature and duplicated
+      pages, and the v1-storage promotion candidates. This is input for
+      `quality.architecture-diet`.
+- **Culled:**
+  - `elemental-runtime-layers.md`, `graduation.md`, `docs-site.md`, and
+    `staged-query-aggregation.md` become backlog goals.
+  - `admin-listener.md`: the summary of goal `v1.admin-listener` keeps what the note said.
+- **Synced:**
+  - `v1.storage` and `blobfs`, both complete, are deleted from the roadmap.
+  - The v1-storage lane record's pending edits are applied:
+    - blobfs is added to `order` and to the references catalog.
+    - The spike-blobfs promotion is recorded in `experiments.md`.
+    - The intake items for v1.messaging, v1.client, and the backlog are added to the roadmap.
+    - The promotion candidates go to the architecture audit.
+  - The lane record is deleted.
+- **Applied from open records:**
+  - The catalog rows, references, and roadmap edits that `reset/messaging-experiment.md` and
+    `reset/ai-experiment.md` held back for a fold are applied, including `tau-platform`.
+  - Both records stay as their active goals' handoff state until `factory.goals` migrates them.
+  - The `cli-application-type` worktree and branch are removed. Its additions are merged into
+    `reset/ai-experiment.md` and `cli-applications.md`.
 - **Validated:**
-  - Checkpoint 1: a note written under the new rules, traced rule by rule.
-  - Checkpoint 2: a cross-repo `start` traced through marathon 0.14, `check.sh`, and CI on
-    claude-plugins PR #31.
-  - Checkpoint 3: the lower-layer repositories' docs, with each module's build, vet, test, and
-    lint.
-  - Checkpoint 4: a real-client-IP walkthrough through the sourcing note, the dependency-sourcing
-    note, and `dependencies.md`.
-  - Checkpoint 5: a profile-to-standard-to-roadmap walkthrough; relative links, backticked
-    paths, GitHub URLs, and roadmap paths all resolve.
-  - Checkpoint 6: no old directories; citations resolve; 15 Go modules build (`GOWORK=off`),
-    vet, test, and lint; `sqlint` and `check.sh` pass; no settledness lines; the editor pass on
-    Opus; the branch review's 11 findings fixed as an Adjust and rechecked.
+  - `roadmap.toml` parses. Every dotted path in `active`, `planned`, and `backlog` resolves, and
+    so does every `context` path.
+  - claude-plugins `scripts/check.sh` passes.
+  - Nothing outside history and records cites a culled note.
+  - `git worktree list` shows only the main checkout.
 
 ## Next-focus
 
-The wave `next` opens on, from the coordinator. Three lanes, each with its record at
-`context/reset/<lane>.md`:
+The active goals run side by side, one session per task, and each locks its own repositories:
 
-- **blobfs-build**: `blobfs.build`, `blobfs.admin`, `v1.storage.service`, `v1.storage.suite`,
-  in order.
-- **messaging-experiment**: `v1.messaging.experiment`, a `plan` session settling the question
-  and the decision it changes, then an `experiment` session setting up the spike.
-- **ai-experiment**: `v1.ai.experiment`, the same two sessions for AI.
-
-The lanes share no member repository. Edits a lane would make to shared coordinator files —
-`roadmap.toml` and `experiments.md` — go in its Disposition and are applied when the wave folds.
-The architect names each session's lane.
+- **`factory.pipeline`**, in claude-plugins: marathon's next minor release, built from
+  `claude-plugins/context/marathon-factory.md`, `marathon-briefs.md`, and
+  `marathon-commands.md`. It runs under marathon 0.15 because the new pipeline is the thing
+  being built. Then `factory.goals`, then `factory.evals`.
+- **`v1.messaging`**: the intake session for the spike-messaging result
+  (`reset/messaging-experiment.md`).
+- **`v1.ai.experiment`**: spike-harness-driver's path continues in its own repository
+  (`reset/ai-experiment.md`).

@@ -334,7 +334,7 @@ stable key available — the `(issuer, subject claim)` pair.
 mechanism (a materialized, event-driven read model) so building it later is a known answer, not a new
 design. A live-orchestrated alternative to that mechanism — composing the staged hops of a single request
 into one response graph, each hop still independently authorized — is a separate, later question,
-captured in `staged-query-aggregation.md`.
+captured in the roadmap's `goals.staged-query-aggregation`.
 
 ## 10. Alternatives considered
 
