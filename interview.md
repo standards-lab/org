@@ -24,9 +24,10 @@ follows its conventions:
 - Each repository keeps its working context in a flat, top-level `context/` directory:
   `README.md` maps the repository's capabilities, and each note holds intent the built work does
   not express yet, such as a decision with its reasoning or an idea with its open questions. A
-  note is deleted once the work expresses it, and knowledge that holds beyond one repository is
-  promoted to a principle in the `architecture` repository. Ground design and intent questions
-  in `context/` and each repository's documentation, and implementation questions in the source.
+  note is deleted once the work expresses it, and knowledge that holds beyond one repository
+  becomes a principle in the `architecture` repository once code in more than one repository
+  proves it. Ground design and intent questions in `context/` and each repository's
+  documentation, and implementation questions in the source.
 - Work advances one task per session, active goals run side by side, and a task may span the
   organization's repositories. The coordinator repository (`org`) carries the remaining path in
   `context/roadmap.toml`: a goal tree holding only what remains, with each goal `active`,

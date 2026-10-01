@@ -4,9 +4,9 @@
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
 # reference-architecture code repositories. v1.messaging holds that slot, so v1.ai stays planned
-# until v1.messaging syncs. The infrastructure libraries come before the data
-# layer, and the data layer before auth by design: the architect wants to see how the domain layer
-# scales before auth constrains it. Middleware is last: CORS waits for v1.client.
+# until v1.messaging syncs. The infrastructure libraries come before the data layer, and the data
+# layer before auth by design: the architect wants to see how the domain layer scales before auth
+# constrains it. Middleware is last: CORS waits for v1.client.
 
 active = [
   "factory",

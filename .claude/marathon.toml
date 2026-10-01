@@ -5,7 +5,7 @@ kind = "context"
 
 # Workspace coordinator: standards-lab is the org-context project for the
 # reference-architecture workspace (~/architecture/). It declares the dependency
-# order a cross-repo task flows through, lowest first. The order is the
+# order, lowest first, in which a cross-repo task changes repositories. The order is the
 # machine-readable dependency graph of the repositories the references
 # catalog (references.md) lists.
 [workspace]
@@ -15,7 +15,7 @@ role = "coordinator"
 # .claude/marathon-architecture.toml beside this file.
 extensions = ["marathon-architecture"]
 # Workspace policy: at most one active goal touches the reference-architecture code
-# repositories at a time; spikes and the harness run beside it.
+# repositories at a time. Spikes and the harness run beside it.
 exclusive = [
   [
     "go-core",
