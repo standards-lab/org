@@ -83,6 +83,22 @@ place of worktrees, goal records in each goal's root, and sync in place of the f
 marathon-roadmap folds into marathon core, and the open lane records migrate.
 '''
 
+[goals.factory.tasks.experiments]
+name = "Spikes as sub-goals, and the intake command"
+summary = '''
+marathon 0.16.1. A spike runs over many sessions, so it is a sub-goal of its experiment, not a
+task: experiment.<topic>.<spike> carries the spike's `remote` and `path`, with the spike's
+repository as `root` and `repos`, and its path as tasks. `marathon experiment` runs once to create
+the experiment with its planned spikes; `plan experiment.<topic>.<spike>` sets each spike up, and
+`start` runs it to the end. Spikes run in parallel, since each locks only its own repository. A
+spike's sync lands its answer and evidence for the intake and stages the next planned spike. A new
+`marathon intake <goal>` takes in a finished experiment: it consolidates every spike's answer,
+decides with the architect what the served goal builds, writes those tasks, and syncs the
+experiment, archiving the spike repositories. The roadmap's experiment.ai and
+experiment.messaging move to the new shape, and spike-harness-driver's 0.15 closeout becomes the
+first spike's record.
+'''
+
 [goals.factory.tasks.evals]
 name = "Plugin evals as the harness's checks"
 repos = ["claude-plugins"]
