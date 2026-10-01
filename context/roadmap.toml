@@ -96,7 +96,10 @@ spike's sync lands its answer and evidence for the intake and stages the next pl
 decides with the architect what the served goal builds, writes those tasks, and syncs the
 experiment, archiving the spike repositories. The roadmap's experiment.ai and
 experiment.messaging move to the new shape, and spike-harness-driver's 0.15 closeout becomes the
-first spike's record. Every session, including `plan`, `experiment`, `intake`, and a sync, starts
+first spike's record. A workspace goal's last task still syncs at SHIP; its session brief gains a Sync section listing
+the pending edits and the goal proposed to stage next, so accepting the brief authorizes the sync.
+`intake` stays for experiments only. Every session, including `plan`, `experiment`, `intake`, and a
+sync, starts
 on a branch and lands through a pull request; only small administrative context updates go
 straight to the default branch.
 '''
