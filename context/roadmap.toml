@@ -1,16 +1,10 @@
-# Roadmap — the workspace's path to its target end state, holding only what remains.
+# Roadmap: the workspace's path to its target end state, holding only what remains. The format is
+# marathon's references/manifest.md, and each active goal's record is context/goals/<goal>.md in
+# its home repository.
 #
-# Every goal is in exactly one of three states, listed below by dotted path. A goal is a
-# directory: it holds sub-goals and tasks. A task is a file: one session's work. `active` is the
-# live snapshot of the goals running now, and is edited at any time; an active goal locks every
-# repository in its `repos`, and no two active goals share one. `planned` is the long-term order,
-# top first. `backlog` holds what is unscheduled. A goal's `home` names the repository holding its
-# goal record. The design is claude-plugins/context/marathon-goals.md; until the factory.goals
-# task lands, marathon-roadmap's references/manifest.md still describes the older format.
-#
-# Workspace policy: at most one active goal targets the reference-architecture member
-# repositories at a time; spikes and the harness run beside it. v1.messaging holds that slot, so
-# v1.ai stays planned until v1.messaging syncs. The infrastructure libraries come before the data
+# The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
+# reference-architecture code repositories. v1.messaging holds that slot, so v1.ai stays planned
+# until v1.messaging syncs. The infrastructure libraries come before the data
 # layer, and the data layer before auth by design: the architect wants to see how the domain layer
 # scales before auth constrains it. Middleware is last: CORS waits for v1.client.
 
@@ -103,6 +97,18 @@ graders preferred, and `claude plugin eval --threshold 1.0` a required step of t
 script. Seeds the cases for the new contract. Absorbs the former harness-testing task.
 '''
 context = ["claude-plugins/context/harness-testing.md"]
+
+[goals.factory.tasks.alignment]
+name = "Align the workspace and the live spike with marathon 0.16"
+repos = ["claude-plugins"]
+summary = '''
+After evals, bring every marathon repository in the workspace, and ~/experiments/spike-harness-driver,
+in line with the evolved conventions: each `marathon.toml` gains `check` and `merge`, `.gitignore`
+swaps `.claude/report.md` for `.claude/brief.md` and drops `.claude/worktrees/`, each `CLAUDE.md`
+becomes navigation pointers, and the spike's own `context/reset.md` becomes the
+v1.ai.experiment.harness-driver progress in its goal record. Each repository is touched only while
+no other active goal locks it, or in that goal's next task.
+'''
 
 # ── quality ────────────────────────────────────────────────────────────────────────────────
 
@@ -284,8 +290,7 @@ makes the service's internal/reactors real: reactor services on the event-driven
 messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
 a CloudEvents envelope, outbox emission, and a source-agnostic reactor contract, with go-core
 gaining the `reactor` and `event` primitives. The experiment ran in spike-messaging; its intake
-is the rest of the goal. Its record is `context/reset/messaging-experiment.md` until
-factory.goals moves it to the goal's home.
+is the rest of the goal.
 '''
 context = ["standards-lab/context/messaging.md"]
 
@@ -370,8 +375,7 @@ name = "The AI experiments and their intake"
 home = "standards-lab"
 repos = ["spike-harness-driver", "spike-local-subagents", "personal-agents"]
 summary = '''
-Three spikes, each run through its own path, then one combined intake session here. Its record
-is `context/reset/ai-experiment.md` until factory.goals moves it to the goal's home.
+Three spikes, each run through its own path, then one combined intake session here.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
 
@@ -507,10 +511,10 @@ repos = ["claude-plugins"]
 summary = '''
 The deterministic half of the harness as tools the skills call rather than process the skills
 describe (tool-based-skills.md, "What a tool carries and what a skill carries", "The three
-layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the roadmap manifest and the reset
-file, the validators over them, and the checks the extensions need (extraction's bundle
+layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the
+roadmap manifest and the goal record, the validators over them, and the checks the extensions need (extraction's bundle
 schema, evidence gate, origin de-duplication, and want-list generation). First consumers:
-marathon-roadmap and extraction.
+marathon's manifest and goal records, and extraction.
 '''
 context = ["architecture/harness/tool-based-skills.md"]
 

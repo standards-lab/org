@@ -55,7 +55,7 @@ until its 1.0).
 
 ### claude-plugins
 The plugin host for the organization, mirroring the structure of `tau-marketplace`. Ships the `marathon`
-workflow plugin and its `marathon-roadmap` and `marathon-architecture` extensions. The harness level of the reference architecture.
+workflow plugin and its `marathon-architecture` extension. The harness level of the reference architecture.
 
 ### architecture
 The organization's architecture layer: the canonical home for its architectures, standards,
