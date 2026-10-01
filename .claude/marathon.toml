@@ -46,6 +46,11 @@ order = [
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
+# The hosting convention `marathon experiment` proposes for a new spike.
+[workspace.experiments]
+path = "~/experiments/spike-<slug>"
+remote = "https://github.com/JaimeStill/spike-<slug>.git"
+
 # Remote platform, the command that publishes a finished branch, and the command that
 # merges it once its checks pass.
 # All three repositories rooted in this directory (org here, .github under public/,

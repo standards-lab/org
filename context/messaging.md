@@ -123,7 +123,7 @@ some turn out to strengthen a different architecture layer:
   this against published go-core, with the reactor as the next component. It also settles which
   stage a reactor takes: `StageRoot` beside the server, or a stage of its own. The change isn't
   a prerequisite. It would fix the API before the evidence exists, and it touches go-web-service,
-  where the blobfs-build lane works.
+  where the blobfs build was underway.
 - Who provisions a stream, since signal-lab solved startup ordering with a retry. How readiness and
   drain run through the coordinator.
 - How trace context propagates as the CloudEvents `traceparent` extension alongside
@@ -146,7 +146,7 @@ The experiment's final validation answers its question with this evidence:
 
 ## The experiment's home
 
-The experiment follows the hosting convention in `../experiments.md`:
+The experiment follows the workspace's hosting convention (`[workspace.experiments]`):
 
 - local directory: `~/experiments/spike-messaging`
 - remote: `github.com/JaimeStill/spike-messaging`
