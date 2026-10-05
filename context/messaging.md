@@ -160,3 +160,40 @@ It keeps each package in a directory named for its intended home (`core/reactor`
 - Assumes every event a service emits reports a mutation in its own database, so an outbox table
   in that database suffices.
 - Assumes the service stays on `database/sql`-shaped sessions (sqlate's `Session`).
+
+## Answers · experiment.messaging
+
+### Answer · spike-messaging
+
+**Question:** Can one broker-agnostic event and reactor contract, built on CloudEvents with outbox
+emission, run a service's reactors on NATS JetStream and on an in-memory provider, with no broker
+import outside the composition root and the provider?
+
+**Answer:** Yes; four services play a 30-round exercise on JetStream through the contract, and the
+same contract passes the conformance suite in memory.
+
+1. The conformance suite passes on both providers. Proven only by tests: `messagingtest.Run` on
+   memory and, under integration, on the compose NATS, both start positions included.
+2. A stop between commit and publish loses no event. Proven only by tests:
+   `TestStopBetweenCommitAndPublishLosesNoEvent` and `TestPublishedButUnmarkedIsRepublished` in
+   `messaging/postgres`; no `validate-outages` kill has landed inside the window.
+3. A redelivered event is handled once. Proven only by tests: `TestClaimIsFirstOnce`,
+   `TestClaimAcrossAckWait`, and each service's `TestAClaimedRepeatChangesNothing`; no repeat has
+   occurred on the running services.
+4. Two replicas in one delivery group share the work. Proven by the validate task
+   `validate-replicas`.
+5. A shutdown drains in-flight handling through the coordinator. Proven by `validate-replicas` and
+   `validate-outages`: every SIGTERM drains in about 110ms.
+6. No provider import outside the composition root and the provider. Proven by
+   `mise run split-check`.
+7. An event is emitted only in its command's transaction. Proven only by tests: `Recorder.Emit`
+   over the outbox sink (`core/event`). The composite Postgres-and-blob case is unproven; it waits
+   on go-storage.
+8. The native request and reply stays inside the provider and the root. Proven by a running demo:
+   courier's `request` scenario, with `split-check` holding `courier/scenario` off NATS.
+
+go-messaging's API gains `Subscription.Start`, a binding start position, and a finite `MaxDeliver`
+for early inputs, which needs an error hook or a dead-letter path (`design.md`, open questions).
+
+[The answer](https://github.com/JaimeStill/spike-messaging/blob/main/context/README.md#the-answer) ·
+[spike-messaging](https://github.com/JaimeStill/spike-messaging)
