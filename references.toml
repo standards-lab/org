@@ -74,8 +74,8 @@ remote = "https://github.com/standards-lab/sqlate.git"
 [repos.blobfs]
 remote = "https://github.com/standards-lab/blobfs.git"
 
-# Experiments — archived spikes. A running spike is a task of an experiment goal in
-# context/roadmap.toml, with its remote and path there; its goal's sync moves it here.
+# Experiments — archived spikes. A running spike is a sub-goal of its experiment in
+# context/roadmap.toml, with its remote and path there; the experiment's intake records it here.
 [repos.spike-sql-dsl]
 remote = "https://github.com/JaimeStill/spike-sql-dsl.git"
 archived = true
