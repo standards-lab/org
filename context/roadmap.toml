@@ -8,17 +8,20 @@
 # experiment.messaging's intake runs and v1.messaging stages next, the first work on the 0.16
 # conventions. The infrastructure libraries come before the data layer, and the data layer before
 # auth by design: the architect wants to see how the domain layer scales before auth constrains
-# it. Middleware is last: CORS waits for v1.client.
+# it. Middleware is last: CORS waits for v1.client. experiment.ai runs beside them, outside the
+# exclusive group: spike-model-hosting settles how local models are hosted, then
+# spike-local-models builds on it.
 
 active = [
   "factory",
   "quality",
-  "experiment.ai",
+  "experiment.ai.spike-model-hosting",
 ]
 
 planned = [
   "cli",
   "slab",
+  "experiment.ai.spike-local-models",
   "v1.messaging",
   "v1.ai",
   "v1.data",
@@ -390,8 +393,9 @@ context = ["claude-plugins/context/marathon-extraction.md"]
 [goals.v1.ai]
 name = "AI"
 summary = '''
-The capability splits into four layers: hosting (`ai-hosting`), the harness
-(v1.harness.local-models), and go-ai and the service layer here. go-ai's two-surface shape and
+The capability splits into four layers: hosting (`ai-hosting`, through `hosting`), the harness
+(v1.harness.local-models), and go-ai and the service layer here, with `local-models` for
+application workloads. go-ai's two-surface shape and
 tau's retirement depend on experiment.ai. herald is prior art, not a workload to rerun. The
 go-ai library and service tasks stay unwritten until experiment.ai's intake.
 '''
@@ -404,11 +408,21 @@ context = [
 name = "The ai-hosting specification repository"
 repos = ["ai-hosting", "architecture", "standards-lab"]
 summary = '''
-Build `ai-hosting` fresh from experiment.ai's personal-agents result, add it to the workspace's `order` and
-the references catalog, land the portable-method pages as notes in architecture, and archive
-personal-agents with a forward link. Waits on the hosting spike's close.
+Build `ai-hosting` fresh from experiment.ai's spike-model-hosting result, add it to the
+workspace's `order` and the references catalog, land the portable-method pages as notes in
+architecture, and archive personal-agents with a forward link. Waits on experiment.ai's intake.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
+
+[goals.v1.ai.tasks.local-models]
+name = "Local models for application workloads"
+summary = '''
+Locally hosted models for application workloads, from experiment.ai's spike-local-models result.
+Runs after `hosting`: the hosting details are settled before the local models themselves. Waits on
+experiment.ai's intake, which settles its repositories; v1.ai touches `architecture` only for
+where AI fits within applications, never `claude-plugins`.
+'''
+context = ["standards-lab/context/ai-strategy.md"]
 
 [goals.v1.client]
 name = "Embedded client"
@@ -519,9 +533,9 @@ context = ["architecture/harness/tool-based-skills.md"]
 name = "Local models as Claude Code subagents"
 repos = ["claude-plugins", "architecture"]
 summary = '''
-The convention for delegating subagent work to locally hosted models: profile format, routing
-mechanism, and which kinds of task may run locally, from experiment.ai's spike-local-subagents
-result. Waits on experiment.ai's sync.
+The convention for routing Claude Code subagent tasks to locally hosted models: the profile
+format, the routing mechanism, and which kinds of task may run locally, from experiment.ai's
+spike-local-models result. Waits on experiment.ai's intake.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
 
@@ -533,49 +547,58 @@ summary = "The spikes that settle what a goal is built from, each topic a goal w
 
 [goals.experiment.ai]
 name = "The AI experiments"
-root = "spike-harness-driver"
-repos = ["spike-harness-driver", "spike-local-subagents", "personal-agents"]
 summary = '''
-Three spikes that settle what v1.ai is built from, each run through its own path, then one
-combined intake.
+Three spikes that settle what v1.ai is built from, each a sub-goal run through its own path, then
+one combined intake.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
   "standards-lab/context/ai-hosting.md",
 ]
 
-[goals.experiment.ai.tasks.spike-harness-driver]
-name = "spike-harness-driver"
-remote = "https://github.com/JaimeStill/spike-harness-driver.git"
-path = "~/experiments/spike-harness-driver"
-summary = '''
-Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the infrastructure for
-agentic work: capabilities, sessions, scoped exchanges, and long-running workflows? Finishing its
-six-step path under marathon 0.15; its closeout is the spike's own `context/reset.md`, which the
-goal's first 0.16 session carries into the goal record before deleting it.
-'''
-
-[goals.experiment.ai.tasks.spike-local-subagents]
-name = "spike-local-subagents"
-remote = "https://github.com/JaimeStill/spike-local-subagents.git"
-path = "~/experiments/spike-local-subagents"
-summary = "An `experiment` session sets it up from `ai-strategy.md`, \"Experiment: spike-local-subagents\", then it runs its path."
-
-[goals.experiment.ai.tasks.personal-agents]
-name = "personal-agents as the hosting spike"
-remote = "https://github.com/JaimeStill/personal-agents.git"
-path = "~/code/personal-agents"
-summary = "An `experiment` session adopts personal-agents as the hosting spike (`ai-hosting.md`) and gives it a path, then it runs."
-
 [goals.experiment.ai.tasks.intake]
 name = "The combined intake"
 summary = '''
-Decides go-ai's shape and whether a service's container carries a harness, the
-v1.harness.local-models convention, and what v1.ai.hosting builds, as pending edits for the
-coordinator. The architecture-layer candidates (model tiers, context sizing, the memory-footprint
-method, and the serving conventions) are decided here too, from the personal-agents result. The
-sync archives spike-harness-driver and spike-local-subagents; personal-agents stays unarchived
-until v1.ai.hosting.
+Run by `marathon intake experiment.ai` once spike-harness-driver, spike-model-hosting, and
+spike-local-models have their answers in `ai-strategy.md`. Decides go-ai's shape and whether a
+service's container carries a harness, what v1.ai.hosting builds, and both local-models
+conventions from spike-local-models: v1.ai.local-models (local models for application workloads)
+and v1.harness.local-models (routing Claude Code subagent tasks to local models). The
+architecture-layer candidates (model tiers, context sizing, the memory-footprint method, and the
+serving conventions) are decided here too, from spike-model-hosting's result. It also decides
+whether personal-agents' contents and spike-model-hosting's findings move into a fresh workspace
+repository. The tasks it writes run v1.ai's `hosting` task before its `local-models` task: the
+hosting details are settled before the local models themselves. Its one coordinator pull request
+writes those tasks and removes the experiment; it then archives spike-harness-driver,
+spike-model-hosting, and spike-local-models. personal-agents was only a read-only reference and
+is never archived by this intake.
+'''
+
+[goals.experiment.ai.spike-model-hosting]
+name = "Hosting local models"
+root = "spike-model-hosting"
+repos = ["spike-model-hosting"]
+remote = "https://github.com/JaimeStill/spike-model-hosting.git"
+path = "~/experiments/spike-model-hosting"
+summary = '''
+Which serving configuration and specification shape hold across both host classes (Strix Halo
+with Vulkan, Dell NVIDIA with CUDA) and all three consumers at once? Decides the `ai-hosting`
+specification: the host-class profile's schema, whether a gateway sits in front of the router,
+and the admin tooling's form (`ai-hosting.md`, "Experiment: spike-model-hosting").
+`~/code/personal-agents` is a read-only reference, recorded when `plan` sets the spike up.
+'''
+
+[goals.experiment.ai.spike-local-models]
+name = "Using local models"
+root = "spike-local-models"
+repos = ["spike-local-models"]
+remote = "https://github.com/JaimeStill/spike-local-models.git"
+path = "~/experiments/spike-local-models"
+summary = '''
+On the hosting spike-model-hosting settles, how are locally hosted models used (a) for
+application workloads and (b) for Claude Code subagent tasks, and for which kinds of task is the
+output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-strategy.md`,
+"Experiment: spike-local-models").
 '''
 
 [goals.experiment.messaging]
