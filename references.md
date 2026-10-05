@@ -141,9 +141,10 @@ independently.
 
 ## Experiments — archived spikes
 
-A running spike is a task of an experiment goal in `context/roadmap.toml`, which records its remote
-and local path; the goal's sync moves each spike here and archives its remote. A new spike follows
-the hosting convention in `.claude/marathon.toml`'s `[workspace.experiments]`.
+A running spike is a sub-goal of its experiment, `experiment.<topic>.<spike>`, in
+`context/roadmap.toml`, which records its remote and local path; the experiment's intake records
+each spike here and archives its remote. A new spike follows the hosting convention in
+`.claude/marathon.toml`'s `[workspace.experiments]`.
 
 ### spike-sql-dsl
 Asked whether the whole SQL-to-Go layer can run on authored SQL files instead of a Go statement
