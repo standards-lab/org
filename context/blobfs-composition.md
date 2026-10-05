@@ -2,8 +2,9 @@
 
 What go-web-service's storage layer proved about composing `blobfs` that neither blobfs's guide
 (`blobfs/docs/`) nor go-web-service's code and `context/domain-architecture.md` state yet: the
-write, delete, and move protocols as a consumer sequences them, which the outbox reuses
-(`messaging.md`, "Outbox sequencing"), and the operating constraints. The composition root,
+write, delete, and move protocols as a consumer sequences them, whose complete step is the
+transaction an event is enqueued in (`messaging.md`, "Outbox sequencing"), and the operating
+constraints. The composition root,
 ownership, seeding, and set registration are expressed in go-web-service and are not restated.
 This note goes once blobfs's guide carries these sections.
 
