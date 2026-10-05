@@ -33,7 +33,6 @@ backlog = [
   "v1.observability",
   "v1.harness",
   "sweeper",
-  "library-pins",
   "sqlate-past-last-total",
   "organization-image-active",
   "second-providers",
@@ -158,11 +157,31 @@ context = ["architecture/context/standards-audit.md"]
 [goals.quality.tasks.checks]
 name = "One honest check per repository"
 summary = '''
-Each repository exposes one deterministic `check`. A sweep removes tests that lie (tautological,
-structure-sensitive, or unable to fail). Mechanical rules become checks rather than prose: import
-boundaries through depguard or a split check, and a version-currency check over the pins. Each
-repository's `marathon.toml` names its check and gains the `merge` command, and its `.gitignore`
-swaps `.claude/report.md` for `.claude/briefs/` and drops `.claude/worktrees/`.
+Each repository exposes one deterministic `mise run check` composed of the Go ecosystem's
+established tooling, and a development-time `mise run currency` and `upgrade` over every pin.
+Layer boundaries are held by discipline in planning and review, not by gates. Each repository's
+`marathon.toml` names its check and gains the `merge` command, and its `.gitignore` swaps
+`.claude/report.md` for `.claude/briefs/`.
+'''
+
+[goals.quality.tasks.honest-tests]
+name = "Tests that can fail"
+repos = [
+  "go-core",
+  "sqlate",
+  "go-database",
+  "go-web-sdk",
+  "go-observability",
+  "go-storage",
+  "blobfs",
+  "go-web-sdk-template",
+  "go-web-service",
+]
+summary = '''
+A full evaluation of every repository's tests: a standards-reviewer runs over each whole suite,
+not a diff, and removes or rewrites the tests that lie (tautological, structure-sensitive, or
+unable to fail), including the white-box files checks renamed to `*_internal_test.go`.
+go-web-service is evaluated in three scopes: the service, its integration tests, and tools/slab.
 '''
 
 [goals.quality.tasks.standards]
@@ -238,7 +257,7 @@ infrastructure-library, and template features that emerge from it.
 criteria = [
   "Every capability goal beneath this one is closed: code, tests, and the layer's documentation in its repository (README, package documentation, and the docs/ guide of v1.repository-docs) complete; the standard tier used throughout with native use contained and entered in the port list; the capability's provider-swap class declared; and the promotion evaluation recorded — what moved outward into the SDKs, the libraries, and the template, and what stayed the service's own.",
   "A layer goal closes once its extracted record has produced the library, the template element, and the repository documentation, wherever the layer was proven (ruled 2026-09-07, claude-plugins/context/marathon-extraction.md). v1.0 keeps the running composition: a layer proven outside go-web-service is adopted by the service in a sweep task of its own before this goal closes.",
-  "The import-boundary lint is in place, and the service's README names each capability the service consumes, its class, and the port list.",
+  "Import boundaries are a reviewed discipline — dependencies point bottom-up, no provider enters a base, and each module stays light — held in planning and review, and the service's README names each capability the service consumes, its class, and the port list.",
   "The service is versionless until 1.0: minor releases cut as layers complete in whatever order they land, v1.0.0 when this goal's tree is empty; -dev.N prerelease tags serve only the cross-module-resolution case the release-and-ci principle states, never routine between-session practice. Each release is a coherent snapshot with its pins; a library change and the service change that proves it release together; a member release prompts the coordinator sweep.",
 ]
 context = ["standards-lab/context/service-organization.md"]
@@ -360,13 +379,12 @@ context = ["go-web-service/context/data-layer.md"]
 name = "Evaluation and close"
 repos = ["go-web-service", "go-web-sdk-template", "go-database", "go-web-sdk"]
 summary = '''
-The cross-board evaluation of the service and the template — correctness, simplification,
-what promotes to the template or the libraries — and the port-list audit. The pass rules from
-the extracted record if marathon-extraction has landed, and its findings are the extraction
-ledger's first entries either way. It runs the validation-first enforcement pass across the
-organization's code. Then the closing coordinated releases (purging any -dev.N tags cut for
-cross-module resolution) and the layer's docs/ page. The depguard import-boundary question
-re-asks here.
+The cross-board evaluation of the service and template code built after quality.honest-tests —
+correctness, simplification, what promotes to the template or the libraries — and the port-list
+audit. The pass rules from the extracted record if marathon-extraction has landed, and its
+findings are the extraction ledger's first entries either way. It runs the validation-first
+enforcement pass across that code. Then the closing coordinated releases (purging any -dev.N tags
+cut for cross-module resolution) and the layer's docs/ page.
 '''
 context = ["claude-plugins/context/marathon-extraction.md"]
 
@@ -690,14 +708,6 @@ rule (binding): the moment any other layer needs sweeper-like reclamation (outbo
 expired sessions, soft-delete purge, or any cascade beyond pruning SQL rows), that step builds
 the general sweeper and moves blobfs's sweep onto it. It never builds a second standalone
 reactor.
-'''
-
-[goals.library-pins]
-name = "Pin moves the libraries owe"
-summary = '''
-At each library's next release: go-database's, blobfs's, sqlate/postgres's, and sqlint's sqlate
-pin to v0.4.1, and go-web-sdk's `middleware/rate-limit` pin to go-web-sdk v0.14.0. quality.checks'
-currency check makes these mechanical.
 '''
 
 [goals.sqlate-past-last-total]
