@@ -1,8 +1,9 @@
 # AI
 
 The planned AI capability is split into four layers, each in its own home. `v1.ai` builds the
-library and service layers. Two experiments come first, one for the library layer and one for the
-harness layer. A third experiment, on hosting, is described in `ai-hosting.md`.
+library and service layers. Two experiments come first, one for the library layer and one for
+local models, used by applications and by the harness. A third experiment, on hosting, is
+described in `ai-hosting.md`.
 
 ## The four layers
 
@@ -10,7 +11,7 @@ harness layer. A third experiment, on hosting, is described in `ai-hosting.md`.
 |---|---|---|
 | Hosting | Configuring and running the machines that serve local models: the Framework desktop now, the Dell NVIDIA workstations later | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
 | Harness | Local models taking subagent work in Claude Code sessions | claude-plugins and `architecture/harness/`, through `v1.harness.local-models` (planned) |
-| Library | `go-ai`: a Go interface for running models and agent sessions from an application | `go-ai` (`topology-and-naming.md` reserves the name) |
+| Library | `go-ai`: a Go interface for running models and agent sessions from an application, including locally hosted models for application workloads | `go-ai` (`topology-and-naming.md` reserves the name); local models through `v1.ai.local-models` (planned) |
 | Service | go-web-service's AI layer, which demonstrates go-ai | go-web-service's capability map ("AI") |
 
 ## External harnesses in place of tau
@@ -85,11 +86,17 @@ on each of the four parts. It also records:
 step drives Pi against the Framework desktop's router: one session, two scoped exchanges, and a
 cancel.
 
-## Experiment: spike-local-subagents
+## Experiment: spike-local-models
 
-**Question.** A Claude Code session stays on Anthropic models. How should it delegate subagent
-work to framework-hosted models, and for which kinds of task is the output acceptable? There are
-two candidates:
+**Question.** How are locally hosted models used, on the hosting spike-model-hosting settles
+(`ai-hosting.md`), and for which kinds of task is the output acceptable? The spike proves out
+both uses:
+
+- **Application workloads.** An application runs work on a locally hosted model.
+- **Claude Code subagent tasks.** A Claude Code session stays on Anthropic models and routes
+  subagent tasks to local models.
+
+For the subagent tasks there are two candidates:
 
 - a gateway that routes a subagent profile's model name either to the local router or to
   Anthropic
@@ -99,9 +106,48 @@ two candidates:
 position that the spike tests. It moves generation to a local model only when the work is
 structured, repetitive, and schema-validated, and it treats the offload as a tool.
 
-**Decision it changes.** The convention `v1.harness.local-models` writes: the profile format,
-the routing mechanism, and which kinds of task may run locally. It also decides whether
-`ai-hosting` includes a gateway.
+**Decision it changes.** Two conventions. `v1.ai.local-models`: how an application uses
+locally hosted models for its workloads. `v1.harness.local-models`: the profile format, the
+routing mechanism, and which kinds of task may run locally. Whether `ai-hosting` includes a
+gateway is spike-model-hosting's decision; this spike routes through what it settles.
+
+**Home.** `~/experiments/spike-local-models`, remote
+[JaimeStill/spike-local-models](https://github.com/JaimeStill/spike-local-models), set up by
+`plan experiment.ai.spike-local-models` once spike-model-hosting has answered.
+
+## Answers · experiment.ai
+
+### Answer · experiment.ai.spike-harness-driver
+
+**Question:** Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the
+infrastructure for agentic work: capabilities, sessions, scoped exchanges, and long-running
+workflows?
+
+**Answer:** Yes; go-ai takes both surfaces, harness sessions and a model client, and a service
+image carries one pinned harness, Pi by default.
+
+1. Tools and skills run on all three harnesses: a Go tool reaches Pi through its extension and
+   Claude Code and OpenCode through MCP. Proven by a running demo: `clutch conform`, every
+   capability on Azure and Anthropic for all three harnesses.
+2. Of the native capabilities, a harness passes only vision, and drops an image a model can't
+   take quietly; embeddings and audio need the `model` client. Proven by a running demo: `model`
+   on the router and Azure, and a Go tool giving a Pi session a transcript.
+3. A session outlives its process and resumes by ID with its history; `ErrJournalMismatch`
+   catches Pi's cwd-scoped sessions. Proven by `clutch conform`'s `resume` and live follow-ups
+   from a new process.
+4. A session carries one exchange at a time under a driver-assigned ID, each harness's
+   cancellation maps to one outcome, and a structured response is a `respond` tool. Proven by
+   `clutch conform`'s `exchange`, `cancel`, and `structured`.
+5. A standard-library workflow layer of about 1,800 lines runs a DAG of exchanges with a
+   concurrency limit, cancellation, SSE with replay, and resume after SIGINT, `kill -9`, and
+   `docker stop`. Proven by a running demo: `clutch workflow` and `clutch serve`, in the
+   architect-validated checkpoints 1–3.
+6. The service image is 215 MB, idles at about 10 MiB, and adds about 95 MiB per Pi session.
+   Proven by a running demo: `deploy/`, checkpoint 3.
+7. The Azure managed-identity path and IL6 hold. Checked on paper only; nothing ran against them.
+
+[The answer](https://github.com/JaimeStill/spike-harness-driver/blob/main/context/findings.md#the-answer) ·
+[spike-harness-driver](https://github.com/JaimeStill/spike-harness-driver)
 
 ## Assumptions
 

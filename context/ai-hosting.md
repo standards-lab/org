@@ -8,8 +8,8 @@ machines that serve local models to the organization's consumers:
 - the go-ai service
 
 Its planned home is a new workspace member repository, working name `ai-hosting`.
-`v1.ai.hosting` builds it fresh from what personal-agents proved, rather than transferring that
-repository's history.
+`v1.ai.hosting` builds it fresh from what spike-model-hosting proves on personal-agents'
+setup, rather than transferring that repository's history.
 
 ## The existing setup: personal-agents
 
@@ -38,11 +38,14 @@ Claude Code subagents are that second client.
 The Dell NVIDIA workstations are a second host class, with CUDA instead of Vulkan and discrete
 VRAM instead of unified memory. Their specifications are to be gathered when work on them starts.
 
-## Experiment: personal-agents as the hosting spike
+## Experiment: spike-model-hosting
 
-personal-agents becomes the hosting experiment rather than a new `spike-*` repository. It is
-already a standalone marathon project, and `v1.ai.hosting` rebuilds its result fresh, so nothing
-is lost by skipping a copy.
+The hosting experiment is a new repository, `~/experiments/spike-model-hosting` (remote
+[JaimeStill/spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)), not
+personal-agents itself. personal-agents is a read-only reference the spike builds on: nothing is
+written to it or archived from it by the experiment. `plan experiment.ai.spike-model-hosting`
+records it as a reference when it sets the spike up. The spike's answer lands in
+`ai-strategy.md`, "Answers · experiment.ai".
 
 **Question.** Which serving configuration and specification shape hold across both host classes
 (Strix Halo with Vulkan, Dell NVIDIA with CUDA) and all three consumers at once?
