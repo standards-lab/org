@@ -5,7 +5,7 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
 # reference-architecture code repositories. quality holds that slot. cli waits on
 # experiment.cli-architecture, and slab on cli. Once factory and quality sync,
-# experiment.messaging and v1.messaging stage next, as the first goals run on the 0.16
+# experiment.messaging's intake runs and v1.messaging stages next, the first work on the 0.16
 # conventions. The infrastructure libraries come before the data layer, and the data layer before
 # auth by design: the architect wants to see how the domain layer scales before auth constrains
 # it. Middleware is last: CORS waits for v1.client.
@@ -19,7 +19,6 @@ active = [
 planned = [
   "cli",
   "slab",
-  "experiment.messaging",
   "v1.messaging",
   "v1.ai",
   "v1.data",
@@ -581,33 +580,22 @@ until v1.ai.hosting.
 
 [goals.experiment.messaging]
 name = "The messaging experiment"
-root = "spike-messaging"
-repos = ["spike-messaging"]
-summary = "spike-messaging, which settles what v1.messaging is built from, then its intake."
+summary = "spike-messaging settled what v1.messaging is built from; its intake takes the answer in."
 context = ["standards-lab/context/messaging.md"]
-
-[goals.experiment.messaging.tasks.spike-messaging]
-name = "spike-messaging"
-remote = "https://github.com/JaimeStill/spike-messaging.git"
-path = "~/experiments/spike-messaging"
-summary = '''
-Can one broker-agnostic event and reactor contract, built on CloudEvents with outbox emission,
-run a service's reactors on NATS JetStream and on an in-memory provider? Its path is complete
-under marathon 0.15, and its final validation answered yes; the goal's first 0.16 session checks
-this task in the new goal record.
-'''
 
 [goals.experiment.messaging.tasks.intake]
 name = "The messaging intake"
 summary = '''
-Takes the spike's result in, as pending edits for the coordinator: what go-messaging's API gains
-(a binding start position, a bounded `MaxDeliver` with an error hook or dead-letter path), the
-lifecycle registration question, and v1.messaging's library and service tasks. It also carries
-what v1.storage proved: reconcile the demand and schedule reactor flavors and the quiesce gate
-staged in go-web-service's `sdk` against the spike's `core/reactor` before go-core takes either;
-the lifecycle evidence (the sweeper as the service's first real reactor, registered with `Add` and
+Run by `marathon intake experiment.messaging` once spike-messaging's answer is in
+`messaging.md`. Decides, for v1.messaging: what go-messaging's API gains (a binding start
+position, a bounded `MaxDeliver` with an error hook or dead-letter path), the lifecycle
+registration question, and v1.messaging's library and service tasks. It also carries what
+v1.storage proved: reconcile the demand and schedule reactor flavors and the quiesce gate staged
+in go-web-service's `sdk` against the spike's `core/reactor` before go-core takes either; the
+lifecycle evidence (the sweeper as the service's first real reactor, registered with `Add` and
 `Monitor`, its `Grace` tied to the drain timeout; the schema stage declared at the call site); and
-blobfs's orphan reconciler, deferred here (blobfs `context/deferred.md`).
+blobfs's orphan reconciler, deferred here (blobfs `context/deferred.md`). Its one coordinator pull
+request writes those tasks and removes the experiment; it then archives spike-messaging.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
