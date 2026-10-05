@@ -8,18 +8,19 @@
 # first work on the 0.16 conventions. cli waits on experiment.cli-architecture, and slab on cli.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last: CORS waits for v1.client. experiment.ai runs beside them, outside the
-# exclusive group: spike-model-hosting settles how local models are hosted, then
-# spike-local-models builds on it.
+# Middleware is last: CORS waits for v1.client. Outside the exclusive group,
+# experiment.cli-architecture's spike runs beside quality; experiment.ai resumes after slab:
+# spike-model-hosting settles how local models are hosted, then spike-local-models builds on it.
 
 active = [
   "quality",
-  "experiment.ai.spike-model-hosting",
 ]
 
 planned = [
+  "experiment.cli-architecture.spike-cli-architecture",
   "cli",
   "slab",
+  "experiment.ai.spike-model-hosting",
   "experiment.ai.spike-local-models",
   "v1.messaging",
   "v1.ai",
@@ -624,6 +625,39 @@ On the hosting spike-model-hosting settles, how are locally hosted models used (
 application workloads and (b) for Claude Code subagent tasks, and for which kinds of task is the
 output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-strategy.md`,
 "Experiment: spike-local-models").
+'''
+
+[goals.experiment.cli-architecture]
+name = "The CLI architecture experiment"
+summary = '''
+One spike that proves the shape `cli` builds: a command dispatcher on the standard library's
+`flag` and per-command dependency composition, in a real CLI as close to the planned template as
+possible, then the intake.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.experiment.cli-architecture.tasks.intake]
+name = "The intake"
+summary = '''
+Run by `marathon intake experiment.cli-architecture` once spike-cli-architecture has its answer
+in `cli-applications.md`. Decides go-cli-sdk's API surface and go-cli-sdk-template's composition
+root, and writes them as `cli`'s tasks. Its one coordinator pull request writes those tasks and
+removes the experiment; it then archives spike-cli-architecture. spike-blobfs was only a
+read-only reference and is never archived by this intake.
+'''
+
+[goals.experiment.cli-architecture.spike-cli-architecture]
+name = "A CLI on the standard library"
+root = "spike-cli-architecture"
+repos = ["spike-cli-architecture"]
+remote = "https://github.com/JaimeStill/spike-cli-architecture.git"
+path = "~/experiments/spike-cli-architecture"
+summary = '''
+Do a stdlib-`flag` dispatcher with the planned feature set and a per-command dependency
+initializer hold up in a real CLI over the `blobfs` library, go-storage, and Postgres? Decides
+`cli`'s tasks: go-cli-sdk's API surface and go-cli-sdk-template's composition root
+(`cli-applications.md`, "The plan"). spike-blobfs is a read-only reference, recorded when `plan`
+sets the spike up.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
