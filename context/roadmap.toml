@@ -3,12 +3,12 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
-# reference-architecture code repositories. quality holds that slot. cli waits on
-# experiment.cli-architecture, and slab on cli. Once factory and quality sync,
-# experiment.messaging's intake runs and v1.messaging stages next, the first work on the 0.16
-# conventions. The infrastructure libraries come before the data layer, and the data layer before
-# auth by design: the architect wants to see how the domain layer scales before auth constrains
-# it. Middleware is last: CORS waits for v1.client. experiment.ai runs beside them, outside the
+# reference-architecture code repositories. quality holds that slot. factory and quality are
+# paused while the intake and planning sessions run; once both sync, v1.messaging stages next, the
+# first work on the 0.16 conventions. cli waits on experiment.cli-architecture, and slab on cli.
+# The infrastructure libraries come before the data layer, and the data layer before auth by
+# design: the architect wants to see how the domain layer scales before auth constrains it.
+# Middleware is last: CORS waits for v1.client. experiment.ai runs beside them, outside the
 # exclusive group: spike-model-hosting settles how local models are hosted, then
 # spike-local-models builds on it.
 
@@ -36,7 +36,6 @@ planned = [
 backlog = [
   "v1.observability",
   "v1.harness",
-  "sweeper",
   "sqlate-past-last-total",
   "organization-image-active",
   "second-providers",
@@ -334,16 +333,113 @@ context = [
 
 [goals.v1.messaging]
 name = "Messaging and reactor services"
-repos = ["go-core", "go-web-service"]
+repos = ["go-core", "go-messaging", "go-database", "blobfs", "go-web-sdk-template", "go-web-service"]
 summary = '''
 The go-messaging infrastructure library with NATS as the declared provider, and the layer that
 makes the service's internal/reactors real: reactor services on the event-driven interface
 messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
-a CloudEvents envelope, outbox emission, and a source-agnostic reactor contract, with go-core
-gaining the `reactor` and `event` primitives. experiment.messaging settles it, and its intake
-writes this goal's library and service tasks.
+a CloudEvents envelope, outbox emission, inbox idempotency, and a source-agnostic reactor
+contract, with go-core gaining the `reactor` and `event` primitives and lifecycle component
+registration, as spike-messaging proved (archived). go-messaging is new: this goal's first `plan`
+runs its init and adds it to the workspace order, the exclusive group, and the catalog.
 '''
 context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.core-reactor]
+name = "go-core reactor and lifecycle registration"
+repos = ["go-core"]
+summary = '''
+go-core gains a `reactor` package and lifecycle component registration, and releases. `reactor`
+is go-web-service's `sdk.Reactor`, which matches spike-messaging's `core/reactor` line for line:
+the source contract, `Draining(ctx)`, the `Every` (schedule) and `Wake`/`Waker` (demand, interval
+as backstop) flavors, plus the spike's `GraceWithin(drain)` at half the drain timeout. It also
+takes `sdk.Gate`, the context-aware readers-writer quiesce gate that prefers its exclusive side,
+as `reactor.Gate`: `sync.RWMutex` can't honor a context, and `x/sync/semaphore` breaks go-core's
+standard-library-only line. `lifecycle` gains `Component` (`Start`, `Shutdown`, `Ready`),
+`Monitored` (adds `Err`), and `lc.Register(name, stage, c)` on the coordinator, which adds the
+component with its readiness check and monitors `Err` when the component is `Monitored`, found by
+type assertion. The stage stays at the root's call site, with no `Stage` type, and the
+coordinator's two error-drop windows stay as they are, since the reactor covers both
+(`messaging.md`, "Lifecycle registration").
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.core-event]
+name = "go-core event"
+repos = ["go-core"]
+summary = '''
+go-core gains an `event` package on the standard library alone: the CloudEvents 1.0 type and its
+binary-mode codec, `CheckType`, `Permanent`, `Define`/`EventKind`, `Queue`, and
+`Recorder[Tx]`/`Sink[Tx]`; release.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.library]
+name = "go-messaging base and postgres engine"
+repos = ["go-messaging"]
+summary = '''
+go-messaging's base module (the broker contract, `Subscription` with `Start`, `MaxDeliver`, and
+`Normalize`, `Config` with the relay `Timeout`, `Runtime` with its error hook and the delivery
+attempt, outbox with poison-row quarantine, inbox, the memory provider, `messagingtest`) and the
+postgres engine module with the `messaging` migration set; release.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.nats]
+name = "go-messaging NATS provider"
+repos = ["go-messaging"]
+summary = '''
+The JetStream provider sub-module with its integration conformance run, failure reporting
+through the error hook, and binding a stream without provisioning it, so a stream has one owner;
+release.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.template]
+name = "Template reactors"
+repos = ["go-web-sdk-template"]
+summary = '''
+The template's `reactors.go` and stage table on go-core's `reactor` and `Register`. The template
+stays engine-free and imports no go-messaging.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.service-reactors]
+name = "Service reactors on go-core"
+repos = ["go-web-service"]
+summary = '''
+The sweeper and the gate move onto go-core, every component registers through `Register`, and
+`sdk/reactor.go` and `sdk/gate.go` are deleted. `domain-architecture.md` and `data-layer.md` drop
+v1.data.evaluation's ruling on the reactor and gate.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.service-events]
+name = "Service events on NATS"
+repos = ["go-web-service"]
+summary = '''
+The messaging runtime on NATS in the service. The storage upload emits from its complete step's
+transaction, which proves the composite Postgres-and-blob case the spike left open. The relay and
+the inbox claims hold the gate shared (`migration-sets.md`).
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.sweeper]
+name = "The general sweeper"
+repos = ["go-database", "blobfs", "go-web-service"]
+summary = '''
+Outbox and inbox retention builds the general sweeper, under its binding activation rule: the
+first layer that needs sweeper-like reclamation builds it, never a second standalone reactor. A
+data-oriented garbage collector, a level-triggered reconciler whose durable state lives with the
+data owner, behind a `Reclaimer` contract, `Pass(ctx, budget) (more bool, err error)`, that is
+idempotent, convergent, and bounded; registered by name with a policy; claimed across replicas
+with `SKIP LOCKED` or an advisory lock; reporting backlog metrics, not readiness; run as a
+reactor. Outbox and inbox retention are reclaimers, and blobfs's `Sweep` moves onto it. Its home
+is settled at this task's plan, likely go-database. blobfs's orphan reconciler stays deferred:
+this task re-points its trigger in blobfs `context/deferred.md` to an orphan observed, or a
+consumer storing at volume, once the general sweeper exists.
+'''
+context = ["go-web-service/context/data-layer.md"]
 
 [goals.v1.data]
 name = "Data composition and CQRS"
@@ -601,33 +697,14 @@ output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-s
 "Experiment: spike-local-models").
 '''
 
-[goals.experiment.messaging]
-name = "The messaging experiment"
-summary = "spike-messaging settled what v1.messaging is built from; its intake takes the answer in."
-context = ["standards-lab/context/messaging.md"]
-
-[goals.experiment.messaging.tasks.intake]
-name = "The messaging intake"
-summary = '''
-Run by `marathon intake experiment.messaging` once spike-messaging's answer is in
-`messaging.md`. Decides, for v1.messaging: what go-messaging's API gains (a binding start
-position, a bounded `MaxDeliver` with an error hook or dead-letter path), the lifecycle
-registration question, and v1.messaging's library and service tasks. It also carries what
-v1.storage proved: reconcile the demand and schedule reactor flavors and the quiesce gate staged
-in go-web-service's `sdk` against the spike's `core/reactor` before go-core takes either; the
-lifecycle evidence (the sweeper as the service's first real reactor, registered with `Add` and
-`Monitor`, its `Grace` tied to the drain timeout; the schema stage declared at the call site); and
-blobfs's orphan reconciler, deferred here (blobfs `context/deferred.md`). Its one coordinator pull
-request writes those tasks and removes the experiment; it then archives spike-messaging.
-'''
-
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 
 [goals.second-providers]
 name = "Second providers"
 summary = '''
 Entra for auth, the storage counterpart, a second SQL engine — each proven by a focused
-reference or a real consumer, one session each. A second SQL engine includes blobfs's own engine
+reference or a real consumer, one session each. A second broker proves go-messaging's standard
+tier, which stays provisional until it does. A second SQL engine includes blobfs's own engine
 sub-module; the NATS object store is a candidate go-storage provider, judged against go-storage's
 standard tier (`standards-lab/context/messaging.md`). Post-1.0 candidate.
 '''
@@ -705,20 +782,6 @@ infrastructure library, the way storage, messaging, and AI are, rather than an S
 middleware. Split out of v1.middleware (2026-09-18) so caching gets its own planning session —
 including whether it belongs in v1 at all — before any adoption. NATS key-value is a candidate
 provider once messaging lands (`standards-lab/context/messaging.md`).
-'''
-
-[goals.sweeper]
-name = "The general sweeper"
-summary = '''
-A data-oriented garbage collector: a level-triggered reconciler whose durable state lives with the
-data owner, behind a `Reclaimer` contract, `Pass(ctx, budget) (more bool, err error)`, that is
-idempotent, convergent, and bounded; registered by name with a policy, as lifecycle's services
-register; claimed across replicas with `SKIP LOCKED` or an advisory lock; reporting backlog
-metrics, not readiness; run as a reactor, with blobfs's `Sweep` its first reclaimer. Activation
-rule (binding): the moment any other layer needs sweeper-like reclamation (outbox cleanup,
-expired sessions, soft-delete purge, or any cascade beyond pruning SQL rows), that step builds
-the general sweeper and moves blobfs's sweep onto it. It never builds a second standalone
-reactor.
 '''
 
 [goals.sqlate-past-last-total]

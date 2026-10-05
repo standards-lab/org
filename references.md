@@ -154,6 +154,10 @@ vocabulary. Its library became sqlate.
 Asked whether the blobfs design, a SQL-backed virtual directory and file-metadata library over any
 object store, holds up when built. Promoted to blobfs.
 
+### spike-messaging
+Asked whether one broker-agnostic event and reactor contract, on CloudEvents with outbox emission,
+runs on JetStream and in memory. Promoted to go-messaging and go-core's reactor and event packages.
+
 ## Prior R&D — Go web service architecture
 
 ### herald

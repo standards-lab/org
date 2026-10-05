@@ -75,9 +75,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `blobfs-composition.md`, with `migration-sets.md` and `sqlate-library-support.md` — the
   blobfs protocols and operating constraints a consumer sequences, what a shipped migration set
   requires of its shipper and consumers, and what sqlate needs to host a library.
-- `messaging.md`, with `messaging-api.md` — the event and reactor layer: the messaging
-  experiment's question, its decisions, and the capability ledger, and the API the experiment
-  starts from.
+- `messaging.md` — the event and reactor layer: its decisions, the outbox sequencing, where the
+  primitives live, lifecycle registration, the capability ledger, and spike-messaging's evidence.
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers and their homes, the
   pivot from tau to external harnesses, the library and harness experiments' questions, and the
   hosting layer's decomposition of personal-agents.
