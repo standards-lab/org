@@ -60,7 +60,7 @@ summary = '''
 marathon reshaped so the architect engages at two points per task, the plan and the brief, while
 an agent pipeline makes the work good in between: implementer, checks, standards and spec
 review, editor. Goals and tasks become the whole vocabulary of parallel work, with the wave,
-lane, and fold retired. marathon 0.16.0 expresses it; evals remain.
+lane, and fold retired. marathon 0.16.0 expresses it; currency and evals remain.
 '''
 context = ["claude-plugins/context/harness-testing.md"]
 
@@ -102,6 +102,21 @@ the pending edits and the goal proposed to stage next, so accepting the brief au
 sync, starts
 on a branch and lands through a pull request; only small administrative context updates go
 straight to the default branch.
+'''
+
+[goals.factory.tasks.currency]
+name = "Currency as a PLAN-time pass"
+repos = ["claude-plugins"]
+summary = '''
+marathon 0.17.0. marathon core gains `[project] currency`, a repository's read-only command that
+exits non-zero and lists, one per line, each direct dependency, toolchain, and pin trailing its
+latest (reference: go-core's `mise run currency`, scripts/currency.sh). PLAN runs it before round
+1: the planner reads the release notes of what trails, round 1 asks adapt-and-adopt questions,
+and the upgrade becomes the brief's first slice. Currency is a development-time session step,
+never a CI gate; it covers direct dependencies and the toolchain, leaving indirect ones to the
+ecosystem's resolver. It is core and language-agnostic, not an extension. A CHANGELOG migration
+recipe names the key per repository. Carries quality.checks' currency decisions, whose record
+sync deletes.
 '''
 
 [goals.factory.tasks.evals]
@@ -155,7 +170,8 @@ name = "Standards for the reviewer"
 summary = '''
 A short `STANDARDS.md` per repository holding judgement calls only, with pointers to the
 architecture pages that apply; only the standards-reviewer reads it. Each `CLAUDE.md` is reduced
-to navigation pointers.
+to navigation pointers. Each code repository's marathon.toml names `[project] currency` per
+factory.currency's migration recipe.
 '''
 
 [goals.quality.tasks.architecture-diet]
