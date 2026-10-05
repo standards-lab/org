@@ -52,11 +52,12 @@ path = "~/experiments/spike-<slug>"
 remote = "https://github.com/JaimeStill/spike-<slug>.git"
 
 # Remote platform, the command that publishes a finished branch, and the command that
-# merges it once its checks pass.
+# merges it. None of the three repositories runs CI, so the merge waits on no checks
+# (`gh pr checks` exits 1 when a pull request has none).
 # All three repositories rooted in this directory (org here, .github under public/,
 # .github-private under private/) are on GitHub and publish the same way; git routes
 # each commit to its remote by working tree.
 [remote]
 platform = "github"
 publish = "gh pr create"
-merge = "gh pr checks --watch && gh pr merge --merge --delete-branch"
+merge = "gh pr merge --merge --delete-branch"
