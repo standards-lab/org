@@ -9,15 +9,15 @@
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last: CORS waits for v1.client. Outside the exclusive group,
-# experiment.cli-architecture's spike runs beside quality; experiment.ai resumes after slab:
+# experiment.cli-architecture's spike is active beside quality; experiment.ai resumes after slab:
 # spike-model-hosting settles how local models are hosted, then spike-local-models builds on it.
 
 active = [
   "quality",
+  "experiment.cli-architecture.spike-cli-architecture",
 ]
 
 planned = [
-  "experiment.cli-architecture.spike-cli-architecture",
   "cli",
   "slab",
   "experiment.ai.spike-model-hosting",
@@ -658,6 +658,42 @@ initializer hold up in a real CLI over the `blobfs` library, go-storage, and Pos
 `cli`'s tasks: go-cli-sdk's API surface and go-cli-sdk-template's composition root
 (`cli-applications.md`, "The plan"). spike-blobfs is a read-only reference, recorded when `plan`
 sets the spike up.
+'''
+
+[goals.experiment.cli-architecture.spike-cli-architecture.tasks.dispatcher]
+name = "The dispatcher"
+summary = '''
+A command dispatcher on the standard library's `flag`, importing only the standard library and
+go-core, with the planned feature set: flags after positionals, root flags at any depth, a root
+pre-run hook, NoArgs and ExactArgs, required and mutually exclusive flag groups, a set-flag query,
+a repeatable string flag, generated help, and a Run that exits with ExitUsage on usage errors.
+`cmd/` and `internal/app` New/Run carry one dependency-free command. Evidence 1.
+'''
+
+[goals.experiment.cli-architecture.spike-cli-architecture.tasks.composition]
+name = "Per-command dependency composition"
+summary = '''
+Each command declares the dependencies it requires, and one central initializer, driven by
+Config, brings up only those, once per run, closing them in reverse on success, error, and signal.
+A compose stack of Postgres and Azurite on free ports; the schema commands are the first
+Postgres-only consumers. Evidence 3, 4, and 5.
+'''
+
+[goals.experiment.cli-architecture.spike-cli-architecture.tasks.files]
+name = "The files surface"
+summary = '''
+spike-blobfs's files and bookmark commands rebuilt on published blobfs, go-storage/azureblob, and
+Postgres, with black-box integration tests over the built binary (`mise run integration`), the
+layout's buffer-driven app tests and storagetest.Fake domain tests, and a scenario package with
+`list` that declares its dependencies like any command. Evidence 2, 7, and 8.
+'''
+
+[goals.experiment.cli-architecture.spike-cli-architecture.tasks.validate]
+name = "Validate and answer"
+summary = '''
+Runs evidence 1 to 8 end to end, writes the record of each cobra-specific convention and what
+replaced it (evidence 6) and "The answer" in the README, and adds the answer section for
+`cli-applications.md` to the goal record's pending edits.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
