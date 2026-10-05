@@ -3,8 +3,8 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
-# reference-architecture code repositories. quality holds that slot. factory and quality are
-# paused while the intake and planning sessions run; once both sync, v1.messaging stages next, the
+# reference-architecture code repositories. quality holds that slot and is
+# paused while the intake and planning sessions run; once it syncs, v1.messaging stages next, the
 # first work on the 0.16 conventions. cli waits on experiment.cli-architecture, and slab on cli.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
@@ -13,7 +13,6 @@
 # spike-local-models builds on it.
 
 active = [
-  "factory",
   "quality",
   "experiment.ai.spike-model-hosting",
 ]
@@ -51,85 +50,6 @@ backlog = [
   "graduation",
   "staged-query-aggregation",
 ]
-
-# ── factory ────────────────────────────────────────────────────────────────────────────────
-
-[goals.factory]
-name = "The workflow as a software factory"
-root = "claude-plugins"
-repos = ["claude-plugins"]
-summary = '''
-marathon reshaped so the architect engages at two points per task, the plan and the brief, while
-an agent pipeline makes the work good in between: implementer, checks, standards and spec
-review, editor. Goals and tasks become the whole vocabulary of parallel work, with the wave,
-lane, and fold retired. marathon 0.16.0 expresses it; currency and evals remain.
-'''
-context = ["claude-plugins/context/harness-testing.md"]
-
-[goals.factory.tasks.pipeline]
-name = "The pipeline, profiles, commands, and briefs"
-repos = ["claude-plugins"]
-summary = '''
-marathon's next minor release: the plan, build, brief, and ship pipeline with no checkpoints;
-the planner, implementer, standards-reviewer, spec-reviewer, and editor profiles, none pinning a
-model; the architect-facing formats; `close` absorbed into `start` and `review` into the new
-`retro`; the new `status`.
-'''
-
-[goals.factory.tasks.goals]
-name = "Goals as the unit of parallel work"
-repos = ["claude-plugins"]
-summary = '''
-The goal and task primitive, the active, planned, and backlog states, the repository lock in
-place of worktrees, goal records in each goal's root, and sync in place of the fold.
-marathon-roadmap folds into marathon core, and the open lane records migrate.
-'''
-
-[goals.factory.tasks.experiments]
-name = "Spikes as sub-goals, and the intake command"
-summary = '''
-marathon 0.16.1. A spike runs over many sessions, so it is a sub-goal of its experiment, not a
-task: experiment.<topic>.<spike> carries the spike's `remote` and `path`, with the spike's
-repository as `root` and `repos`, and its path as tasks. `marathon experiment` runs once to create
-the experiment with its planned spikes; `plan experiment.<topic>.<spike>` sets each spike up, and
-`start` runs it to the end. Spikes run in parallel, since each locks only its own repository. A
-spike's sync lands its answer and evidence for the intake and stages the next planned spike. A new
-`marathon intake <goal>` takes in a finished experiment: it consolidates every spike's answer,
-decides with the architect what the served goal builds, writes those tasks, and syncs the
-experiment, archiving the spike repositories. The roadmap's experiment.ai and
-experiment.messaging move to the new shape, and spike-harness-driver's 0.15 closeout becomes the
-first spike's record. A workspace goal's last task still syncs at SHIP; its session brief gains a Sync section listing
-the pending edits and the goal proposed to stage next, so accepting the brief authorizes the sync.
-`intake` stays for experiments only. Every session, including `plan`, `experiment`, `intake`, and a
-sync, starts
-on a branch and lands through a pull request; only small administrative context updates go
-straight to the default branch.
-'''
-
-[goals.factory.tasks.currency]
-name = "Currency as a PLAN-time pass"
-repos = ["claude-plugins"]
-summary = '''
-marathon 0.17.0. marathon core gains `[project] currency`, a repository's read-only command that
-exits non-zero and lists, one per line, each direct dependency, toolchain, and pin trailing its
-latest (reference: go-core's `mise run currency`, scripts/currency.sh). PLAN runs it before round
-1: the planner reads the release notes of what trails, round 1 asks adapt-and-adopt questions,
-and the upgrade becomes the brief's first slice. Currency is a development-time session step,
-never a CI gate; it covers direct dependencies and the toolchain, leaving indirect ones to the
-ecosystem's resolver. It is core and language-agnostic, not an extension. A CHANGELOG migration
-recipe names the key per repository. Carries quality.checks' currency decisions, whose record
-sync deletes.
-'''
-
-[goals.factory.tasks.evals]
-name = "Plugin evals as the harness's checks"
-repos = ["claude-plugins"]
-summary = '''
-An `evals/` suite per plugin, fed by observed failures through `retro`, with deterministic
-graders preferred, and `claude plugin eval --threshold 1.0` a required step of the release
-script. Seeds the cases for the new contract. Absorbs the former harness-testing task.
-'''
-context = ["claude-plugins/context/harness-testing.md"]
 
 # ── quality ────────────────────────────────────────────────────────────────────────────────
 
@@ -193,7 +113,7 @@ summary = '''
 A short `STANDARDS.md` per repository holding judgement calls only, with pointers to the
 architecture pages that apply; only the standards-reviewer reads it. Each `CLAUDE.md` is reduced
 to navigation pointers. Each code repository's marathon.toml names `[project] currency` per
-factory.currency's migration recipe.
+marathon 0.17.0's currency migration recipe.
 '''
 
 [goals.quality.tasks.architecture-diet]
@@ -209,6 +129,15 @@ arrives only from validated code. The repository's own `marathon.toml` and `.git
 0.16 here.
 '''
 context = ["architecture/context/standards-audit.md"]
+
+[goals.quality.tasks.release-and-ci]
+name = "Release and CI principles match marathon 0.16.1+"
+repos = ["architecture"]
+summary = '''
+From factory's sync. `standards/go-elemental/principles/release-and-ci.md`: release preparation
+lands through a pull request, not a direct commit to main; a tag whose release failed may be
+deleted and re-pushed at the same version, while a released tag is never re-cut.
+'''
 
 # ── cli ────────────────────────────────────────────────────────────────────────────────────
 
