@@ -119,3 +119,7 @@ imports the root-level packages, and nothing imports in the reverse direction.
 - The layout survives the cobra decision: its layers and conventions are about composition, and
   only the command-library-specific conventions above change, along with the composition root's
   per-command dependencies.
+
+## Answers · experiment.cli-architecture
+
+spike-cli-architecture's answer lands here when its last task syncs.
