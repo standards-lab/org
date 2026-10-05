@@ -3,8 +3,9 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
-# reference-architecture code repositories. quality holds that slot; once factory and quality
-# sync, experiment.messaging and v1.messaging stage next, as the first goals run on the 0.16
+# reference-architecture code repositories. quality holds that slot. cli waits on
+# experiment.cli-architecture, and slab on cli. Once factory and quality sync,
+# experiment.messaging and v1.messaging stage next, as the first goals run on the 0.16
 # conventions. The infrastructure libraries come before the data layer, and the data layer before
 # auth by design: the architect wants to see how the domain layer scales before auth constrains
 # it. Middleware is last: CORS waits for v1.client.
@@ -12,11 +13,12 @@
 active = [
   "factory",
   "quality",
-  "cli",
   "experiment.ai",
 ]
 
 planned = [
+  "cli",
+  "slab",
   "experiment.messaging",
   "v1.messaging",
   "v1.ai",
@@ -199,7 +201,8 @@ repos = ["architecture"]
 summary = '''
 A principle stays only if code expresses it or a check enforces it. Contradicted principles are
 fixed, speculation is cut, `harness/` moves to claude-plugins or goes, and the promotion
-candidates the v1-storage audit recorded land or are dropped. `harness/` and `CLAUDE.md` still
+candidates the v1-storage audit recorded land or are dropped. The command-line SDK tier in
+`repository-topology.md` stays: cli's sdk-decision creates go-cli-sdk. `harness/` and `CLAUDE.md` still
 describe marathon 0.15's mechanics, and `context/promote-on-fit.md` predates the rule that a page
 arrives only from validated code. The repository's own `marathon.toml` and `.gitignore` move to
 0.16 here.
@@ -211,36 +214,33 @@ context = ["architecture/context/standards-audit.md"]
 [goals.cli]
 name = "The CLI application type"
 summary = '''
-The Elemental Architecture's second application type, beside the web service, from the layout
-slab, spike-blobfs, and spike-harness-driver's clutch share. It decides the SDK question, then
-builds the template. The existing workspace CLIs (slab) align to the result; CLIs in
-~/experiments stay as they are, and future spikes start from the template. Active before its
-repositories exist: `sdk-decision` runs as the goal's `plan` session, which names the CLI
-repository, runs `init` there, and sets it as `root` and in `repos` (plus `go-cli-sdk` if the
-decision creates it, and slab if cobra goes), with the goal record created there. The architecture pages the goal settles are drafted in the root's `context/` and sync into
-`architecture` when the goal completes.
+The Elemental Architecture's second application type, beside the web service. sdk-decision is
+settled: cobra goes and CLIs build on the standard library's `flag`. `go-cli-sdk` (root, one
+module, package `cli`, stdlib and go-core only) holds only the command dispatcher: flags after
+positionals, root flags at any depth, a root pre-run hook, NoArgs and ExactArgs, required and
+mutually exclusive flag groups, a set-flag query, a repeatable string flag, generated help, and a
+Run that maps usage errors to go-core's ExitUsage. No shorthand flags, completion, App type, or
+scenario runner. `go-cli-sdk-template` (module rooted at `template/`) scaffolds the layout. The
+composition root starts only the infrastructure every run needs; each command declares the
+dependencies it requires, and one central initializer brings up only those. Waits on
+`experiment.cli-architecture`, which proves that shape; its intake writes this goal's tasks and
+the two public repositories are created then. At sync the repositories join `order`, the
+references catalog, and the exclusive group, and the architecture pages drafted in the root's
+`context/` move into `architecture`. CLIs in ~/experiments (clutch, courier, spike-blobfs) stay
+on cobra; slab aligns in the `slab` goal.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
-[goals.cli.tasks.sdk-decision]
-name = "Decide the CLI application SDK"
-summary = '''
-Whether cobra stays at all. The web service uses plain `net/http` with no framework, and the CLI
-should follow unless cobra earns its place: record what it provides beyond the standard
-library's `flag` (nested commands, persistent flags, help and usage, completion) and what
-reproducing the shared command tree without it costs. Then whether `go-cli-sdk` exists and what
-it holds, and with no SDK, how `topology-and-naming.md` names the template (drafted for the
-sync into `architecture`).
-'''
-context = ["standards-lab/context/cli-applications.md"]
+# ── slab ───────────────────────────────────────────────────────────────────────────────────
 
-[goals.cli.tasks.template]
-name = "The CLI template"
+[goals.slab]
+name = "slab on go-cli-sdk"
+root = "go-web-service"
+repos = ["go-web-service"]
 summary = '''
-`go-cli-sdk-template`, or `go-cli-template` with no SDK, scaffolding the layout in
-`cli-applications.md`, plus the new template repository and `go-cli-sdk` if the decision creates
-it; added to the workspace's `order` and the references catalog. If cobra goes, slab aligns in
-the same goal. Waits on `sdk-decision`.
+go-web-service's `tools/slab` moves off cobra onto go-cli-sdk at its released tag and the
+per-command dependency composition the template settles, and its usage errors exit with
+go-core's ExitUsage instead of 1. Stages once `cli` syncs and the exclusive slot is free.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 

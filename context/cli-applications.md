@@ -1,15 +1,16 @@
 # CLI applications
 
 A command-line tool is the Elemental Architecture's second application type, beside the web
-service. Three tools share one layout:
+service. Four tools share one layout, all on cobra:
 
 - slab (`go-web-service/tools/slab`)
 - spike-blobfs's `blobfs` command
 - spike-harness-driver's `clutch`
+- spike-messaging's `courier`
 
-This note records that layout, the conventions around it, where the three differ, and the plan
-to build the layout into the standard as a template, and possibly an application SDK. The layout
-is provisional until the template builds it.
+This note records that layout, the conventions around it, where the tools differ, and the plan
+to build the layout into the standard as go-cli-sdk and its template. The layout is provisional
+until `experiment.cli-architecture` proves its replacement and the template builds it.
 
 ## The layout
 
@@ -69,7 +70,7 @@ imports the root-level packages, and nothing imports in the reverse direction.
     test package needs moves into `internal/<pkg>test`, as go-elemental's
     `principles/tests-and-docs.md` says; clutch's is `internal/harnesstest`.
 
-## Where the three differ
+## Where the tools differ
 
 - **Signal context:** slab uses go-core's `process.SignalContext`. blobfs and clutch use the
   standard library's `signal.NotifyContext`, which keeps go-core out of a spike's
@@ -83,36 +84,38 @@ imports the root-level packages, and nothing imports in the reverse direction.
 
 ## The plan
 
-- **Does cobra stay?** The web service uses plain `net/http` with no framework, and the CLI
-  should follow unless cobra earns its place. `goals.cli.tasks.sdk-decision` answers this first:
-  - what cobra provides beyond the standard library's `flag`: nested commands, persistent flags
-    inherited down the tree, generated help and usage, `PersistentPreRunE`, shell completion;
-  - what reproducing the layout's command tree on `flag` costs: a small dispatcher over
-    `flag.FlagSet`s, help text, and the persistent-flag inheritance the conventions above lean on.
+`cli`'s sdk-decision is settled (`plan-cli`):
 
-  If cobra goes, slab moves to the result in the same goal. CLIs in `~/experiments` stay as they
-  are, and future spikes start from the template.
-- **go-cli-sdk.** Whether CLIs get an application SDK is undecided. The candidates are:
-  - the `App` skeleton: the cold and hot starts, the error rendering, and the exit code
-  - the scenario runner and its reporter
-  - the base of the output
+- **Cobra goes.** CLIs build on the standard library's `flag`. Cobra fails Go Elemental's
+  no-frameworks line and dependency-sourcing markers 1 (its type is in every caller's signature)
+  and 5 (argument parsing is a preference, kept in-house). The tools use a small part of it and
+  carry code that works around its defaults: silenced errors, `RunE: cmd.Help()` on parents, and
+  tests asserting cobra's message text.
+- **go-cli-sdk** exists, one module, package `cli`, over the standard library and go-core. It
+  holds only the dispatcher:
+  - flags after positionals, root flags at any depth, a root pre-run hook
+  - NoArgs and ExactArgs, required and mutually exclusive flag groups
+  - a set-flag query and a repeatable string flag
+  - generated help: a parent run alone prints help, an unknown subcommand is a usage error
+  - a Run that maps usage errors to go-core's ExitUsage
 
-  A piece moves into the SDK when it fits the SDK, meaning it is expressed in the SDK's terms and
-  depends on nothing above it (the architecture's `context/promote-on-fit.md`), not because
-  several tools repeat it.
-- **The template** is planned either way. It scaffolds a tool with the layout above:
-  - process entry and the composition root's layer files
-  - `output`
-  - one domain with one direct command
-  - one scenario
-  - the tests
-
-  It is named `go-cli-sdk-template` if the SDK exists, following `topology-and-naming.md`, which
-  names a template after its SDK. Otherwise it is `go-cli-template`, and the naming principle
-  would need to allow a template with no SDK.
+  It leaves out shorthand flags, completion, the `App` type (it stays in the template's
+  `internal/app`, as in web), and the scenario runner (scaffolded as the tool's own package,
+  promoted only on fit).
+- **Per-command composition.** `New` builds every layer for every command today, so each
+  command pays for the whole stack. The composition root starts only what every run needs;
+  each command declares the dependencies it requires, and one central initializer brings up
+  only those, once each, closing them in reverse order.
+- **go-cli-sdk-template** scaffolds the layout on go-cli-sdk.
+- **The experiment first.** `experiment.cli-architecture` builds one spike,
+  `spike-cli-architecture`, on real dependencies (the `blobfs` library, go-storage, Postgres)
+  as close to the template as possible, adapting spike-blobfs as a read-only reference. Its
+  intake writes `cli`'s tasks.
+- **slab** aligns in its own `slab` goal once `cli` syncs. clutch, courier, and spike-blobfs
+  stay on cobra; future spikes start from the template.
 
 ## Assumptions
 
 - The layout survives the cobra decision: its layers and conventions are about composition, and
-  only the command-library-specific conventions above change.
-- The layout still fits once spike-messaging adopts it for its checkpoint programs.
+  only the command-library-specific conventions above change, along with the composition root's
+  per-command dependencies.
