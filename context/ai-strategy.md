@@ -102,6 +102,16 @@ For the subagent tasks there are two candidates:
   Anthropic
 - a tool, MCP server, or skill that offloads the work to `pi --print` or directly to llama.cpp
 
+The gateway candidate is agentgateway, the one spike-model-hosting evaluates
+(`ai-hosting.md`, "Gateway candidate: agentgateway"). Its documented Claude Code integration points
+`ANTHROPIC_BASE_URL` at the gateway and maps request model names to providers, so it can stand in
+for a purpose-built router. Its documentation shows only a wildcard model sent to one backend,
+so the spike first proves the split this candidate depends on: in one configuration, a subagent
+profile's model name reaches the local router and the session's own model reaches Anthropic, with
+tool use, streaming, and thinking blocks intact on both paths. If spike-model-hosting settles on
+no gateway, this candidate needs its own gateway in front of the session, which counts against it
+when it is compared with the tool candidate.
+
 `claude-plugins/context/tool-based-skills.md` holds the question the spike tests as open:
 whether structured, repetitive generation moves to a local model behind a schema-validated
 tool, and what would justify it.

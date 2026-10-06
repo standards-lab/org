@@ -522,8 +522,9 @@ path = "~/experiments/spike-model-hosting"
 summary = '''
 Which serving configuration and specification shape hold across both host classes (Strix Halo
 with Vulkan, Dell NVIDIA with CUDA) and all three consumers at once? Decides the `ai-hosting`
-specification: the host-class profile's schema, whether a gateway sits in front of the router,
-and the admin tooling's form (`ai-hosting.md`, "Experiment: spike-model-hosting").
+specification: the host-class profile's schema, whether a gateway (agentgateway the candidate)
+sits in front of the router, and the admin tooling's form (`ai-hosting.md`, "Experiment:
+spike-model-hosting").
 `~/code/personal-agents` is a read-only reference, recorded when `plan` sets the spike up.
 '''
 

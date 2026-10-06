@@ -56,6 +56,33 @@ records it as a reference when it sets the spike up. The spike's answer lands in
 - whether a gateway sits in front of the router
 - the form of the admin tooling
 
+**Gateway candidate: agentgateway.** [agentgateway](https://github.com/agentgateway/agentgateway)
+is the candidate the spike evaluates for the gateway decision, against the bare router. It is an
+Apache 2.0 Rust proxy under the Linux Foundation and runs as a standalone binary, so it fits the
+router's systemd and tailnet-only shape. Its case is that it answers the deferral in
+personal-agents' `capabilities/gateway-proxy.md`: with Claude Code subagents as the second
+client, one endpoint in front of the router could give the three consumers what the tailnet
+boundary does not:
+
+- a separate identity for each consumer (API keys or JWT, with CEL authorization rules)
+- token budgets and rate limits that keep one consumer from exhausting the shared slots
+- OpenTelemetry traces and metrics for each request
+
+The spike records whether it holds:
+
+- **Fidelity.** Pi and go-ai's `model` client run through it to llama.cpp unchanged, and Claude
+  Code's tool use, streaming, and thinking blocks pass intact. Claude Code's experimental beta
+  parameters are rejected ("Extra inputs are not permitted"); the documented workaround,
+  `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`, is a cost the spike weighs.
+- **Cost.** Its memory and latency beside the router, and whether its configuration fits in a
+  host-class profile or stands beside it.
+- **Both host classes.** The same configuration in front of the Vulkan and the CUDA router.
+- **IL6.** Whether a gateway binary is acceptable air-gapped, checked on paper like the harness.
+
+llama.cpp serves the Anthropic Messages API (`/v1/messages`) natively, so the gateway's case
+rests on identity, budgets, routing, and observability, not on translating formats. If none of
+those is needed across the three consumers, the answer is no gateway.
+
 ## Where personal-agents' parts go
 
 - **Into `ai-hosting`**, one specification-level repository:
