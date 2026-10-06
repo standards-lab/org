@@ -95,8 +95,8 @@ The reference architecture is marathon-managed, so every change is a session.
   defect fixed in the same change.
 - A refinement that proves a better pattern promotes outward — into the SDKs and the
   infrastructure libraries, the template, and the standard — so the seeded baseline never
-  drifts from the reference service. The criterion and the coordinated release are
-  `architecture/context/promote-on-fit.md`.
+  drifts from the reference service. The criterion is `architecture/architecture.md`'s sinking
+  rule, and the release is `architecture/principles/independent-releases.md`.
 - A release in a member repository prompts a coordinator-side sweep in the session that follows
   it: the profiles and the references catalog are checked against what the organization now
   ships. Presentation states shipped-versus-planned without pinning versions; each repository's

@@ -38,7 +38,7 @@ identity — they are mutable and not guaranteed unique. The service reads no ro
 scope claim; authorization is decided entirely from the service's own grant model (§2), never from a
 token.
 
-Cryptography is sourced, not hand-rolled (`architecture/context/dependency-sourcing.md`):
+Cryptography is sourced, not hand-rolled (`architecture/standards/go-elemental/principles/dependencies.md`, "Sourcing"):
 `github.com/coreos/go-oidc/v3` is go-auth's verification library. go-auth's own README states its
 admitted dependency line (specification surface, threat model, cryptography) as the enhancement that rule
 requires.

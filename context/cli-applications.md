@@ -87,10 +87,11 @@ imports the root-level packages, and nothing imports in the reverse direction.
 `cli`'s sdk-decision is settled (`plan-cli`):
 
 - **Cobra goes.** CLIs build on the standard library's `flag`. Cobra fails Go Elemental's
-  no-frameworks line and dependency-sourcing markers 1 (its type is in every caller's signature)
-  and 5 (argument parsing is a preference, kept in-house). The tools use a small part of it and
-  carry code that works around its defaults: silenced errors, `RunE: cmd.Help()` on parents, and
-  tests asserting cobra's message text.
+  no-frameworks line and the sourcing markers 1 (its type is in every caller's signature) and 5
+  (argument parsing is a preference, kept in-house) of
+  `architecture/standards/go-elemental/principles/dependencies.md` ("Sourcing"). The tools use a
+  small part of it and carry code that works around its defaults: silenced errors,
+  `RunE: cmd.Help()` on parents, and tests asserting cobra's message text.
 - **go-cli-sdk** exists, one module, package `cli`, over the standard library and go-core. It
   holds only the dispatcher:
   - flags after positionals, root flags at any depth, a root pre-run hook
