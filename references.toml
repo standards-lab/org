@@ -11,10 +11,10 @@
 
 # Standards — named standards that sets of repositories align to. Each
 # [standards.<key>] entry declares one; a member repository's [repos.<key>] entry
-# declares standard = "<key>". A standard derived from another declares
-# derives = "<key>", and architecture names the architecture the standard
-# implements. The definition itself lives in the architecture repository at the
-# definition URL; references.md states the declaration mechanics.
+# declares standard = "<key>", and architecture names the architecture the
+# standard implements. The definition itself lives in the architecture
+# repository at the definition URL; references.md states the declaration
+# mechanics.
 [standards.go-elemental]
 description = "The Go implementation of the Elemental Architecture: a complete reference architecture on the standard library"
 architecture = "elemental-architecture"

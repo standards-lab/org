@@ -75,12 +75,11 @@ records it as a reference when it sets the spike up. The spike's answer lands in
   - the serving conventions: router mode, tailnet-only binding, and presets keyed by capability
     tier rather than by host
 
-  Their place in the layer is decided when they are promoted. The harness pages are the nearest
-  neighbor.
+  Their place in the layer is decided when they are promoted. claude-plugins'
+  tool-based-skills note is the nearest neighbor.
 - **Nowhere**: the state of a particular host. Once a host is set up it needs little attention,
   and anything a build or tuning effort keeps falls outside the workspace. There is no instance
-  repository, so the specification/instance split of `tool-based-skills.md` ("How a
-  specification and an instance separate") has no instance half here.
+  repository, so the specification/instance split of `claude-plugins/context/tool-based-skills.md` has no instance half here.
 
 personal-agents is archived once `ai-hosting` lands, and its README gains a forward link to it.
 
@@ -105,7 +104,7 @@ These are decided once the experiments show what the tooling has to serve.
 
 - **Name.** `outpost` names where the admin sits, not what the tool does.
 - **Form.** Either keep the bash dispatcher, or write a Go CLI layered as specification, tooling,
-  and skill (`tool-based-skills.md`, "The three layers a tooling domain is built in"), with the
+  and skill (`claude-plugins/context/tool-based-skills.md`), with the
   profile schema as its contract.
 - **Host-class differences.** How the tool handles them: GPU usage through `amdgpu_top` versus
   `nvidia-smi`, and Vulkan versus CUDA builds.

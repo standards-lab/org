@@ -31,15 +31,13 @@ repositories declares alignment to. Definitions live in the
 [architecture repository](https://github.com/standards-lab/architecture). Each standard has a
 `[standards.<key>]` entry in `references.toml` with a `definition` URL and the `architecture` it
 implements. A member repository's entry declares `standard = "<key>"`, so membership is declared
-where the repository is cataloged and never listed a second time, and a derived standard
-declares `derives = "<key>"`. A repository also declares its standard in its README's Standard
-section: a link to the definition, and its own principles stated as enhancements.
+where the repository is cataloged and never listed a second time. A repository also declares its
+standard in its README's Standard section: a link to the definition, and its own principles stated
+as enhancements.
 
 A repository belongs to exactly one standard, the one whose author answers for it. Another
 standard that finds its modules sufficient adopts them as ordinary dependencies at pinned
-releases, never as members, per the
-[downward-dependencies](https://github.com/standards-lab/architecture/blob/main/principles/downward-dependencies.md)
-principle.
+releases, never as members.
 
 ### go-elemental
 
@@ -49,14 +47,12 @@ on the standard library. Defined at
 Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk`, and
 `go-web-sdk-template` (released); and `go-web-service`, the reference web service (versionless
 until its 1.0).
-`dotnet-elemental` is anticipated as its derived standard
-(`derives = "go-elemental"`).
 
 ## Effort repositories — Standards Lab
 
 ### claude-plugins
 The plugin host for the organization, mirroring the structure of `tau-marketplace`. Ships the `marathon`
-workflow plugin and its `marathon-architecture` extension. The harness level of the reference architecture.
+workflow plugin and its `marathon-architecture` extension.
 
 ### architecture
 The organization's architecture layer: the canonical home for its architectures, standards,

@@ -10,7 +10,7 @@ described in `ai-hosting.md`.
 | Layer | What it covers | Home |
 |---|---|---|
 | Hosting | Configuring and running the machines that serve local models: the Framework desktop now, the Dell NVIDIA workstations later | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
-| Harness | Local models taking subagent work in Claude Code sessions | claude-plugins and `architecture/harness/`, through `v1.harness.local-models` (planned) |
+| Harness | Local models taking subagent work in Claude Code sessions | claude-plugins (`claude-plugins/context/tool-based-skills.md`), through `v1.harness.local-models` (planned) |
 | Library | `go-ai`: a Go interface for running models and agent sessions from an application, including locally hosted models for application workloads | `go-ai` (`topology-and-naming.md` reserves the name); local models through `v1.ai.local-models` (planned) |
 | Service | go-web-service's AI layer, which demonstrates go-ai | go-web-service's capability map ("AI") |
 
@@ -102,9 +102,9 @@ For the subagent tasks there are two candidates:
   Anthropic
 - a tool, MCP server, or skill that offloads the work to `pi --print` or directly to llama.cpp
 
-`tool-based-skills.md` ("What tooling buys when a model executes a skill") already takes a
-position that the spike tests. It moves generation to a local model only when the work is
-structured, repetitive, and schema-validated, and it treats the offload as a tool.
+`claude-plugins/context/tool-based-skills.md` holds the question the spike tests as open:
+whether structured, repetitive generation moves to a local model behind a schema-validated
+tool, and what would justify it.
 
 **Decision it changes.** Two conventions. `v1.ai.local-models`: how an application uses
 locally hosted models for its workloads. `v1.harness.local-models`: the profile format, the
