@@ -3,21 +3,23 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
-# reference-architecture code repositories. quality has synced, and v1.messaging is next in
-# planned for that slot, the first work on the 0.16 conventions. cli is active with no repositories
-# yet, so it holds no lock, and waits on experiment.cli-architecture's intake; slab waits on cli.
+# reference-architecture code repositories. go-core-graph is next in planned for that slot: it
+# promotes spike-cli-architecture's graph and lifecycle packages into go-core before cli builds.
+# v1.messaging follows it, the first work on the 0.16 conventions. cli is active with no
+# repositories yet, so it holds no lock; it waits on experiment.cli-architecture's intake and on
+# go-core-graph. slab waits on cli.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last: CORS waits for v1.client. Outside the exclusive group,
-# experiment.cli-architecture's spike is active beside cli; experiment.ai resumes after slab:
-# spike-model-hosting settles how local models are hosted, then spike-local-models builds on it.
+# Middleware is last: CORS waits for v1.client. Outside the exclusive group, experiment.ai
+# resumes after slab: spike-model-hosting settles how local models are hosted, then
+# spike-local-models builds on it.
 
 active = [
   "cli",
-  "experiment.cli-architecture.spike-cli-architecture",
 ]
 
 planned = [
+  "go-core-graph",
   "slab",
   "experiment.ai.spike-model-hosting",
   "experiment.ai.spike-local-models",
@@ -51,6 +53,22 @@ backlog = [
   "slab-json-partial-color",
 ]
 
+# ── go-core-graph ──────────────────────────────────────────────────────────────────────────
+
+[goals.go-core-graph]
+name = "The dependency graph in go-core"
+root = "go-core"
+repos = ["go-core"]
+summary = '''
+go-core: the dependency graph, and lifecycle rebuilt as its executor (Coordinator over a System;
+Add and stages retired). spike-cli-architecture's `graph` and `lifecycle` packages are the
+prototype, promoted at the API its validate task left them (`cli-applications.md`, "Answer ·
+experiment.cli-architecture.spike-cli-architecture"). `process/processtest` also gains a one-shot
+runner beside Launch, for CLIs, after the spike's `integration` runner. Runs once
+experiment.cli-architecture completes and before `cli` builds.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
 # ── cli ────────────────────────────────────────────────────────────────────────────────────
 
 [goals.cli]
@@ -66,11 +84,12 @@ scenario runner. `go-cli-sdk-template` (module rooted at `template/`) scaffolds 
 composition root starts only the infrastructure every run needs; each command declares the
 dependencies it requires, and one central initializer brings up only those. Waits on
 `experiment.cli-architecture`, which proves that shape; its intake writes this goal's tasks and
-the two public repositories are created then. At sync the repositories join `order`, the
-references catalog, and the exclusive group, and the architecture pages drafted in the root's
-`context/` move into `architecture`. CLIs in ~/experiments (clutch, courier, spike-blobfs) stay
-on cobra; slab aligns in the `slab` goal. slab will implement the CLI architecture, which leans
-toward startup rooted at the command level, so each command takes only its own startup
+the two public repositories are created then. Builds after `go-core-graph`, which promotes the
+experiment's graph and lifecycle packages into go-core. At sync the repositories join `order`,
+the references catalog, and the exclusive group, and the architecture pages drafted in the
+root's `context/` move into `architecture`. CLIs in ~/experiments (clutch, courier, spike-blobfs)
+stay on cobra; slab aligns in the `slab` goal. slab will implement the CLI architecture, which
+leans toward startup rooted at the command level, so each command takes only its own startup
 dependencies.
 '''
 context = ["standards-lab/context/cli-applications.md"]
@@ -84,7 +103,10 @@ repos = ["go-web-service"]
 summary = '''
 go-web-service's `tools/slab` moves off cobra onto go-cli-sdk at its released tag and the
 per-command dependency composition the template settles, and its usage errors exit with
-go-core's ExitUsage instead of 1. Stages once `cli` syncs and the exclusive slot is free.
+go-core's ExitUsage instead of 1. It also adopts the scenario convention (`cli-applications.md`,
+"Conventions"): its `demo` and `scenario` packages consolidate into `scenario`, `slab demo
+<name>` becomes `slab scenario <name>`, and the help footers of the `scenario` parent and the
+root replace `slab list`. Stages once `cli` syncs and the exclusive slot is free.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
@@ -558,56 +580,6 @@ in `cli-applications.md`. Decides go-cli-sdk's API surface and go-cli-sdk-templa
 root, and writes them as `cli`'s tasks. Its one coordinator pull request writes those tasks and
 removes the experiment; it then archives spike-cli-architecture. spike-blobfs was only a
 read-only reference and is never archived by this intake.
-'''
-
-[goals.experiment.cli-architecture.spike-cli-architecture]
-name = "A CLI on the standard library"
-root = "spike-cli-architecture"
-repos = ["spike-cli-architecture"]
-remote = "https://github.com/JaimeStill/spike-cli-architecture.git"
-path = "~/experiments/spike-cli-architecture"
-summary = '''
-Do a stdlib-`flag` dispatcher with the planned feature set and a per-command dependency
-initializer hold up in a real CLI over the `blobfs` library, go-storage, and Postgres? Decides
-`cli`'s tasks: go-cli-sdk's API surface and go-cli-sdk-template's composition root
-(`cli-applications.md`, "The plan"). spike-blobfs is a read-only reference, recorded when `plan`
-sets the spike up.
-'''
-
-[goals.experiment.cli-architecture.spike-cli-architecture.tasks.dispatcher]
-name = "The dispatcher"
-summary = '''
-A command dispatcher on the standard library's `flag`, importing only the standard library and
-go-core, with the planned feature set: flags after positionals, root flags at any depth, a root
-pre-run hook, NoArgs and ExactArgs, required and mutually exclusive flag groups, a set-flag query,
-a repeatable string flag, generated help, and a Run that exits with ExitUsage on usage errors.
-`cmd/` and `internal/app` New/Run carry one dependency-free command. Evidence 1.
-'''
-
-[goals.experiment.cli-architecture.spike-cli-architecture.tasks.composition]
-name = "Per-command dependency composition"
-summary = '''
-Each command declares the dependencies it requires, and one central initializer, driven by
-Config, brings up only those, once per run, closing them in reverse on success, error, and signal.
-A compose stack of Postgres and Azurite on free ports; the schema commands are the first
-Postgres-only consumers. Evidence 3, 4, and 5.
-'''
-
-[goals.experiment.cli-architecture.spike-cli-architecture.tasks.files]
-name = "The files surface"
-summary = '''
-spike-blobfs's files and bookmark commands rebuilt on published blobfs, go-storage/azureblob, and
-Postgres, with black-box integration tests over the built binary (`mise run integration`), the
-layout's buffer-driven app tests and storagetest.Fake domain tests, and a scenario package with
-`list` that declares its dependencies like any command. Evidence 2, 7, and 8.
-'''
-
-[goals.experiment.cli-architecture.spike-cli-architecture.tasks.validate]
-name = "Validate and answer"
-summary = '''
-Runs evidence 1 to 8 end to end, writes the record of each cobra-specific convention and what
-replaced it (evidence 6) and "The answer" in the README, and adds the answer section for
-`cli-applications.md` to the goal record's pending edits.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
