@@ -61,6 +61,10 @@ imports the root-level packages, and nothing imports in the reverse direction.
   `--harness` in the root's `PersistentPreRunE`.
 - Subcommands are bare words, never prefixed with the capability's name: `demo domain`,
   `scenario resume`.
+- Every CLI's scenarios take one shape. One `scenario` package holds the runner and the
+  scenarios, and `<tool> scenario <name>` runs one. `<tool> scenario` alone prints its help, whose
+  footer lists the scenarios, and the root's help ends with the same listing. A CLI has no `list`
+  command.
 - A tool that sits beside a service or library lives in its own module, so cobra never enters
   the service's dependency graph. slab does this, following the architecture's
   `principles/tool-beside-library.md`.
@@ -112,8 +116,13 @@ imports the root-level packages, and nothing imports in the reverse direction.
   `spike-cli-architecture`, on real dependencies (the `blobfs` library, go-storage, Postgres)
   as close to the template as possible, adapting spike-blobfs as a read-only reference. Its
   intake writes `cli`'s tasks.
-- **slab** aligns in its own `slab` goal once `cli` syncs. clutch, courier, and spike-blobfs
-  stay on cobra; future spikes start from the template.
+- **Promotions before `cli`.** Every library promotion the experiment identifies runs once the
+  experiment completes and before `cli` builds. The `go-core-graph` goal promotes the spike's
+  `graph` and `lifecycle` packages into go-core, and gives `process/processtest` a one-shot
+  runner for CLIs.
+- **slab** aligns in its own `slab` goal once `cli` syncs, adopting the scenario shape in
+  "Conventions". clutch, courier, and spike-blobfs stay on cobra; future spikes start from the
+  template.
 
 ## Assumptions
 
@@ -123,4 +132,51 @@ imports the root-level packages, and nothing imports in the reverse direction.
 
 ## Answers · experiment.cli-architecture
 
-spike-cli-architecture's answer lands here when its last task syncs.
+### Answer · experiment.cli-architecture.spike-cli-architecture
+
+**Question:** Do a stdlib-`flag` dispatcher with the planned feature set and a per-command
+dependency initializer hold up in a real CLI over the `blobfs` library, go-storage, and Postgres?
+
+**Answer:** Yes; a dispatcher on the standard library's `flag` carries spike-blobfs's whole
+command surface, each command brings up only the graph nodes it declares, and the same
+Coordinator runs go-web-service's staged graph.
+
+1. A dispatcher on the standard library's `flag` covers go-cli-sdk's planned feature set. Proven
+   by the running binary; `cli`'s tests alone prove root flags, PreRun, and Exclusive, which
+   blobfs doesn't use.
+2. A CLI with no cobra or pflag in its module graph reproduces spike-blobfs's whole command
+   surface. Proven by the integration suite's `TestScript` over the built binary, and by
+   `go mod graph`.
+3. Each command brings up only the graph nodes it declares. Proven by help, version, and a usage
+   error running with the stack down, and by `internal/app`'s build-recording tests.
+4. Each node comes up once per run and shuts down in reverse, on success, error, and
+   cancellation. Proven by `cli`'s tests and the integration suite, whose `TestAnInterruptedPut`
+   sends SIGINT to the built binary and gets one report.
+5. A dependency that fails to come up is reported once, and what had started is shut down.
+   Proven by `TestUse_FailuresReportedOnce`,
+   `TestInfrastructureIntegration_StoreUnreachableClosesTheDatabase`, and the integration
+   suite's `TestTheStoreUnreachable`.
+6. A record lists each cobra convention and feature spike-blobfs used, with what replaced it.
+   Proven by running both binaries' help and exit codes: [the cobra record](https://github.com/JaimeStill/spike-cli-architecture/blob/main/context/cobra-conventions.md).
+7. The layout's test conventions hold without cobra. Proven only by tests: `internal/app`'s over
+   buffers and `domain/files`'s over `storagetest.Fake`.
+8. A scenario package declares its nodes like any other command. Proven by both scenarios
+   running twice against the development stack, and by the integration suite's `TestScenarios`.
+9. The graph expresses go-web-service's stage table, and the CLI and a service run on one
+   Coordinator. Proven only by tests: `TestWebServiceStageOrder` and `TestWebServiceSubsetBuild`
+   (graph) and `TestRunServesAGraphShapedLikeTheWebService` (lifecycle).
+
+**go-cli-sdk:** the `cli` package's API is the candidate. It adds `Use` with `WithGraph`,
+`Invocation.Get`, `Validate`, `Footer`, and `Streams`, and departs from the plan three times:
+requested help exits 2, there is no `help` or `completion` command, and cobra's `Long` has no
+counterpart.
+
+**go-cli-sdk-template:** `internal/app`'s shape is the candidate composition root. One exported
+`Nodes` value describes the graph, configuration is graph nodes, there is no `config.go`,
+`commands.go`, or central initializer, fixtures live in an internal `apptest` package, and
+`main` imports `cli` for `cli.Streams`.
+
+**Promotion:** promote `graph` and `lifecycle` into go-core at the API as validate left it.
+
+[The answer](https://github.com/JaimeStill/spike-cli-architecture/blob/main/context/README.md#the-answer) ·
+[spike-cli-architecture](https://github.com/JaimeStill/spike-cli-architecture)
