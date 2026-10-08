@@ -154,6 +154,11 @@ object store, holds up when built. Promoted to blobfs.
 Asked whether one broker-agnostic event and reactor contract, on CloudEvents with outbox emission,
 runs on JetStream and in memory. Promoted to go-messaging and go-core's reactor and event packages.
 
+### spike-cli-architecture
+Asked whether a CLI can drop cobra for a dispatcher on the standard library's flag and bring up
+only the dependencies each command declares. Its graph and lifecycle went into go-core, its cli
+package into go-cli-sdk.
+
 ## Prior R&D — Go web service architecture
 
 ### herald

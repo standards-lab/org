@@ -88,6 +88,10 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-messaging.git"
 archived = true
 
+[repos.spike-cli-architecture]
+remote = "https://github.com/JaimeStill/spike-cli-architecture.git"
+archived = true
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"
