@@ -5,7 +5,9 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories. go-core-graph takes that slot first: it
 # promotes spike-cli-architecture's graph and lifecycle into go-core and moves the web stack
-# onto them. Once go-core-graph syncs, cli's plan stages it and sets up go-cli-sdk and
+# onto them. Once go-core-graph syncs, storage-s3 takes the slot for two sessions: it brings
+# spike-s3-storage's s3 provider into go-storage on go-core-graph's go-storage release. Once
+# storage-s3 syncs, cli's plan stages it and sets up go-cli-sdk and
 # go-cli-sdk-template, and experiment.ai.spike-model-hosting (outside the exclusive group)
 # stages beside it, then
 # spike-local-models. slab takes the slot once cli syncs, and v1.messaging follows it, the
@@ -18,6 +20,7 @@ active = [
 ]
 
 planned = [
+  "storage-s3",
   "cli",
   "experiment.ai.spike-model-hosting",
   "slab",
@@ -143,6 +146,47 @@ integration suite passes unchanged, which is the promotion's closing test. Carri
 architecture sync edits and the v1.messaging rewrite in the goal's summary.
 '''
 context = ["standards-lab/context/cli-applications.md"]
+
+# ── storage-s3 ─────────────────────────────────────────────────────────────────────────────
+
+[goals.storage-s3]
+name = "The S3 provider in go-storage"
+repos = ["go-storage"]
+summary = '''
+spike-s3-storage's `s3` module becomes go-storage's second provider sub-module,
+github.com/standards-lab/go-storage/s3, on go-core-graph's go-storage release, with
+SeaweedFS acceptance in CI beside Azurite. It meets azureblob's provider bar (a per-try
+deadline with a Get body that resumes past it, a stated read-ahead bound), and the standard
+tier counts as validated by a second provider. transfermanager, the S3 SDK's transfer
+companion, is a stated v0 exception. At sync the spike enters the references catalog as
+archived and its remote is archived, the architecture pages that name only azureblob
+(release-and-ci, tests-and-docs, dependencies) name s3 too, and service-organization.md's
+"minio ↔ S3" names the S3 provider. Releases s3/v0.1.0.
+'''
+
+[goals.storage-s3.tasks.port]
+name = "The s3 module in go-storage, accepted in CI"
+summary = '''
+Moves spike-s3-storage's s3 module in at its merge (2c53540), requiring go-storage's latest
+release, and adds it to go.work and GO_MODULES. CI's acceptance job starts SeaweedFS
+(chrislusf/seaweedfs:4.48 on an image: line) and runs s3 with S3_TEST_ENDPOINT beside
+azureblob. Adds the seaweedfs:start/stop tasks and s3/CHANGELOG.md with an Unreleased
+section.
+'''
+
+[goals.storage-s3.tasks.hardening]
+name = "s3 at the provider bar, documented and released"
+summary = '''
+try_timeout as a per-try deadline (SDK middleware), with a hand-written Get body that resumes
+past it: a ranged GetObject from the offset, If-Match the ETag, up to max_retries per read.
+transfermanager's GetObject is the rejected alternative: it fails the Get on a broken part,
+adds a HeadObject per Get, and buffers whole parts. A concurrency option, with part_size ×
+concurrency documented as Put's read-ahead; the s3: prefix on a cancelled Put's error. Docs:
+README (second provider; transfermanager's stated exception), design.md (tier validated; an
+AbortIncompleteMultipartUpload lifecycle rule for uploads a killed Put orphans),
+provider-assumptions.md (the three S3 claims' evidence and the SeaweedFS-vs-AWS
+differences), context README, STANDARDS.md. Releases s3/v0.1.0.
+'''
 
 # ── cli ────────────────────────────────────────────────────────────────────────────────────
 
@@ -666,7 +710,7 @@ output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-s
 [goals.second-providers]
 name = "Second providers"
 summary = '''
-Entra for auth, the storage counterpart, a second SQL engine — each proven by a focused
+Entra for auth, a second SQL engine — each proven by a focused
 reference or a real consumer, one session each. A second broker proves go-messaging's standard
 tier, which stays provisional until it does. A second SQL engine includes blobfs's own engine
 sub-module; the NATS object store is a candidate go-storage provider, judged against go-storage's
