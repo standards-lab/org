@@ -5,22 +5,22 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories. go-core-graph takes that slot first: it
 # promotes spike-cli-architecture's graph and lifecycle into go-core and moves the web stack
-# onto them. cli is active with no repositories yet, so it holds no lock. Once go-core-graph
-# syncs, cli's plan sets up go-cli-sdk and go-cli-sdk-template, and
-# experiment.ai.spike-model-hosting (outside the exclusive group) runs beside it, then
+# onto them. Once go-core-graph syncs, cli's plan stages it and sets up go-cli-sdk and
+# go-cli-sdk-template, and experiment.ai.spike-model-hosting (outside the exclusive group)
+# stages beside it, then
 # spike-local-models. slab takes the slot once cli syncs, and v1.messaging follows it, the
 # first work on the 0.16 conventions. The infrastructure libraries come before the data
 # layer, and the data layer before auth by design: the architect wants to see how the domain
 # layer scales before auth constrains it. Middleware is last: CORS waits for v1.client.
 
 active = [
-  "cli",
+  "go-core-graph",
 ]
 
 planned = [
-  "go-core-graph",
-  "slab",
+  "cli",
   "experiment.ai.spike-model-hosting",
+  "slab",
   "experiment.ai.spike-local-models",
   "v1.messaging",
   "v1.ai",
