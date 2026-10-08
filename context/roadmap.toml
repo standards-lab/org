@@ -2,17 +2,16 @@
 # marathon's references/manifest.md, and each active goal's record is context/goals/<goal>.md in
 # its root repository.
 #
-# The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch the
-# reference-architecture code repositories. go-core-graph is next in planned for that slot: it
-# promotes spike-cli-architecture's graph and lifecycle packages into go-core before cli builds.
-# v1.messaging follows it, the first work on the 0.16 conventions. cli is active with no
-# repositories yet, so it holds no lock; it waits on experiment.cli-architecture's intake and on
-# go-core-graph. slab waits on cli.
-# The infrastructure libraries come before the data layer, and the data layer before auth by
-# design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last: CORS waits for v1.client. Outside the exclusive group, experiment.ai
-# resumes after slab: spike-model-hosting settles how local models are hosted, then
-# spike-local-models builds on it.
+# The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
+# the reference-architecture code repositories. go-core-graph takes that slot first: it
+# promotes spike-cli-architecture's graph and lifecycle into go-core and moves the web stack
+# onto them. cli is active with no repositories yet, so it holds no lock. Once go-core-graph
+# syncs, cli's plan sets up go-cli-sdk and go-cli-sdk-template, and
+# experiment.ai.spike-model-hosting (outside the exclusive group) runs beside it, then
+# spike-local-models. slab takes the slot once cli syncs, and v1.messaging follows it, the
+# first work on the 0.16 conventions. The infrastructure libraries come before the data
+# layer, and the data layer before auth by design: the architect wants to see how the domain
+# layer scales before auth constrains it. Middleware is last: CORS waits for v1.client.
 
 active = [
   "cli",
@@ -56,16 +55,92 @@ backlog = [
 # ── go-core-graph ──────────────────────────────────────────────────────────────────────────
 
 [goals.go-core-graph]
-name = "The dependency graph in go-core"
+name = "The dependency graph in go-core and the web stack"
 root = "go-core"
+repos = ["go-core", "go-web-sdk", "go-storage", "go-web-sdk-template", "go-web-service"]
+summary = '''
+go-core gains `graph`, rebuilds `lifecycle` as the graph's executor, and gives
+`process/processtest` a one-shot runner for CLIs. Then the web stack adopts that release:
+go-web-sdk and go-storage adapt, and go-web-sdk-template's and go-web-service's composition
+roots move from the stage table onto the graph. spike-cli-architecture's `graph` and
+`lifecycle` packages are the prototype, promoted at the API its validate task left them
+(`cli-applications.md`, "The plan"). Retired: `Add`, `Service`, the stages, `StageRoot`, and
+Run's timeout parameter. Kept: `OnReady`, `Monitor`, `Ready`, and `Checks`, with readiness
+inferred from `ReadinessChecker`. Shutdown also runs for a subsystem whose Start failed.
+go-database and go-observability break on nothing and take the release at their own
+currency. At sync, architecture's `lifecycle-and-context.md` drops its `lifecycle.Service`
+and `Stage` text and "does not follow it yet", `topology-and-naming.md` drops `stages.go`,
+and the five links to spike-cli-architecture repoint to go-core. Also at sync, v1.messaging's
+core-reactor and template task summaries and `messaging.md`'s "Lifecycle registration" are
+rewritten onto the graph: drain order from the graph's layers, and each value's Err found the
+way the go-core task rules. Runs before `cli` builds.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.go-core-graph.tasks.go-core]
+name = "go-core graph and lifecycle"
 repos = ["go-core"]
 summary = '''
-go-core: the dependency graph, and lifecycle rebuilt as its executor (Coordinator over a System;
-Add and stages retired). spike-cli-architecture's `graph` and `lifecycle` packages are the
-prototype, promoted at the API its validate task left them (`cli-applications.md`, "Answer ·
-experiment.cli-architecture.spike-cli-architecture"). `process/processtest` also gains a one-shot
-runner beside Launch, for CLIs, after the spike's `integration` runner. Runs once
-experiment.cli-architecture completes and before `cli` builds.
+Promotes spike-cli-architecture's `graph` at validate's API (Graph, Define, Replace, Observe,
+Build, Node and its Name, Ref, Scope.Use and Scope.After, System.Get and System.Layers,
+Dependency; standard library only). Rebuilds `lifecycle` as a Coordinator over a
+`graph.System`: New(sys, cfg), Exec and Run, Starter, Stopper, Subsystem, and
+Config.ShutdownTimeout, keeping OnReady, Monitor, Ready, and Checks, with readiness inferred
+from ReadinessChecker. The spike's Coordinator doesn't implement those four, so this task
+designs them: how a node inside the System reaches the Coordinator's readiness, and what
+becomes of OnStartup and OnShutdown. `processtest` gains a one-shot runner beside Launch (args,
+stdin, and env in; stdout, stderr, and exit code out; on Main's build), from the spike's
+integration runner. go-core's existing black-box tests pass, adapted only for the break.
+Releases go-core v0.6.0.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.go-core-graph.tasks.go-storage]
+name = "go-storage on go-core v0.6.0"
+repos = ["go-storage"]
+summary = '''
+Upgrades to go-core v0.6.0 and moves `store_test.go` from `lifecycle.Service` to Starter and
+Stopper. Releases go-storage v0.4.1.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.go-core-graph.tasks.go-web-sdk]
+name = "go-web-sdk on go-core v0.6.0"
+repos = ["go-web-sdk"]
+summary = '''
+Upgrades to go-core v0.6.0; RegisterHealth, the doc example, and the tests move to the new
+Coordinator. Health and readiness endpoints answer exactly as in v0.14.0. Releases go-web-sdk
+v0.15.0.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.go-core-graph.tasks.go-web-sdk-template]
+name = "The web template on the graph"
+repos = ["go-web-sdk-template"]
+summary = '''
+`internal/app` describes its graph in one exported `Nodes` value, as the CLI template does;
+`stages.go` goes, and Run is the Coordinator's Run. The composition root keeps every behavior it has on the stage table: configuration
+loaded at the entrypoint; the same startup order, dependencies before dependents;
+/healthz and /readyz answering as today, readiness held until every ReadinessChecker
+passes; the server's and (in go-web-service) the sweeper's errors monitored, ending the
+run; OnReady firing after startup; and shutdown in reverse order within the configured
+timeout. Each behavior is pinned by a test before the move and still passes after it. Releases template/v0.12.0.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.go-core-graph.tasks.go-web-service]
+name = "go-web-service on the graph"
+repos = ["go-web-service"]
+summary = '''
+`internal/app` moves onto the graph as the template does; telemetry's startup and shutdown
+hooks and the sweeper's error monitor follow the go-core task's ruling. The composition root keeps every behavior it has on the stage table: configuration
+loaded at the entrypoint; the same startup order, dependencies before dependents;
+/healthz and /readyz answering as today, readiness held until every ReadinessChecker
+passes; the server's and (in go-web-service) the sweeper's errors monitored, ending the
+run; OnReady firing after startup; and shutdown in reverse order within the configured
+timeout. Each behavior is pinned by a test before the move and still passes after it. The
+integration suite passes unchanged, which is the promotion's closing test. Carries the
+architecture sync edits and the v1.messaging rewrite in the goal's summary.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
@@ -74,23 +149,44 @@ context = ["standards-lab/context/cli-applications.md"]
 [goals.cli]
 name = "The CLI application type"
 summary = '''
-The Elemental Architecture's second application type, beside the web service. sdk-decision is
-settled: cobra goes and CLIs build on the standard library's `flag`. `go-cli-sdk` (root, one
-module, package `cli`, stdlib and go-core only) holds only the command dispatcher: flags after
-positionals, root flags at any depth, a root pre-run hook, NoArgs and ExactArgs, required and
-mutually exclusive flag groups, a set-flag query, a repeatable string flag, generated help, and a
-Run that maps usage errors to go-core's ExitUsage. No shorthand flags, completion, App type, or
-scenario runner. `go-cli-sdk-template` (module rooted at `template/`) scaffolds the layout. The
-composition root starts only the infrastructure every run needs; each command declares the
-dependencies it requires, and one central initializer brings up only those. Waits on
-`experiment.cli-architecture`, which proves that shape; its intake writes this goal's tasks and
-the two public repositories are created then. Builds after `go-core-graph`, which promotes the
-experiment's graph and lifecycle packages into go-core. At sync the repositories join `order`,
-the references catalog, and the exclusive group, and the architecture pages drafted in the
-root's `context/` move into `architecture`. CLIs in ~/experiments (clutch, courier, spike-blobfs)
-stay on cobra; slab aligns in the `slab` goal. slab will implement the CLI architecture, which
-leans toward startup rooted at the command level, so each command takes only its own startup
-dependencies.
+The Elemental Architecture's second application type, beside the web service. CLIs build on
+the standard library's `flag`, not cobra. `go-cli-sdk` (root, one module, package `cli`,
+standard library and go-core only) is spike-cli-architecture's `cli` package:
+- the dispatcher: flags after positionals, root flags at any depth, a root PreRun, NoArgs
+  and ExactArgs, Require and Exclusive, Changed, StringsVar, generated help
+- Use with WithGraph, so a command builds only the graph nodes it declares
+- Invocation.Get, Validate, Footer, and Streams
+- a Run that exits with go-core's ExitUsage on a usage error and on requested help
+It builds no `help` or `completion` command, no shorthand flags, and no counterpart to
+cobra's Long. `go-cli-sdk-template` (module rooted at `template/`) scaffolds the spike's
+`internal/app`:
+- one exported `Nodes` value, with configuration as graph nodes
+- each layer file fills its part of the graph and mounts its own commands
+- no `config.go`, `commands.go`, or initializer
+- fixtures in an internal `apptest` package
+- `main` passes `cli.Streams` and the arguments
+Builds on go-core-graph's release. cli's first `plan` creates both public repositories. At
+sync they join `order`, the references catalog, and the exclusive group, and the
+architecture pages drafted in the root's `context/` move into `architecture`. clutch,
+courier, and spike-blobfs stay on cobra; slab aligns in the `slab` goal.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.cli.tasks.sdk]
+name = "go-cli-sdk"
+summary = '''
+go-cli-sdk from spike-cli-architecture's `cli` package, at go-core v0.6.0's graph and
+lifecycle, with depguard holding it to the standard library and go-core. Releases v0.1.0.
+'''
+context = ["standards-lab/context/cli-applications.md"]
+
+[goals.cli.tasks.template]
+name = "go-cli-sdk-template"
+summary = '''
+The CLI template on go-cli-sdk v0.1.0, with the composition root in cli's summary, a
+`version` command, one example domain over a stand-in node, the `scenario` package with its
+help footers, apptest, and an integration suite on processtest's one-shot runner. Drafts the
+CLI architecture pages in the root's `context/`. Releases template/v0.1.0.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
@@ -101,12 +197,14 @@ name = "slab on go-cli-sdk"
 root = "go-web-service"
 repos = ["go-web-service"]
 summary = '''
-go-web-service's `tools/slab` moves off cobra onto go-cli-sdk at its released tag and the
-per-command dependency composition the template settles, and its usage errors exit with
-go-core's ExitUsage instead of 1. It also adopts the scenario convention (`cli-applications.md`,
-"Conventions"): its `demo` and `scenario` packages consolidate into `scenario`, `slab demo
-<name>` becomes `slab scenario <name>`, and the help footers of the `scenario` parent and the
-root replace `slab list`. Stages once `cli` syncs and the exclusive slot is free.
+go-web-service's `tools/slab` moves off cobra onto go-cli-sdk at its released tag. It takes
+the template's composition root: commands declare their graph nodes with Use, and
+configuration is nodes. Its usage errors and requested help exit with go-core's ExitUsage.
+It also adopts the scenario convention (`cli-applications.md`, "Conventions"): its `demo`
+and `scenario` packages consolidate into `scenario`, `slab demo <name>` becomes `slab
+scenario <name>`, and the help footers of the `scenario` parent and the root replace `slab
+list`. go-web-service is already on the graph from go-core-graph. Stages once `cli` syncs
+and the exclusive slot is free.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
@@ -561,25 +659,6 @@ On the hosting spike-model-hosting settles, how are locally hosted models used (
 application workloads and (b) for Claude Code subagent tasks, and for which kinds of task is the
 output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-strategy.md`,
 "Experiment: spike-local-models").
-'''
-
-[goals.experiment.cli-architecture]
-name = "The CLI architecture experiment"
-summary = '''
-One spike that proves the shape `cli` builds: a command dispatcher on the standard library's
-`flag` and per-command dependency composition, in a real CLI as close to the planned template as
-possible, then the intake.
-'''
-context = ["standards-lab/context/cli-applications.md"]
-
-[goals.experiment.cli-architecture.tasks.intake]
-name = "The intake"
-summary = '''
-Run by `marathon intake experiment.cli-architecture` once spike-cli-architecture has its answer
-in `cli-applications.md`. Decides go-cli-sdk's API surface and go-cli-sdk-template's composition
-root, and writes them as `cli`'s tasks. Its one coordinator pull request writes those tasks and
-removes the experiment; it then archives spike-cli-architecture. spike-blobfs was only a
-read-only reference and is never archived by this intake.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
