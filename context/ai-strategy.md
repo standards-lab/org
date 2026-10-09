@@ -102,10 +102,11 @@ For the subagent tasks there are two candidates:
   Anthropic
 - a tool, MCP server, or skill that offloads the work to `pi --print` or directly to llama.cpp
 
-The gateway candidate is agentgateway, the one spike-model-hosting evaluates
-(`ai-hosting.md`, "Gateway candidate: agentgateway"). Its documented Claude Code integration points
-`ANTHROPIC_BASE_URL` at the gateway and maps request model names to providers, so it can stand in
-for a purpose-built router. Its documentation shows only a wildcard model sent to one backend,
+The gateway candidate is the gateway spike-model-hosting settles, from agentgateway and LiteLLM,
+the two it compares live with no gateway (`ai-hosting.md`, "Experiment: spike-model-hosting").
+agentgateway's documented Claude Code integration points `ANTHROPIC_BASE_URL` at the gateway and
+maps request model names to providers, so it can stand in for a purpose-built router.
+agentgateway's documentation shows only a wildcard model sent to one backend,
 so the spike first proves the split this candidate depends on: in one configuration, a subagent
 profile's model name reaches the local router and the session's own model reaches Anthropic, with
 tool use, streaming, and thinking blocks intact on both paths. If spike-model-hosting settles on
@@ -124,6 +125,13 @@ gateway is spike-model-hosting's decision; this spike routes through what it set
 **Home.** `~/experiments/spike-local-models`, remote
 [JaimeStill/spike-local-models](https://github.com/JaimeStill/spike-local-models), set up by
 `plan experiment.ai.spike-local-models` once spike-model-hosting has answered.
+
+## Constraint: model origin
+
+Models of Chinese origin are avoided where an alternative serves, because of the risk of
+censorship and of hidden behavior in their weights. The constraint binds spike-model-hosting,
+spike-local-models, and v1.ai. A model of Chinese origin is chosen only when no alternative
+serves, and the choice records why.
 
 ## Answers · experiment.ai
 

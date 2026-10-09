@@ -5,19 +5,19 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories. storage-s3 takes the slot for two
 # sessions: it brings spike-s3-storage's s3 provider into go-storage v0.5.0. Once storage-s3
-# syncs, cli's plan stages it and sets up go-cli-sdk and
-# go-cli-sdk-template, and experiment.ai.spike-model-hosting (outside the exclusive group)
-# stages beside it, then
-# spike-local-models. slab takes the slot once cli syncs, and v1.messaging follows it, the
-# first work on the 0.16 conventions. The infrastructure libraries come before the data
-# layer, and the data layer before auth by design: the architect wants to see how the domain
-# layer scales before auth constrains it. Middleware is last: CORS waits for v1.client.
+# syncs, cli's plan stages it and sets up go-cli-sdk and go-cli-sdk-template. Outside the
+# exclusive group, experiment.ai.spike-model-hosting is active beside whichever goal holds the
+# slot: its Framework tasks run now, its workstation tasks from 2026-10-14, and its admin task
+# waits on go-cli-sdk v0.1.0. Its sync stages spike-local-models. slab takes the slot once cli
+# syncs, and v1.messaging follows it, the first work on the 0.16 conventions. The
+# infrastructure libraries come before the data layer, and the data layer before auth by
+# design: the architect wants to see how the domain layer scales before auth constrains it.
+# Middleware is last: CORS waits for v1.client.
 
-active = ["storage-s3"]
+active = ["storage-s3", "experiment.ai.spike-model-hosting"]
 
 planned = [
   "cli",
-  "experiment.ai.spike-model-hosting",
   "slab",
   "experiment.ai.spike-local-models",
   "v1.messaging",
@@ -619,12 +619,104 @@ repos = ["spike-model-hosting"]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 path = "~/experiments/spike-model-hosting"
 summary = '''
-Which serving configuration and specification shape hold across both host classes (Strix Halo
-with Vulkan, Dell NVIDIA with CUDA) and all three consumers at once? Decides the `ai-hosting`
-specification: the host-class profile's schema, whether a gateway (agentgateway the candidate)
-sits in front of the router, and the admin tooling's form (`ai-hosting.md`, "Experiment:
-spike-model-hosting").
-`~/code/personal-agents` is a read-only reference, recorded when `plan` sets the spike up.
+Which serving platform, configuration, and specification shape hold across both host classes
+(Strix Halo with Vulkan or ROCm, Dell NVIDIA with CUDA) and all three consumers at once? It
+compares llama.cpp, vLLM, and SGLang, records how each is set up and managed and what it makes
+possible, and compares agentgateway and LiteLLM with no gateway. Decides the `ai-hosting`
+specification: the serving platform, the host-class profile's schema, whether a gateway sits in
+front of the serving, and the admin tooling's form (`ai-hosting.md`, "Experiment:
+spike-model-hosting"). Reads personal-agents, spike-harness-driver, tau-examples, and
+tau-protocol. It never touches the architect's laptop beyond the repository, its check,
+read-only probes, and HTTP.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.profile]
+name = "The host-class profile and the Strix Halo llama.cpp profile"
+summary = '''
+Captures the Framework's live router (presets, unit, model list, build) on the Framework as the
+restore point, then defines the host-class profile schema in TOML with a validator and a
+renderer, and the Strix Halo profile: llama.cpp's Vulkan router at its newest upstream release
+(no older than b11452, which EmbeddingGemma 2 needs), pinned exactly in the profile, serving the
+shared model set (gpt-oss-120b, EmbeddingGemma 2 text-only, gemma-4-E4B). The rendered presets
+and unit run the Framework's router; Qwen presets survive only in the restore point. Currency
+reports the profile's pins. Evidence 1.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.consumers]
+name = "Pi, Claude Code, and the go-ai model client at once on the Vulkan router"
+summary = '''
+Installs Pi, Claude Code, and Go on the Framework and runs the three consumers there at once:
+Pi over OpenAI-compatible chat, Claude Code over /v1/messages with tool use, streaming, and
+thinking intact, and spike-harness-driver's `model` package (go-ai's stand-in, at a
+pseudo-version) for chat and embeddings. Checks that no response crosses between concurrent
+requests, and measures footprint, prompt and generation speed at one and four requests,
+prefix-cache reuse, and cold load: the baseline every platform is measured against. Evidence 4
+and 5.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.rocm]
+name = "llama.cpp's ROCm backend against Vulkan"
+summary = '''
+ROCm and llama.cpp's HIP build on the Framework, rendered from the same profile with only the
+backend changed, on the shared model set. Runs the consumer suite and the measurements, including
+the cross-talk llama.cpp #25992 reports for `-np 4 --kv-unified` on gfx1151, and records install,
+update, and management. Evidence 2 to 7.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.engines-strix]
+name = "vLLM and SGLang on Strix Halo"
+summary = '''
+vLLM on gfx1151, through Lemonade's vllm:rocm bundle where that is the simpler install, and
+SGLang time-boxed from its nightly gfx1151 image, each serving the shared model set in its native
+format behind llama-swap, rendered from the profile. Runs the consumer suite and the
+measurements, records setup and management, and fills the capability matrix. Ollama, LM Studio,
+and TGI are recorded on paper. Evidence 2 to 7.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.gateway]
+name = "Gateway approaches in front of the Framework's serving"
+summary = '''
+agentgateway and LiteLLM, each in front of the llama.cpp router and llama-swap, against no
+gateway: fidelity for the three consumers (with the cost of
+CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1), per-consumer identity, token budgets and rate limits,
+OpenTelemetry traces, memory and latency, and whether the gateway's configuration lives in the
+profile. Envoy AI Gateway (Agent Router) and vLLM production-stack on paper; IL6 on paper for
+every platform and gateway. Evidence 8 and 10.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.admin]
+name = "The admin tool on go-cli-sdk"
+summary = '''
+Needs: go-cli-sdk v0.1.0, from cli's sdk task. A CLI on go-cli-sdk that reads the host-class
+profile and runs outpost's verbs (preset install, service restart and status, models, metrics,
+GPU usage, hooks) for every platform kept. outpost is read as the baseline, not rebuilt.
+Evidence 9.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.cuda]
+name = "The CUDA host class"
+summary = '''
+Needs: the Dell NVIDIA workstation (from 2026-10-14). Gathers its specifications, writes its
+CUDA profile, and runs llama.cpp's CUDA router from it on the shared model set; measures
+footprint with nvidia-smi, applies context sizing to discrete VRAM, and runs the consumer suite
+against it. Evidence 2, 5, and 7.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.engines-cuda]
+name = "vLLM and SGLang on CUDA"
+summary = '''
+Needs: the Dell NVIDIA workstation (from 2026-10-14). vLLM and SGLang on CUDA behind llama-swap,
+rendered from the profile, with the consumer suite and the measurements; the gateway
+configurations and the admin tool rerun unchanged against the workstation. Evidence 2 to 9.
+'''
+
+[goals.experiment.ai.spike-model-hosting.tasks.validate]
+name = "Validate and answer"
+summary = '''
+Runs evidence 1 to 10 on both hosts end to end, writes the platform comparison and "The answer"
+in the README, and adds the answer section for `ai-strategy.md` to the goal record's pending
+edits. At spike completion, revert Tailscale SSH to check mode for the Framework and the
+workstation.
 '''
 
 [goals.experiment.ai.spike-local-models]
