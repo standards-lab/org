@@ -44,7 +44,8 @@ task, on the first workstation, available from 2026-10-14.
 The hosting experiment is a new repository, `~/experiments/spike-model-hosting` (remote
 [JaimeStill/spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)), not
 personal-agents itself. It reads personal-agents, spike-harness-driver, tau-examples, and
-tau-protocol, all in the references catalog, and writes to and archives none of them. The spike's
+tau-protocol, all in the references catalog, and archives none of them. It writes only to
+personal-agents and spike-harness-driver, and only in its `align` task. The spike's
 answer lands in `ai-strategy.md`, "Answers · experiment.ai".
 
 **Question.** Which serving platform, configuration, and specification shape hold across both
@@ -69,8 +70,10 @@ For each, it records how the platform is set up and managed, and what it makes p
 swapping, prefix caching, structured output, batching, embeddings, vision, audio, and the
 Anthropic Messages API. Lemonade serves only as an install path for vLLM on Strix Halo. Ollama
 and LM Studio wrap llama.cpp's ggml, and TGI is archived; all three are recorded on paper. The
-shared model set is gpt-oss-120b, EmbeddingGemma 2 (its 270M text model first), and gemma-4-E4B,
-each in its platform's native format, under the model-origin constraint (`ai-strategy.md`).
+main-model pool is gpt-oss-120b (the lead), Mistral Small 4 (a swap candidate), and Gemma 4
+26B-A4B. The shared model set, set A, is gpt-oss-120b, Gemma 4 26B-A4B, gemma-4-E4B, and
+EmbeddingGemma 2, each in its platform's native format, under the model-origin constraint
+(`ai-strategy.md`).
 Every engine and gateway runs its latest upstream release, and each document records the exact
 version in use when it is written.
 
