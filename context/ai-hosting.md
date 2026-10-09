@@ -18,10 +18,17 @@ marathon context project outside the workspace. It configures one host class, th
 Framework desktop:
 
 - **Hardware**: AMD Strix Halo, 128GB of unified memory, about 96GB of it exposed to the GPU.
-- **Serving**: llama.cpp's router in Vulkan mode, run as a systemd service. It binds only to the
-  tailnet, and Tailscale's device authentication is the access boundary.
-- **Models**: Qwen3-Coder-Next at 131k context and gpt-oss-120b at 32k, sharing four slots and a
-  unified KV cache.
+- **Serving**: llama.cpp's router in Vulkan mode, from upstream llama.cpp's release build b11529,
+  run as a systemd service. It binds only to the tailnet, and Tailscale's device authentication
+  is the access boundary.
+- **Models**: spike-model-hosting's starting set, set A, sharing four slots and a unified KV cache:
+  - gpt-oss-120b MXFP4, at 131072 context
+  - Gemma 4 26B-A4B Q4_0, with vision, at 32768 context
+  - gemma-4-E4B Q8_0, with audio, at 32768 context
+  - EmbeddingGemma 2 Q8_0, for embeddings
+
+  With all four loaded and four requests in flight per model, 3.30 GiB of the 96GB GPU pool stays
+  free.
 - **Client**: Pi reaches the router directly through `LLAMA_BASE_URL`.
 
 Its `reference/` directory holds the measured method:
@@ -44,9 +51,9 @@ task, on the first workstation, available from 2026-10-14.
 The hosting experiment is a new repository, `~/experiments/spike-model-hosting` (remote
 [JaimeStill/spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)), not
 personal-agents itself. It reads personal-agents, spike-harness-driver, tau-examples, and
-tau-protocol, all in the references catalog, and archives none of them. It writes only to
-personal-agents and spike-harness-driver, and only in its `align` task. The spike's
-answer lands in `ai-strategy.md`, "Answers · experiment.ai".
+tau-protocol, all in the references catalog, and archives none of them. It wrote to
+personal-agents and spike-harness-driver only in its `align` task. The spike's answer lands in
+`ai-strategy.md`, "Answers · experiment.ai".
 
 **Question.** Which serving platform, configuration, and specification shape hold across both
 host classes (Strix Halo with Vulkan or ROCm, Dell NVIDIA with CUDA) and all three consumers at
@@ -112,7 +119,6 @@ architect's laptop beyond the repository, its check, read-only probes, and HTTP.
   - the host-class profiles and presets
   - the admin tooling
   - the systemd unit, which personal-agents describes but doesn't track
-  - the pacman restart hook
   - a runbook for each host class
 
   It states the settings the architect's own implementation uses, generally enough that another
@@ -122,8 +128,9 @@ architect's laptop beyond the repository, its check, read-only probes, and HTTP.
   - model tiers
   - context sizing
   - the method for measuring memory footprint
-  - the serving conventions: router mode, tailnet-only binding, and presets keyed by capability
-    tier rather than by host
+  - the serving conventions: router mode, tailnet-only binding, presets keyed by capability tier
+    rather than by host, and the tool-call reliability convention (spike-model-hosting's
+    `context/tool-reliability.md`)
 
   Their place in the layer is decided when they are promoted. claude-plugins'
   tool-based-skills note is the nearest neighbor.
