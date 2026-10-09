@@ -575,9 +575,7 @@ spike-model-hosting's align task, and is never archived by this intake.
 [goals.experiment.ai.spike-model-hosting]
 name = "Hosting local models"
 root = "spike-model-hosting"
-# personal-agents and spike-harness-driver are here for the align task only; a plan run drops
-# them once align merges.
-repos = ["spike-model-hosting", "personal-agents", "spike-harness-driver"]
+repos = ["spike-model-hosting"]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 path = "~/experiments/spike-model-hosting"
 summary = '''
@@ -588,9 +586,9 @@ possible, and compares agentgateway and LiteLLM with no gateway. Decides the `ai
 specification: the serving platform, the host-class profile's schema, whether a gateway sits in
 front of the serving, and the admin tooling's form (`ai-hosting.md`, "Experiment:
 spike-model-hosting"). Reads personal-agents, spike-harness-driver, tau-examples, and
-tau-protocol, and writes personal-agents and spike-harness-driver only in its align task. It
-never touches the architect's laptop beyond the repository, its check,
-read-only probes, and HTTP.
+tau-protocol; it wrote personal-agents and spike-harness-driver only in its align task. It
+never touches the architect's laptop beyond the repository, its check, read-only probes, and
+HTTP.
 '''
 
 [goals.experiment.ai.spike-model-hosting.tasks.align]
@@ -612,9 +610,10 @@ Evidence 1.
 name = "The host-class profile and the Strix Halo llama.cpp profile"
 summary = '''
 Defines the host-class profile schema in TOML with a validator and a renderer, and the Strix
-Halo profile: llama.cpp's Vulkan router at the b-number build align installed or a newer one,
+Halo profile: llama.cpp's Vulkan router at the build align installed (b11529) or a newer one,
 pinned exactly in the profile, serving set A (gpt-oss-120b MXFP4, Gemma 4 26B-A4B, gemma-4-E4B,
-EmbeddingGemma 2). The rendered presets and unit run the Framework's router, with no restore
+EmbeddingGemma 2). The schema carries each model's sampling and reasoning settings, taken from
+its model card. The rendered presets and unit run the Framework's router, with no restore
 point. Currency compares the profile's pins against the newest `b<N>` tag. Evidence 1.
 '''
 
@@ -626,9 +625,11 @@ Pi over OpenAI-compatible chat, Claude Code over /v1/messages with tool use, str
 thinking intact, and spike-harness-driver's `model` package (go-ai's stand-in, at a
 pseudo-version) for chat and embeddings. Checks that no response crosses between concurrent
 requests, and measures footprint, prompt and generation speed at one and four requests,
-prefix-cache reuse, and cold load: the baseline every platform is measured against. Probes
-Mistral Small 4 against gpt-oss-120b on /v1/messages and Pi tool calls, with its vision on
-Vulkan, to decide whether it is promoted to the main model. Evidence 4 and 5.
+prefix-cache reuse, and cold load: the baseline every platform is measured against. Measures
+tool-call reliability as pass^k per model, engine, and consumer, against a bar of no invalid
+requests and at least 90% pass^k, and tests each consumer's reasoning round-trip on tool-calling
+turns. Probes Mistral Small 4 against gpt-oss-120b on /v1/messages and Pi tool calls, with its
+vision on Vulkan, to decide whether it is promoted to the main model. Evidence 4 and 5.
 '''
 
 [goals.experiment.ai.spike-model-hosting.tasks.rocm]
@@ -657,8 +658,9 @@ agentgateway and LiteLLM, each in front of the llama.cpp router and llama-swap, 
 gateway: fidelity for the three consumers (with the cost of
 CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1), per-consumer identity, token budgets and rate limits,
 OpenTelemetry traces, memory and latency, and whether the gateway's configuration lives in the
-profile. Envoy AI Gateway (Agent Router) and vLLM production-stack on paper; IL6 on paper for
-every platform and gateway. Evidence 8 and 10.
+profile. Evaluates a bounded resample (one or two tries) and a fallback to another model when a
+parse failure returns a 5xx. Envoy AI Gateway (Agent Router) and vLLM production-stack on
+paper; IL6 on paper for every platform and gateway. Evidence 8 and 10.
 '''
 
 [goals.experiment.ai.spike-model-hosting.tasks.admin]
@@ -692,9 +694,10 @@ configurations and the admin tool rerun unchanged against the workstation. Evide
 name = "Validate and answer"
 summary = '''
 Runs evidence 1 to 10 on both hosts end to end, writes the platform comparison and "The answer"
-in the README, and adds the answer section for `ai-strategy.md` to the goal record's pending
-edits. At spike completion, revert Tailscale SSH to check mode for the Framework and the
-workstation.
+in the README, answers the tool-call reliability convention (spike-model-hosting's
+`context/tool-reliability.md`) for each platform, and adds the answer section for
+`ai-strategy.md` to the goal record's pending edits. At spike completion, revert Tailscale SSH to
+check mode for the Framework and the workstation.
 '''
 
 [goals.experiment.ai.spike-local-models]
