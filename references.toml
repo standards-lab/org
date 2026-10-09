@@ -93,6 +93,10 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-cli-architecture.git"
 archived = true
 
+[repos.spike-s3-storage]
+remote = "https://github.com/JaimeStill/spike-s3-storage.git"
+archived = true
+
 [repos.spike-harness-driver]
 remote = "https://github.com/JaimeStill/spike-harness-driver.git"
 
