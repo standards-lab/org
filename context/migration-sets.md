@@ -27,7 +27,7 @@ second.
 
 A consumer with its own numbered migrations adopts a shipped set in four steps: register the
 shipper's published patterns in its own catalog, build one migrator over the shipper's set followed
-by its own, add the shipper's statements to its own verify stage, and write its own migrations
+by its own, add the shipper's statements to the ones its startup verifies, and write its own migrations
 referencing the shipper's tables, which is safe once the shipper's set is declared ahead of the
 consumer's own. The shipper's set is always at its head before the consumer's own migrations run.
 Starting several replicas of a consumer at once serializes them on the migrator's one lock, and
