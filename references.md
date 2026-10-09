@@ -140,7 +140,8 @@ independently.
 A running spike is a sub-goal of its experiment, `experiment.<topic>.<spike>`, in
 `context/roadmap.toml`, which records its remote and local path; the experiment's intake records
 each spike here and archives its remote. A new spike follows the hosting convention in
-`.claude/marathon.toml`'s `[workspace.experiments]`.
+`.claude/marathon.toml`'s `[workspace.experiments]`. A spike whose sync has landed while its
+experiment awaits intake is listed here unarchived.
 
 ### spike-sql-dsl
 Asked whether the whole SQL-to-Go layer can run on authored SQL files instead of a Go statement
@@ -158,6 +159,12 @@ runs on JetStream and in memory. Promoted to go-messaging and go-core's reactor 
 Asked whether a CLI can drop cobra for a dispatcher on the standard library's flag and bring up
 only the dependencies each command declares. Its graph and lifecycle went into go-core, its cli
 package into go-cli-sdk.
+
+### spike-harness-driver
+Asked whether Go can drive an external agent harness (Pi, Claude Code, OpenCode) as the
+infrastructure for agentic work. Answered yes, with a harness-session and a model-client
+surface; experiment.ai's intake archives it. Its `model` client stands in for go-ai in
+spike-model-hosting.
 
 ## Prior R&D — Go web service architecture
 
@@ -221,3 +228,14 @@ planned). Research-grade, not production-hardened.
 Draw from: the uniform signal envelope; the dot-delimited subject namespace; per-domain contract packages
 (subjects, enums, headers, payloads); the bus abstraction with lifecycle-coordinated draining; the LCA
 lifecycle adapted from Herald. (Deferred to the later events/NATS layer.)
+
+## Prior R&D — local model hosting
+
+### personal-agents
+The architect's self-hosted model setup: a llama.cpp router on the Framework desktop (Strix Halo,
+Vulkan) driven by Pi over Tailscale, the `outpost` admin dispatcher, and a measured reference on
+model tiers, context sizing, and memory footprint. Read-only for experiment.ai; archived once
+`ai-hosting` lands.
+Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
+context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
+outpost's verb set.

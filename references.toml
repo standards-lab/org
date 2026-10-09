@@ -76,6 +76,7 @@ remote = "https://github.com/standards-lab/blobfs.git"
 
 # Experiments — archived spikes. A running spike is a sub-goal of its experiment in
 # context/roadmap.toml, with its remote and path there; the experiment's intake records it here.
+# A spike whose sync has landed while its experiment awaits intake is listed without archived.
 [repos.spike-sql-dsl]
 remote = "https://github.com/JaimeStill/spike-sql-dsl.git"
 archived = true
@@ -91,6 +92,9 @@ archived = true
 [repos.spike-cli-architecture]
 remote = "https://github.com/JaimeStill/spike-cli-architecture.git"
 archived = true
+
+[repos.spike-harness-driver]
+remote = "https://github.com/JaimeStill/spike-harness-driver.git"
 
 # Prior R&D — Go web service architecture.
 [repos.herald]
@@ -133,3 +137,7 @@ remote = "https://github.com/JaimeStill/curiosity.git"
 
 [repos.signal-lab]
 remote = "https://github.com/JaimeStill/signal-lab.git"
+
+# Prior R&D — local model hosting.
+[repos.personal-agents]
+remote = "https://github.com/JaimeStill/personal-agents.git"
