@@ -13,10 +13,9 @@
 # layer, and the data layer before auth by design: the architect wants to see how the domain
 # layer scales before auth constrains it. Middleware is last: CORS waits for v1.client.
 
-active = []
+active = ["storage-s3"]
 
 planned = [
-  "storage-s3",
   "cli",
   "experiment.ai.spike-model-hosting",
   "slab",
@@ -56,6 +55,7 @@ backlog = [
 
 [goals.storage-s3]
 name = "The S3 provider in go-storage"
+root = "go-storage"
 repos = ["go-storage"]
 summary = '''
 spike-s3-storage's `s3` module becomes go-storage's second provider sub-module,
@@ -241,9 +241,7 @@ source of its own, and the composition-root reshape in go-web-service. The stora
 sweep proves the composed authorized listing that the blobfs experiment cannot: the consumer's
 join table driving a blobfs listing under the scope predicate.
 '''
-context = [
-  "standards-lab/context/auth-strategy.md",
-]
+context = ["standards-lab/context/auth-strategy.md"]
 
 [goals.v1.admin-listener]
 name = "The management listener"
@@ -266,7 +264,14 @@ context = [
 
 [goals.v1.messaging]
 name = "Messaging and reactor services"
-repos = ["go-core", "go-messaging", "go-database", "blobfs", "go-web-sdk-template", "go-web-service"]
+repos = [
+  "go-core",
+  "go-messaging",
+  "go-database",
+  "blobfs",
+  "go-web-sdk-template",
+  "go-web-service",
+]
 summary = '''
 The go-messaging infrastructure library with NATS as the declared provider, and the layer that
 makes the service's internal/reactors real: reactor services on the event-driven interface
