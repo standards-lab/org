@@ -13,8 +13,8 @@ The architecture already fixes the vocabulary (`architecture/architecture.md`, "
   defines emission only, and delivery guarantees belong to the messaging system. Events are never
   used inside the application.
 
-`go-web-service/internal/app/reactors.go` is the service's reactors layer, registered on the
-lifecycle coordinator, and `auth-strategy.md` §9 commits grant and identity-link writes to emit
+`go-web-service/internal/app/reactors.go` is the service's reactors layer, which defines each
+reactor as a graph node and appends it to `Nodes.Reactors`, and `auth-strategy.md` §9 commits grant and identity-link writes to emit
 events once this layer lands.
 
 ## Decisions
@@ -54,7 +54,7 @@ events once this layer lands.
 - **The providers are NATS JetStream and an in-memory provider.** The in-memory provider is the
   conformance double and the test double. The standard tier stays provisional until a second real
   broker proves it (`second-providers`), as `service-tiers.md` requires.
-- **A broker constructs without I/O and starts as a stage-0 lifecycle component.** `Start`
+- **A broker constructs without I/O and starts as a lowest-layer graph node.** `Start`
   connects, reconnecting without limit, so an outage makes the broker not ready rather than ending
   the process.
 - **A service's messaging is one `messaging.Runtime`**, built from its `messaging` configuration
@@ -113,18 +113,14 @@ A proven pattern sinks to the lowest level at which it is generic:
 ## Lifecycle registration
 
 Infrastructure joins the lifecycle through `Start`, `Shutdown`, and `Ready` (go-database's pool,
-go-storage's store, the broker), and every composition root copied them into a `lifecycle.Service`
-by hand. `lifecycle` gains `Component` with those three methods, `Monitored`, a component that adds
-`Err`, and `lc.Register(name, stage, c)`, which adds the component with its readiness check and
-monitors `Err` when the component is `Monitored`, found by type assertion. Every spike service
-registered its database, its broker, and its reactors through it. The stage stays at the
-composition root's call site, because it is the process's dependency order, which a library can't
-know; there is no `Stage` type. The coordinator's two error-drop windows (after the signal, and at
-the drain deadline) stay as they are, since the reactor covers both itself.
+go-storage's store, the broker). Under go-core v0.6.0 each is a graph node's value, and the
+Coordinator infers its part: Starter, Stopper, and ReadinessChecker from those methods, and
+Monitored from `Err() <-chan error`. No composition root copies methods into a
+`lifecycle.Service`, and nothing registers. The coordinator's two error-drop windows (after the
+signal, and at the drain deadline) stay as they are, since the reactor covers both itself.
 
-Stages order the drain by what commits events: the database and the broker lowest, then the
-schema and verification stages, then the relay below every reactor that commits events, and the
-server and the producers at the root.
+The graph's layers order the drain: a node drains before every node it uses or orders After, so
+the server drains first, and the database and the broker drain after every node that uses them.
 
 ## The capability ledger
 
