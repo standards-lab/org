@@ -3,18 +3,17 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. storage-s3 takes the slot for two
-# sessions: it brings spike-s3-storage's s3 provider into go-storage v0.5.0. Once storage-s3
-# syncs, cli's plan stages it and sets up go-cli-sdk and go-cli-sdk-template. Outside the
-# exclusive group, experiment.ai.spike-model-hosting is active beside whichever goal holds the
-# slot: its Framework tasks run now, its workstation tasks from 2026-10-14, and its admin task
-# waits on go-cli-sdk v0.1.0. Its sync stages spike-local-models. slab takes the slot once cli
+# the reference-architecture code repositories. cli takes the slot next: its plan stages it and
+# sets up go-cli-sdk and go-cli-sdk-template. Outside the exclusive group,
+# experiment.ai.spike-model-hosting is active beside whichever goal holds the slot: its
+# Framework tasks run now, its workstation tasks from 2026-10-14, and its admin task waits on
+# go-cli-sdk v0.1.0. Its sync stages spike-local-models. slab takes the slot once cli
 # syncs, and v1.messaging follows it, the first work on the 0.16 conventions. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last: CORS waits for v1.client.
 
-active = ["storage-s3", "experiment.ai.spike-model-hosting"]
+active = ["experiment.ai.spike-model-hosting"]
 
 planned = [
   "cli",
@@ -49,49 +48,10 @@ backlog = [
   "graduation",
   "staged-query-aggregation",
   "slab-json-partial-color",
+  "s3-put-memory",
+  "transfermanager-log",
+  "web-service-port-settings",
 ]
-
-# ── storage-s3 ─────────────────────────────────────────────────────────────────────────────
-
-[goals.storage-s3]
-name = "The S3 provider in go-storage"
-root = "go-storage"
-repos = ["go-storage"]
-summary = '''
-spike-s3-storage's `s3` module becomes go-storage's second provider sub-module,
-github.com/standards-lab/go-storage/s3, on go-storage v0.5.0, with
-SeaweedFS acceptance in CI beside Azurite. It meets azureblob's provider bar (a per-try
-deadline with a Get body that resumes past it, a stated read-ahead bound), and the standard
-tier counts as validated by a second provider. transfermanager, the S3 SDK's transfer
-companion, is a stated v0 exception. At sync the spike enters the references catalog as
-archived and its remote is archived, the architecture pages that name only azureblob
-(release-and-ci, tests-and-docs, dependencies) name s3 too, and service-organization.md's
-"minio ↔ S3" names the S3 provider. Releases s3/v0.1.0.
-'''
-
-[goals.storage-s3.tasks.port]
-name = "The s3 module in go-storage, accepted in CI"
-summary = '''
-Moves spike-s3-storage's s3 module in at its merge (2c53540), requiring go-storage's latest
-release, and adds it to go.work and GO_MODULES. CI's acceptance job starts SeaweedFS
-(chrislusf/seaweedfs:4.48 on an image: line) and runs s3 with S3_TEST_ENDPOINT beside
-azureblob. Adds the seaweedfs:start/stop tasks and s3/CHANGELOG.md with an Unreleased
-section.
-'''
-
-[goals.storage-s3.tasks.hardening]
-name = "s3 at the provider bar, documented and released"
-summary = '''
-try_timeout as a per-try deadline (SDK middleware), with a hand-written Get body that resumes
-past it: a ranged GetObject from the offset, If-Match the ETag, up to max_retries per read.
-transfermanager's GetObject is the rejected alternative: it fails the Get on a broken part,
-adds a HeadObject per Get, and buffers whole parts. A concurrency option, with part_size ×
-concurrency documented as Put's read-ahead; the s3: prefix on a cancelled Put's error. Docs:
-README (second provider; transfermanager's stated exception), design.md (tier validated; an
-AbortIncompleteMultipartUpload lifecycle rule for uploads a killed Put orphans),
-provider-assumptions.md (the three S3 claims' evidence and the SeaweedFS-vs-AWS
-differences), context README, STANDARDS.md. Releases s3/v0.1.0.
-'''
 
 # ── cli ────────────────────────────────────────────────────────────────────────────────────
 
@@ -878,4 +838,31 @@ summary = '''
 go-web-service's `tools/slab` `style.JSON` returns partly colored output when the input breaks
 after the first token, though its comment says any tokenizer error returns the input unchanged.
 Fix the code or the comment.
+'''
+
+[goals.s3-put-memory]
+name = "s3 Put's memory held to its read-ahead"
+summary = '''
+A multipart `Put` in go-storage's `s3` provider reads ahead part_size × (concurrency + 2), 48 MiB
+at the defaults, but holds part_size × (concurrency + 3) with a declared size and
+part_size × (concurrency + 4) without one, 56 and 64 MiB, while it starts. transfermanager copies
+the first part out of `Put`'s decision buffer unpooled, and for an unknown size that buffer grows
+by doubling. The outcome holds when `Put` holds no more than it reads ahead.
+'''
+
+[goals.transfermanager-log]
+name = "transfermanager's log output through the application's logger"
+summary = '''
+When a multipart upload's completion fails, transfermanager writes to the standard library's
+`log`, which bypasses the application's logger. go-storage's `s3` provider routes or silences
+that output.
+'''
+
+[goals.web-service-port-settings]
+name = "go-web-service's settings follow its container ports"
+summary = '''
+go-web-service's application settings follow `POSTGRES_PORT` and `AZURITE_BLOB_PORT`, as
+sqlate's `SQLATE_DSN` and blobfs's `BLOBFS_DSN` and `BLOBFS_STORAGE_ENDPOINT` do. Its README
+documents that moving a port splits the two until `APP_DATABASE_PORT` or `APP_STORAGE_ENDPOINT`
+follows.
 '''

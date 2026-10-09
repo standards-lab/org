@@ -160,6 +160,11 @@ Asked whether a CLI can drop cobra for a dispatcher on the standard library's fl
 only the dependencies each command declares. Its graph and lifecycle went into go-core, its cli
 package into go-cli-sdk.
 
+### spike-s3-storage
+Asked whether go-storage's `Client` interface holds over S3, with an aws-sdk-go-v2 provider
+validated against SeaweedFS's S3 gateway, and whether the blobfs CLI runs unchanged on it. Its
+`s3` module became go-storage's `s3` provider.
+
 ### spike-harness-driver
 Asked whether Go can drive an external agent harness (Pi, Claude Code, OpenCode) as the
 infrastructure for agentic work. Answered yes, with a harness-session and a model-client

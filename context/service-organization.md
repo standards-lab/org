@@ -17,8 +17,8 @@ Each infrastructure library declares its swap class when it is built; the antici
   standard tier is OAuth 2.0, OpenID Connect, and JWT; token verification is interchangeable,
   and what a token's claims contain is interchangeable with review. Provider-specific directory
   features are native.
-- **Object storage** — an Azure Blob provider (azurite ↔ Azure Blob) and an S3 provider
-  (minio ↔ S3). No formal standard exists, so the organization establishes the standard tier as
+- **Object storage** — go-storage's `azureblob` provider (Azurite ↔ Azure Blob) and its `s3`
+  provider (SeaweedFS ↔ S3). No formal standard exists, so the organization establishes the standard tier as
   the minimal operation set common to both target APIs; those operations are interchangeable,
   and consistency is interchangeable with review.
 - **SQL** — one provider per engine. Built: `sqlate` with its `postgres` sub-module, and
