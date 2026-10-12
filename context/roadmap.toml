@@ -3,20 +3,19 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. cli takes the slot next: its plan stages it and
-# sets up go-cli-sdk and go-cli-sdk-template. Outside the exclusive group,
-# experiment.ai.spike-model-hosting is active beside whichever goal holds the slot: its
-# Framework tasks run now, its workstation tasks from 2026-10-14, and its admin task waits on
-# go-cli-sdk v0.1.0. Its sync stages spike-local-models. slab takes the slot once cli
-# syncs, and v1.messaging follows it, the first work on the 0.16 conventions. The
+# the reference-architecture code repositories. cli holds the slot: go-cli-sdk is its root, and
+# its first task, role-interfaces, releases go-core v0.8.0 and go-web-sdk v0.15.2. Outside the
+# exclusive group, experiment.ai.spike-model-hosting is active beside cli: its Framework tasks
+# run now, its workstation tasks from 2026-10-14, and its admin task waits on go-cli-sdk
+# v0.1.0. Its sync stages spike-local-models. slab takes the slot once cli syncs, and
+# v1.messaging follows it, the first work on the 0.16 conventions. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last: CORS waits for v1.client.
 
-active = ["experiment.ai.spike-model-hosting"]
+active = ["cli", "experiment.ai.spike-model-hosting"]
 
 planned = [
-  "cli",
   "slab",
   "experiment.ai.spike-local-models",
   "v1.messaging",
@@ -57,7 +56,8 @@ backlog = [
 
 [goals.cli]
 name = "The CLI application type"
-repos = ["go-core", "go-web-sdk", "go-observability", "go-database"]
+root = "go-cli-sdk"
+repos = ["go-cli-sdk", "go-cli-sdk-template", "go-core", "go-web-sdk"]
 summary = '''
 The Elemental Architecture's second application type, beside the web service. CLIs build on
 the standard library's `flag`, not cobra. `go-cli-sdk` (root, one module, package `cli`,
@@ -75,34 +75,40 @@ cobra's Long. `go-cli-sdk-template` (module rooted at `template/`) scaffolds the
 - no `config.go`, `commands.go`, or initializer
 - fixtures in an internal `apptest` package
 - `main` passes `cli.Streams` and the arguments
-Builds on the go-core release its first task, role-interfaces, cuts. cli's first `plan` creates both public repositories. At
-sync they join `order`, the references catalog, and the exclusive group, and the
-architecture pages drafted in the root's `context/` move into `architecture`. clutch,
-courier, and spike-blobfs stay on cobra; slab aligns in the `slab` goal.
+Builds on go-core v0.8.0, which its first task, role-interfaces, releases. Both repositories
+joined `order`, the references catalog, and the exclusive group at cli's first `plan`. At
+sync, the architecture pages drafted in the root's `context/` move into `architecture`.
+clutch, courier, and spike-blobfs stay on cobra; slab aligns in the `slab` goal.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
 [goals.cli.tasks.role-interfaces]
 name = "Role interfaces across the stack"
-repos = ["go-core", "go-web-sdk", "go-observability", "go-database"]
+repos = ["go-core", "go-web-sdk", "go-cli-sdk"]
 summary = '''
-Decides the role-interface findings in `cli-applications.md` ("Role interfaces")
-before go-cli-sdk adds the CLI's own: (a) go-core infers a /readyz check from any
-`Ready() bool`; (b) `web.Doctor`'s home; (c) `lifecycle.Subsystem`, never asserted at
-runtime; (d) the consumer-side `Ready()` in `Source[T]` and admin/storage's `Store`. A
-change (d) rules for go-web-service lands as a pending edit on v1.messaging's
-service-reactors task. The Gate stays with v1.messaging's core-reactor. Also fixes
-go-observability's `Telemetry.Shutdown` after a failed Start (nil providers under go-core
-v0.6.0) and go-database's `lc.Add(lifecycle.Service{...})` doc examples. Its plan
-settles the tags it releases; go-cli-sdk builds on its go-core release.
+Lands the role-interface outcome in `cli-applications.md` ("Role interfaces") before
+go-cli-sdk builds on it. go-core's Coordinator infers a readiness check only from a node value
+that is also a `lifecycle.Starter`, so a value with `Ready() bool` and no `Start` stays out of
+`Checks` and /readyz; go-core releases it as v0.8.0, a breaking minor. go-web-sdk requires
+v0.8.0, rewords `RegisterHealth`'s doc for the rule, and releases v0.15.2. `web.Doctor` stays
+in go-web-sdk, `lifecycle.Subsystem` stays, and `Source[T]` keeps `Ready()`. go-web-service's
+`Wake` comment changes in v1.messaging's service-reactors task, and the Gate stays with
+v1.messaging's core-reactor. go-cli-sdk is in `repos` only for the goal record.
+'''
+proof = '''
+A node value with Ready and no Start is absent from Coordinator.Checks and /readyz, and go-core
+v0.8.0 and go-web-sdk v0.15.2 are tagged.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
 [goals.cli.tasks.sdk]
 name = "go-cli-sdk"
 summary = '''
-go-cli-sdk from spike-cli-architecture's `cli` package, at the graph and lifecycle of
-the go-core release role-interfaces cuts, with depguard holding it to the standard library and go-core. Releases v0.1.0.
+go-cli-sdk from spike-cli-architecture's `cli` package, at go-core v0.8.0's graph and
+lifecycle, with depguard holding it to the standard library and go-core. go-cli-sdk's
+marathon.toml merges with a plain `gh pr merge` until its CI workflow lands; the workflow
+restores the convention's `[remote] merge`, gated on `gh pr checks --watch`, and its `ci`.
+Releases v0.1.0.
 '''
 context = ["standards-lab/context/cli-applications.md"]
 
@@ -309,7 +315,9 @@ summary = '''
 The sweeper and the gate move onto go-core, each component is a graph node whose part go-core
 infers, and
 `sdk/reactor.go` and `sdk/gate.go` are deleted. `domain-architecture.md` and `data-layer.md` drop
-v1.data.evaluation's ruling on the reactor and gate.
+v1.data.evaluation's ruling on the reactor and gate. The `app.Wake` comment in
+`internal/app/reactors.go` drops its reason about any-Ready values, since go-core v0.8.0 infers
+readiness checks only from Starters.
 '''
 context = ["standards-lab/context/messaging.md"]
 
