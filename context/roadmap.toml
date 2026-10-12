@@ -727,11 +727,19 @@ bright orange), the system default through prefers-color-scheme, and a contrast 
 themes. Tags v0.2.0. Evidence 2, 3, 4.
 '''
 
+[goals.experiment.html.spike-html-design.tasks.aesthetic]
+name = "The look: cassette futurism"
+summary = '''
+A modern web and terminal look inspired by cassette futurism: Flexoki values in the hue and role
+model (token names unchanged), a type system with mono headings and chrome, and a designed
+specimen layout, chosen from rendered specimen variants. Tags v0.3.0. Evidence 2, 4.
+'''
+
 [goals.experiment.html.spike-html-design.tasks.toggle]
 name = "The theme toggle"
 summary = '''
 `<theme-toggle>` cycles system, light, and dark, and keeps the choice in localStorage; measures
-whether a stored choice flashes the other theme and what avoiding it costs. Tags v0.3.0.
+whether a stored choice flashes the other theme and what avoiding it costs. Tags v0.4.0.
 Evidence 5.
 '''
 
@@ -739,7 +747,7 @@ Evidence 5.
 name = "The keyboard layer"
 summary = '''
 `keys.js`, one registry with T, ?, j, k, and g, silent in fields and with modifiers, declared
-with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.4.0.
+with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.5.0.
 Evidence 6.
 '''
 
