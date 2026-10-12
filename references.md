@@ -45,8 +45,8 @@ The Go implementation of the Elemental Architecture, the organization's first st
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk`, and
-`go-web-sdk-template` (released); and `go-web-service`, the reference web service (versionless
-until its 1.0).
+`go-web-sdk-template` (released); `go-cli-sdk` and `go-cli-sdk-template` (not yet released); and
+`go-web-service`, the reference web service (versionless until its 1.0).
 
 ## Effort repositories — Standards Lab
 
@@ -109,6 +109,17 @@ packages. Released; depends on the standard library and `go-core`.
 The web service template of the `go-elemental` standard: scaffolds an initial Go Elemental web
 service application with `gonew` from the module rooted at `template/`, built on `go-core` and
 `go-web-sdk` at pinned releases. Released under the `template/` tag prefix.
+
+### go-cli-sdk
+The Application SDK for command-line tools of the `go-elemental` standard: package `cli`, a
+dispatcher on the standard library's `flag` whose commands build only the `go-core` graph nodes
+they declare. Depends on the standard library and `go-core`. Not yet released; v0.1.0 is planned.
+
+### go-cli-sdk-template
+The CLI template of the `go-elemental` standard: scaffolds an initial Go Elemental command-line
+application with `gonew` from the module rooted at `template/`, built on `go-core` and
+`go-cli-sdk` at pinned releases. Not yet released; it is planned to release under the
+`template/` tag prefix.
 
 ### go-web-service
 The reference web service of the `go-elemental` standard: a single cohesive service that composes
