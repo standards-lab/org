@@ -60,6 +60,14 @@ standard = "go-elemental"
 remote = "https://github.com/standards-lab/go-web-sdk-template.git"
 standard = "go-elemental"
 
+[repos.go-cli-sdk]
+remote = "https://github.com/standards-lab/go-cli-sdk.git"
+standard = "go-elemental"
+
+[repos.go-cli-sdk-template]
+remote = "https://github.com/standards-lab/go-cli-sdk-template.git"
+standard = "go-elemental"
+
 [repos.go-web-service]
 remote = "https://github.com/standards-lab/go-web-service.git"
 standard = "go-elemental"

@@ -89,35 +89,32 @@ The record of the cobra-era tools, which the standard replaces:
 
 ## Role interfaces
 
-go-core v0.6.0's Coordinator finds each value's part from its methods, so a role
-interface is a contract every value in a graph can meet by accident. The
-go-core-graph goal took inventory before cli adds the CLI's own:
+go-core's Coordinator finds each graph node value's part from its methods, so a role
+interface is a contract a value can meet by accident. The role interfaces across the stack:
 
 | Interface | Home | Methods | Implemented by | Read by |
 |---|---|---|---|---|
 | Starter | go-core lifecycle | `Start(ctx) error` | database.DB, storage.Store, admin.Service, observability.Telemetry, web.Server, sdk.Reactor | the Coordinator, by assertion |
 | Stopper | go-core lifecycle | `Shutdown(ctx) error` | the same except admin.Service | the Coordinator, by assertion |
 | Subsystem | go-core lifecycle | Starter + Stopper | DB, Store, Telemetry, Server, Reactor | docs and compile-time proofs only |
-| ReadinessChecker | go-core lifecycle | `Ready() bool` | Coordinator, Readiness, DB, Store, admin.Service, Reactor, Waker | `Coordinator.Checks`, by assertion; `web.Doctor` |
+| ReadinessChecker | go-core lifecycle | `Ready() bool` | Coordinator, Readiness, DB, Store, admin.Service, Reactor, Waker | `Coordinator.Checks`, by assertion on a Starter; `web.Doctor` |
 | Monitored | go-core lifecycle | `Err() <-chan error` | web.Server, Reactor | the Coordinator, by assertion |
 | Doctor | go-web-sdk | ReadinessChecker + `Checks()` | Coordinator, Readiness | `RegisterHealth` |
 | Mounter | go-web-sdk | `Handle(pattern, handler)` | http.ServeMux, web.Router | `RegisterHealth` |
 | Source[T] | go-web-service sdk | `Receive`, `Ready() bool` | Waker, Every | Reactor |
 
-No two packages declare the same method set. The candidates, which cli's
-role-interfaces task decides:
+No two packages declare the same method set, and go-cli-sdk declares no role interface of its
+own. The rules for the others:
 
-a. Any `Ready() bool` becomes a /readyz check. A value with Ready in another sense
-   joins the probe: go-web-service hides its Waker behind a value with no Ready.
-b. `web.Doctor` lives in go-web-sdk, though only go-core's two types implement it.
-c. `Subsystem` names Starter plus Stopper, but the Coordinator never asserts it.
-d. `Source[T]` and admin/storage's `Store` declare `Ready()` on the consumer side,
-   which (a) makes a readiness check wherever such a value is a node.
+- **Readiness checks come only from Starters.** go-core v0.8.0, which cli's role-interfaces task
+  releases, infers a readiness check from a node value only when the value is also a `Starter`.
+  A value with `Ready()` in another sense, such as a reactor source, stays out of /readyz.
+- **`web.Doctor` stays in go-web-sdk**, because `RegisterHealth` is its only reader.
+- **`Subsystem` stays** as a composite name for Starter plus Stopper, as `io.ReadWriteCloser`
+  names its parts, though the Coordinator never asserts it.
+- **`Source[T]` keeps `Ready()`**, since a value that is not a Starter no longer joins /readyz.
 
-The Gate's consumer views (`Shared`, `Exclusive`) stay with v1.messaging's
-core-reactor. Two fixes ride along: go-observability v0.1.0's `Telemetry.Shutdown`
-dereferences providers a failed Start never set, which v0.6.0 now reaches, and
-go-database v0.7.0's doc examples still call `lc.Add(lifecycle.Service{...})`.
+The Gate's consumer views (`Shared`, `Exclusive`) stay with v1.messaging's core-reactor.
 
 ## The plan
 
@@ -137,7 +134,7 @@ go-database v0.7.0's doc examples still call `lc.Add(lifecycle.Service{...})`.
   graph brings up only those, once each, closing them in reverse order. The same Coordinator
   runs a web service's graph.
 - **go-cli-sdk-template** scaffolds the composition root in "The layout" on go-cli-sdk.
-- **Promotions first.** go-core v0.6.0 holds `graph`, the graph-backed `lifecycle` with
+- **Promotions first.** go-core holds `graph`, the graph-backed `lifecycle` with
   `Coordinator.Exec` as the one-shot form, and `processtest.Run(t, Cmd{Args, Stdin, Env})
   Result{Stdout, Stderr, Code}`, the one-shot runner go-cli-sdk-template's integration suite
   uses.
