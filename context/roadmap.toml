@@ -11,13 +11,12 @@
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last: CORS waits for v1.client. experiment.html runs beside the active goals,
-# outside the exclusive group: its spikes lock only their own repositories, and
-# spike-html-design is staged next.
+# outside the exclusive group: its spikes lock only their own repositories. spike-html-design is
+# active, and its sync stages spike-html-artifacts.
 
-active = ["slab", "experiment.ai.spike-model-hosting"]
+active = ["slab", "experiment.ai.spike-model-hosting", "experiment.html.spike-html-design"]
 
 planned = [
-  "experiment.html.spike-html-design",
   "experiment.html.spike-html-artifacts",
   "experiment.html.spike-html-go-wasm",
   "experiment.ai.spike-local-models",
@@ -682,10 +681,50 @@ repos = ["spike-html-design"]
 remote = "https://github.com/JaimeStill/spike-html-design.git"
 path = "~/experiments/spike-html-design"
 summary = '''
-Can one tagged, native CSS and JS baseline (herald's layer structure, a flat terminal palette
-generated from all 22 omarchy themes, a theme picker, a keyboard layer) be consumed by version
-from other repositories through jsDelivr? Decides whether the baseline graduates, and where
-(`html-artifacts.md`, "Experiment: spike-html-design").
+Can one tagged, native CSS and JS baseline (herald's layer structure, a Flexoki dark and light
+theme with semantic ANSI 16 hues plus orange, a system-first theme toggle, a keyboard layer) be
+consumed by version from other repositories through jsDelivr? Decides whether the baseline
+graduates, and where (`html-artifacts.md`, "Experiment: spike-html-design").
+'''
+
+[goals.experiment.html.spike-html-design.tasks.layers]
+name = "The layered stylesheet, published by tag"
+summary = '''
+The stylesheet's layers (tokens, reset, theme, components) with herald's scales and token names,
+a specimen page, the check with its headless chromium harness, and the Pages workflow. Tags
+v0.1.0, and a Pages page links it by its pinned jsDelivr URL. Evidence 1, 7.
+'''
+
+[goals.experiment.html.spike-html-design.tasks.themes]
+name = "Flexoki dark and light"
+summary = '''
+The dark and light themes from Flexoki with 18 semantic hue tokens (ANSI 16 plus orange and
+bright orange), the system default through prefers-color-scheme, and a contrast table for both
+themes. Tags v0.2.0. Evidence 2, 3, 4.
+'''
+
+[goals.experiment.html.spike-html-design.tasks.toggle]
+name = "The theme toggle"
+summary = '''
+`<theme-toggle>` cycles system, light, and dark, and keeps the choice in localStorage; measures
+whether a stored choice flashes the other theme and what avoiding it costs. Tags v0.3.0.
+Evidence 5.
+'''
+
+[goals.experiment.html.spike-html-design.tasks.keys]
+name = "The keyboard layer"
+summary = '''
+`keys.js`, one registry with T, ?, j, k, and g, silent in fields and with modifiers, declared
+with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.4.0.
+Evidence 6.
+'''
+
+[goals.experiment.html.spike-html-design.tasks.validate]
+name = "Validate and answer"
+summary = '''
+Evidence 1 to 9 end to end, an earlier pin unchanged after later tags, the sizes raw and
+compressed, "The answer" in the README, and the answer section for `html-artifacts.md` as a
+pending edit. Evidence 8, 9.
 '''
 
 [goals.experiment.html.spike-html-artifacts]
