@@ -80,5 +80,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers and their homes, the
   pivot from tau to external harnesses, the library and harness experiments' questions, and the
   hosting layer's decomposition of personal-agents.
+- `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
+  review loop, the native style baseline, and experiment.html's spikes and answers.
 - `cli-applications.md` — the CLI application type: the layout three tools share, the cobra
   question, and the SDK and template plan.
