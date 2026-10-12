@@ -38,7 +38,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — worker and others — as a consumer earns them.
-  The command-line application type has a goal (`goals.cli`).
+  go-cli-sdk and go-cli-sdk-template serve the command-line application type.
 - Focused reference architectures — the home for provider and engine variants, style variants,
   and references on other application SDKs. A variant is never a switch inside the cohesive
   reference; it is a separate focused reference, created when a consumer demands it and named
@@ -82,5 +82,5 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   hosting layer's decomposition of personal-agents.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
   review loop, the native style baseline, and experiment.html's spikes and answers.
-- `cli-applications.md` — the CLI application type: the layout three tools share, the cobra
-  question, and the SDK and template plan.
+- `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
+  interfaces across the stack, the cobra question, and the SDK and template plan.
