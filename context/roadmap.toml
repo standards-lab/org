@@ -11,11 +11,16 @@
 # v1.messaging follows it, the first work on the 0.16 conventions. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last: CORS waits for v1.client.
+# Middleware is last: CORS waits for v1.client. experiment.html runs beside the active goals,
+# outside the exclusive group: its spikes lock only their own repositories, and
+# spike-html-design is staged next.
 
 active = ["cli", "experiment.ai.spike-model-hosting"]
 
 planned = [
+  "experiment.html.spike-html-design",
+  "experiment.html.spike-html-artifacts",
+  "experiment.html.spike-html-go-wasm",
   "slab",
   "experiment.ai.spike-local-models",
   "v1.messaging",
@@ -719,6 +724,65 @@ On the hosting spike-model-hosting settles, how are locally hosted models used (
 application workloads and (b) for Claude Code subagent tasks, and for which kinds of task is the
 output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-strategy.md`,
 "Experiment: spike-local-models").
+'''
+
+[goals.experiment.html]
+name = "The HTML artifact experiments"
+summary = '''
+Three spikes that settle whether human-facing artifacts (briefs, plan rounds, session briefs,
+reports, demos) are written as HTML beside Markdown, served by GitHub Pages and styled from one
+versioned, native baseline, then one intake. The context/ notes stay Markdown either way.
+'''
+context = ["standards-lab/context/html-artifacts.md"]
+
+[goals.experiment.html.tasks.intake]
+name = "The HTML intake"
+summary = '''
+Run by `marathon intake experiment.html` once spike-html-design, spike-html-artifacts, and
+spike-html-go-wasm have their answers in `html-artifacts.md`. Decides whether the baseline
+graduates and where (the architecture layer or its own standards-lab repository), whether
+v1.harness.sitrep and docs-site publish HTML instead of Jekyll Markdown, whether briefs/ moves
+to HTML, and whether v1.repository-docs and docs-site embed live Go demos. It then archives the
+three spikes.
+'''
+
+[goals.experiment.html.spike-html-design]
+name = "A versioned style baseline"
+root = "spike-html-design"
+repos = ["spike-html-design"]
+remote = "https://github.com/JaimeStill/spike-html-design.git"
+path = "~/experiments/spike-html-design"
+summary = '''
+Can one tagged, native CSS and JS baseline (herald's layer structure, a flat terminal palette
+generated from all 22 omarchy themes, a theme picker, a keyboard layer) be consumed by version
+from other repositories through jsDelivr? Decides whether the baseline graduates, and where
+(`html-artifacts.md`, "Experiment: spike-html-design").
+'''
+
+[goals.experiment.html.spike-html-artifacts]
+name = "HTML artifacts against Markdown"
+root = "spike-html-artifacts"
+repos = ["spike-html-artifacts"]
+remote = "https://github.com/JaimeStill/spike-html-artifacts.git"
+path = "~/experiments/spike-html-artifacts"
+summary = '''
+Do briefs, plan rounds, and reports written as HTML from the shared baseline, served on GitHub
+Pages and reviewed in-session through the screenshot loop, beat Markdown enough to adopt?
+Decides whether v1.harness.sitrep and docs-site publish HTML, and whether briefs/ moves
+(`html-artifacts.md`, "Experiment: spike-html-artifacts").
+'''
+
+[goals.experiment.html.spike-html-go-wasm]
+name = "Live Go demos in the browser"
+root = "spike-html-go-wasm"
+repos = ["spike-html-go-wasm"]
+remote = "https://github.com/JaimeStill/spike-html-go-wasm.git"
+path = "~/experiments/spike-html-go-wasm"
+summary = '''
+Can a page run a workspace Go package live in the browser through GOOS=js WebAssembly at an
+acceptable size, starting with sqlate's standard-library-only base module? Decides whether
+v1.repository-docs and docs-site embed live demos (`html-artifacts.md`, "Experiment:
+spike-html-go-wasm").
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
