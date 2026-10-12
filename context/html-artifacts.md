@@ -50,29 +50,36 @@ session, where Markdown is cheaper in tokens, diffs cleanly, and already renders
     only: mono for chrome, labels, and code, and sans for prose.
   - **Palette.** It is terminal-style and flat, following the herald presentation diagrams
     (`~/code/herald/_project/presentation/assets/design/README.md`).
-    - Each theme supplies background and foreground tiers, `muted`, `accent`, and the 8 hues and
-      their brights, mapped from omarchy's `colors.toml` slots.
+    - Each theme supplies background and foreground tiers, `muted`, `accent`, and 18 hue
+      tokens: the ANSI 16 (black, red, green, yellow, blue, magenta, cyan, white, and each one's
+      bright) plus orange and bright orange. Every hue is named for its color, and every bright
+      is distinct from its normal.
     - There are no tinted fill tokens, because `color-mix()` derives a tint where it is used.
     - There are no shadows; elevation is an outline.
     - Primer is not used, since its layered palette pays off only inside github.com.
-  - **Themes.** All 22 omarchy themes are generated into `[data-theme=<name>]` blocks, the
-    mechanism omarchy.org uses. Each block sets `color-scheme` from its theme's `mode`. The
-    `colors.toml` files are vendored, so CI needs no omarchy install. Under
-    `prefers-color-scheme`, the default is kanagawa in dark mode and flexoki-light in light mode.
-  - **Picker.** A native `<theme-picker>` element keeps the reader's choice in localStorage.
+  - **Themes.** One dark and one light theme, both from Flexoki (stephango.com/flexoki, MIT),
+    which publishes both modes from one scale per hue, orange included. Each sets
+    `color-scheme`, and the baseline ships Flexoki's license notice. omarchy's 22 themes were
+    ruled out: they add a generator and vendored files to every artifact, and their hue slots
+    aren't semantic (hackerman's `red` is green, and no theme has a bright orange).
+  - **Toggle.** A native `<theme-toggle>` cycles system, light, and dark, and keeps the reader's
+    choice in localStorage. With nothing stored, the theme follows the system setting through
+    `prefers-color-scheme`, including when it changes while the page is open.
   - **Keyboard.** `keys.js` holds one registry of single-key bindings.
     - Bindings never fire while typing in a field or with a modifier held.
     - Each binding is declared with `aria-keyshortcuts` and listed in a `?` help dialog.
     - It ships T (theme), ? (help), j and k (next and previous section), and g (top). Artifacts
       register their own keys.
     - claude.dev's article pages are the reference: bracketed key hints on navigation, a section
-      tree with reading progress, and arrow-key scrolling.
+      tree with reading progress, and arrow-key scrolling. The baseline ships the key-hint
+      styling; the section tree is spike-html-artifacts' to build.
 
 ## Experiment: spike-html-design
 
 Can one tagged, native CSS and JS baseline be consumed by version from other repositories? It
 is built as described under "Style baseline" and runs first, because the other two spikes link
-to it. Decides whether the baseline graduates, and where: the architecture layer, beside
+to it. It deploys the first Pages workflow, which the other two spikes copy, and tags a minor
+version per task, so a page pinned to an earlier tag can be shown unchanged. Decides whether the baseline graduates, and where: the architecture layer, beside
 docs-site's diagram and voice standards, or its own standards-lab repository.
 
 ## Experiment: spike-html-artifacts
