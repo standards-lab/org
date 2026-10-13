@@ -76,11 +76,17 @@ session, where Markdown is cheaper in tokens, diffs cleanly, and already renders
 
 ## Experiment: spike-html-design
 
-Can one tagged, native CSS and JS baseline be consumed by version from other repositories? It
-is built as described under "Style baseline" and runs first, because the other two spikes link
-to it. It deploys the first Pages workflow, which the other two spikes copy, and tags a minor
-version per task, so a page pinned to an earlier tag can be shown unchanged. Decides whether the baseline graduates, and where: the architecture layer, beside
-docs-site's diagram and voice standards, or its own standards-lab repository.
+Can one tagged, native baseline of swappable design facets be consumed by version, as a git-tag
+package and through a pinned CDN URL, and extended by other packages? Color, space, and type are
+facets, families of tokens that each take one of several profiles, over layers that style native
+elements and add opt-in tool classes. The spike runs first, because the other two spikes link to
+it. It deploys the first Pages workflow, which the other two spikes copy, and tags a minor
+version per task, so a page pinned to an earlier tag can be shown unchanged. "Style baseline"
+describes the design the spike started from; the answer rewrites it.
+
+Decides whether the baseline graduates, and where: the architecture layer, beside docs-site's
+diagram and voice standards, or its own standards-lab repository. Its packaging, a git-tag
+package that other packages extend, is also an input to v1.client.
 
 ## Experiment: spike-html-artifacts
 
