@@ -33,8 +33,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   blueprint governing the organizations it graduates.
 - A baseline catalog and a conformance suite.
 - The full source-control topology.
-- Documentation, diagram, and voice standards, and the organization documentation site that
-  serves the architecture repository's content (`goals.docs-site`).
+- Documentation, diagram, and voice standards, and the Pages sites that serve the architecture
+  repository's and each repository's documentation (`goals.v1.client`, `web-client.md`).
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — worker and others — as a consumer earns them.
