@@ -33,8 +33,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   blueprint governing the organizations it graduates.
 - A baseline catalog and a conformance suite.
 - The full source-control topology.
-- Documentation, diagram, and voice standards, and the organization documentation site that
-  serves the architecture repository's content (`goals.docs-site`).
+- Documentation, diagram, and voice standards, and the Pages sites that serve the architecture
+  repository's and each repository's documentation (`goals.v1.client`, `web-client.md`).
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — worker and others — as a consumer earns them.
@@ -82,5 +82,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   hosting layer's decomposition of personal-agents.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
   review loop, the native style baseline, and experiment.html's spikes and answers.
+- `web-client.md` — the web client strategy: the stack's layers and what each owns, its
+  consumers, where HTML is used, and the sequence from experiment.html to v1.client.
 - `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
   interfaces across the stack, the cobra question, and the SDK and template plan.
