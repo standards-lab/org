@@ -20,7 +20,7 @@ stack, and the plan that built the shape into the standard as go-cli-sdk and its
 The architecture's
 [CLI applications](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/cli-applications.md)
 page states the layout and conventions every CLI follows, and go-cli-sdk-template scaffolds
-them. The slab goal relies on two of them:
+them. slab follows them, including these two:
 
 - Scenarios are opt-in. A tool that has them keeps them in one root-level `scenarios` package and
   runs them on go-cli-sdk's `scenario` runner.
@@ -28,17 +28,23 @@ them. The slab goal relies on two of them:
 
 ## Where the tools differ
 
-The record of the cobra-era tools, which the standard replaces:
+The record of the tools that came before the standard. slab now runs on go-cli-sdk v0.2.0, with a
+composition root modeled on go-cli-sdk-template's, and follows the scenario convention: its
+root-level `scenarios` package runs on go-cli-sdk's `scenario` runner as `slab scenario <name>`,
+and the root's and the `scenario` parent's help both end with the listing. blobfs and clutch stay
+on cobra:
 
 - **Signal context:** slab uses go-core's `process.SignalContext`. blobfs and clutch use the
   standard library's `signal.NotifyContext`, which keeps go-core out of a spike's
   dependencies.
 - **Infrastructure lifetime:** blobfs opens connections during a run, and `Run` closes them.
   Neither slab's nor clutch's infrastructure opens anything that outlives a command.
-- **Scenarios:** slab keeps the runner in `scenario` and the scenarios in `demo`, and colors
-  its reporter. clutch keeps both in `scenario`, with a plain reporter over `output`.
+- **Scenarios:** clutch keeps both its runner and its scenarios in `scenario`, with a plain
+  reporter over `output`.
 - **Presentation flags:** each tool reads its color and verbosity flags into the output in its
-  own way.
+  own way. slab reads color from its `no color` node (`--no-color`, `SLAB_NO_COLOR`) and from
+  `NO_COLOR`, and colors only the blocks a scenario step prints through Show, never a heading, a
+  note, or a caption.
 
 ## Role interfaces
 
@@ -47,7 +53,7 @@ interface is a contract a value can meet by accident. The role interfaces across
 
 | Interface | Home | Methods | Implemented by | Read by |
 |---|---|---|---|---|
-| Starter | go-core lifecycle | `Start(ctx) error` | database.DB, storage.Store, admin.Service, observability.Telemetry, web.Server, sdk.Reactor | the Coordinator, by assertion |
+| Starter | go-core lifecycle | `Start(ctx) error` | database.DB, storage.Store, admin.Service, observability.Telemetry, web.Server, sdk.Reactor, slab's scenarios.Service and scenarios.Grafana | the Coordinator, by assertion |
 | Stopper | go-core lifecycle | `Shutdown(ctx) error` | the same except admin.Service | the Coordinator, by assertion |
 | Subsystem | go-core lifecycle | Starter + Stopper | DB, Store, Telemetry, Server, Reactor | docs and compile-time proofs only |
 | ReadinessChecker | go-core lifecycle | `Ready() bool` | Coordinator, Readiness, DB, Store, admin.Service, Reactor, Waker | `Coordinator.Checks`, through ReadyStarter; `web.Doctor` |
@@ -94,8 +100,7 @@ The Gate's consumer views (`Shared`, `Exclusive`) stay with v1.messaging's core-
   `Coordinator.Exec` as the one-shot form, and `processtest.Run(t, Cmd{Args, Stdin, Env})
   Result{Stdout, Stderr, Code}`, the one-shot runner go-cli-sdk-template's integration suite
   uses.
-- **slab** aligns in its own `slab` goal, adopting the conventions in "The layout and
-  conventions". clutch, courier, and spike-blobfs stay on cobra; future spikes start from the
+- **slab** follows the conventions in "The layout and conventions". clutch, courier, and spike-blobfs stay on cobra; future spikes start from the
   template.
 - **The evidence** is spike-cli-architecture (archived):
   [the answer](https://github.com/JaimeStill/spike-cli-architecture/blob/main/context/README.md#the-answer).
