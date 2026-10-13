@@ -24,6 +24,7 @@ exclusive = [
     "go-web-sdk",
     "go-observability",
     "go-storage",
+    "go-messaging",
     "blobfs",
     "go-cli-sdk",
     "go-web-sdk-template",
@@ -42,6 +43,7 @@ order = [
     "go-web-sdk",       # web service application SDK
     "go-observability", # observability infrastructure library
     "go-storage",       # object storage infrastructure library
+    "go-messaging",     # messaging infrastructure library
     "blobfs",           # virtual-directory metadata library, adjacent to the standard
     "go-cli-sdk",       # CLI application SDK
   ],

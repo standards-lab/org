@@ -113,9 +113,9 @@ A proven pattern sinks to the lowest level at which it is generic:
 ## Lifecycle registration
 
 Infrastructure joins the lifecycle through `Start`, `Shutdown`, and `Ready` (go-database's pool,
-go-storage's store, the broker). Under go-core v0.6.0 each is a graph node's value, and the
-Coordinator infers its part: Starter, Stopper, and ReadinessChecker from those methods, and
-Monitored from `Err() <-chan error`. No composition root copies methods into a
+go-storage's store, the broker). Under go-core v0.8.0 each is a graph node's value, and the
+Coordinator infers its part: Starter and Stopper from those methods, a readiness check only from a
+`ReadyStarter` (a Starter that also has `Ready`), and Monitored from `Err() <-chan error`. No composition root copies methods into a
 `lifecycle.Service`, and nothing registers. The coordinator's two error-drop windows (after the
 signal, and at the drain deadline) stay as they are, since the reactor covers both itself.
 

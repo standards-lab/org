@@ -3,8 +3,8 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. The slot is free: v1.messaging takes it next, the
-# first work on the 0.16 conventions, once `marathon plan v1.messaging` sets its root. Outside the
+# the reference-architecture code repositories. v1.messaging holds it, rooted in go-messaging;
+# its goal record orders the tasks, core-reactor first. Outside the
 # exclusive group, experiment.ai.spike-model-hosting is active: its Framework tasks run now, its
 # workstation tasks from 2026-10-14, and its admin task can run, since go-cli-sdk v0.1.0, which it
 # waited on, is released. Its sync stages spike-local-models. The
@@ -14,13 +14,16 @@
 # outside the exclusive group: its spikes lock only their own repositories. spike-html-design is
 # active, and its sync stages spike-html-artifacts.
 
-active = ["experiment.ai.spike-model-hosting", "experiment.html.spike-html-design"]
+active = [
+  "experiment.ai.spike-model-hosting",
+  "experiment.html.spike-html-design",
+  "v1.messaging",
+]
 
 planned = [
   "experiment.html.spike-html-artifacts",
   "experiment.html.spike-html-go-wasm",
   "experiment.ai.spike-local-models",
-  "v1.messaging",
   "v1.ai",
   "v1.data",
   "v1.auth",
@@ -141,6 +144,7 @@ context = [
 
 [goals.v1.messaging]
 name = "Messaging and reactor services"
+root = "go-messaging"
 repos = [
   "go-core",
   "go-messaging",
@@ -155,27 +159,32 @@ makes the service's internal/reactors real: reactor services on the event-driven
 messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
 a CloudEvents envelope, outbox emission, inbox idempotency, and a source-agnostic reactor
 contract, with go-core gaining the `reactor` and `event` primitives, as spike-messaging proved
-(archived). go-messaging is new: this goal's first `plan` runs its init and adds it to the
+(archived). go-messaging was created by this goal's first `plan`, which added it to the
 workspace order, the exclusive group, and the catalog.
 '''
 context = ["standards-lab/context/messaging.md"]
 
 [goals.v1.messaging.tasks.core-reactor]
 name = "go-core reactor"
-repos = ["go-core"]
+repos = ["go-core", "go-messaging"]
 summary = '''
-go-core gains a `reactor` package, and releases. `reactor`
-is go-web-service's `sdk.Reactor`, which matches spike-messaging's `core/reactor` line for line:
-the source contract, `Draining(ctx)`, the `Every` (schedule) and `Wake`/`Waker` (demand, interval
-as backstop) flavors, plus the spike's `GraceWithin(drain)` at half the drain timeout. It also
-takes `sdk.Gate`, the context-aware readers-writer quiesce gate that prefers its exclusive side,
-as `reactor.Gate`: `sync.RWMutex` can't honor a context, and `x/sync/semaphore` breaks go-core's
-standard-library-only line. go-core v0.6.0 already ships `lifecycle.Monitored`, found by type
-assertion and read once startup completes, and infers `Checks` from `ReadinessChecker`, so
-`lifecycle` gains nothing: a value implementing `Subsystem`, `ReadinessChecker`, and `Monitored`
-supersedes `Component` and `lc.Register(name, stage, c)`. The coordinator's two error-drop
-windows stay as they are, since the reactor covers both (`messaging.md`, "Lifecycle
-registration"). The task's plan settles the reactor's shape.
+go-core gains a `reactor` package on the standard library alone, and releases v0.9.0. It ports
+go-web-service's `sdk.Reactor` and `sdk.Gate` unchanged in behavior: the source contract,
+`Draining(ctx)`, `Grace`, the `Every` (schedule) and `Wake`/`Waker` (demand, interval as
+backstop) sources, and `Gate`, the context-aware readers-writer quiesce gate that prefers its
+exclusive side, as `reactor.Gate` (`sync.RWMutex` can't honor a context, and `x/sync/semaphore`
+breaks go-core's standard-library-only line). It adds spike-messaging's `GraceWithin(drain)`, half
+the drain timeout; the spike's reactor had neither `Draining` nor `Wake`. `reactor` imports
+neither `lifecycle` nor `graph`, and `lifecycle` gains nothing: under go-core v0.8.0 a Reactor is
+a `Subsystem`, a `ReadyStarter`, and `Monitored`, so the Coordinator starts it, drains it, checks
+it, and watches it with no registration. go-core's context capability map is brought current: seven
+packages, and a lifecycle that runs the graph's layers rather than stages. go-messaging is in
+`repos` only for the goal record.
+'''
+proof = '''
+A Reactor as a graph node's value is started, drained, checked, and monitored by
+lifecycle.Coordinator with no registration; Gate's waiting Exclusive bars new Shared holders;
+reactor imports only the standard library; go-core v0.9.0 is tagged.
 '''
 context = ["standards-lab/context/messaging.md"]
 
