@@ -6,19 +6,21 @@ effectiveness of HTML" (claude.dev/blog, 2026-05-20). It argues that HTML wins o
 interactivity, navigating long documents, and sharing by link. It concedes the token cost, and
 it doesn't address diffability, hosting, or access control.
 
-experiment.html answers the question in three spikes. Its intake decides what these goals
-adopt:
+experiment.html answers the question in five spikes, run one at a time. Planning on 2026-10-13
+widened it from artifacts to the whole client stack, and `web-client.md` holds that strategy.
+Its intake decides what these goals adopt:
 
-- docs-site
-- v1.harness.sitrep
-- the coordinator's briefs/
+- v1.client
 - v1.repository-docs
+- v1.harness.sitrep
 
 ## Scope
 
-HTML is for human-facing artifacts only: briefs, plan rounds, session briefs, PR reviews,
-explainers, reports, and demos. The `context/` notes stay Markdown. Agents load them every
-session, where Markdown is cheaper in tokens, diffs cleanly, and already renders on github.com.
+HTML is for persistent artifacts only: reports, stats updates, explainers, and demos, hosted in
+the coordinator or a repository's Pages site. Workflow outputs (task briefs, plan rounds,
+session briefs) stay Markdown, as the architect ruled on 2026-10-13. So do the `context/` notes, which
+agents load every session, where Markdown is cheaper in tokens, diffs cleanly, and already
+renders on github.com.
 
 ## Settled for the spikes
 
@@ -30,8 +32,8 @@ session, where Markdown is cheaper in tokens, diffs cleanly, and already renders
   - Cloudflare Pages is revisited only if per-PR preview URLs prove necessary.
 - **Build.** None. Pages are hand-written HTML, CSS, and ES modules, with custom elements and no
   framework. A page works the same from `file://`, from a local server, and on Pages, and the
-  Pages workflow uploads a directory. bun + Lit, herald's client stack, stays the choice for
-  applications (v1.client).
+  Pages workflow uploads a directory. No Jekyll and no site generator. The stack for
+  applications, herald's bun + Lit or something else, is spike-html-apps' to settle.
 - **In-session review.**
   - A headless chromium screenshot is shown inline with
     `kitty +kitten icat --transfer-mode=stream` in a herdr or tmux pane. tmux passes the image
@@ -72,29 +74,43 @@ session, where Markdown is cheaper in tokens, diffs cleanly, and already renders
       register their own keys.
     - claude.dev's article pages are the reference: bracketed key hints on navigation, a section
       tree with reading progress, and arrow-key scrolling. The baseline ships the key-hint
-      styling; the section tree is spike-html-artifacts' to build.
+      styling; the section tree is spike-html-hosting's to build.
 
 ## Experiment: spike-html-design
 
 Can one tagged, native baseline of swappable design facets be consumed by version, as a git-tag
 package and through a pinned CDN URL, and extended by other packages? Color, space, and type are
 facets, families of tokens that each take one of several profiles, over layers that style native
-elements and add opt-in tool classes. The spike runs first, because the other two spikes link to
-it. It deploys the first Pages workflow, which the other two spikes copy, and tags a minor
+elements and add opt-in tool classes. The spike runs first, because the other spikes link to
+it. It deploys the first Pages workflow, which the other spikes copy, and tags a minor
 version per task, so a page pinned to an earlier tag can be shown unchanged. "Style baseline"
 describes the design the spike started from; the answer rewrites it.
 
-Decides whether the baseline graduates, and where: the architecture layer, beside docs-site's
-diagram and voice standards, or its own standards-lab repository. Its packaging, a git-tag
+Decides whether the baseline graduates, and where: the architecture layer, beside the diagram
+and voice standards, or its own standards-lab repository. Its packaging, a git-tag
 package that other packages extend, is also an input to v1.client.
 
-## Experiment: spike-html-artifacts
+## Experiment: spike-html-components
 
-Do briefs, plan rounds, and reports written as HTML from the shared baseline, served on Pages
-and reviewed through the screenshot loop, beat Markdown enough to adopt? It builds the review
-script, covers recorded CLI demos (VHS), and shows that no screenshot files remain after a
-review. Decides whether v1.harness.sitrep and docs-site publish HTML instead of Jekyll Markdown,
-and whether briefs/ moves.
+How are layouts and components packaged, released, and layered over the baseline? It consumes
+the baseline by tag from its own repository, the baseline's first real downstream package. It
+covers layouts and templates (structural custom elements, a layout engine over CSS grid, layout
+sheets for categories of page) and components, and weighs one library, one package per
+component, and packages of related components. Decides v1.client's layouts and components
+layers and where they sit in the architecture.
+
+## Experiment: spike-html-hosting
+
+What do the repositories' Pages sites and the hosting of persistent artifacts look like? It
+starts from a hypothesis: architecture is its own project site; org holds the charter and the
+hosted artifacts and links to every project site; each code repository serves its own docs/
+guide. It publishes native web with no generator, and tests the org site's URL (as-is the `org`
+repository serves at `standards-lab.github.io/org/`), navigation shared across sites, and one
+baseline pin. It draws the line between HTML and Markdown, including whether the coordinator's
+leadership briefs/ become HTML, and hosts a persistent report in the coordinator. It builds
+the review script, covers recorded CLI demos (VHS), and shows that no screenshot files remain
+after a review. Decides the Pages topology that v1.client and
+v1.repository-docs build, and whether v1.harness.sitrep publishes HTML.
 
 ## Experiment: spike-html-go-wasm
 
@@ -102,7 +118,15 @@ Can a page run a workspace Go package live in the browser through `GOOS=js` WebA
 acceptable size? It starts with sqlate's base module, which imports only the standard library.
 A minimal Go WASM build is about 2 MB, around 500 KB with Brotli compression. A browser can't
 listen on a socket, so a service can't run there, though its handlers can be called in-process.
-The page links the baseline by its pinned URL. Decides whether v1.repository-docs and docs-site
-embed live demos.
+The page links the baseline by its pinned URL. Decides whether v1.repository-docs and the
+Pages sites embed live demos.
+
+## Experiment: spike-html-apps
+
+What does a client application look like? It compares herald's embedded app
+(`~/code/herald/app`, a Go package embedding a bun-built Lit client) with other configurations,
+and with an external client that calls several services. It runs last, so it builds on every
+other answer: the components, hosting for an external client, and live WASM as an option.
+Decides v1.client's app architecture and whether an external-client goal follows 1.0.
 
 ## Answers · experiment.html

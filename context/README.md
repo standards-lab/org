@@ -82,5 +82,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   hosting layer's decomposition of personal-agents.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
   review loop, the native style baseline, and experiment.html's spikes and answers.
+- `web-client.md` — the web client strategy: the stack's layers and what each owns, its
+  consumers, where HTML is used, and the sequence from experiment.html to v1.client.
 - `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
   interfaces across the stack, the cobra question, and the SDK and template plan.
