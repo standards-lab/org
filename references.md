@@ -45,8 +45,9 @@ The Go implementation of the Elemental Architecture, the organization's first st
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk`,
-`go-web-sdk-template`, `go-cli-sdk`, and `go-cli-sdk-template` (released); and
-`go-web-service`, the reference web service (versionless until its 1.0).
+`go-web-sdk-template`, `go-cli-sdk`, and `go-cli-sdk-template` (released); `go-messaging`, the
+messaging infrastructure library (not yet released); and `go-web-service`, the reference web
+service (versionless until its 1.0).
 
 ## Effort repositories — Standards Lab
 
@@ -99,6 +100,13 @@ The object storage infrastructure library of the `go-elemental` standard: the st
 the provider key constraints, the error sentinels, and the `storagetest` conformance suite,
 with each provider a sub-module of its own. Its README lists the packages. Released; the base
 depends on the standard library and `go-core` alone.
+
+### go-messaging
+The messaging infrastructure library of the `go-elemental` standard: the broker contract and
+subscriptions, the runtime with its error hook, outbox emission and inbox idempotency, the memory
+provider, and the `messagingtest` conformance suite, with the postgres engine and the NATS
+JetStream provider as sub-modules. Its events are go-core's CloudEvents `event` type and its
+consumers go-core `reactor`s. Not yet released; v1.messaging builds it.
 
 ### go-web-sdk
 The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service
