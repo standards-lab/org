@@ -18,8 +18,8 @@ Its intake decides what these goals adopt:
 
 HTML is for persistent artifacts only: reports, stats updates, explainers, and demos, hosted in
 the coordinator or a repository's Pages site. Workflow outputs (task briefs, plan rounds,
-session briefs) stay Markdown, as the architect ruled on 2026-10-13. So do the `context/` notes, which
-agents load every session, where Markdown is cheaper in tokens, diffs cleanly, and already
+session briefs) stay Markdown, as the architect ruled on 2026-10-13. So do the `context/`
+notes, which agents load every session, where Markdown is cheaper in tokens, diffs cleanly, and already
 renders on github.com.
 
 ## Settled for the spikes
