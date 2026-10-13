@@ -10,9 +10,12 @@
 # waited on, is released. Its sync stages spike-local-models. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last: CORS waits for v1.client. experiment.html runs beside the active goals,
-# outside the exclusive group: its spikes lock only their own repositories. spike-html-design is
-# active, and its sync stages spike-html-artifacts.
+# experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
+# their own repositories and run one at a time, in the order `planned` lists them.
+# spike-html-design is active, and its sync stages spike-html-components. v1.client is the next
+# goal in the exclusive group once v1.messaging completes and the experiment.html intake closes
+# (standards-lab/context/web-client.md). Middleware is last: CORS waits for a client served
+# cross-origin.
 
 active = [
   "experiment.ai.spike-model-hosting",
@@ -21,14 +24,16 @@ active = [
 ]
 
 planned = [
-  "experiment.html.spike-html-artifacts",
+  "experiment.html.spike-html-components",
+  "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
+  "experiment.html.spike-html-apps",
   "experiment.ai.spike-local-models",
+  "v1.client",
   "v1.ai",
   "v1.data",
   "v1.auth",
   "v1.admin-listener",
-  "v1.client",
   "v1.deployment",
   "v1.repository-docs",
   "v1.middleware",
@@ -42,9 +47,6 @@ backlog = [
   "organization-image-active",
   "second-providers",
   "dotnet-mirror",
-  "external-client",
-  "client-layouts",
-  "docs-site",
   "sql-meta-language",
   "real-client-ip",
   "compression",
@@ -99,7 +101,10 @@ v0.16.1, and the go-web-sdk v0.14.0 requirement; its next release dates them and
 go-web-sdk v0.15.0. The convention is settled — each is imported as a declared
 dependency, in its own capability sub-module when it carries a third-party dependency — but the
 concrete adoption for the remaining three is not: versions, real-IP's trusted-proxy
-configuration, and each library's own entry in go-web-sdk's dependency-line statement. CORS's one recorded trigger is goals.v1.client; real client IP and
+configuration, and each library's own entry in go-web-sdk's dependency-line statement.
+CORS's trigger is the first client served cross-origin, such as an external client or a
+Pages-hosted page that calls a service; v1.client's embedded client is same-origin and sends no
+cross-origin requests (standards-lab/context/web-client.md). Real client IP and
 compression have none recorded and wait for one — neither has a live consumer yet: real-IP's
 only other use, keying rate limiting, is covered by `RemoteAddr`; compression has no
 large-response case until more of the data layer lands.
@@ -119,9 +124,11 @@ record. The admin listener (v1.admin-listener) is a consumer of the authenticati
 settles. What remains is the build: go-auth itself, the schema it introduces as a migration
 source of its own, and the composition-root reshape in go-web-service. The storage domain's auth
 sweep proves the composed authorized listing that the blobfs experiment cannot: the consumer's
-join table driving a blobfs listing under the scope predicate.
+join table driving a blobfs listing under the scope predicate. v1.client lands first, on the
+open API, so this goal adds a client sweep task: the reference client behind authentication,
+and whether an image is fetched as an `<img>` with a cookie or with a bearer token.
 '''
-context = ["standards-lab/context/auth-strategy.md"]
+context = ["standards-lab/context/auth-strategy.md", "standards-lab/context/web-client.md"]
 
 [goals.v1.admin-listener]
 name = "The management listener"
@@ -350,17 +357,22 @@ where AI fits within applications, never `claude-plugins`.
 context = ["standards-lab/context/ai-strategy.md"]
 
 [goals.v1.client]
-name = "Embedded client"
+name = "The web client"
 summary = '''
-A web client embedded in and served by the service binary — the herald precedent: an app/
-client with its own build, served from the server's routes. Its stack and scope are settled in
-its own planning session. Recorded inputs for that session: the organization logo's fallback
-and whether an image is fetched as an `<img>` with a cookie or with a bearer token
-(v1.storage); the WebSocket bridge and NATS-native chat as candidate transports
-(`standards-lab/context/messaging.md`); the git-tag package strategy that
-experiment.html.spike-html-design proves, a native baseline consumed by version and extended by
-other packages.
+The stack beyond the terminal, by the strategy in `standards-lab/context/web-client.md`: the
+layouts and components layers over the native baseline (consumer order: baseline, layouts,
+components, app), the repositories' Pages sites and the coordinator's persistent artifacts, and
+a reference client embedded in go-web-service and served by its binary, in parity with the
+service as slab is on the command line. The reference client first demonstrates the
+organizations, the document hierarchy, and a live view of v1.messaging's reactors over the
+WebSocket bridge, against the open API; v1.auth's client sweep puts it behind authentication.
+Starts once v1.messaging completes and the experiment.html intake closes, as the next goal in
+the exclusive group; the intake decides what it builds from the five spikes' answers, and its
+own planning writes its tasks. Its sites work repoints `architecture/context/README.md`, which
+names docs-site as the owner of site hosting. Recorded inputs: the organization logo's fallback
+(v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
 '''
+context = ["standards-lab/context/web-client.md", "standards-lab/context/html-artifacts.md"]
 
 [goals.v1.deployment]
 name = "Deployment"
@@ -385,7 +397,8 @@ Each Go repository's docs/ guide, indexed by its README, written once the layers
 churning: the accessibility layer over the README, the package documentation, and the source,
 in the shape sqlate's guide established (concepts by example, a quick start, the features by
 package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
-changes it; sqlate's guide exists and is verified rather than written.
+changes it; sqlate's guide exists and is verified rather than written. Each guide publishes
+through the Pages topology experiment.html.spike-html-hosting settles and v1.client builds.
 '''
 context = ["architecture/principles/context-architecture.md"]
 
@@ -644,23 +657,24 @@ output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-s
 '''
 
 [goals.experiment.html]
-name = "The HTML artifact experiments"
+name = "The web client experiments"
 summary = '''
-Three spikes that settle whether human-facing artifacts (briefs, plan rounds, session briefs,
-reports, demos) are written as HTML beside Markdown, served by GitHub Pages and styled from one
-versioned, native baseline, then one intake. The context/ notes stay Markdown either way.
+Five spikes, run one at a time, that settle the web client stack v1.client builds: the native
+baseline, the layouts and components over it, the repositories' Pages sites and persistent
+artifacts, live Go demos, and the client application; then one intake. HTML is for persistent
+artifacts; workflow outputs and the context/ notes stay Markdown.
 '''
-context = ["standards-lab/context/html-artifacts.md"]
+context = ["standards-lab/context/html-artifacts.md", "standards-lab/context/web-client.md"]
 
 [goals.experiment.html.tasks.intake]
-name = "The HTML intake"
+name = "The web client intake"
 summary = '''
-Run by `marathon intake experiment.html` once spike-html-design, spike-html-artifacts, and
-spike-html-go-wasm have their answers in `html-artifacts.md`. Decides whether the baseline
-graduates and where (the architecture layer or its own standards-lab repository), whether
-v1.harness.sitrep and docs-site publish HTML instead of Jekyll Markdown, whether briefs/ moves
-to HTML, and whether v1.repository-docs and docs-site embed live Go demos. It then archives the
-three spikes.
+Run by `marathon intake experiment.html` once all five spikes have their answers in
+`html-artifacts.md`. Decides whether the baseline graduates and where (the architecture layer or
+its own standards-lab repository); how v1.client packages its layouts and components and builds
+its client application; the Pages topology v1.client and v1.repository-docs build; whether
+v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages sites embed live
+Go demos; and whether an external-client goal follows 1.0. It then archives the five spikes.
 '''
 
 [goals.experiment.html.spike-html-design]
@@ -699,8 +713,8 @@ summary = '''
 The layers nested under one package layer (tokens with color, space, and type sub-layers, then
 reset, elements, tools), the facet token interfaces, the elements layer with a test that it
 changes no native element's behavior, the tools layer, and one profile per facet (Flexoki for
-color). Removes the components layer; adds package.json, the lean entry point and its enforced
-size budget, the specimen's section per layer and facet, `mise run serve`, and a planned visual
+color). Removes the components layer; adds package.json, the lean entry point with its size
+measured and reported, the specimen's section per layer and facet, `mise run serve`, and a planned visual
 review stop. Tags v0.3.0. Evidence 1, 2, 4.
 '''
 
@@ -709,7 +723,9 @@ name = "Color profiles and previews"
 summary = '''
 Kanagawa, Tokyo Night, and Catppuccin color profiles, each light and dark, with contrast recorded
 per profile; preview containers that render a subtree in a profile; the specimen's grid of every
-profile and scheme; the full entry point; and a planned visual review stop. Tags v0.4.0.
+profile and scheme, with the workbench layout reworked (the architect's screenshots of what
+fails are its plan round's input); the full entry point; the enforced size budget for the lean
+and full entries; and a planned visual review stop. Tags v0.4.0.
 Evidence 3, 5.
 '''
 
@@ -738,17 +754,33 @@ budget, the cost of the @import chain from the CDN, "The answer" in the README, 
 section for `html-artifacts.md` as a pending edit. Evidence 8 to 11.
 '''
 
-[goals.experiment.html.spike-html-artifacts]
-name = "HTML artifacts against Markdown"
-root = "spike-html-artifacts"
-repos = ["spike-html-artifacts"]
-remote = "https://github.com/JaimeStill/spike-html-artifacts.git"
-path = "~/experiments/spike-html-artifacts"
+[goals.experiment.html.spike-html-components]
+name = "Layouts and components"
+root = "spike-html-components"
+repos = ["spike-html-components"]
+remote = "https://github.com/JaimeStill/spike-html-components.git"
+path = "~/experiments/spike-html-components"
 summary = '''
-Do briefs, plan rounds, and reports written as HTML from the shared baseline, served on GitHub
-Pages and reviewed in-session through the screenshot loop, beat Markdown enough to adopt?
-Decides whether v1.harness.sitrep and docs-site publish HTML, and whether briefs/ moves
-(`html-artifacts.md`, "Experiment: spike-html-artifacts").
+How are layouts (structural custom elements, a layout engine over CSS grid, layout sheets) and
+components packaged, released, and layered over the baseline, consumed by tag: one library, one
+package per component, or packages of related components? Decides v1.client's layouts and
+components layers and where they sit in the architecture (`html-artifacts.md`, "Experiment:
+spike-html-components").
+'''
+
+[goals.experiment.html.spike-html-hosting]
+name = "Repository docs and artifact hosting"
+root = "spike-html-hosting"
+repos = ["spike-html-hosting"]
+remote = "https://github.com/JaimeStill/spike-html-hosting.git"
+path = "~/experiments/spike-html-hosting"
+summary = '''
+What do the repositories' Pages sites and the hosting of persistent artifacts look like,
+published as native web? Tests the hypothesis: architecture its own project site; org holding
+the charter and the hosted artifacts and linking to every project site; each code repository
+serving its own docs/ guide. Draws the line between HTML and Markdown. Decides the Pages
+topology v1.client and v1.repository-docs build, and whether v1.harness.sitrep and the
+coordinator's briefs/ publish HTML (`html-artifacts.md`, "Experiment: spike-html-hosting").
 '''
 
 [goals.experiment.html.spike-html-go-wasm]
@@ -760,8 +792,22 @@ path = "~/experiments/spike-html-go-wasm"
 summary = '''
 Can a page run a workspace Go package live in the browser through GOOS=js WebAssembly at an
 acceptable size, starting with sqlate's standard-library-only base module? Decides whether
-v1.repository-docs and docs-site embed live demos (`html-artifacts.md`, "Experiment:
+v1.repository-docs and the Pages sites embed live demos (`html-artifacts.md`, "Experiment:
 spike-html-go-wasm").
+'''
+
+[goals.experiment.html.spike-html-apps]
+name = "Client applications"
+root = "spike-html-apps"
+repos = ["spike-html-apps"]
+remote = "https://github.com/JaimeStill/spike-html-apps.git"
+path = "~/experiments/spike-html-apps"
+summary = '''
+What does a client application look like? Compares herald's embedded app (a Go package embedding
+a bun-built Lit client) with other configurations, and with an external client that calls
+several services. Runs last, on every other spike's answer. Decides v1.client's app architecture
+and whether an external-client goal follows 1.0 (`html-artifacts.md`, "Experiment:
+spike-html-apps").
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
@@ -788,27 +834,6 @@ standard tier (`standards-lab/context/messaging.md`). Post-1.0 candidate.
 [goals.dotnet-mirror]
 name = "The .NET mirror"
 summary = "The reference architecture mirrored in .NET. Post-1.0 candidate."
-
-[goals.external-client]
-name = "External client"
-summary = "An external web-platform-native client repository. Post-1.0 candidate."
-
-[goals.client-layouts]
-name = "Client layouts"
-summary = '''
-Structural custom elements and a Hyprland-style layout engine over CSS grid, informed by
-experiment.html.spike-html-design's faceted baseline, which leaves layout out of its scope.
-'''
-
-[goals.docs-site]
-name = "The organization docs site"
-summary = '''
-The documentation site serving the architecture repository's content. The sitrep blog's GitHub Pages
-blueprint (Jekyll, Actions deployment, the publish pipeline) is the starting point. Planned
-hosting: a thin `standards-lab.github.io` repository whose workflow builds `architecture` on a
-`repository_dispatch` and deploys with `actions/deploy-pages`. Waits until the initial reference
-architecture is in place; the diagram and voice standards are planned with it.
-'''
 
 [goals.sql-meta-language]
 name = "The SQL meta language"
