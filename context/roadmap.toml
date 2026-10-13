@@ -40,6 +40,7 @@ backlog = [
   "second-providers",
   "dotnet-mirror",
   "external-client",
+  "client-layouts",
   "docs-site",
   "sql-meta-language",
   "real-client-ip",
@@ -347,7 +348,9 @@ client with its own build, served from the server's routes. Its stack and scope 
 its own planning session. Recorded inputs for that session: the organization logo's fallback
 and whether an image is fetched as an `<img>` with a cookie or with a bearer token
 (v1.storage); the WebSocket bridge and NATS-native chat as candidate transports
-(`standards-lab/context/messaging.md`).
+(`standards-lab/context/messaging.md`); the git-tag package strategy that
+experiment.html.spike-html-design proves, a native baseline consumed by version and extended by
+other packages.
 '''
 
 [goals.v1.deployment]
@@ -658,10 +661,11 @@ repos = ["spike-html-design"]
 remote = "https://github.com/JaimeStill/spike-html-design.git"
 path = "~/experiments/spike-html-design"
 summary = '''
-Can one tagged, native CSS and JS baseline (herald's layer structure, a Flexoki dark and light
-theme with semantic ANSI 16 hues plus orange, a system-first theme toggle, a keyboard layer) be
-consumed by version from other repositories through jsDelivr? Decides whether the baseline
-graduates, and where (`html-artifacts.md`, "Experiment: spike-html-design").
+Can one tagged, native baseline of design facets (color, space, and type, each with swappable
+profiles, over elements and tools layers) be consumed by version, as a git-tag package
+and through a pinned CDN URL, and extended by other packages? Decides whether the baseline
+graduates, and where (`html-artifacts.md`, "Experiment: spike-html-design"); its packaging is an
+input to v1.client.
 '''
 
 [goals.experiment.html.spike-html-design.tasks.layers]
@@ -669,47 +673,60 @@ name = "The layered stylesheet, published by tag"
 summary = '''
 The stylesheet's layers (tokens, reset, theme, components) with herald's scales and token names,
 a specimen page, the check with its headless chromium harness, and the Pages workflow. Tags
-v0.1.0, and a Pages page links it by its pinned jsDelivr URL. Evidence 1, 7.
+v0.1.0, and a Pages page links it by its pinned jsDelivr URL.
 '''
 
 [goals.experiment.html.spike-html-design.tasks.themes]
-name = "Flexoki dark and light"
+name = "Primer-derived dark and light"
 summary = '''
-The dark and light themes from Flexoki with 18 semantic hue tokens (ANSI 16 plus orange and
-bright orange), the system default through prefers-color-scheme, and a contrast table for both
-themes. Tags v0.2.0. Evidence 2, 3, 4.
+Dark and light themes derived from Primer's resolved values, with eight hue tokens and four role
+tokens over them, the system default through prefers-color-scheme, and a contrast table for both
+themes. Tags v0.2.0.
 '''
 
-[goals.experiment.html.spike-html-design.tasks.aesthetic]
-name = "The look: cassette futurism"
+[goals.experiment.html.spike-html-design.tasks.facets]
+name = "The faceted foundation"
 summary = '''
-A modern web and terminal look inspired by cassette futurism: Flexoki values in the hue and role
-model (token names unchanged), a type system with mono headings and chrome, and a designed
-specimen layout, chosen from rendered specimen variants. Tags v0.3.0. Evidence 2, 4.
+The layers nested under one package layer (tokens with color, space, and type sub-layers, then
+reset, elements, tools), the facet token interfaces, the elements layer with a test that it
+changes no native element's behavior, the tools layer, and one profile per facet (Flexoki for
+color). Removes the components layer; adds package.json, the lean entry point and its enforced
+size budget, the specimen's section per layer and facet, `mise run serve`, and a planned visual
+review stop. Tags v0.3.0. Evidence 1, 2, 4.
 '''
 
-[goals.experiment.html.spike-html-design.tasks.toggle]
-name = "The theme toggle"
+[goals.experiment.html.spike-html-design.tasks.profiles]
+name = "Color profiles and previews"
 summary = '''
-`<theme-toggle>` cycles system, light, and dark, and keeps the choice in localStorage; measures
-whether a stored choice flashes the other theme and what avoiding it costs. Tags v0.4.0.
-Evidence 5.
+Kanagawa, Tokyo Night, and Catppuccin color profiles, each light and dark, with contrast recorded
+per profile; preview containers that render a subtree in a profile; the specimen's grid of every
+profile and scheme; the full entry point; and a planned visual review stop. Tags v0.4.0.
+Evidence 3, 5.
+'''
+
+[goals.experiment.html.spike-html-design.tasks.preferences]
+name = "The profile registry and preferences"
+summary = '''
+A JS profile registry that extension packages add to, and a theming menu on T with each facet's
+profile and the scheme, persisted across reloads and pages, with the flash measured. Replaces
+the theme toggle. Tags v0.5.0. Evidence 6.
 '''
 
 [goals.experiment.html.spike-html-design.tasks.keys]
 name = "The keyboard layer"
 summary = '''
 `keys.js`, one registry with T, ?, j, k, and g, silent in fields and with modifiers, declared
-with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.5.0.
-Evidence 6.
+with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.6.0.
+Evidence 7.
 '''
 
 [goals.experiment.html.spike-html-design.tasks.validate]
 name = "Validate and answer"
 summary = '''
-Evidence 1 to 9 end to end, an earlier pin unchanged after later tags, the sizes raw and
-compressed, "The answer" in the README, and the answer section for `html-artifacts.md` as a
-pending edit. Evidence 8, 9.
+An install by git tag, an extension fixture that adds a profile and passes the exported
+conformance test, an earlier pin unchanged after later tags, each entry point's size against the
+budget, the cost of the @import chain from the CDN, "The answer" in the README, and the answer
+section for `html-artifacts.md` as a pending edit. Evidence 8 to 11.
 '''
 
 [goals.experiment.html.spike-html-artifacts]
@@ -766,6 +783,13 @@ summary = "The reference architecture mirrored in .NET. Post-1.0 candidate."
 [goals.external-client]
 name = "External client"
 summary = "An external web-platform-native client repository. Post-1.0 candidate."
+
+[goals.client-layouts]
+name = "Client layouts"
+summary = '''
+Structural custom elements and a Hyprland-style layout engine over CSS grid, informed by
+experiment.html.spike-html-design's faceted baseline, which leaves layout out of its scope.
+'''
 
 [goals.docs-site]
 name = "The organization docs site"
