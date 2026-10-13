@@ -3,18 +3,18 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. slab holds the slot, with go-web-service as its
-# root. Outside the exclusive group, experiment.ai.spike-model-hosting is active beside slab: its
-# Framework tasks run now, its workstation tasks from 2026-10-14, and its admin task can run, since
-# go-cli-sdk v0.1.0, which it waited on, is released. Its sync stages spike-local-models.
-# v1.messaging takes the slot once slab syncs, the first work on the 0.16 conventions. The
+# the reference-architecture code repositories. The slot is free: v1.messaging takes it next, the
+# first work on the 0.16 conventions, once `marathon plan v1.messaging` sets its root. Outside the
+# exclusive group, experiment.ai.spike-model-hosting is active: its Framework tasks run now, its
+# workstation tasks from 2026-10-14, and its admin task can run, since go-cli-sdk v0.1.0, which it
+# waited on, is released. Its sync stages spike-local-models. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last: CORS waits for v1.client. experiment.html runs beside the active goals,
 # outside the exclusive group: its spikes lock only their own repositories. spike-html-design is
 # active, and its sync stages spike-html-artifacts.
 
-active = ["slab", "experiment.ai.spike-model-hosting", "experiment.html.spike-html-design"]
+active = ["experiment.ai.spike-model-hosting", "experiment.html.spike-html-design"]
 
 planned = [
   "experiment.html.spike-html-artifacts",
@@ -52,53 +52,6 @@ backlog = [
   "transfermanager-log",
   "web-service-port-settings",
 ]
-
-# ── slab ───────────────────────────────────────────────────────────────────────────────────
-
-[goals.slab]
-name = "slab on go-cli-sdk"
-root = "go-web-service"
-repos = ["go-web-service"]
-summary = '''
-go-web-service's `tools/slab` moves off cobra onto go-cli-sdk at its released tag, v0.2.0. It
-takes the template's composition root: commands declare their graph nodes with Use, and
-configuration is nodes. Its usage errors and requested help exit with go-core's ExitUsage. It
-follows the scenario convention of the architecture's CLI applications page
-(`architecture/standards/go-elemental/principles/cli-applications.md`): its `demo` package
-becomes a root-level `scenarios` package on go-cli-sdk's `scenario` runner, `slab demo <name>`
-becomes `slab scenario <name>`, and the help footers of the `scenario` parent and the root
-replace `slab list`. A scenario's Needs become nodes it declares, each failing the run at
-start with the mise task that brings its target up; slab colors only the blocks a step shows,
-with go-cli-sdk unchanged. tools/slab stays its own module. go-web-service is already on
-go-core's graph.
-'''
-context = [
-  "standards-lab/context/cli-applications.md",
-  "architecture/standards/go-elemental/principles/cli-applications.md",
-]
-
-[goals.slab.tasks.commands]
-name = "slab's commands on go-cli-sdk"
-summary = '''
-After the upgrade to go-core v0.8.0, slab takes the template's composition root: configuration
-is graph nodes from SLAB_* env with the root flags overriding it, and every org, docs, and admin
-command moves onto go-cli-sdk's cli with Use, keeping its words and requests. slab gains
-`version`; help and usage errors exit 2, and a problem response is one stderr report carrying
-every member. demo and list keep running on slab's own runner, and cobra and pflag leave the
-module.
-'''
-proof = "`mise run check` passes; `slab org get` with no id exits 2; `slab version` builds nothing; a 404 problem prints one stderr report with every member and exits 1."
-
-[goals.slab.tasks.scenarios]
-name = "slab's scenarios on go-cli-sdk's runner"
-summary = '''
-slab's `demo` package becomes a root-level `scenarios` package on go-cli-sdk's `scenario` runner,
-run as `slab scenario <name>`. Needs (service, Grafana) become nodes, colored blocks go through
-Show, and the root's and the `scenario` parent's help footers carry the listing. `list`, `demo`,
-and slab's own runner are deleted. `style.JSON` returns input that breaks after its first token
-unchanged. slab's README and usage, go-web-service's mise.toml, and its README follow.
-'''
-proof = "`slab scenario domain` with no service running fails at start naming the service node; both help screens end with the listing; `slab list` exits 2."
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
 
