@@ -57,6 +57,7 @@ backlog = [
   "s3-put-memory",
   "transfermanager-log",
   "web-service-port-settings",
+  "api-versioning",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -250,11 +251,38 @@ context = ["standards-lab/context/messaging.md"]
 
 [goals.v1.messaging.tasks.service-events]
 name = "Service events on NATS"
-repos = ["go-web-service"]
+repos = ["go-messaging", "go-web-service"]
 summary = '''
 The messaging runtime on NATS in the service. The storage upload emits from its complete step's
 transaction, which proves the composite Postgres-and-blob case the spike left open. The relay and
 the inbox claims hold the gate shared (`migration-sets.md`).
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.event-coverage]
+name = "Event coverage"
+repos = ["go-database", "go-web-service"]
+summary = '''
+Every public command that changes state emits exactly one event, in the transaction that makes
+it true: organization Create, Edit, Transfer, Delete, PutLogo, and DeleteLogo; document
+CreateDirectory, DeleteDirectory, DeleteBranch, MoveDirectory, DeleteFile, and MoveFile, beside
+the upload. Types follow `<service>.<domain>.<operation>` for an operation on the domain itself
+and `<service>.<domain>.<element>.<operation>` for one on a sub-element. Data is the entity's
+stored state after the command. Every seed write emits its command's event. The database admin's
+state reset emits one `web-service.database.reset` through a reset hook that go-database's admin
+service gains (go-database v0.9.0, released first), and schema verbs emit nothing. The file
+delete and the seeds' ensure write are staged in the service with hooks, bound for blobfs.
+'''
+context = ["standards-lab/context/messaging.md"]
+
+[goals.v1.messaging.tasks.blobfs-write-protocol]
+name = "blobfs write and delete protocols with hooks"
+repos = ["blobfs", "go-web-service"]
+summary = '''
+blobfs promotes the protocols go-web-service staged in its `sdk` package: the two-phase write
+with a hook in its completion's transaction, its retry-safe ensure form, and the two-phase
+delete with a hook in its first transaction, with no messaging dependency. The service moves
+onto blobfs's protocols and deletes its staging. Released.
 '''
 context = ["standards-lab/context/messaging.md"]
 
@@ -942,4 +970,13 @@ go-web-service's application settings follow `POSTGRES_PORT` and `AZURITE_BLOB_P
 sqlate's `SQLATE_DSN` and blobfs's `BLOBFS_DSN` and `BLOBFS_STORAGE_ENDPOINT` do. Its README
 documents that moving a port splits the two until `APP_DATABASE_PORT` or `APP_STORAGE_ENDPOINT`
 follows.
+'''
+
+[goals.api-versioning]
+name = "Versioned public API after v1"
+summary = '''
+After go-web-service's v1.0.0, its public API changes by version rather than in place: the HTTP
+API, and each event's type and data, which before v1 change freely with no version suffix
+(v1.messaging, service-events). The outcome holds when a breaking change to either ships beside
+the version it replaces.
 '''
