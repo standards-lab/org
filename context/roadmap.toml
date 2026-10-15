@@ -13,21 +13,22 @@
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
 # spike-html-design answered at v0.7.0 (html-artifacts.md, "Answers · experiment.html"), and
-# spike-html-components is active. v1.client is the next goal in the exclusive group once
+# spike-html-conventions is active. v1.client is the next goal in the exclusive group once
 # v1.messaging completes and the experiment.html intake closes
 # (standards-lab/context/web-client.md). Middleware is last: CORS waits for a client served
 # cross-origin.
 
 active = [
   "experiment.ai.spike-model-hosting",
-  "experiment.html.spike-html-components",
+  "experiment.html.spike-html-conventions",
   "v1.messaging",
 ]
 
 planned = [
+  "experiment.html.spike-html-packages",
+  "experiment.html.spike-html-apps",
   "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
-  "experiment.html.spike-html-apps",
   "experiment.ai.spike-local-models",
   "v1.client",
   "v1.ai",
@@ -388,14 +389,14 @@ context = ["standards-lab/context/ai-strategy.md"]
 name = "The web client"
 summary = '''
 The stack beyond the terminal, by the strategy in `standards-lab/context/web-client.md`: the
-layouts and components layers over the native baseline (consumer order: baseline, layouts,
-components, app), the repositories' Pages sites and the coordinator's persistent artifacts, and
+foundation, components, and apps layers (consumer order: foundation, components, app), the
+repositories' Pages sites and the coordinator's persistent artifacts, and
 a reference client embedded in go-web-service and served by its binary, in parity with the
 service as slab is on the command line. The reference client first demonstrates the
 organizations, the document hierarchy, and a live view of v1.messaging's reactors over the
 WebSocket bridge, against the open API; v1.auth's client sweep puts it behind authentication.
 Starts once v1.messaging completes and the experiment.html intake closes, as the next goal in
-the exclusive group; the intake decides what it builds from the five spikes' answers, and its
+the exclusive group; the intake decides what it builds from the six spikes' answers, and its
 own planning writes its tasks. Its sites work repoints `architecture/context/README.md`, which
 names docs-site as the owner of site hosting. Recorded inputs: the organization logo's fallback
 (v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
@@ -687,9 +688,10 @@ output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-s
 [goals.experiment.html]
 name = "The web client experiments"
 summary = '''
-Five spikes, run one at a time, that settle the web client stack v1.client builds: the native
-baseline, the layouts and components over it, the repositories' Pages sites and persistent
-artifacts, live Go demos, and the client application; then one intake. HTML is for persistent
+Six spikes, run one at a time, that settle the web client stack v1.client builds: the native
+baseline, the conventions the stack is written in, packaging and release by tag, the client
+application, the repositories' Pages sites and persistent artifacts, and live Go demos; then one
+intake. HTML is for persistent
 artifacts; workflow outputs and the context/ notes stay Markdown.
 '''
 context = ["standards-lab/context/html-artifacts.md", "standards-lab/context/web-client.md"]
@@ -697,26 +699,77 @@ context = ["standards-lab/context/html-artifacts.md", "standards-lab/context/web
 [goals.experiment.html.tasks.intake]
 name = "The web client intake"
 summary = '''
-Run by `marathon intake experiment.html` once all five spikes have their answers in
+Run by `marathon intake experiment.html` once all six spikes have their answers in
 `html-artifacts.md`. Decides whether the baseline graduates and where (the architecture layer or
-its own standards-lab repository); how v1.client packages its layouts and components and builds
-its client application; the Pages topology v1.client and v1.repository-docs build; whether
+its own standards-lab repository); whether a web standard is founded, and with which pages; how
+v1.client packages its foundation and components and builds its client application; the Pages topology v1.client and v1.repository-docs build; whether
 v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages sites embed live
-Go demos; and whether an external-client goal follows 1.0. It then archives the five spikes.
+Go demos; and whether an external-client goal follows 1.0. It then archives the six spikes.
 '''
 
-[goals.experiment.html.spike-html-components]
-name = "Layouts and components"
-root = "spike-html-components"
-repos = ["spike-html-components"]
-remote = "https://github.com/JaimeStill/spike-html-components.git"
-path = "~/experiments/spike-html-components"
+[goals.experiment.html.spike-html-conventions]
+name = "Web platform conventions"
+root = "spike-html-conventions"
+repos = ["spike-html-conventions"]
+remote = "https://github.com/JaimeStill/spike-html-conventions.git"
+path = "~/experiments/spike-html-conventions"
 summary = '''
-How are layouts (structural custom elements, a layout engine over CSS grid, layout sheets) and
-components packaged, released, and layered over the baseline, consumed by tag: one library, one
-package per component, or packages of related components? Decides v1.client's layouts and
-components layers and where they sit in the architecture (`html-artifacts.md`, "Experiment:
-spike-html-components").
+Which conventions does the native web stack build on? Compares two toolchains head-to-head, Node
+26 with pnpm against Bun, and three TypeScript forms; settles the code structure and each layer's
+import direction, the testing tiers, and the lint tool; and tests the component convention:
+vanilla for the foundation and static pages, Lit from components up, with components as the
+element tier. Specifies the application SDK that spike-html-apps builds. Decides what
+spike-html-packages, spike-html-apps, and spike-html-hosting build on, and whether the intake
+founds a web standard (`html-artifacts.md`, "Experiment: spike-html-conventions").
+'''
+
+[goals.experiment.html.spike-html-conventions.tasks.toolchain]
+name = "The toolchain, head-to-head"
+summary = '''
+Node 26 with pnpm against Bun 1.4, measured on git-tag install, TypeScript, build, watch, test,
+lint, and jsDelivr, with a pick; the three-way TypeScript form comparison on one element and one
+module, with its conclusion; and a fixture that consumes spike-html-design v0.7.0 by tag,
+installed and from file:// through jsDelivr, beside a fixture package this repository releases,
+installed by tag under each toolchain. Extends the check. Evidence 1, 2, 7.
+'''
+
+[goals.experiment.html.spike-html-conventions.tasks.structure]
+name = "Code structure and layer direction"
+summary = '''
+The directory, module, and layer layout and the import direction per stack layer, written as
+STANDARDS.md judgement calls, with a check that enforces the direction; and the lint and format
+tool in the check. Evidence 3, 6.
+'''
+
+[goals.experiment.html.spike-html-conventions.tasks.components]
+name = "One element, vanilla and Lit"
+summary = '''
+One element-tier component built in vanilla and in Lit, compared on lines, brotli bytes, and the
+features each version builds by hand. Evidence 4.
+'''
+
+[goals.experiment.html.spike-html-conventions.tasks.testing]
+name = "Testing tiers"
+summary = "Unit and browser test tiers, both inside the one check. Evidence 5."
+
+[goals.experiment.html.spike-html-conventions.tasks.branches]
+name = "App branches, the SDK spec, and the answer"
+summary = '''
+Layout specs for the static and application branches, the application SDK spec, "The answer" in
+the README, and the answer section for `html-artifacts.md` as a pending edit. Evidence 8.
+'''
+
+[goals.experiment.html.spike-html-packages]
+name = "Packaging and release by tag"
+root = "spike-html-packages"
+repos = ["spike-html-packages"]
+remote = "https://github.com/JaimeStill/spike-html-packages.git"
+path = "~/experiments/spike-html-packages"
+summary = '''
+How are the foundation's lateral concerns, its JS/TS modules, and the components packaged and
+released by tag over spike-html-design v0.7.0: tag naming, release builds beside the sources,
+and one library or several packages? Decides how v1.client packages its layers
+(`html-artifacts.md`, "Experiment: spike-html-packages").
 '''
 
 [goals.experiment.html.spike-html-hosting]
@@ -756,7 +809,9 @@ path = "~/experiments/spike-html-apps"
 summary = '''
 What does a client application look like? Compares herald's embedded app (a Go package embedding
 a bun-built Lit client) with other configurations, and with an external client that calls
-several services. Runs last, on every other spike's answer. Decides v1.client's app architecture
+several services. Builds the application SDK the conventions spike specifies, and names its
+go-web-sdk serving half. Runs after spike-html-packages, on its answer and the conventions
+spike's. Decides v1.client's app architecture
 and whether an external-client goal follows 1.0 (`html-artifacts.md`, "Experiment:
 spike-html-apps").
 '''
