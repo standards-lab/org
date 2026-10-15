@@ -12,19 +12,19 @@
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
-# spike-html-design is active, and its sync stages spike-html-components. v1.client is the next
-# goal in the exclusive group once v1.messaging completes and the experiment.html intake closes
+# spike-html-design answered at v0.7.0 (html-artifacts.md, "Answers · experiment.html"), and
+# spike-html-components is active. v1.client is the next goal in the exclusive group once
+# v1.messaging completes and the experiment.html intake closes
 # (standards-lab/context/web-client.md). Middleware is last: CORS waits for a client served
 # cross-origin.
 
 active = [
   "experiment.ai.spike-model-hosting",
-  "experiment.html.spike-html-design",
+  "experiment.html.spike-html-components",
   "v1.messaging",
 ]
 
 planned = [
-  "experiment.html.spike-html-components",
   "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
   "experiment.html.spike-html-apps",
@@ -703,83 +703,6 @@ its own standards-lab repository); how v1.client packages its layouts and compon
 its client application; the Pages topology v1.client and v1.repository-docs build; whether
 v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages sites embed live
 Go demos; and whether an external-client goal follows 1.0. It then archives the five spikes.
-'''
-
-[goals.experiment.html.spike-html-design]
-name = "A versioned style baseline"
-root = "spike-html-design"
-repos = ["spike-html-design"]
-remote = "https://github.com/JaimeStill/spike-html-design.git"
-path = "~/experiments/spike-html-design"
-summary = '''
-Can one tagged, native baseline of design facets (color, space, and type, each with swappable
-profiles, over elements and tools layers) be consumed by version, as a git-tag package
-and through a pinned CDN URL, and extended by other packages? Decides whether the baseline
-graduates, and where (`html-artifacts.md`, "Experiment: spike-html-design"); its packaging is an
-input to v1.client.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.layers]
-name = "The layered stylesheet, published by tag"
-summary = '''
-The stylesheet's layers (tokens, reset, theme, components) with herald's scales and token names,
-a specimen page, the check with its headless chromium harness, and the Pages workflow. Tags
-v0.1.0, and a Pages page links it by its pinned jsDelivr URL.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.themes]
-name = "Primer-derived dark and light"
-summary = '''
-Dark and light themes derived from Primer's resolved values, with eight hue tokens and four role
-tokens over them, the system default through prefers-color-scheme, and a contrast table for both
-themes. Tags v0.2.0.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.facets]
-name = "The faceted foundation"
-summary = '''
-The layers nested under one package layer (tokens with color, space, and type sub-layers, then
-reset, elements, tools), the facet token interfaces, the elements layer with a test that it
-changes no native element's behavior, the tools layer, and one profile per facet (Flexoki for
-color). Removes the components layer; adds package.json, the lean entry point with its size
-measured and reported, the specimen's section per layer and facet, `mise run serve`, and a planned visual
-review stop. Tags v0.3.0. Evidence 1, 2, 4.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.profiles]
-name = "Color profiles and previews"
-summary = '''
-Kanagawa, Tokyo Night, and Catppuccin color profiles, each light and dark, with contrast recorded
-per profile; preview containers that render a subtree in a profile; the specimen's grid of every
-profile and scheme, with the workbench layout reworked (the architect's screenshots of what
-fails are its plan round's input); the full entry point; the enforced size budget for the lean
-and full entries; and a planned visual review stop. Tags v0.4.0.
-Evidence 3, 5.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.preferences]
-name = "The profile registry and preferences"
-summary = '''
-A JS profile registry that extension packages add to, and a theming menu on T with each facet's
-profile and the scheme, persisted across reloads and pages, with the flash measured. Replaces
-the theme toggle. Tags v0.5.0. Evidence 6.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.keys]
-name = "The keyboard layer"
-summary = '''
-`keys.js`, one registry with T, ?, j, k, and g, silent in fields and with modifiers, declared
-with aria-keyshortcuts and listed in the ? dialog, plus key-hint styling. Tags v0.6.0.
-Evidence 7.
-'''
-
-[goals.experiment.html.spike-html-design.tasks.validate]
-name = "Validate and answer"
-summary = '''
-An install by git tag, an extension fixture that adds a profile and passes the exported
-conformance test, an earlier pin unchanged after later tags, each entry point's size against the
-budget, the cost of the @import chain from the CDN, "The answer" in the README, and the answer
-section for `html-artifacts.md` as a pending edit. Evidence 8 to 11.
 '''
 
 [goals.experiment.html.spike-html-components]
