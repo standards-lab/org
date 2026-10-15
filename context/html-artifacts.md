@@ -6,7 +6,7 @@ effectiveness of HTML" (claude.dev/blog, 2026-05-20). It argues that HTML wins o
 interactivity, navigating long documents, and sharing by link. It concedes the token cost, and
 it doesn't address diffability, hosting, or access control.
 
-experiment.html answers the question in five spikes, run one at a time. Planning on 2026-10-13
+experiment.html answers the question in six spikes, run one at a time. Planning on 2026-10-13
 widened it from artifacts to the whole client stack, and `web-client.md` holds that strategy.
 Its intake decides what these goals adopt:
 
@@ -30,12 +30,13 @@ renders on github.com.
   - raw.githubusercontent.com, jsDelivr `/gh/`, and statically all serve HTML as `text/plain`
     with `nosniff`, so none of them render it.
   - Cloudflare Pages is revisited only if per-PR preview URLs prove necessary.
-- **Build.** None. Pages are hand-written HTML, CSS, and ES modules, with custom elements and no
-  framework. A page's CSS works the same from `file://`, from a local server, and on Pages, and
-  the Pages workflow uploads a directory. Chromium blocks relative ES module scripts from
-  `file://`, so a `file://` page loads its modules from jsDelivr, which allows CORS; an untagged
-  working-tree page has no modules from `file://`. No Jekyll and no site generator. The stack for
-  applications, herald's bun + Lit or something else, is spike-html-apps' to settle.
+- **Build.** None for the foundation and static pages, pending spike-html-conventions. Pages are
+  hand-written HTML, CSS, and ES modules, with custom elements and no framework. A page's CSS
+  works the same from `file://`, from a local server, and on Pages, and the Pages workflow
+  uploads a directory. Chromium blocks relative ES module scripts from `file://`, so a `file://`
+  page loads its modules from jsDelivr, which allows CORS; an untagged working-tree page has no
+  modules from `file://`. No Jekyll and no site generator. spike-html-conventions picks the
+  toolchain for components and applications, and spike-html-apps builds applications on it.
 - **In-session review.**
   - A headless chromium screenshot is shown inline with
     `kitty +kitten icat --transfer-mode=stream` in a herdr or tmux pane. tmux passes the image
@@ -98,14 +99,39 @@ Decides whether the baseline graduates, and where: the architecture layer, besid
 and voice standards, or its own standards-lab repository. Its packaging, a git-tag
 package that other packages extend, is also an input to v1.client.
 
-## Experiment: spike-html-components
+## Experiment: spike-html-conventions
 
-How are layouts and components packaged, released, and layered over the baseline? It consumes
-the baseline by tag from its own repository, the baseline's first real downstream package. It
-covers layouts and templates (structural custom elements, a layout engine over CSS grid, layout
-sheets for categories of page) and components, and weighs one library, one package per
-component, and packages of related components. Decides v1.client's layouts and components
-layers and where they sit in the architecture.
+Which conventions does the native web stack build on? The spike holds the web stack to the rigor
+the Go standards hold Go to: code structure, module organization, the import direction between
+layers, testing, lint, and few external dependencies, so that each layer stays small to maintain
+and to load as context. It consumes spike-html-design v0.7.0 by tag. Its hypotheses:
+
+- **Toolchain.** Node 26 LTS with pnpm is the toolchain for packages, and Bun only bundles
+  applications, serves them in development, and processes their CSS. The spike measures Node
+  with pnpm against Bun 1.4 on git-tag install, TypeScript, build, watch, test, lint, and
+  jsDelivr, and picks one.
+- **TypeScript form.** The spike compares `.ts` with type stripping, JavaScript checked through
+  JSDoc, and plain JavaScript on the same element and module, and reaches its own conclusion.
+  Turbo 8's move away from TypeScript and Svelte's move to JSDoc are positions it weighs.
+- **Component convention.** The foundation and static pages are written vanilla, and components
+  and the application branch are written with Lit.
+- **The element tier.** A component takes properties and attributes, emits events, and may hold
+  its own UI state. It holds no services, fetches no data, and holds no application state. An
+  application's internal element becomes a component once a second application needs it.
+
+It also specifies the application SDK that spike-html-apps builds: the router, an API client, an
+auth hook, formatting, the domain-service pattern, the modules and views tiers, the build
+configuration, and a Go serving half proposed for go-web-sdk. Its standards stay in the spike's
+STANDARDS.md and `context/` until the intake. Decides what spike-html-packages, spike-html-apps,
+and spike-html-hosting build on, and whether the intake founds a web standard.
+
+## Experiment: spike-html-packages
+
+How are the foundation's lateral concerns, its JS/TS modules, and the components packaged and
+released by tag over spike-html-design v0.7.0? It settles tag naming, the mechanism that ships
+release builds beside the sources, and whether the layers ship as one library or several
+packages. It runs after spike-html-conventions, on its toolchain. Decides how v1.client packages
+its layers.
 
 ## Experiment: spike-html-hosting
 
@@ -133,9 +159,9 @@ Pages sites embed live demos.
 
 What does a client application look like? It compares herald's embedded app
 (`~/code/herald/app`, a Go package embedding a bun-built Lit client) with other configurations,
-and with an external client that calls several services. It runs last, so it builds on every
-other answer: the components, hosting for an external client, and live WASM as an option.
-Decides v1.client's app architecture and whether an external-client goal follows 1.0.
+and with an external client that calls several services. It runs after spike-html-packages, on
+the conventions and packaging those two spikes settle. It builds the application SDK that
+spike-html-conventions specifies, and names the SDK's go-web-sdk serving half. Decides v1.client's app architecture and whether an external-client goal follows 1.0.
 
 ## Answers · experiment.html
 
