@@ -34,7 +34,7 @@ from the layers below it, and each works on its own.
 
 - **The reference client.** v1.client's application, embedded in go-web-service and served by
   its binary, just as slab is the service's command-line client. Its first demonstrations are
-  the organizations, the document hierarchy, and a live view of v1.messaging's reactors over
+  the organizations, the document hierarchy, and a live view of go-web-service's reactors over
   the WebSocket bridge (`messaging.md`). It is served from the same origin as the service.
 - **External clients.** Clients hosted apart from any one service that call several services.
   They are post-1.0. spike-html-apps settles their strategy beside the embedded case, and the
@@ -58,7 +58,7 @@ and session briefs, stay Markdown, and so do the `context/` notes.
 ## Sequence
 
 experiment.html runs its spikes one at a time, because each answer can change the spikes after
-it. The spikes lock only their own repositories, so they run beside v1.messaging:
+it. The spikes lock only their own repositories, so they run beside the exclusive group's goal:
 
 1. spike-html-design: the foundation's style baseline.
 2. spike-html-conventions: the toolchain, TypeScript form, code structure, testing, lint, and
@@ -74,10 +74,9 @@ it. The spikes lock only their own repositories, so they run beside v1.messaging
 6. spike-html-go-wasm: live Go demos.
 
 The intake then decides what v1.client builds, and v1.client's own planning writes its tasks.
-v1.client starts once the intake has closed and v1.messaging has completed. It is the next goal
-in the workspace's exclusive group, ahead of v1.ai, v1.data, v1.auth, and v1.admin-listener. If
-v1.messaging completes before the intake closes, planning decides what holds the exclusive group
-until it does.
+v1.client starts once the intake has closed. It is the next goal in the workspace's exclusive
+group, ahead of v1.ai, v1.data, v1.auth, and v1.admin-listener. Until the intake closes, planning
+decides what holds the exclusive group.
 
 ## What lands later
 

@@ -323,8 +323,8 @@ grant-change events, and delegated grant mutation through token exchange, never 
 authority. Deferred until a second deployed service exists to administer; nothing beyond the identity-link
 and grant-change event obligation below is committed now.
 
-**Grant writes and identity-link writes emit events.** Committed now, implemented when `v1.messaging`
-lands: this is what answers an enterprise-wide "what can this person do anywhere" question by
+**Grant writes and identity-link writes emit events.** Committed now, emitted through go-messaging's
+outbox by whichever goal builds those writes: this is what answers an enterprise-wide "what can this person do anywhere" question by
 aggregation rather than a synchronous authorization dependency, and it is the population path for a
 replica or a relationship store if either trigger above ever fires. Identity-link events, not only grant
 events, are what let a future aggregate view correlate one person across services on the one globally
