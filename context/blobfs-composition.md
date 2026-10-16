@@ -1,36 +1,40 @@
 # Composing `blobfs` into a consumer
 
-What go-web-service's storage layer proved about composing `blobfs` that neither blobfs's guide
-(`blobfs/docs/`) nor go-web-service's code and `context/domain-architecture.md` state yet: the
-write, delete, and move protocols as a consumer sequences them, whose complete step is the
-transaction an event is enqueued in (`messaging.md`, "Outbox sequencing"), and the operating
-constraints. The composition root,
-ownership, seeding, and set registration are expressed in go-web-service and are not restated.
-This note goes once blobfs's guide carries these sections.
+What go-web-service's storage layer proved about composing `blobfs` that neither go-web-service's
+code nor its `context/domain-architecture.md` states: the write, delete, and move protocols as a
+consumer sequences them, whose complete step is the transaction an event is enqueued in
+(`messaging.md`, "Outbox sequencing"), and the operating constraints. blobfs's guide documents the
+write and delete sequences and the branch-mark rule (`blobfs/docs/features.md`, "The protocols"
+and "Deleting a branch"). The composition root, ownership, seeding, and set registration are
+expressed in go-web-service and are not restated. This note goes once blobfs's guide carries these
+sections.
 
 ## The protocols as the service sequences them
 
 **The upload.** In one transaction: check the scope and begin the file's write, and nothing else —
 no consumer row may reference the pending file, since a reference refuses the library's stale
 reclaim on every pass and strands the row (the logo's first write did exactly this, found by a
-layering review). Outside any transaction: upload under the row's key. On the pool: complete the
-write. A put or completion that fails abandons the row through the delete steps, on a context that
-outlives the request's cancellation; a completion refused because a sweep reached the row first
-deletes the object just stored (the writer rule). A consumer's reference to the file, such as the
-logo's join row, is written after completion, in the transaction that holds the file. The service
-stages these steps once, as shared protocols in its `data` package (write, ensure, retire, purge,
-serve), bound for the library.
+layering review). Outside any transaction: upload under the row's key. blobfs's `WriteFile` then
+completes the write in a transaction of its own, and the consumer's `OnComplete` hook runs in it,
+where the upload's event is enqueued. A put or completion that fails abandons the row through the
+delete steps, on a context that outlives the request's cancellation; a completion refused because a
+sweep reached the row first deletes the object just stored (the writer rule). A consumer's
+reference to the file, such as the logo's join row, is written after completion, in the
+transaction that holds the file. The service runs blobfs's own `WriteFile`, `EnsureFile`, and
+`RemoveFile`, passing `OnComplete` and `OnDelete`, and stages none of them.
 
 **The delete.** In one transaction: hold the file (the reference-then-delete rule) if any of the
 consumer's own rows are about to reference it, or check the consumer's own referencing rows and
-refuse while any exist, then begin the library's delete. Outside any transaction: delete the object.
-On the pool: purge the row. The consumer's own foreign key into the library's file table is
-the backstop for a reference that slips in after the check, and the consumer maps that constraint's
-name to its own sentinel at the purge step. A recursive removal is the library's mark and sweep: the
-request marks the branch deleting at the version it read and answers 202, and the sweep, run as a
-background worker woken by the request, on an interval, and once at startup, removes the branch's
-objects and rows and reclaims stale pending and deleting rows past an age. The sweep's refusals are
-logged and retried, never fatal.
+refuse while any exist, then begin the library's delete. `RemoveFile`'s `OnDelete` hook runs in
+that transaction, after the row is marked deleting, and a retry runs none. Outside any
+transaction: delete the object. On the pool: purge the row. The consumer's own foreign key into
+the library's file table is the backstop for a reference that slips in after the check, and the
+consumer maps that constraint's name to its own sentinel at the purge step. A recursive removal is
+the library's mark and sweep: the request marks the branch deleting at the version it read and
+answers 202, and the sweep, run as the `files` reclaimer on go-database's general sweeper, nudged
+by the request and due on the interval and at startup, removes the branch's objects and rows and
+reclaims stale pending and deleting rows past an age. The sweep's refusals are logged and retried,
+never fatal.
 
 **The move.** Resolve both paths and run the library's move in one transaction; a directory move
 takes the engine's lock through the variant. On an engine with no native lock, the consumer
@@ -55,5 +59,6 @@ serializable isolation with a retry on the driver's serialization-failure class.
 - **Schema changes and the sweep deadlock.** Reverting a consumer migration that references the
   library's directory table locks the two tables in the opposite order from a sweep's cascading
   removal, and Postgres aborts one side. The service quiesces the sweep around its schema-changing
-  admin verbs with a per-process gate; a multi-replica reset would need a database lock the sweep
-  also takes.
+  admin verbs with a per-process gate, which each sweep pass holds shared. A multi-replica reset
+  would need a database lock that each sweep pass also takes, beside the general sweeper's
+  `sweep.<reclaimer>` claims.

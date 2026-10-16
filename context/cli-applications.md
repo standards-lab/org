@@ -53,7 +53,7 @@ interface is a contract a value can meet by accident. The role interfaces across
 
 | Interface | Home | Methods | Implemented by | Read by |
 |---|---|---|---|---|
-| Starter | go-core lifecycle | `Start(ctx) error` | database.DB, storage.Store, admin.Service, observability.Telemetry, web.Server, sdk.Reactor, slab's scenarios.Service and scenarios.Grafana | the Coordinator, by assertion |
+| Starter | go-core lifecycle | `Start(ctx) error` | database.DB, storage.Store, admin.Service, observability.Telemetry, web.Server, reactor.Reactor, slab's scenarios.Service and scenarios.Grafana | the Coordinator, by assertion |
 | Stopper | go-core lifecycle | `Shutdown(ctx) error` | the same except admin.Service | the Coordinator, by assertion |
 | Subsystem | go-core lifecycle | Starter + Stopper | DB, Store, Telemetry, Server, Reactor | docs and compile-time proofs only |
 | ReadinessChecker | go-core lifecycle | `Ready() bool` | Coordinator, Readiness, DB, Store, admin.Service, Reactor, Waker | `Coordinator.Checks`, through ReadyStarter; `web.Doctor` |
@@ -61,7 +61,7 @@ interface is a contract a value can meet by accident. The role interfaces across
 | Monitored | go-core lifecycle | `Err() <-chan error` | web.Server, Reactor | the Coordinator, by assertion |
 | Doctor | go-web-sdk | ReadinessChecker + `Checks()` | Coordinator, Readiness | `RegisterHealth` |
 | Mounter | go-web-sdk | `Handle(pattern, handler)` | http.ServeMux, web.Router | `RegisterHealth` |
-| Source[T] | go-web-service sdk | `Receive`, `Ready() bool` | Waker, Every | Reactor |
+| Source[T] | go-core reactor | `Receive`, `Ready() bool` | Waker, Every | Reactor |
 
 No two packages declare the same method set, and go-cli-sdk declares no role interface of its
 own. The rules for the others:
@@ -75,7 +75,8 @@ own. The rules for the others:
   names its parts, though the Coordinator never asserts it.
 - **`Source[T]` keeps `Ready()`**, since a value that is not a Starter no longer joins /readyz.
 
-The Gate's consumer views (`Shared`, `Exclusive`) stay with v1.messaging's core-reactor.
+go-core's `reactor.Gate` is a struct; a consumer declares the view it holds, as go-messaging's
+`messaging.Gate` and `outbox.Gate` declare `Shared` alone.
 
 ## The plan
 

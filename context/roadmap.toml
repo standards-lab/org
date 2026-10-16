@@ -3,9 +3,10 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. v1.messaging holds it, rooted in go-messaging;
-# its goal record orders the tasks, core-reactor first. Outside the
-# exclusive group, experiment.ai.spike-model-hosting is active: its Framework tasks run now, its
+# the reference-architecture code repositories. No active goal holds it: v1.client, the next goal
+# in the group, is proposed, not staged, and waits on the experiment.html intake closing
+# (standards-lab/context/web-client.md). Outside the exclusive group,
+# experiment.ai.spike-model-hosting is active: its Framework tasks run now, its
 # workstation tasks from 2026-10-14, and its admin task can run, since go-cli-sdk v0.1.0, which it
 # waited on, is released. Its sync stages spike-local-models. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
@@ -13,15 +14,12 @@
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
 # spike-html-design answered at v0.7.0 (html-artifacts.md, "Answers · experiment.html"), and
-# spike-html-conventions is active. v1.client is the next goal in the exclusive group once
-# v1.messaging completes and the experiment.html intake closes
-# (standards-lab/context/web-client.md). Middleware is last: CORS waits for a client served
+# spike-html-conventions is active. Middleware is last: CORS waits for a client served
 # cross-origin.
 
 active = [
   "experiment.ai.spike-model-hosting",
   "experiment.html.spike-html-conventions",
-  "v1.messaging",
 ]
 
 planned = [
@@ -151,159 +149,6 @@ context = [
   "go-web-sdk/context/error-handling.md",
 ]
 
-[goals.v1.messaging]
-name = "Messaging and reactor services"
-root = "go-messaging"
-repos = [
-  "go-core",
-  "go-messaging",
-  "go-database",
-  "blobfs",
-  "go-web-sdk-template",
-  "go-web-service",
-]
-summary = '''
-The go-messaging infrastructure library with NATS as the declared provider, and the layer that
-makes the service's internal/reactors real: reactor services on the event-driven interface
-messaging enables, fleshed out as first-class architecture alongside the domain layer. Built on
-a CloudEvents envelope, outbox emission, inbox idempotency, and a source-agnostic reactor
-contract, with go-core gaining the `reactor` and `event` primitives, as spike-messaging proved
-(archived). go-messaging was created by this goal's first `plan`, which added it to the
-workspace order, the exclusive group, and the catalog.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.core-reactor]
-name = "go-core reactor"
-repos = ["go-core", "go-messaging"]
-summary = '''
-go-core gains a `reactor` package on the standard library alone, and releases v0.9.0. It ports
-go-web-service's `sdk.Reactor` and `sdk.Gate` unchanged in behavior: the source contract,
-`Draining(ctx)`, `Grace`, the `Every` (schedule) and `Wake`/`Waker` (demand, interval as
-backstop) sources, and `Gate`, the context-aware readers-writer quiesce gate that prefers its
-exclusive side, as `reactor.Gate` (`sync.RWMutex` can't honor a context, and `x/sync/semaphore`
-breaks go-core's standard-library-only line). It adds spike-messaging's `GraceWithin(drain)`, half
-the drain timeout; the spike's reactor had neither `Draining` nor `Wake`. `reactor` imports
-neither `lifecycle` nor `graph`, and `lifecycle` gains nothing: under go-core v0.8.0 a Reactor is
-a `Subsystem`, a `ReadyStarter`, and `Monitored`, so the Coordinator starts it, drains it, checks
-it, and watches it with no registration. go-core's context capability map is brought current: seven
-packages, and a lifecycle that runs the graph's layers rather than stages. go-messaging is in
-`repos` only for the goal record.
-'''
-proof = '''
-A Reactor as a graph node's value is started, drained, checked, and monitored by
-lifecycle.Coordinator with no registration; Gate's waiting Exclusive bars new Shared holders;
-reactor imports only the standard library; go-core v0.9.0 is tagged.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.core-event]
-name = "go-core event"
-repos = ["go-core"]
-summary = '''
-go-core gains an `event` package on the standard library alone: the CloudEvents 1.0 type and its
-binary-mode codec, `CheckType`, `Permanent`, `Define`/`EventKind`, `Queue`, and
-`Recorder[Tx]`/`Sink[Tx]`; release.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.library]
-name = "go-messaging base and postgres engine"
-repos = ["go-messaging"]
-summary = '''
-go-messaging's base module (the broker contract, `Subscription` with `Start`, `MaxDeliver`, and
-`Normalize`, `Config` with the relay `Timeout`, `Runtime` with its error hook and the delivery
-attempt, outbox with poison-row quarantine, inbox, the memory provider, `messagingtest`) and the
-postgres engine module with the `messaging` migration set; release.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.nats]
-name = "go-messaging NATS provider"
-repos = ["go-messaging"]
-summary = '''
-The JetStream provider sub-module with its integration conformance run, failure reporting
-through the error hook, and binding a stream without provisioning it, so a stream has one owner;
-release.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.template]
-name = "Template reactors"
-repos = ["go-web-sdk-template"]
-summary = '''
-The template's `reactors.go` defines each reactor as a graph node on go-core's `reactor`,
-appended to `Nodes.Reactors`. The template stays engine-free and imports no go-messaging.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.service-reactors]
-name = "Service reactors on go-core"
-repos = ["go-web-service"]
-summary = '''
-The sweeper and the gate move onto go-core, each component is a graph node whose part go-core
-infers, and
-`sdk/reactor.go` and `sdk/gate.go` are deleted. `domain-architecture.md` and `data-layer.md` drop
-v1.data.evaluation's ruling on the reactor and gate. The `app.Wake` comment in
-`internal/app/reactors.go` drops its reason about any-Ready values, since go-core v0.8.0 infers
-readiness checks only from Starters.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.service-events]
-name = "Service events on NATS"
-repos = ["go-messaging", "go-web-service"]
-summary = '''
-The messaging runtime on NATS in the service. The storage upload emits from its complete step's
-transaction, which proves the composite Postgres-and-blob case the spike left open. The relay and
-the inbox claims hold the gate shared (`migration-sets.md`).
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.event-coverage]
-name = "Event coverage"
-repos = ["go-database", "go-web-service"]
-summary = '''
-Every public command that changes state emits exactly one event, in the transaction that makes
-it true: organization Create, Edit, Transfer, Delete, PutLogo, and DeleteLogo; document
-CreateDirectory, DeleteDirectory, DeleteBranch, MoveDirectory, DeleteFile, and MoveFile, beside
-the upload. Types follow `<service>.<domain>.<operation>` for an operation on the domain itself
-and `<service>.<domain>.<element>.<operation>` for one on a sub-element. Data is the entity's
-stored state after the command. Every seed write emits its command's event. The database admin's
-state reset emits one `web-service.database.reset` through a reset hook that go-database's admin
-service gains (go-database v0.9.0, released first), and schema verbs emit nothing. The file
-delete and the seeds' ensure write are staged in the service with hooks, bound for blobfs.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.blobfs-write-protocol]
-name = "blobfs write and delete protocols with hooks"
-repos = ["blobfs", "go-web-service"]
-summary = '''
-blobfs promotes the protocols go-web-service staged in its `sdk` package: the two-phase write
-with a hook in its completion's transaction, its retry-safe ensure form, and the two-phase
-delete with a hook in its first transaction, with no messaging dependency. The service moves
-onto blobfs's protocols and deletes its staging. Released.
-'''
-context = ["standards-lab/context/messaging.md"]
-
-[goals.v1.messaging.tasks.sweeper]
-name = "The general sweeper"
-repos = ["go-database", "blobfs", "go-web-service"]
-summary = '''
-Outbox and inbox retention builds the general sweeper, under its binding activation rule: the
-first layer that needs sweeper-like reclamation builds it, never a second standalone reactor. A
-data-oriented garbage collector, a level-triggered reconciler whose durable state lives with the
-data owner, behind a `Reclaimer` contract, `Pass(ctx, budget) (more bool, err error)`, that is
-idempotent, convergent, and bounded; registered by name with a policy; claimed across replicas
-with `SKIP LOCKED` or an advisory lock; reporting backlog metrics, not readiness; run as a
-reactor. Outbox and inbox retention are reclaimers, and blobfs's `Sweep` moves onto it. Its home
-is settled at this task's plan, likely go-database. blobfs's orphan reconciler stays deferred:
-this task re-points its trigger in blobfs `context/deferred.md` to an orphan observed, or a
-consumer storing at volume, once the general sweeper exists.
-'''
-context = ["go-web-service/context/data-layer.md"]
-
 [goals.v1.data]
 name = "Data composition and CQRS"
 summary = '''
@@ -393,10 +238,10 @@ foundation, components, and apps layers (consumer order: foundation, components,
 repositories' Pages sites and the coordinator's persistent artifacts, and
 a reference client embedded in go-web-service and served by its binary, in parity with the
 service as slab is on the command line. The reference client first demonstrates the
-organizations, the document hierarchy, and a live view of v1.messaging's reactors over the
+organizations, the document hierarchy, and a live view of go-web-service's reactors over the
 WebSocket bridge, against the open API; v1.auth's client sweep puts it behind authentication.
-Starts once v1.messaging completes and the experiment.html intake closes, as the next goal in
-the exclusive group; the intake decides what it builds from the six spikes' answers, and its
+Starts once the experiment.html intake closes, as the next goal in the exclusive group; the
+intake decides what it builds from the six spikes' answers, and its
 own planning writes its tasks. Its sites work repoints `architecture/context/README.md`, which
 names docs-site as the owner of site hosting. Recorded inputs: the organization logo's fallback
 (v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
@@ -955,6 +800,6 @@ name = "Versioned public API after v1"
 summary = '''
 After go-web-service's v1.0.0, its public API changes by version rather than in place: the HTTP
 API, and each event's type and data, which before v1 change freely with no version suffix
-(v1.messaging, service-events). The outcome holds when a breaking change to either ships beside
+(messaging.md, "Which commands emit events"). The outcome holds when a breaking change to either ships beside
 the version it replaces.
 '''

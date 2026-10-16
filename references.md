@@ -45,9 +45,8 @@ The Go implementation of the Elemental Architecture, the organization's first st
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk`,
-`go-web-sdk-template`, `go-cli-sdk`, and `go-cli-sdk-template` (released); `go-messaging`, the
-messaging infrastructure library (not yet released); and `go-web-service`, the reference web
-service (versionless until its 1.0).
+`go-web-sdk-template`, `go-cli-sdk`, `go-cli-sdk-template`, and `go-messaging` (released); and
+`go-web-service`, the reference web service (versionless until its 1.0).
 
 ## Effort repositories — Standards Lab
 
@@ -82,9 +81,10 @@ packages. Released; depends on the standard library alone.
 
 ### go-database
 The SQL infrastructure library of the `go-elemental` standard: the infrastructure service over
-a pool and the database admin service over `sqlate`, with the PostgreSQL provider as the
-`postgres` sub-module. Its README lists the packages. Released, base and provider tagged
-independently; the base depends on the standard library, `go-core`, and `sqlate`.
+a pool, the database admin service over `sqlate`, and the general sweeper (`sweep`), which runs a
+service's reclaimers as one reactor, with the PostgreSQL provider as the `postgres` sub-module.
+Its README lists the packages. Released, base and provider tagged independently; the base depends
+on the standard library, `go-core`, and `sqlate`.
 
 ### go-observability
 The observability infrastructure library of the `go-elemental` standard: the OpenTelemetry
@@ -104,9 +104,10 @@ depends on the standard library and `go-core` alone.
 ### go-messaging
 The messaging infrastructure library of the `go-elemental` standard: the broker contract and
 subscriptions, the runtime with its error hook, outbox emission and inbox idempotency, the memory
-provider, and the `messagingtest` conformance suite, with the postgres engine and the NATS
-JetStream provider as sub-modules. Its events are go-core's CloudEvents `event` type and its
-consumers go-core `reactor`s. Not yet released; v1.messaging builds it.
+provider, and the `messagingtest` conformance suite, with the postgres engine, which also holds
+the outbox and inbox retentions, and the NATS JetStream provider as sub-modules. Its events are
+go-core's CloudEvents `event` type and its consumers go-core `reactor`s. Released, base and
+sub-modules tagged independently.
 
 ### go-web-sdk
 The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service
