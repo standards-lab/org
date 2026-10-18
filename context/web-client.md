@@ -24,11 +24,14 @@ from the layers below it, and each works on its own.
    no application state. An application's internal element becomes a component once a second
    application needs it.
 3. **Apps.** Two branches:
-   - static content, such as the Pages sites, built vanilla on the foundation;
+   - static content, such as the Pages sites, on the foundation, with its own elements in Lit
+     with a shadow root, and its pages built through Vite with the local CSS plugin;
    - applications, with Lit, hosted standalone or embedded in a web service as its client, as
      herald's app is. An application keeps its own modules and views, and builds on an
-     application SDK: the router, an API client, an auth hook, formatting, and the domain-service
-     pattern. spike-html-conventions specifies the SDK and spike-html-apps builds it.
+     application SDK: the router, an API client, an auth hook, and the domain-service pattern.
+     spike-html-conventions specifies the SDK and spike-html-apps builds it. The Intl formatters
+     are a foundation spec, shared by components and apps, because components format too and a
+     component may not import the SDK.
 
 ## Consumers
 

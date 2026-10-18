@@ -13,17 +13,16 @@
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
-# spike-html-design answered at v0.7.0 (html-artifacts.md, "Answers · experiment.html"), and
-# spike-html-conventions is active. Middleware is last: CORS waits for a client served
-# cross-origin.
+# spike-html-design and spike-html-conventions have answered (html-artifacts.md, "Answers ·
+# experiment.html"), and spike-html-packages is active. Middleware is last: CORS waits for a
+# client served cross-origin.
 
 active = [
   "experiment.ai.spike-model-hosting",
-  "experiment.html.spike-html-conventions",
+  "experiment.html.spike-html-packages",
 ]
 
 planned = [
-  "experiment.html.spike-html-packages",
   "experiment.html.spike-html-apps",
   "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
@@ -549,59 +548,9 @@ Run by `marathon intake experiment.html` once all six spikes have their answers 
 its own standards-lab repository); whether a web standard is founded, and with which pages; how
 v1.client packages its foundation and components and builds its client application; the Pages topology v1.client and v1.repository-docs build; whether
 v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages sites embed live
-Go demos; and whether an external-client goal follows 1.0. It then archives the six spikes.
-'''
-
-[goals.experiment.html.spike-html-conventions]
-name = "Web platform conventions"
-root = "spike-html-conventions"
-repos = ["spike-html-conventions"]
-remote = "https://github.com/JaimeStill/spike-html-conventions.git"
-path = "~/experiments/spike-html-conventions"
-summary = '''
-Which conventions does the native web stack build on? Compares two toolchains head-to-head, Node
-26 with pnpm against Bun, and three TypeScript forms; settles the code structure and each layer's
-import direction, the testing tiers, and the lint tool; and tests the component convention:
-vanilla for the foundation and static pages, Lit from components up, with components as the
-element tier. Specifies the application SDK that spike-html-apps builds. Decides what
-spike-html-packages, spike-html-apps, and spike-html-hosting build on, and whether the intake
-founds a web standard (`html-artifacts.md`, "Experiment: spike-html-conventions").
-'''
-
-[goals.experiment.html.spike-html-conventions.tasks.toolchain]
-name = "The toolchain, head-to-head"
-summary = '''
-Node 26 with pnpm against Bun 1.4, measured on git-tag install, TypeScript, build, watch, test,
-lint, and jsDelivr, with a pick; the three-way TypeScript form comparison on one element and one
-module, with its conclusion; and a fixture that consumes spike-html-design v0.7.0 by tag,
-installed and from file:// through jsDelivr, beside a fixture package this repository releases,
-installed by tag under each toolchain. Extends the check. Evidence 1, 2, 7.
-'''
-
-[goals.experiment.html.spike-html-conventions.tasks.structure]
-name = "Code structure and layer direction"
-summary = '''
-The directory, module, and layer layout and the import direction per stack layer, written as
-STANDARDS.md judgement calls, with a check that enforces the direction; and the lint and format
-tool in the check. Evidence 3, 6.
-'''
-
-[goals.experiment.html.spike-html-conventions.tasks.components]
-name = "One element, vanilla and Lit"
-summary = '''
-One element-tier component built in vanilla and in Lit, compared on lines, brotli bytes, and the
-features each version builds by hand. Evidence 4.
-'''
-
-[goals.experiment.html.spike-html-conventions.tasks.testing]
-name = "Testing tiers"
-summary = "Unit and browser test tiers, both inside the one check. Evidence 5."
-
-[goals.experiment.html.spike-html-conventions.tasks.branches]
-name = "App branches, the SDK spec, and the answer"
-summary = '''
-Layout specs for the static and application branches, the application SDK spec, "The answer" in
-the README, and the answer section for `html-artifacts.md` as a pending edit. Evidence 8.
+Go demos; and whether an external-client goal follows 1.0. It weighs spike-html-conventions'
+finding that spike-html-design ships each layer as a self-layered, `@import`-free, exported
+sheet (`html-artifacts.md`, "Experiment: spike-html-design"). It then archives the six spikes.
 '''
 
 [goals.experiment.html.spike-html-packages]
@@ -613,8 +562,11 @@ path = "~/experiments/spike-html-packages"
 summary = '''
 How are the foundation's lateral concerns, its JS/TS modules, and the components packaged and
 released by tag over spike-html-design v0.7.0: tag naming, release builds beside the sources,
-and one library or several packages? Decides how v1.client packages its layers
-(`html-artifacts.md`, "Experiment: spike-html-packages").
+and one library or several packages? Also decides the hosting and repository layout, on which
+spike-html-conventions' pnpm pick depends, and the import extension the releases use, and ships
+the components' and the foundation's `.css` beside the emitted `.js`. Decides how v1.client
+packages its layers (`html-artifacts.md`, "Experiment: spike-html-packages", which holds
+spike-html-conventions' facts for these decisions).
 '''
 
 [goals.experiment.html.spike-html-hosting]
@@ -627,7 +579,9 @@ summary = '''
 What do the repositories' Pages sites and the hosting of persistent artifacts look like,
 published as native web? Tests the hypothesis: architecture its own project site; org holding
 the charter and the hosted artifacts and linking to every project site; each code repository
-serving its own docs/ guide. Draws the line between HTML and Markdown. Decides the Pages
+serving its own docs/ guide. Its Pages workflow runs a Vite build with spike-html-conventions'
+local CSS plugin and uploads the build output. Draws the line between HTML and Markdown. Decides
+the Pages
 topology v1.client and v1.repository-docs build, and whether v1.harness.sitrep and the
 coordinator's briefs/ publish HTML (`html-artifacts.md`, "Experiment: spike-html-hosting").
 '''
@@ -654,9 +608,10 @@ path = "~/experiments/spike-html-apps"
 summary = '''
 What does a client application look like? Compares herald's embedded app (a Go package embedding
 a bun-built Lit client) with other configurations, and with an external client that calls
-several services. Builds the application SDK the conventions spike specifies, and names its
-go-web-sdk serving half. Runs after spike-html-packages, on its answer and the conventions
-spike's. Decides v1.client's app architecture
+several services. Builds the router, the API client, the default token provider, and the
+foundation's formatters to the conventions spike's declarations, and proves its proposed Go
+serving half in go-web-service's `sdk/` package before go-web-sdk takes it. Runs after
+spike-html-packages, on its answer and the conventions spike's. Decides v1.client's app architecture
 and whether an external-client goal follows 1.0 (`html-artifacts.md`, "Experiment:
 spike-html-apps").
 '''
