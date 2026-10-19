@@ -115,6 +115,9 @@ remote = "https://github.com/JaimeStill/spike-harness-driver.git"
 [repos.spike-html-design]
 remote = "https://github.com/JaimeStill/spike-html-design.git"
 
+[repos.spike-html-conventions]
+remote = "https://github.com/JaimeStill/spike-html-conventions.git"
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"
