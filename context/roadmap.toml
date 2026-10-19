@@ -569,6 +569,59 @@ packages its layers (`html-artifacts.md`, "Experiment: spike-html-packages", whi
 spike-html-conventions' facts for these decisions).
 '''
 
+[goals.experiment.html.spike-html-packages.tasks.layers]
+name = "The layers and their release build"
+summary = '''
+Copies of spike-html-conventions' layers (the foundation port on the default profiles, the Lit
+shadow components, the SDK declarations) and spike-html-design v0.7.0's tools, split into
+utilities, structure, and meta sheets, with its registry and keys family, each with its
+provenance. A release build of unbundled .js and .d.ts with every .css beside it, named by exports
+and files and installed offline from a packed tarball under npm, pnpm, and bun; and the import
+extension, .js specifiers against .ts rewritten by tsc, measured unbundled and through Vite. Grows
+the check to spike-html-conventions'. No tag. Evidence 4, 5.
+'''
+
+[goals.experiment.html.spike-html-packages.tasks.layout]
+name = "One package or several"
+summary = '''
+The layers as one package with subpath exports against several workspace packages in one
+repository, with the layer direction enforced at install by declared dependencies measured against
+the lint rule alone. Evidence 2.
+'''
+
+[goals.experiment.html.spike-html-packages.tasks.hosting]
+name = "Release by tag, tarball, and import map"
+summary = '''
+One release delivered by git tag (installed, and loaded from jsDelivr /gh/), by release-asset
+tarball URL, and by URL imports through an import map; and tag naming, one repo-wide vX.Y.Z against
+per-package pkg/vX.Y.Z and pkg@X.Y.Z, each resolved by npm, pnpm, bun, and jsDelivr. Evidence 1, 3.
+'''
+
+[goals.experiment.html.spike-html-packages.tasks.registries]
+name = "GitHub Packages and JSR"
+summary = '''
+Real 0.0.x publishes under @jaimestill to GitHub Packages, with gh's token passed by environment
+variable, and to JSR, whose versions can never be removed (a one-way door); what each carries of the
+.css and what a consumer pays to install. How JSR is published is settled in this task's plan.
+Evidence 1.
+'''
+
+[goals.experiment.html.spike-html-packages.tasks.consumers]
+name = "Consumers and the release flow"
+summary = '''
+A page loading the release unbundled and a Vite app with the local CSS plugin, both rendering
+components on the foundation, with the nested-dependency guards each hosting trips; and a release
+cut on a green check with pnpm's built-in versioning, against a hand script. Evidence 6, 7.
+'''
+
+[goals.experiment.html.spike-html-packages.tasks.answer]
+name = "The reweighed picks and the answer"
+summary = '''
+npm against pnpm, and ESLint+Prettier against Biome, weighed again on the chosen hosting and layout;
+"The answer" in the README, and the answer section for `html-artifacts.md` as a pending edit.
+Evidence 8.
+'''
+
 [goals.experiment.html.spike-html-hosting]
 name = "Repository docs and artifact hosting"
 root = "spike-html-hosting"
