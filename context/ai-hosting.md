@@ -7,9 +7,9 @@ machines that serve local models to the organization's consumers:
 - Claude Code subagents
 - the go-ai service
 
-Its planned home is a new workspace member repository, working name `ai-hosting`.
-`v1.ai.hosting` builds it fresh from what spike-model-hosting proves on personal-agents'
-setup, rather than transferring that repository's history.
+The hosts are the Framework desktop and the two GB10 workstations. The layer's planned home is a
+new workspace member repository, working name `ai-hosting`. `v1.ai.hosting` builds it fresh from
+experiment.hosting's answers, rather than transferring personal-agents' history.
 
 ## The existing setup: personal-agents
 
@@ -18,9 +18,11 @@ marathon context project outside the workspace. It configures one host class, th
 Framework desktop:
 
 - **Hardware**: AMD Strix Halo, 128GB of unified memory, about 96GB of it exposed to the GPU.
-- **Serving**: llama.cpp's router in Vulkan mode, from upstream llama.cpp's release build b11529,
-  run as a systemd service. It binds only to the tailnet, and Tailscale's device authentication
-  is the access boundary.
+- **Serving**: llama.cpp's router in Vulkan mode, run as a systemd service from
+  spike-model-hosting's rendered presets and unit. It runs upstream build b11734 (at
+  spike-model-hosting's screen task) and is held to a minimum build of b11452. It binds only to
+  the tailnet, and Tailscale's device authentication is the access boundary on the dev
+  workstations. Production has no tailnet ("Experiment: experiment.hosting", "Production").
 - **Models**: spike-model-hosting's starting set, set A, sharing four slots and a unified KV cache:
   - gpt-oss-120b MXFP4, at 131072 context
   - Gemma 4 26B-A4B Q4_0, with vision, at 32768 context
@@ -42,9 +44,17 @@ Its `reference/` directory holds the measured method:
 `capabilities/gateway-proxy.md` defers a gateway until a second client needs the router, and
 Claude Code subagents are that second client.
 
-The Dell NVIDIA workstations are a second host class, with CUDA instead of Vulkan and discrete
-VRAM instead of unified memory. Their specifications are gathered by spike-model-hosting's `cuda`
-task, on the first workstation, available from 2026-10-14.
+The two GB10 workstations, `gb10-1` and `gb10-2`, are a second host class: Dell Pro Max GB10
+units of the DGX Spark class. Like Strix Halo, they have unified memory and no discrete VRAM.
+
+- **Hardware**: aarch64 with an sm_121 GPU, 20 cores, 3.6 TB of NVMe, and 128 GB of unified
+  memory at 273 GB/s, of which about 121 GiB is visible and about 117 GiB available.
+- **Stack**: DGX OS reports 7.4.0 but carries a newer stack: driver 580.178.04, CUDA 13.0,
+  kernel 7.0, Docker 29.6.2, and nvidia-container-toolkit 1.20.1.
+- **Interconnect**: a QSFP link over ConnectX-7 joins the two units, at about 185 Gb/s of RDMA
+  across both port halves.
+- **Memory reporting**: `nvidia-smi` reports no memory use, and `cudaMemGetInfo` counts the page
+  cache as used.
 
 ## Experiment: experiment.hosting
 
@@ -82,6 +92,39 @@ experiments run. Sessions do on any of them whatever needs no sudo, the docker g
 root stays the architect's, run from exact commands. A host is brought up to date right before a
 spike begins and frozen while it runs, and every measurement records the host's stack.
 
+### spike-model-hosting
+
+spike-model-hosting (`~/experiments/spike-model-hosting`, remote
+[JaimeStill/spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)) is the
+Framework's llama.cpp baseline. Its tasks established:
+
+- **align** moved the Framework's router to llama.cpp's upstream Vulkan release serving set A, and
+  brought personal-agents and spike-harness-driver in line with it.
+- **profile** defined the host-class profile schema in TOML, with a validator and a renderer, and
+  the Strix Halo profile, which takes each model's sampling and reasoning settings from its card.
+- **consumers** ran Pi, Claude Code, and go-ai's model client at once against the router, recorded
+  the baseline later measurements compare with, and measured tool-call reliability per model and
+  consumer.
+- **main-model** added named model sets, swapped over the router's API, and disqualified Mistral
+  Small 4 on Vulkan.
+- **evaluation** built `evaluate`'s gated stages on Inspect AI and MTEB.
+- **screen** added `evaluate`'s screen and the pool of admissible models, listed on paper.
+
+Every consumer and instrument runs from the architect's laptop; the Framework only hosts and
+serves, under the access rules in "Hosts and access" above. A sweep measures each model's slots
+and context size per host. Any open model licence is accepted: Apache-2.0, MIT, OpenMDW-1.1, the
+NVIDIA Open Model licences, the LFM Open License 1.0, the Llama 3.1 and 4 Community licences, and
+the Gemma Terms of Use, under the model-origin constraint (`ai-strategy.md`).
+
+The spike closes through its `answer` task, which takes no new measurement, and its answer lands
+in "Answers · experiment.hosting" below. Its other questions moved:
+
+- the engine (llama.cpp or vLLM) and hosting method (native or container) to spike-model-engines
+- the model layout to spike-model-layout
+- the gateway and access control to spike-model-gateway
+- the admin CLI to experiment.ai's spike-host-admin (`ai-strategy.md`)
+- benchmarking and model candidates to experiment.ai's spike-model-benchmarks (`ai-strategy.md`)
+
 ### spike-model-engines
 
 Which engine, llama.cpp or vLLM, serves each workstation, and is it hosted natively or in a
@@ -99,73 +142,6 @@ Which gateway spreads requests across the pool and queues them at capacity, and 
 restricted without the tailnet? Decides whether a gateway fronts the stack, which, and its access
 control.
 
-## Experiment: spike-model-hosting
-
-The hosting experiment is a new repository, `~/experiments/spike-model-hosting` (remote
-[JaimeStill/spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)), not
-personal-agents itself. It reads personal-agents, spike-harness-driver, tau-examples, and
-tau-protocol, all in the references catalog, and archives none of them. It wrote to
-personal-agents and spike-harness-driver only in its `align` task. The spike's answer lands in
-`ai-strategy.md`, "Answers · experiment.ai".
-
-**Question.** Which serving platform, configuration, and specification shape hold across both
-host classes (Strix Halo with Vulkan or ROCm, Dell NVIDIA with CUDA) and all three consumers at
-once?
-
-**Decision it changes.** The `ai-hosting` specification:
-
-- the serving platform on each host class
-- the schema of a host-class profile
-- whether a gateway sits in front of the serving, and which one
-- the form of the admin tooling
-
-**Serving platforms.** Only llama.cpp has been stood up so far. The spike compares, live:
-
-- llama.cpp: Vulkan and ROCm on Strix Halo, CUDA on the workstation, behind its own router
-- vLLM: ROCm on Strix Halo, CUDA on the workstation, behind llama-swap
-- SGLang: CUDA on the workstation, and time-boxed on Strix Halo from its nightly gfx1151
-  images, behind llama-swap
-
-For each, it records how the platform is set up and managed, and what it makes possible: model
-swapping, prefix caching, structured output, batching, embeddings, vision, audio, and the
-Anthropic Messages API. Lemonade serves only as an install path for vLLM on Strix Halo. Ollama
-and LM Studio wrap llama.cpp's ggml, and TGI is archived; all three are recorded on paper. The
-main-model pool is gpt-oss-120b (the lead), Mistral Small 4 (a swap candidate), and Gemma 4
-26B-A4B. The shared model set, set A, is gpt-oss-120b, Gemma 4 26B-A4B, gemma-4-E4B, and
-EmbeddingGemma 2, each in its platform's native format, under the model-origin constraint
-(`ai-strategy.md`).
-Every engine and gateway runs its latest upstream release, and each document records the exact
-version in use when it is written.
-
-**Gateway approaches.** The spike compares no gateway with agentgateway and LiteLLM in front of
-the serving. Envoy AI Gateway (now Agent Router) and vLLM's production-stack are
-Kubernetes-first, and are recorded on paper. A gateway's case is what the tailnet boundary
-doesn't give the three consumers:
-
-- a separate identity for each consumer
-- token budgets and rate limits that keep one consumer from exhausting the shared slots
-- OpenTelemetry traces and metrics for each request
-
-For each gateway, the spike records:
-
-- **Fidelity.** Pi and go-ai's `model` client run through it unchanged, and Claude Code's tool
-  use, streaming, and thinking blocks pass intact. agentgateway rejects Claude Code's
-  experimental beta parameters ("Extra inputs are not permitted"); the documented workaround,
-  `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`, is a cost the spike weighs.
-- **Cost.** Its memory and latency beside the serving, and whether its configuration fits in a
-  host-class profile or stands beside it.
-- **Both host classes.** The same configuration in front of both hosts' serving.
-- **IL6.** Whether it is acceptable air-gapped, checked on paper.
-
-llama.cpp, vLLM, and SGLang each serve the Anthropic Messages API natively, so a gateway's case
-rests on identity, budgets, routing, and observability, not on translating formats. If none of
-those is needed across the three consumers, the answer is no gateway.
-
-**Hosts.** The spike runs on the Framework desktop first. The Dell NVIDIA workstation is
-available from 2026-10-14, and the tasks that need it run last. The spike may change anything on
-either host, reached by Tailscale SSH in accept mode until it completes. It never touches the
-architect's laptop beyond the repository, its check, read-only probes, and HTTP.
-
 ## Where personal-agents' parts go
 
 - **Into `ai-hosting`**, one specification-level repository:
@@ -181,9 +157,11 @@ architect's laptop beyond the repository, its check, read-only probes, and HTTP.
   - model tiers
   - context sizing
   - the method for measuring memory footprint
-  - the serving conventions: router mode, tailnet-only binding, presets keyed by capability tier
+  - how to read a model card (spike-model-hosting's `docs/model-cards.md`); `ai-hosting`'s
+    per-model presets cite the card values this method reads
+  - the serving conventions: router mode, tailnet-only binding (the dev workstations' boundary), presets keyed by capability tier
     rather than by host, and the tool-call reliability convention (spike-model-hosting's
-    `context/tool-reliability.md`)
+    `docs/findings/tool-reliability.md`)
 
   Their place in the layer is decided when they are promoted. claude-plugins'
   tool-based-skills note is the nearest neighbor.
@@ -215,15 +193,18 @@ These are decided once the experiments show what the tooling has to serve.
 - **Name.** `outpost` names where the admin sits, not what the tool does.
 - **Form.** Either keep the bash dispatcher, or write a Go CLI on go-cli-sdk, layered as
   specification, tooling, and skill (`claude-plugins/context/tool-based-skills.md`), with the
-  profile schema as its contract. spike-model-hosting builds the Go CLI, with outpost as its
-  baseline.
-- **Host-class differences.** How the tool handles them: GPU usage through `amdgpu_top` versus
-  `nvidia-smi`, and Vulkan versus CUDA builds.
+  profile schema as its contract. experiment.ai's spike-host-admin builds the Go CLI, with
+  outpost as its baseline.
+- **Host-class differences.** How the tool handles them: GPU usage through `amdgpu_top` on Strix
+  Halo, while the GB10s' GPU and memory use can't come from `nvidia-smi`; and Vulkan versus CUDA
+  builds.
 
 ## Answers · experiment.hosting
 
 ## Assumptions
 
 - One serving stack per host can serve all three consumers within its slot and memory budget.
-- The preset convention (presets keyed by capability tier) carries over to discrete-VRAM hosts
-  and to engines other than llama.cpp.
+- The preset convention (presets keyed by capability tier) carries over to the GB10s' unified
+  memory and to vLLM.
+- Production reaches the stack through an Azure Container Apps service that routes between Azure
+  AI Foundry and the self-hosted stack, not through the tailnet.
