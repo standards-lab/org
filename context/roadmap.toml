@@ -23,6 +23,9 @@ active = [
 ]
 
 planned = [
+  "experiment.hosting.spike-model-engines",
+  "experiment.hosting.spike-model-layout",
+  "experiment.hosting.spike-model-gateway",
   "experiment.html.spike-html-apps",
   "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
@@ -527,6 +530,84 @@ On the hosting spike-model-hosting settles, how are locally hosted models used (
 application workloads and (b) for Claude Code subagent tasks, and for which kinds of task is the
 output acceptable? Decides v1.ai.local-models and v1.harness.local-models (`ai-strategy.md`,
 "Experiment: spike-local-models").
+'''
+
+[goals.experiment.hosting]
+name = "The self-hosted model stack"
+summary = '''
+Four spikes that settle how the workstations (the Framework and the two GB10s) serve local
+models: spike-model-hosting's Framework baseline, then engines, layout, and gateway, one at a
+time; then one intake. Serves v1.ai.hosting. Every spike keeps to the hosting rules
+(`ai-hosting.md`, "Experiment: experiment.hosting"): one new tool per task, explained in its brief
+and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
+task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
+and the decision it informs), a run at most 10 minutes unless the brief decides otherwise, and
+none run that the brief doesn't name; a solid starting point, not perfection. Hosts are brought
+up to date before a spike and frozen during it.
+'''
+context = ["standards-lab/context/ai-hosting.md"]
+
+[goals.experiment.hosting.tasks.intake]
+name = "The hosting intake"
+summary = '''
+Run by `marathon intake experiment.hosting` once spike-model-hosting, spike-model-engines,
+spike-model-layout, and spike-model-gateway have their answers in `ai-hosting.md`. Decides what
+v1.ai.hosting builds: the engine and hosting method per host class, the model layout across the
+three pools, the gateway and its access control, and the setup scripts and runbooks `ai-hosting`
+holds; which method pages (model cards, context sizing, memory footprint, tool-call reliability)
+the architecture layer takes; and whether personal-agents' contents move into `ai-hosting`. It
+archives the four spikes. experiment.ai's remaining spikes wait for it.
+'''
+
+[goals.experiment.hosting.spike-model-engines]
+name = "llama.cpp and vLLM on the workstations"
+root = "spike-model-engines"
+repos = ["spike-model-engines"]
+remote = "https://github.com/JaimeStill/spike-model-engines.git"
+path = "~/experiments/spike-model-engines"
+summary = '''
+Which engine, llama.cpp or vLLM, serves each workstation (the Framework's Strix Halo, the two
+GB10s), and is it hosted natively or in a container? Measures each engine's raw capability by model
+shape (dense small, mid, and large; MoE; embedding; ASR), quantization, and concurrency, with no
+model sets; NVFP4 only through vLLM. SGLang, TensorRT-LLM, NIM, and Dynamo are shelved. Install
+and setup are scripted as named, idempotent steps. Decides the engine and hosting method
+v1.ai.hosting specifies per host class (`ai-hosting.md`, "Experiment: experiment.hosting").
+Reads spike-model-hosting's Strix Halo runbook, build log, baseline, and model-card method.
+'''
+
+[goals.experiment.hosting.spike-model-layout]
+name = "Model layout across the workstations"
+root = "spike-model-layout"
+repos = ["spike-model-layout"]
+remote = "https://github.com/JaimeStill/spike-model-layout.git"
+path = "~/experiments/spike-model-layout"
+summary = '''
+How are models placed across the three workstations' memory pools to make the best use of memory,
+and what context and how many concurrent sessions does each placed model hold? Validates context
+x sessions per model with one pinned standard load tool in agreed, capped runs; weighs role
+placement across hosts behind a session-sticky gateway against a full set on each host; two-node
+GB10 serving over QSFP only if the layout needs it. Decides the layout v1.ai.hosting specifies.
+Runs on spike-model-engines' answer; reads spike-model-hosting's memory budget, slot sweep, and
+pool document.
+'''
+
+[goals.experiment.hosting.spike-model-gateway]
+name = "Routing and access across the model pool"
+root = "spike-model-gateway"
+repos = ["spike-model-gateway"]
+remote = "https://github.com/JaimeStill/spike-model-gateway.git"
+path = "~/experiments/spike-model-gateway"
+summary = '''
+Which gateway spreads requests across the model pool and queues them when capacity is full, and
+how is access to the model APIs restricted without the tailnet? agentgateway, LiteLLM, and Agent
+Router (the renamed Envoy AI Gateway) live, each on its native handling of throughput under load,
+recording which queue and which return 429 (llama.cpp and vLLM queue beyond their slots); vLLM's
+production-stack router only if spike-model-engines picks vLLM on every host. Access: per-consumer
+keys issued by the gateway, with JWT/OIDC compared on paper. On paper too: production's Azure
+Container Apps service routing between Azure AI Foundry and the self-hosted stack, and IL6.
+Claude-model workloads stay off the gateway. Decides whether a gateway fronts the stack, which,
+and its access control. Reads spike-model-hosting's tool-reliability findings (bounded resample,
+parse-5xx fallback).
 '''
 
 [goals.experiment.html]
