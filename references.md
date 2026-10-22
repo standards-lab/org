@@ -259,8 +259,8 @@ lifecycle adapted from Herald. (Deferred to the later events/NATS layer.)
 ### personal-agents
 The architect's self-hosted model setup: a llama.cpp router on the Framework desktop (Strix Halo,
 Vulkan) driven by Pi over Tailscale, the `outpost` admin dispatcher, and a measured reference on
-model tiers, context sizing, and memory footprint. Read-only for experiment.ai; archived once
-`ai-hosting` lands.
+model tiers, context sizing, and memory footprint. Read-only for experiment.ai and
+experiment.hosting; archived once `ai-hosting` lands.
 Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
 context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
 outpost's verb set.
