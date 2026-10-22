@@ -1,15 +1,16 @@
 # AI
 
 The planned AI capability is split into four layers, each in its own home. `v1.ai` builds the
-library and service layers. Two experiments come first, one for the library layer and one for
-local models, used by applications and by the harness. A third experiment, on hosting, is
-described in `ai-hosting.md`.
+library and service layers. Two experiments come first. experiment.hosting (`ai-hosting.md`)
+settles the self-hosted stack. experiment.ai's remaining spikes (spike-go-harness,
+spike-host-admin, spike-model-benchmarks, and spike-local-models) build on that stack after
+experiment.hosting's intake, beside spike-harness-driver, which has answered.
 
 ## The four layers
 
 | Layer | What it covers | Home |
 |---|---|---|
-| Hosting | Configuring and running the machines that serve local models: the Framework desktop now, the Dell NVIDIA workstations later | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
+| Hosting | Configuring and running the machines that serve local models: the Framework desktop and the two GB10 workstations | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
 | Harness | Local models taking subagent work in Claude Code sessions | claude-plugins (`claude-plugins/context/tool-based-skills.md`), through `v1.harness.local-models` (planned) |
 | Library | `go-ai`: a Go interface for running models and agent sessions from an application, including locally hosted models for application workloads | `go-ai` (`topology-and-naming.md` reserves the name); local models through `v1.ai.local-models` (planned) |
 | Service | go-web-service's AI layer, which demonstrates go-ai | go-web-service's capability map ("AI") |
@@ -86,9 +87,50 @@ on each of the four parts. It also records:
 step drives Pi against the Framework desktop's router: one session, two scoped exchanges, and a
 cancel.
 
+## Experiment: spike-go-harness
+
+**Question.** Does a native Go harness behind spike-harness-driver's driver interface, with
+sessions, tool calls, skills, and MCP, reach Pi's fidelity on the self-hosted stack? The spike
+measures it beside Pi with spike-harness-driver's conform, and takes the failed cells of
+spike-model-hosting's harness-fit profiles as its design input.
+
+**Decision it changes.** Whether go-ai carries its own agent loop, and what replacing the
+process-backed drivers costs.
+
+**Home.** `~/experiments/spike-go-harness`, remote
+[JaimeStill/spike-go-harness](https://github.com/JaimeStill/spike-go-harness), set up by
+`plan experiment.ai.spike-go-harness` once experiment.hosting's intake has run.
+
+## Experiment: spike-host-admin
+
+**Question.** Can one CLI on go-cli-sdk manage every engine and host experiment.hosting keeps:
+install, update, service status and restart, models, metrics, and GPU and memory use? outpost is
+its baseline (`ai-hosting.md`, "The existing setup: personal-agents").
+
+**Decision it changes.** `ai-hosting`'s admin tooling (`ai-hosting.md`, "Open for
+v1.ai.hosting's SETTLE").
+
+**Home.** `~/experiments/spike-host-admin`, remote
+[JaimeStill/spike-host-admin](https://github.com/JaimeStill/spike-host-admin), set up by
+`plan experiment.ai.spike-host-admin` once experiment.hosting's intake has run.
+
+## Experiment: spike-model-benchmarks
+
+**Question.** Can benchmarking be built as small elements composed into a workload per scenario:
+a model's fit on a host, a model as an agent, a set of role models at once, and any of these under
+concurrent sessions or across hosts behind the gateway? The spike also screens the candidate
+models on the layout experiment.hosting settles, and a host keeps only the models that pass on it.
+
+**Decision it changes.** The benchmark method, and the evaluation system experiment.ai's intake
+proposes.
+
+**Home.** `~/experiments/spike-model-benchmarks`, remote
+[JaimeStill/spike-model-benchmarks](https://github.com/JaimeStill/spike-model-benchmarks), set up
+by `plan experiment.ai.spike-model-benchmarks` once experiment.hosting's intake has run.
+
 ## Experiment: spike-local-models
 
-**Question.** How are locally hosted models used, on the hosting spike-model-hosting settles
+**Question.** How are locally hosted models used, on the stack experiment.hosting settles
 (`ai-hosting.md`), and for which kinds of task is the output acceptable? The spike proves out
 both uses:
 
@@ -102,14 +144,14 @@ For the subagent tasks there are two candidates:
   Anthropic
 - a tool, MCP server, or skill that offloads the work to `pi --print` or directly to llama.cpp
 
-The gateway candidate is the gateway spike-model-hosting settles, from agentgateway and LiteLLM,
-the two it compares live with no gateway (`ai-hosting.md`, "Experiment: spike-model-hosting").
+The gateway candidate is the gateway spike-model-gateway settles, from agentgateway, LiteLLM, and
+Agent Router (`ai-hosting.md`, "spike-model-gateway").
 agentgateway's documented Claude Code integration points `ANTHROPIC_BASE_URL` at the gateway and
 maps request model names to providers, so it can stand in for a purpose-built router.
 agentgateway's documentation shows only a wildcard model sent to one backend,
 so the spike first proves the split this candidate depends on: in one configuration, a subagent
 profile's model name reaches the local router and the session's own model reaches Anthropic, with
-tool use, streaming, and thinking blocks intact on both paths. If spike-model-hosting settles on
+tool use, streaming, and thinking blocks intact on both paths. If experiment.hosting settles on
 no gateway, this candidate needs its own gateway in front of the session, which counts against it
 when it is compared with the tool candidate.
 
@@ -120,18 +162,19 @@ tool, and what would justify it.
 **Decision it changes.** Two conventions. `v1.ai.local-models`: how an application uses
 locally hosted models for its workloads. `v1.harness.local-models`: the profile format, the
 routing mechanism, and which kinds of task may run locally. Whether `ai-hosting` includes a
-gateway is spike-model-hosting's decision; this spike routes through what it settles.
+gateway is spike-model-gateway's decision; this spike routes through what it settles.
 
 **Home.** `~/experiments/spike-local-models`, remote
 [JaimeStill/spike-local-models](https://github.com/JaimeStill/spike-local-models), set up by
-`plan experiment.ai.spike-local-models` once spike-model-hosting has answered.
+`plan experiment.ai.spike-local-models` once experiment.hosting's intake has run.
 
 ## Constraint: model origin
 
 Models of Chinese origin are avoided where an alternative serves, because of the risk of
-censorship and of hidden behavior in their weights. The constraint binds spike-model-hosting,
-spike-local-models, and v1.ai. A model of Chinese origin is chosen only when no alternative
-serves, and the choice records why.
+censorship and of hidden behavior in their weights. The constraint binds experiment.hosting,
+experiment.ai, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
+the choice records why. A model fine-tuned from a Chinese-origin base takes its base's origin,
+whoever publishes the fine-tune.
 
 ## Answers · experiment.ai
 
