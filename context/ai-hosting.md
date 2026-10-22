@@ -46,6 +46,59 @@ The Dell NVIDIA workstations are a second host class, with CUDA instead of Vulka
 VRAM instead of unified memory. Their specifications are gathered by spike-model-hosting's `cuda`
 task, on the first workstation, available from 2026-10-14.
 
+## Experiment: experiment.hosting
+
+**Question.** How do the workstations (the Framework's Strix Halo and the two GB10s) serve local
+models: which engine and hosting method on each, how the models are laid out across their memory
+pools, and which gateway routes requests across the pool and restricts access to it? Its intake
+decides what `v1.ai.hosting` builds. The spikes run one at a time: spike-model-hosting's
+Framework baseline, then spike-model-engines, spike-model-layout, and spike-model-gateway. Their
+answers land in "Answers · experiment.hosting" below.
+
+**Production.** Production has no tailnet; the tailnet only fences the dev workstations. A
+containerized service on Azure Container Apps will route inference between Azure AI Foundry and
+the self-hosted stack by request and availability. The stack has to take requests, spread them
+across the pool, and queue them when capacity is full, and its access control can't depend on the
+tailnet.
+
+**The rules.** Every spike of the experiment keeps to them:
+
+- A pinned standard tool is adopted before anything is written. No Python is authored, and mise
+  tasks wrap plain commands. Install and setup may be scripted, as named, idempotent steps in a
+  clean, scalable layout (the pattern: `dotfiles/platforms/dgx/system-setup.sh`).
+- A task introduces at most one new tool, and its brief and walkthrough say what the tool is, how
+  it is set up, and what it provides. A task has at most four slices; its last is a walkthrough the
+  architect runs before the next task is planned.
+- Every benchmark is agreed with the architect in the task's plan round: the tool, how it runs
+  (configuration, load, duration), and the decision it informs. A run takes at most 10 minutes
+  unless the brief decides otherwise, sized to how critical the question is. BUILD runs no
+  benchmark the brief doesn't name; a new or widened one is an escalation.
+- Benchmarking looks for a solid starting point, not perfection: the configuration is tuned as the
+  stack is used, with no premature optimization.
+
+**Hosts and access.** The Framework (`framework`) and the two GB10s (`gb10-1`, `gb10-2`) are on the
+tailnet under `tag:inference`, reached by Tailscale SSH, which stays in accept mode while the
+experiments run. Sessions do on any of them whatever needs no sudo, the docker group included;
+root stays the architect's, run from exact commands. A host is brought up to date right before a
+spike begins and frozen while it runs, and every measurement records the host's stack.
+
+### spike-model-engines
+
+Which engine, llama.cpp or vLLM, serves each workstation, and is it hosted natively or in a
+container? Measures raw capability by model shape, quantization, and concurrency, with no model
+sets. Decides the engine and hosting method per host class.
+
+### spike-model-layout
+
+How are models placed across the three memory pools, and what context and how many concurrent
+sessions does each placed model hold? Decides the layout.
+
+### spike-model-gateway
+
+Which gateway spreads requests across the pool and queues them at capacity, and how is access
+restricted without the tailnet? Decides whether a gateway fronts the stack, which, and its access
+control.
+
 ## Experiment: spike-model-hosting
 
 The hosting experiment is a new repository, `~/experiments/spike-model-hosting` (remote
@@ -166,6 +219,8 @@ These are decided once the experiments show what the tooling has to serve.
   baseline.
 - **Host-class differences.** How the tool handles them: GPU usage through `amdgpu_top` versus
   `nvidia-smi`, and Vulkan versus CUDA builds.
+
+## Answers · experiment.hosting
 
 ## Assumptions
 
