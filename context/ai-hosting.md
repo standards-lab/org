@@ -85,12 +85,26 @@ tailnet.
   benchmark the brief doesn't name; a new or widened one is an escalation.
 - Benchmarking looks for a solid starting point, not perfection: the configuration is tuned as the
   stack is used, with no premature optimization.
+- Sessions are guided, slower, and methodical, so the architect learns each tool by running it
+  (architect, 2026-10-23). A slice's docs and scripts are written on the branch, then the session
+  walks the architect through the host steps one at a time from those docs and records each
+  output; the last slice is the architect running the whole procedure from the docs. Scripting
+  stays minimal: only what must be idempotent (install, update, uninstall).
+- A benchmark is built and run a step at a time, typed by the architect from the commands the
+  brief agreed, never scripted out of the architect's sight.
+- Engines stay current. Only cells run in the same session on the same versions are compared; a
+  task that compares with an earlier one first reruns one anchor cell per engine, and an anchor
+  that moved beyond run noise is a finding.
+- The quantization floor: a format is accepted when its publisher evaluated it (native MXFP4, a
+  QAT Q4_0, or an NVFP4 or FP8 checkpoint whose card evals are within about 1% of BF16).
+  Otherwise nothing goes below Q5_K_M or FP8, and embedding, ASR, and dense models under 8B run at
+  Q8_0 or FP8 or better.
 
 **Hosts and access.** The Framework (`framework`) and the two GB10s (`gb10-1`, `gb10-2`) are on the
 tailnet under `tag:inference`, reached by Tailscale SSH, which stays in accept mode while the
 experiments run. Sessions do on any of them whatever needs no sudo, the docker group included;
-root stays the architect's, run from exact commands. A host is brought up to date right before a
-spike begins and frozen while it runs, and every measurement records the host's stack.
+root stays the architect's, run from exact commands. Every session starts by bringing its hosts up
+to date, and every measurement records the engine version and the host's stack.
 
 ### spike-model-hosting
 
@@ -128,9 +142,16 @@ questions moved:
 
 ### spike-model-engines
 
-Which engine, llama.cpp or vLLM, serves each workstation, and is it hosted natively or in a
-container? Measures raw capability by model shape, quantization, and concurrency, with no model
-sets. Decides the engine and hosting method per host class.
+spike-model-engines (`~/experiments/spike-model-engines`, remote
+[JaimeStill/spike-model-engines](https://github.com/JaimeStill/spike-model-engines)): which
+engine, llama.cpp or vLLM, serves each workstation, and is it hosted in a container or on bare
+metal? Measures raw capability by model shape (vision included), quantization, and concurrency,
+with no model sets, and documents each engine as a guide to setup, models, APIs, updates, and
+uninstall. The GB10s go first, containers before bare metal; the Framework follows with
+llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Load runs use GuideLLM, and llama-bench
+measures llama.cpp's backends. The QSFP link was measured during the GB10s' setup (dotfiles), and
+two-node serving stays with spike-model-layout. IL6 is out of its scope (architect, 2026-10-23).
+Decides the engine and hosting method per host class.
 
 ### spike-model-layout
 
@@ -266,7 +287,8 @@ The original evidence's other items moved:
 - 8, each gateway approach: spike-model-gateway, budgets, rate limits, OpenTelemetry traces,
   memory and latency overhead, and one configuration on both host classes included.
 - 9, one admin tool over every platform and host: experiment.ai's spike-host-admin.
-- 10, IL6 on paper: spike-model-gateway, and spike-model-engines for the engines.
+- 10, IL6 on paper: spike-model-gateway; the engines' IL6 check was dropped from
+  spike-model-engines (architect, 2026-10-23).
 - The model candidates and the benchmark method: experiment.ai's spike-model-benchmarks.
 
 [The answer](https://github.com/JaimeStill/spike-model-hosting#the-answer) ·

@@ -7,9 +7,9 @@
 # in the group, is proposed, not staged, and waits on the experiment.html intake closing
 # (standards-lab/context/web-client.md). Outside the exclusive group,
 # experiment.hosting.spike-model-hosting has answered (ai-hosting.md, "Answers ·
-# experiment.hosting"), and spike-model-engines is active, its repository set up by its first
-# `plan`; layout and gateway follow one at a time, and experiment.ai's remaining spikes wait for
-# experiment.hosting's intake. The
+# experiment.hosting"), and spike-model-engines is active and set up, its first task
+# llama-gb10-container; layout and gateway follow one at a time, and experiment.ai's remaining
+# spikes wait for experiment.hosting's intake. The
 # infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
@@ -462,8 +462,10 @@ time; then one intake. Serves v1.ai.hosting. Every spike keeps to the hosting ru
 and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
 task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
 and the decision it informs), a run at most 10 minutes unless the brief decides otherwise, and
-none run that the brief doesn't name; a solid starting point, not perfection. Hosts are brought
-up to date before a spike and frozen during it.
+none run that the brief doesn't name; a solid starting point, not perfection. Sessions are
+guided: the architect runs every host step from the docs and types every benchmark, built a step
+at a time. Hosts are brought up to date at every session start, engines stay current, and only
+same-session cells compare, with an anchor cell rerun for any comparison across sessions.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
 
@@ -486,15 +488,60 @@ repos = ["spike-model-engines"]
 remote = "https://github.com/JaimeStill/spike-model-engines.git"
 path = "~/experiments/spike-model-engines"
 summary = '''
-Which engine, llama.cpp or vLLM, serves each workstation (the Framework's Strix Halo, the two
-GB10s), and is it hosted natively or in a container? Measures each engine's raw capability by model
-shape (dense small, mid, and large; MoE; embedding; ASR), quantization, and concurrency, with no
-model sets; NVFP4 only through vLLM. SGLang, TensorRT-LLM, NIM, and Dynamo are shelved. Install
-and setup are scripted as named, idempotent steps. Checks on paper that each engine kept is
-acceptable air-gapped at IL6. Decides the engine and hosting method v1.ai.hosting specifies per
-host class (`ai-hosting.md`, "Experiment: experiment.hosting").
-Reads spike-model-hosting's Strix Halo runbook, build log, baseline, and model-card method.
+Which engine, llama.cpp or vLLM, serves each workstation (the two GB10s, then the Framework's Strix
+Halo), and is it hosted in a container or on bare metal? Measures each engine's raw capability by
+model shape (dense small, mid, and large; MoE; embedding; ASR; vision), quantization within the
+experiment's floor, and concurrency, with no model sets; NVFP4 only through vLLM. SGLang,
+TensorRT-LLM, NIM, and Dynamo are shelved; IL6 is out of scope. Containers first on the GB10s,
+then bare metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm
+image. Each engine gets a guide (setup, models, APIs, updates, uninstall) and a minimal
+`engines-<group>-<verb>` suite for its idempotent steps. Guided sessions: the architect runs every
+host step. Decides the engine and hosting method v1.ai.hosting specifies per host class
+(`ai-hosting.md`, "Experiment: experiment.hosting"). Reads spike-model-hosting, personal-agents,
+and dotfiles.
 '''
+
+[goals.experiment.hosting.spike-model-engines.tasks.llama-gb10-container]
+name = "llama.cpp in a container on the GB10s"
+summary = '''
+Bring the hosts current and record their stacks; run llama.cpp in ggml's CUDA 13 image on both
+GB10s, at the b-build llama.cpp's latest semver release names; write the `engines` suite's
+install, update, and uninstall steps and the llama.cpp guide; run one GuideLLM cell agreed in the
+plan round. New tool: ggml's CUDA 13 image.
+'''
+proof = "The architect installs, serves, updates, and uninstalls llama.cpp on both GB10s from the guide."
+
+[goals.experiment.hosting.spike-model-engines.tasks.vllm-gb10-container]
+name = "vLLM in a container on the GB10s"
+summary = "vLLM's CUDA 13.0 arm64 image on both GB10s, NVFP4 served, and the vLLM guide. New tool: vLLM."
+
+[goals.experiment.hosting.spike-model-engines.tasks.bench-gb10-container]
+name = "The containerized engines compared on the GB10s"
+summary = "The agreed GuideLLM cells by shape, quantization, and concurrency on gb10-1, cross-checked on gb10-2, and the API-surface probes. No new tool."
+
+[goals.experiment.hosting.spike-model-engines.tasks.llama-gb10-native]
+name = "llama.cpp on bare metal on the GB10s"
+summary = "llama.cpp's CUDA prebuilt natively under systemd, llama-bench pp/tg, and anchor cells against the container. New tool: llama-bench."
+
+[goals.experiment.hosting.spike-model-engines.tasks.vllm-gb10-native]
+name = "vLLM on bare metal on the GB10s"
+summary = "vLLM's aarch64 wheel natively, with anchor cells against the container. New tool: uv."
+
+[goals.experiment.hosting.spike-model-engines.tasks.llama-strix-rocm]
+name = "llama.cpp's ROCm build on the Framework"
+summary = "The docker-group grant; llama.cpp ROCm in ggml's ROCm image against the native Vulkan router, by llama-bench and GuideLLM cells. New tool: ggml's ROCm image."
+
+[goals.experiment.hosting.spike-model-engines.tasks.vllm-strix]
+name = "vLLM on the Framework"
+summary = "vLLM's ROCm image on gfx1151, serving or a recorded failure, against llama.cpp's leading Strix backend. New tool: vLLM's ROCm image."
+
+[goals.experiment.hosting.spike-model-engines.tasks.strix-native]
+name = "Bare metal on the Framework, if called for"
+summary = "A native ROCm source build or vLLM's native ROCm wheel, only when llama-strix-rocm shows ROCm leading or the GB10 native tasks show bare metal winning; dropped otherwise. New tool: cmake."
+
+[goals.experiment.hosting.spike-model-engines.tasks.answer]
+name = "The answer"
+summary = "The evidence, README \"The answer\", and the answer section: a general strategy for self-hosted model engines. No new measurement."
 
 [goals.experiment.hosting.spike-model-layout]
 name = "Model layout across the workstations"

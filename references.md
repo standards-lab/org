@@ -269,3 +269,9 @@ experiment.hosting; archived once `ai-hosting` lands.
 Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
 context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
 outpost's verb set.
+
+### dotfiles
+The architect's workstation configuration, including the two GB10s' setup: DGX OS host
+preparation as named, idempotent steps (`platforms/dgx/system-setup.sh`) and the QSFP link between
+them, with its measured bandwidth. Read-only for experiment.hosting.
+Draw from: the scripted-step pattern; the QSFP link record.

@@ -172,3 +172,6 @@ remote = "https://github.com/JaimeStill/signal-lab.git"
 # Prior R&D — local model hosting.
 [repos.personal-agents]
 remote = "https://github.com/JaimeStill/personal-agents.git"
+
+[repos.dotfiles]
+remote = "https://github.com/JaimeStill/dotfiles.git"
