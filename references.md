@@ -191,6 +191,11 @@ infrastructure for agentic work. Answered yes, with a harness-session and a mode
 surface; experiment.ai's intake archives it. Its `model` client stands in for go-ai in
 spike-model-hosting.
 
+### spike-model-hosting
+Asked what llama.cpp's Vulkan router on the Framework establishes for the self-hosted stack.
+Answered with a host-class profile, three consumers at once, tool-call reliability, a memory
+budget on unified memory, and a measurement method; experiment.hosting's intake archives it.
+
 ## Prior R&D — Go web service architecture
 
 ### herald
