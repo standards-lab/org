@@ -54,6 +54,12 @@ order = [
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
+# The locations of repositories a goal names that aren't order keys: a spike's layer
+# repositories, beside the spike.
+[workspace.paths]
+spike-html-packages-foundation = "~/experiments/spike-html-packages-foundation"
+spike-html-packages-sdk = "~/experiments/spike-html-packages-sdk"
+
 # The hosting convention `marathon experiment` proposes for a new spike.
 [workspace.experiments]
 path = "~/experiments/spike-<slug>"
