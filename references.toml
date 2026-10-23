@@ -124,6 +124,9 @@ remote = "https://github.com/JaimeStill/spike-html-packages-foundation.git"
 [repos.spike-html-packages-sdk]
 remote = "https://github.com/JaimeStill/spike-html-packages-sdk.git"
 
+[repos.spike-html-packages-components]
+remote = "https://github.com/JaimeStill/spike-html-packages-components.git"
+
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 

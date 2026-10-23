@@ -59,6 +59,7 @@ order = [
 [workspace.paths]
 spike-html-packages-foundation = "~/experiments/spike-html-packages-foundation"
 spike-html-packages-sdk = "~/experiments/spike-html-packages-sdk"
+spike-html-packages-components = "~/experiments/spike-html-packages-components"
 
 # The hosting convention `marathon experiment` proposes for a new spike.
 [workspace.experiments]
