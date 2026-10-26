@@ -9,7 +9,7 @@
 # experiment.hosting.spike-model-hosting has answered (ai-hosting.md, "Answers ·
 # experiment.hosting"), and spike-model-engines is active; model-benchmarks, layout, gateway, and
 # host-admin follow one at a time. experiment.ai.spike-ai-pipeline is active beside them for its
-# client and processing tasks (ai-strategy.md, "Experiment: spike-ai-pipeline"); it returns to
+# host, client, and processing tasks (ai-strategy.md, "Experiment: spike-ai-pipeline"); it returns to
 # `planned` until its capstone's gates clear. gb10-2 is reserved for it, so experiment.hosting
 # runs on gb10-1 and the Framework (ai-hosting.md, "Hosts and access"). experiment.ai's harness
 # spikes wait for
@@ -397,9 +397,11 @@ go-ai's shape: its model-client surface and wire-format layer from spike-ai-pipe
 surface from spike-harness-driver, and whether it carries its own agent loop from
 spike-go-harness. Also decides the processing layer's home, v1.ai's library and service tasks,
 and both local-models conventions: v1.ai.local-models from spike-ai-pipeline and
-v1.harness.local-models from spike-local-models. Its one coordinator pull request writes those
-tasks and removes the experiment; it then archives spike-harness-driver, spike-ai-pipeline with
-its two layer repositories, spike-go-harness, and spike-local-models. personal-agents is a
+v1.harness.local-models from spike-local-models. It also writes a v1.data task that lands the
+workspace's Postgres-extension strategy from spike-ai-pipeline's pgvector evidence, and promotes
+the system-tools principle (`system-tools.md`) to a go-elemental page. Its one coordinator pull
+request writes those tasks and removes the experiment; it then archives spike-harness-driver,
+spike-ai-pipeline with its three layer repositories, spike-go-harness, and spike-local-models. personal-agents is a
 reference, never archived by this intake.
 '''
 
@@ -410,6 +412,7 @@ repos = [
   "spike-ai-pipeline",
   "spike-ai-pipeline-client",
   "spike-ai-pipeline-processing",
+  "spike-ai-pipeline-office",
 ]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
 path = "~/experiments/spike-ai-pipeline"
@@ -417,16 +420,116 @@ summary = '''
 Can a Go model client and a message, document, and stream processing layer, built under
 go-elemental, carry a transactional, evented pipeline (metadata capture, inference extraction,
 and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser follows
-stage by stage in real time? The client (`spike-ai-pipeline-client`) gives primitives over the
-engines' native APIs, OpenAI Chat Completions as the baseline with the wire format a pluggable
-layer; the processing layer (`spike-ai-pipeline-processing`) prepares messages, documents, and
-streams for native model capabilities. The capstone, a backend and web UI at the root, runs on
-the members and experiment.html. It runs on gb10-2, reserved for it, which its setup prepares;
-the Framework stays with experiment.hosting. The client and processing tasks run now; the capstone tasks wait for those tasks, spike-model-gateway's answer, and
-experiment.html's intake, and the spike returns to `planned` between. Reads tau,
-spike-harness-driver, herald, and the members. Decides go-ai's model-client surface, the
-processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
-(`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Its tasks are written at its setup.
+stage by stage in real time? Four repositories: the client (`spike-ai-pipeline-client`), owned
+Go infrastructure over the engines' native APIs with a pluggable wire format (Chat Completions,
+then Anthropic Messages); the processing layer (`spike-ai-pipeline-processing`), which runs
+mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
+(`spike-ai-pipeline-office`), a NativeAOT tool for office documents; and the root, which holds
+gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
+it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
+the capstone tasks wait for those tasks, spike-model-gateway's answer, and experiment.html's
+intake, and the spike returns to `planned` between. Reads tau, spike-harness-driver, herald,
+spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client surface,
+the processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
+(`ai-strategy.md`, "Experiment: spike-ai-pipeline").
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.host]
+name = "gb10-2 serving set A"
+repos = ["spike-ai-pipeline"]
+summary = '''
+gb10-2 brought current, with root steps the architect's and the CDI spec regenerated; the three
+missing set A GGUFs downloaded with `hf` (gemma-4-26B-A4B-it Q4_0, gemma-4-E4B-it Q8_0,
+embeddinggemma-2 Q8_0); llama.cpp's router container (server-cuda13-b11669) serving set A, loading
+models on demand, from spike-model-engines' llama.cpp scripts copied into the root with their
+source commit; `mise run host-update` for every session's start; and a probe across every
+capability that also records `/v1/responses` support and whether transcription returns
+timestamps.
+'''
+proof = "`mise run integration` in the root passes against gb10-2 for chat, vision, audio, embeddings, and transcription."
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.client-core]
+name = "The model and the Chat Completions format"
+repos = ["spike-ai-pipeline-client"]
+summary = '''
+The stable request and response model, the Config (base URL, query, token source, the caller's
+http.Client), the Format interface and the Chat Completions format; unstreamed chat with text,
+image, and audio parts, tools with tool_choice, structured output, and reasoning returned and
+sent back; embeddings and transcription; the members' CI pair. Tags client v0.1.0. Evidence 1, 3.
+'''
+proof = "The integration tier passes against set A on gb10-2, and v0.1.0 is released."
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.client-streaming]
+name = "Streaming"
+repos = ["spike-ai-pipeline-client"]
+summary = '''
+An in-house SSE decoder to the full spec, typed deltas as an iter.Seq2 with an accumulator that
+folds them into the final response, cancellation, and the opt-in retry policy. Tags client
+v0.2.0. Evidence 1.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.client-messages]
+name = "The Anthropic Messages format"
+repos = ["spike-ai-pipeline-client"]
+summary = '''
+The Anthropic Messages format beneath the same request and response model, with its typed SSE
+events and thinking blocks, proven against the router's `/v1/messages`. Tags client v0.3.0.
+Evidence 2.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.tools]
+name = "The tool contract"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+The tool contract with its exec runner (binaries, and scripts through their interpreter) and
+container runner (a pinned image per invocation), binary discovery, version checks at
+construction, context cancellation, and the CI pair. Tags processing v0.1.0. Evidence 14.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.documents]
+name = "PDF pages through vision"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+The renderer bake-off (pdftoppm, pdftocairo, gs, vips, and magick over gs) behind the page-renderer
+interface; ImageMagick as the image tool and image-correction stage; a PDF's pages through vision
+as a whole blob and as a page stream. Tags processing v0.2.0. Evidence 4, 11.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.office-cli]
+name = "The Open XML CLI"
+repos = ["spike-ai-pipeline-office"]
+summary = '''
+docx, xlsx, and pptx to the JSON document model and its Markdown rendering through the Open XML
+SDK, with chart series and embedded media written out; NativeAOT binaries for linux-x64 and
+linux-arm64; CI and release; the baseline against markitdown and xberg. Tags office v0.1.0.
+Evidence 12.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.office]
+name = "Office documents in processing"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+The adapter over the Open XML CLI, and legacy .doc, .xls, and .ppt converted to OOXML by
+LibreOffice headless on the container runner. Tags processing v0.3.0. Evidence 12.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.audio]
+name = "Audio past the model's limit"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+ffmpeg and ffprobe adapters; windows cut at silences under 30 s with overlap, transcribed
+concurrently within set A's audio slots, and joined at the seams. Tags processing v0.4.0.
+Evidence 5.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.streams]
+name = "Live media and chat streams"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+Live or real-time-paced audio and video through ffmpeg, audio windows transcribed as they arrive
+and video frames sampled to vision, plus chat streams through processing, all as cancellable
+events. Tags processing v0.5.0; the spike then returns to `planned` until the capstone's gates
+clear. Evidence 6, 13.
 '''
 
 [goals.experiment.ai.spike-go-harness]
