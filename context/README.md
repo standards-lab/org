@@ -82,6 +82,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   processing, harness) and their homes, the pivot from tau to external harnesses, experiment.ai's
   questions (the client and processing layers first, then the harness), and experiment.hosting's
   questions and decomposition of personal-agents.
+- `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
+  mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
   review loop, the native style baseline, and experiment.html's spikes and answers.
 - `web-client.md` — the web client strategy: the stack's layers and what each owns, its
