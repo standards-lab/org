@@ -59,11 +59,14 @@ units of the DGX Spark class. Like Strix Halo, they have unified memory and no d
 ## Experiment: experiment.hosting
 
 **Question.** How do the workstations (the Framework's Strix Halo and the two GB10s) serve local
-models: which engine and hosting method on each, how the models are laid out across their memory
-pools, and which gateway routes requests across the pool and restricts access to it? Its intake
+models: which engine and hosting method on each, how a model's compatibility and configuration
+are settled, how the models are laid out across their memory pools, which gateway routes requests
+across the pool and restricts access to it, and what tool administers them? Its intake
 decides what `v1.ai.hosting` builds. The spikes run one at a time: spike-model-hosting's
-Framework baseline, then spike-model-engines, spike-model-layout, and spike-model-gateway. Their
-answers land in "Answers · experiment.hosting" below.
+Framework baseline, then spike-model-engines, spike-model-benchmarks, spike-model-layout,
+spike-model-gateway, and spike-host-admin. The benchmarks and host-admin spikes moved here from
+experiment.ai, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The four
+layers"; architect, 2026-10-26). Their answers land in "Answers · experiment.hosting" below.
 
 **Production.** Production has no tailnet; the tailnet only fences the dev workstations. A
 containerized service on Azure Container Apps will route inference between Azure AI Foundry and
@@ -137,8 +140,8 @@ questions moved:
 - the engine (llama.cpp or vLLM) and hosting method (native or container) to spike-model-engines
 - the model layout to spike-model-layout
 - the gateway and access control to spike-model-gateway
-- the admin CLI to experiment.ai's spike-host-admin (`ai-strategy.md`)
-- benchmarking and model candidates to experiment.ai's spike-model-benchmarks (`ai-strategy.md`)
+- the admin CLI to spike-host-admin
+- benchmarking and model candidates to spike-model-benchmarks
 
 ### spike-model-engines
 
@@ -153,6 +156,16 @@ measures llama.cpp's backends. The QSFP link was measured during the GB10s' setu
 two-node serving stays with spike-model-layout. IL6 is out of its scope (architect, 2026-10-23).
 Decides the engine and hosting method per host class.
 
+### spike-model-benchmarks
+
+What is the smallest benchmark that quickly settles a candidate model's compatibility with a host
+and engine and its initial configuration: context, slots, and the settings its card names? It
+runs after spike-model-engines and screens the pool document's candidates, and a host keeps only
+the models that pass on it. The configuration is a starting point: requirements drive any tuning
+beyond it. The large-scale suite waits in the backlog as `model-evaluation`: composable
+benchmark elements, results by model, build, preset, and host, a run queue per host, and a
+management interface. Decides the benchmark method.
+
 ### spike-model-layout
 
 How are models placed across the three memory pools, and what context and how many concurrent
@@ -163,6 +176,13 @@ sessions does each placed model hold? Decides the layout.
 Which gateway spreads requests across the pool and queues them at capacity, and how is access
 restricted without the tailnet? Decides whether a gateway fronts the stack, which, and its access
 control.
+
+### spike-host-admin
+
+Can one CLI on go-cli-sdk manage every engine and host experiment.hosting keeps: install,
+update, service status and restart, models, metrics, and GPU and memory use? outpost is its
+baseline ("The existing setup: personal-agents"). It runs last, managing what the other spikes
+settled. Decides `ai-hosting`'s admin tooling ("Open for v1.ai.hosting's SETTLE").
 
 ## Where personal-agents' parts go
 
@@ -215,7 +235,7 @@ These are decided once the experiments show what the tooling has to serve.
 - **Name.** `outpost` names where the admin sits, not what the tool does.
 - **Form.** Either keep the bash dispatcher, or write a Go CLI on go-cli-sdk, layered as
   specification, tooling, and skill (`claude-plugins/context/tool-based-skills.md`), with the
-  profile schema as its contract. experiment.ai's spike-host-admin builds the Go CLI, with
+  profile schema as its contract. spike-host-admin builds the Go CLI, with
   outpost as its baseline.
 - **Host-class differences.** How the tool handles them: GPU usage through `amdgpu_top` on Strix
   Halo, while the GB10s' GPU and memory use can't come from `nvidia-smi`; and Vulkan versus CUDA

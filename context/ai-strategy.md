@@ -1,19 +1,31 @@
 # AI
 
-The planned AI capability is split into four layers, each in its own home. `v1.ai` builds the
-library and service layers. Two experiments come first. experiment.hosting (`ai-hosting.md`)
-settles the self-hosted stack. experiment.ai's remaining spikes (spike-go-harness,
-spike-host-admin, spike-model-benchmarks, and spike-local-models) build on that stack after
-experiment.hosting's intake, beside spike-harness-driver, which has answered.
+The planned AI capability builds in four layers, each on the one below (architect,
+2026-10-26). `v1.ai` builds them, and go-web-service's AI layer demonstrates them. Two
+experiments come first:
+
+- **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack.
+- **experiment.ai** settles the layers above it:
+  - spike-ai-pipeline proves the client and processing layers now, against the Framework's set
+    A, and proves them together in a capstone once its gates clear.
+  - spike-go-harness and spike-local-models take the harness layer after experiment.hosting's
+    intake, beside spike-harness-driver, which has answered.
+
+The client and processing layers come first because they feed the team's operational
+requirements. Most service integrations build on them, not on a harness. The team adopts go-ai
+once it is a mature, standard set of packages. Until then spike-ai-pipeline's design is go-ai's
+reference.
 
 ## The four layers
 
 | Layer | What it covers | Home |
 |---|---|---|
-| Hosting | Configuring and running the machines that serve local models: the Framework desktop and the two GB10 workstations | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
-| Harness | Local models taking subagent work in Claude Code sessions | claude-plugins (`claude-plugins/context/tool-based-skills.md`), through `v1.harness.local-models` (planned) |
-| Library | `go-ai`: a Go interface for running models and agent sessions from an application, including locally hosted models for application workloads | `go-ai` (`topology-and-naming.md` reserves the name); local models through `v1.ai.local-models` (planned) |
-| Service | go-web-service's AI layer, which demonstrates go-ai | go-web-service's capability map ("AI") |
+| 1 Hosting | The machines that serve local models (the Framework desktop and the two GB10 workstations), covering four things: model selection and configuration, layout across the hardware, a minimal benchmark for a model's compatibility and configuration, and a gateway that serves the pool as one service | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
+| 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai` (`topology-and-naming.md` reserves the name), its model-client surface |
+| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | settled by experiment.ai's intake; local models for application workloads through `v1.ai.local-models` (planned) |
+| 4 Harness | Agentic sessions driven from Go (go-ai's harness-session surface), and local models taking subagent work in Claude Code sessions; lowest priority | `go-ai`, and claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
+
+go-web-service's AI layer demonstrates the four layers (its capability map, "AI").
 
 ## External harnesses in place of tau
 
@@ -87,6 +99,45 @@ on each of the four parts. It also records:
 step drives Pi against the Framework desktop's router: one session, two scoped exchanges, and a
 cancel.
 
+## Experiment: spike-ai-pipeline
+
+**Question.** Can a Go model client and a message, document, and stream processing layer, built
+under go-elemental, carry a pipeline that a browser follows live? The pipeline is transactional
+and evented: it captures metadata, extracts data by inference, and stores embeddings in
+PostgreSQL with pgvector for semantic search, and each stage emits the events the browser
+follows. The spike has three repositories, one per layer, as spike-html-packages has:
+
+- **`spike-ai-pipeline-client`** gives primitives over the engines' native APIs. Its baseline
+  is OpenAI Chat Completions, with the wire format a pluggable layer beneath a stable request
+  and response model, as tau's `protocol` and `format` split it.
+- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native
+  model capabilities. herald's `internal/format` is its prior art.
+- **`spike-ai-pipeline`**, the root, holds the capstone: a backend on the members and a web UI
+  on experiment.html's stack. It takes messages, uploads, and streams, and shows what each
+  stage does as it runs.
+
+It reads tau, spike-harness-driver's `model` and `workflow`, herald, and the members, as
+references, not implementations.
+
+**Gates.** The client and processing tasks run now, against the Framework's set A, which serves
+chat, vision, audio, transcription, and embeddings. The capstone tasks wait for three things:
+those two tasks, spike-model-gateway's answer, and experiment.html's intake. The spike returns
+to `planned` in between.
+
+**Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
+processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. Its setup
+settles five open choices:
+
+- the client's base: spike-harness-driver's `model` or a fresh client
+- PDF rendering: herald's ImageMagick and Ghostscript, which is AGPL, or a non-AGPL renderer
+- the browser push: SSE or WebSocket
+- pgvector as the workspace's first Postgres extension
+- its evidence list
+
+**Home.** `~/experiments/spike-ai-pipeline`, remote
+[JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its two
+layer repositories beside it, set up by `plan experiment.ai.spike-ai-pipeline`.
+
 ## Experiment: spike-go-harness
 
 **Question.** Does a native Go harness behind spike-harness-driver's driver interface, with
@@ -101,44 +152,15 @@ process-backed drivers costs.
 [JaimeStill/spike-go-harness](https://github.com/JaimeStill/spike-go-harness), set up by
 `plan experiment.ai.spike-go-harness` once experiment.hosting's intake has run.
 
-## Experiment: spike-host-admin
-
-**Question.** Can one CLI on go-cli-sdk manage every engine and host experiment.hosting keeps:
-install, update, service status and restart, models, metrics, and GPU and memory use? outpost is
-its baseline (`ai-hosting.md`, "The existing setup: personal-agents").
-
-**Decision it changes.** `ai-hosting`'s admin tooling (`ai-hosting.md`, "Open for
-v1.ai.hosting's SETTLE").
-
-**Home.** `~/experiments/spike-host-admin`, remote
-[JaimeStill/spike-host-admin](https://github.com/JaimeStill/spike-host-admin), set up by
-`plan experiment.ai.spike-host-admin` once experiment.hosting's intake has run.
-
-## Experiment: spike-model-benchmarks
-
-**Question.** Can benchmarking be built as small elements composed into a workload per scenario:
-a model's fit on a host, a model as an agent, a set of role models at once, and any of these under
-concurrent sessions or across hosts behind the gateway? The spike also screens the candidate
-models on the layout experiment.hosting settles, and a host keeps only the models that pass on it.
-
-**Decision it changes.** The benchmark method, and the evaluation system experiment.ai's intake
-proposes.
-
-**Home.** `~/experiments/spike-model-benchmarks`, remote
-[JaimeStill/spike-model-benchmarks](https://github.com/JaimeStill/spike-model-benchmarks), set up
-by `plan experiment.ai.spike-model-benchmarks` once experiment.hosting's intake has run.
-
 ## Experiment: spike-local-models
 
-**Question.** How are locally hosted models used, on the stack experiment.hosting settles
-(`ai-hosting.md`), and for which kinds of task is the output acceptable? The spike proves out
-both uses:
+**Question.** On the stack experiment.hosting settles (`ai-hosting.md`), how does a Claude Code
+session that stays on Anthropic models route subagent tasks to locally hosted models, and for
+which kinds of task is the output acceptable? It is harness-layer work at a later priority,
+run after spike-go-harness. Application workloads on local models are spike-ai-pipeline's
+(architect, 2026-10-26).
 
-- **Application workloads.** An application runs work on a locally hosted model.
-- **Claude Code subagent tasks.** A Claude Code session stays on Anthropic models and routes
-  subagent tasks to local models.
-
-For the subagent tasks there are two candidates:
+There are two candidates:
 
 - a gateway that routes a subagent profile's model name either to the local router or to
   Anthropic
@@ -159,9 +181,8 @@ when it is compared with the tool candidate.
 whether structured, repetitive generation moves to a local model behind a schema-validated
 tool, and what would justify it.
 
-**Decision it changes.** Two conventions. `v1.ai.local-models`: how an application uses
-locally hosted models for its workloads. `v1.harness.local-models`: the profile format, the
-routing mechanism, and which kinds of task may run locally. Whether `ai-hosting` includes a
+**Decision it changes.** `v1.harness.local-models`: the profile format, the routing
+mechanism, and which kinds of task may run locally. Whether `ai-hosting` includes a
 gateway is spike-model-gateway's decision; this spike routes through what it settles.
 
 **Home.** `~/experiments/spike-local-models`, remote
@@ -216,5 +237,8 @@ image carries one pinned harness, Pi by default.
 - llama.cpp's `/v1/messages` endpoint accepts Claude Code's tool schemas, streaming, and
   thinking blocks.
 - The IL6 environment permits a harness process and its model endpoint.
+- OpenAI Chat Completions is the baseline wire format: both engines serve it, and llama.cpp also
+  serves Anthropic Messages. vLLM's gRPC server speaks raw generation for routers, not chat, so
+  it sits below the gateway, not under go-ai.
 - Pi, Claude Code, and OpenCode each expose a non-interactive, machine-readable session mode that
   is stable enough to build on.
