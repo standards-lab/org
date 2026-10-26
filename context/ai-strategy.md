@@ -6,8 +6,8 @@ experiments come first:
 
 - **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack.
 - **experiment.ai** settles the layers above it:
-  - spike-ai-pipeline proves the client and processing layers now, against the Framework's set
-    A, and proves them together in a capstone once its gates clear.
+  - spike-ai-pipeline proves the client and processing layers now, on gb10-2, which is reserved
+    for it, and proves them together in a capstone once its gates clear.
   - spike-go-harness and spike-local-models take the harness layer after experiment.hosting's
     intake, beside spike-harness-driver, which has answered.
 
@@ -119,10 +119,13 @@ follows. The spike has three repositories, one per layer, as spike-html-packages
 It reads tau, spike-harness-driver's `model` and `workflow`, herald, and the members, as
 references, not implementations.
 
-**Gates.** The client and processing tasks run now, against the Framework's set A, which serves
-chat, vision, audio, transcription, and embeddings. The capstone tasks wait for three things:
-those two tasks, spike-model-gateway's answer, and experiment.html's intake. The spike returns
-to `planned` in between.
+**Host.** gb10-2 is reserved for the spike from 2026-10-26, outside experiment.hosting's host set,
+and the spike's sessions keep it current (`ai-hosting.md`, "Hosts and access"). The Framework
+stays with experiment.hosting, whose Strix tasks swap its engine.
+
+**Gates.** The client and processing tasks run now, on gb10-2. The capstone tasks wait for three
+things: those two tasks, spike-model-gateway's answer, and experiment.html's intake. The spike
+returns to `planned` in between.
 
 **Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
 processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. Its setup
@@ -132,6 +135,8 @@ settles five open choices:
 - PDF rendering: herald's ImageMagick and Ghostscript, which is AGPL, or a non-AGPL renderer
 - the browser push: SSE or WebSocket
 - pgvector as the workspace's first Postgres extension
+- what gb10-2 serves: llama.cpp's router container with set A (gpt-oss-120b, Gemma 4 26B-A4B with
+  vision, gemma-4-E4B with audio, and EmbeddingGemma 2) is the recommended start
 - its evidence list
 
 **Home.** `~/experiments/spike-ai-pipeline`, remote
