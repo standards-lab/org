@@ -78,9 +78,10 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `messaging.md` — the event and reactor layer: its decisions, the outbox sequencing, which
   commands emit events, where the primitives live, lifecycle registration, the capability
   ledger, and spike-messaging's evidence.
-- `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers and their homes, the
-  pivot from tau to external harnesses, the library and harness experiments' questions, and the
-  hosting layer's decomposition of personal-agents.
+- `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
+  processing, harness) and their homes, the pivot from tau to external harnesses, experiment.ai's
+  questions (the client and processing layers first, then the harness), and experiment.hosting's
+  questions and decomposition of personal-agents.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
   review loop, the native style baseline, and experiment.html's spikes and answers.
 - `web-client.md` — the web client strategy: the stack's layers and what each owns, its
