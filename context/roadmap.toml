@@ -473,9 +473,12 @@ and walkthrough; at most four slices, ending in a walkthrough the architect runs
 task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
 and the decision it informs), a run at most 10 minutes unless the brief decides otherwise, and
 none run that the brief doesn't name; a solid starting point, not perfection. Sessions are
-guided: the architect runs every host step from the docs and types every benchmark, built a step
-at a time. Hosts are brought up to date at every session start, engines stay current, and only
-same-session cells compare, with an anchor cell rerun for any comparison across sessions.
+guided where the architect is learning (a new tool's first walk, every root step, and the last
+slice's walkthrough); routine host steps that need no root the session runs itself over Tailscale
+SSH, every command recorded in the docs exactly as run, and every benchmark is built a step at a
+time in the architect's view. Hosts are brought up to date at every session start, engines stay
+current, and only same-session cells compare, with an anchor cell rerun for any comparison across
+sessions.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
 
@@ -506,9 +509,10 @@ experiment's floor, and concurrency, with no model sets; NVFP4 only through vLLM
 TensorRT-LLM, NIM, and Dynamo are shelved; IL6 is out of scope. Containers first on the GB10s,
 then bare metal on gb10-1 alone once gb10-2 is reserved for spike-ai-pipeline; the Framework
 follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Each engine gets a guide (setup, models, APIs, updates, uninstall) and a minimal
-`engines-<group>-<verb>` suite for its idempotent steps. Guided sessions: the architect runs every
-host step. Decides the engine and hosting method v1.ai.hosting specifies per host class
-(`ai-hosting.md`, "Experiment: experiment.hosting"). Reads spike-model-hosting, personal-agents,
+`engines-<group>-<verb>` suite for its idempotent steps. Sessions are guided where the architect
+is learning; routine host steps that need no root the session runs itself. Decides the engine
+and hosting method v1.ai.hosting specifies per host class (`ai-hosting.md`, "Experiment:
+experiment.hosting"). Reads spike-model-hosting, personal-agents,
 and dotfiles.
 '''
 
@@ -532,7 +536,7 @@ summary = '''
 The agreed GuideLLM cells by shape, quantization, and concurrency on gb10-1 alone, and the
 API-surface probes; gb10-2 is reserved for spike-ai-pipeline, so no cross-check. Also lands
 spike-model-engines' own edits for the reservation: its README, Path, and "Running on the GB10s"
-practices. No new tool.
+practices. New tool: hf.
 '''
 
 [goals.experiment.hosting.spike-model-engines.tasks.llama-gb10-native]
@@ -573,8 +577,11 @@ document's candidates, omni profile included; a host keeps only the models that 
 Requirements drive further tuning, and the large-scale suite is the backlog goal
 `model-evaluation`. Every benchmark is agreed in its task's plan round, a run at most 10 minutes
 unless the brief decides otherwise; a solid starting point, not perfection. Reads
-spike-model-hosting's evaluate, screen, and pool document as reference. Decides the benchmark
-method v1.ai.hosting specifies (`ai-hosting.md`, "spike-model-benchmarks").
+spike-model-hosting's evaluate, screen, and pool document as reference. Screens gemma-4-26B-A4B
+against gpt-oss-120b for the agent role, as a cheaper chat tier for tasks that don't need
+gpt-oss-120b; gemma-4-E4B and gemma-4-12B take chat, image, and audio in one model
+(spike-model-engines, bench-gb10-container's speed table). Decides the benchmark method
+v1.ai.hosting specifies (`ai-hosting.md`, "spike-model-benchmarks").
 '''
 
 [goals.experiment.hosting.spike-model-layout]
@@ -589,9 +596,11 @@ and what context and how many concurrent sessions does each placed model hold? V
 x sessions per model with one pinned standard load tool in agreed, capped runs; weighs role
 placement across hosts behind a session-sticky gateway against a full set on each host; two-node
 GB10 serving over QSFP only if the layout needs it, borrowing the reserved gb10-2 as its task
-brief names (`ai-hosting.md`, "Hosts and access"). Decides the layout v1.ai.hosting specifies.
-Runs on spike-model-engines' answer; reads spike-model-hosting's memory budget, slot sweep, and
-pool document.
+brief names (`ai-hosting.md`, "Hosts and access"); weighs serving models on demand, where an
+engine loads none itself, against keeping them resident; llama-swap in front of vLLM is the
+existing tool (drives Docker, ships arm64 builds) (spike-model-engines, the vLLM guide). Decides
+the layout v1.ai.hosting specifies. Runs on spike-model-engines' answer; reads
+spike-model-hosting's memory budget, slot sweep, and pool document.
 '''
 
 [goals.experiment.hosting.spike-model-gateway]
@@ -610,9 +619,10 @@ keys issued by the gateway, with JWT/OIDC compared on paper. Measures per-consum
 rate limits, each gateway's OpenTelemetry traces and memory and latency overhead, and one gateway
 configuration on both host classes. On paper too: production's Azure
 Container Apps service routing between Azure AI Foundry and the self-hosted stack, and IL6.
-Claude-model workloads stay off the gateway. Decides whether a gateway fronts the stack, which,
-and its access control. Reads spike-model-hosting's tool-reliability findings (bounded resample,
-parse-5xx fallback).
+Claude-model workloads stay off the gateway. Weighs routing chat requests to a cheaper tier (such
+as Gemma 4 26B-A4B) and reserving gpt-oss-120b for the tasks that need it. Decides whether a
+gateway fronts the stack, which, and its access control. Reads spike-model-hosting's
+tool-reliability findings (bounded resample, parse-5xx fallback).
 '''
 
 [goals.experiment.hosting.spike-host-admin]

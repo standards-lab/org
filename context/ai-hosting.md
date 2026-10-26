@@ -49,12 +49,17 @@ units of the DGX Spark class. Like Strix Halo, they have unified memory and no d
 
 - **Hardware**: aarch64 with an sm_121 GPU, 20 cores, 3.6 TB of NVMe, and 128 GB of unified
   memory at 273 GB/s, of which about 121 GiB is visible and about 117 GiB available.
-- **Stack**: DGX OS reports 7.4.0 but carries a newer stack: driver 580.178.04, CUDA 13.0,
-  kernel 7.0, Docker 29.6.2, and nvidia-container-toolkit 1.20.1.
+- **Stack**: DGX OS 7.6.0, driver 580.178.04, CUDA 13.0, kernel 7.0.0-1019-nvidia, Docker
+  29.6.2, and nvidia-container-toolkit 1.20.1.
 - **Interconnect**: a QSFP link over ConnectX-7 joins the two units, at about 185 Gb/s of RDMA
   across both port halves.
 - **Memory reporting**: `nvidia-smi` reports no memory use, and `cudaMemGetInfo` counts the page
-  cache as used.
+  cache as used. On the integrated GPU, vLLM reads the OS's available memory instead, which counts
+  the page cache as free: with 18 GiB cached and 99.7 GiB MemFree, v0.32.0 reported 113.42 of
+  121.63 GiB free at startup.
+- **CDI spec**: an apt upgrade without a reboot can leave the container toolkit's CDI spec
+  (`/var/run/cdi/nvidia.yaml`) naming a moved driver library, and GPU containers then fail to
+  start until `sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml` regenerates it.
 
 ## Experiment: experiment.hosting
 
@@ -88,13 +93,16 @@ tailnet.
   benchmark the brief doesn't name; a new or widened one is an escalation.
 - Benchmarking looks for a solid starting point, not perfection: the configuration is tuned as the
   stack is used, with no premature optimization.
-- Sessions are guided, slower, and methodical, so the architect learns each tool by running it
-  (architect, 2026-10-23). A slice's docs and scripts are written on the branch, then the session
-  walks the architect through the host steps one at a time from those docs and records each
-  output; the last slice is the architect running the whole procedure from the docs. Scripting
-  stays minimal: only what must be idempotent (install, update, uninstall).
-- A benchmark is built and run a step at a time, typed by the architect from the commands the
-  brief agreed, never scripted out of the architect's sight.
+- Sessions are guided where the architect is learning: a new tool's or concept's first walk,
+  every root step, and the last slice, a walkthrough the architect runs from the docs (architect,
+  2026-10-23 and 2026-10-26). Routine host steps that need no root (downloads and image pulls,
+  engine install, update, and uninstall, model loads, readiness waits, cold-start timing, log and
+  memory read-outs, and health and version checks) the session runs itself over Tailscale SSH and
+  records. Every command a session or the architect runs appears in the docs exactly as run.
+  Scripting stays minimal: only what must be idempotent (install, update, uninstall).
+- A benchmark is built and run a step at a time from the commands the brief agreed, by the
+  session in the architect's view or by the architect, never scripted out of the architect's
+  sight.
 - Engines stay current. Only cells run in the same session on the same versions are compared; a
   task that compares with an earlier one first reruns one anchor cell per engine, and an anchor
   that moved beyond run noise is a finding.
@@ -106,8 +114,12 @@ tailnet.
 **Hosts and access.** The Framework (`framework`) and the two GB10s (`gb10-1`, `gb10-2`) are on the
 tailnet under `tag:inference`, reached by Tailscale SSH, which stays in accept mode while the
 experiments run. Sessions do on any of them whatever needs no sudo, the docker group included;
-root stays the architect's, run from exact commands. Every session starts by bringing its hosts up
-to date, and every measurement records the engine version and the host's stack.
+root stays the architect's, run from exact commands. A root command a session must repeat may be
+granted once, by the architect, as a sudoers rule naming that one command exactly, such as
+gb10-1's page-cache drop (`/usr/sbin/sysctl vm.drop_caches=3`). Every session starts by bringing
+its hosts up to date, and every measurement records the engine version, the host's stack, and the
+laptop's network path to the host (`tailscale ping`): a DERP relay adds its round trip to TTFT
+and request latency, but not to inter-token latency or the server's own counters.
 
 **gb10-2 is reserved** for experiment.ai's spike-ai-pipeline from 2026-10-26 (`ai-strategy.md`),
 so the two spikes can run at once without sharing a host. experiment.hosting runs on gb10-1 and
@@ -158,11 +170,11 @@ spike-model-engines (`~/experiments/spike-model-engines`, remote
 engine, llama.cpp or vLLM, serves each workstation, and is it hosted in a container or on bare
 metal? Measures raw capability by model shape (vision included), quantization, and concurrency,
 with no model sets, and documents each engine as a guide to setup, models, APIs, updates, and
-uninstall. The GB10s go first, containers before bare metal; the Framework follows with
-llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Load runs use GuideLLM, and llama-bench
-measures llama.cpp's backends. The QSFP link was measured during the GB10s' setup (dotfiles), and
-two-node serving stays with spike-model-layout. IL6 is out of its scope (architect, 2026-10-23).
-Decides the engine and hosting method per host class.
+uninstall, and whether it loads models on demand. The GB10s go first, containers before bare
+metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Load
+runs use GuideLLM, and llama-bench measures llama.cpp's backends. The QSFP link was measured
+during the GB10s' setup (dotfiles), and two-node serving stays with spike-model-layout. IL6 is out
+of its scope (architect, 2026-10-23). Decides the engine and hosting method per host class.
 
 ### spike-model-benchmarks
 
