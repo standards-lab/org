@@ -10,7 +10,9 @@
 # experiment.hosting"), and spike-model-engines is active; model-benchmarks, layout, gateway, and
 # host-admin follow one at a time. experiment.ai.spike-ai-pipeline is active beside them for its
 # client and processing tasks (ai-strategy.md, "Experiment: spike-ai-pipeline"); it returns to
-# `planned` until its capstone's gates clear. experiment.ai's harness spikes wait for
+# `planned` until its capstone's gates clear. gb10-2 is reserved for it, so experiment.hosting
+# runs on gb10-1 and the Framework (ai-hosting.md, "Hosts and access"). experiment.ai's harness
+# spikes wait for
 # experiment.hosting's intake. The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
@@ -419,8 +421,8 @@ stage by stage in real time? The client (`spike-ai-pipeline-client`) gives primi
 engines' native APIs, OpenAI Chat Completions as the baseline with the wire format a pluggable
 layer; the processing layer (`spike-ai-pipeline-processing`) prepares messages, documents, and
 streams for native model capabilities. The capstone, a backend and web UI at the root, runs on
-the members and experiment.html. The client and processing tasks run now against the Framework's
-set A; the capstone tasks wait for those tasks, spike-model-gateway's answer, and
+the members and experiment.html. It runs on gb10-2, reserved for it, which its setup prepares;
+the Framework stays with experiment.hosting. The client and processing tasks run now; the capstone tasks wait for those tasks, spike-model-gateway's answer, and
 experiment.html's intake, and the spike returns to `planned` between. Reads tau,
 spike-harness-driver, herald, and the members. Decides go-ai's model-client surface, the
 processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
@@ -463,7 +465,9 @@ name = "The self-hosted model stack"
 summary = '''
 Six spikes that settle how the workstations (the Framework and the two GB10s) serve local
 models: spike-model-hosting's Framework baseline, then engines, model-benchmarks, layout,
-gateway, and host-admin, one at a time; then one intake. Serves v1.ai.hosting. Every spike keeps to the hosting rules
+gateway, and host-admin, one at a time; then one intake. Serves v1.ai.hosting. From 2026-10-26
+its hosts are gb10-1 and the Framework; gb10-2 is reserved for experiment.ai.spike-ai-pipeline
+and borrowed only as a task brief names (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
 (`ai-hosting.md`, "Experiment: experiment.hosting"): one new tool per task, explained in its brief
 and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
 task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
@@ -500,8 +504,8 @@ Halo), and is it hosted in a container or on bare metal? Measures each engine's 
 model shape (dense small, mid, and large; MoE; embedding; ASR; vision), quantization within the
 experiment's floor, and concurrency, with no model sets; NVFP4 only through vLLM. SGLang,
 TensorRT-LLM, NIM, and Dynamo are shelved; IL6 is out of scope. Containers first on the GB10s,
-then bare metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm
-image. Each engine gets a guide (setup, models, APIs, updates, uninstall) and a minimal
+then bare metal on gb10-1 alone once gb10-2 is reserved for spike-ai-pipeline; the Framework
+follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Each engine gets a guide (setup, models, APIs, updates, uninstall) and a minimal
 `engines-<group>-<verb>` suite for its idempotent steps. Guided sessions: the architect runs every
 host step. Decides the engine and hosting method v1.ai.hosting specifies per host class
 (`ai-hosting.md`, "Experiment: experiment.hosting"). Reads spike-model-hosting, personal-agents,
@@ -524,15 +528,20 @@ summary = "vLLM's CUDA 13.0 arm64 image on both GB10s, NVFP4 served, and the vLL
 
 [goals.experiment.hosting.spike-model-engines.tasks.bench-gb10-container]
 name = "The containerized engines compared on the GB10s"
-summary = "The agreed GuideLLM cells by shape, quantization, and concurrency on gb10-1, cross-checked on gb10-2, and the API-surface probes. No new tool."
+summary = '''
+The agreed GuideLLM cells by shape, quantization, and concurrency on gb10-1 alone, and the
+API-surface probes; gb10-2 is reserved for spike-ai-pipeline, so no cross-check. Also lands
+spike-model-engines' own edits for the reservation: its README, Path, and "Running on the GB10s"
+practices. No new tool.
+'''
 
 [goals.experiment.hosting.spike-model-engines.tasks.llama-gb10-native]
-name = "llama.cpp on bare metal on the GB10s"
-summary = "llama.cpp's CUDA prebuilt natively under systemd, llama-bench pp/tg, and anchor cells against the container. New tool: llama-bench."
+name = "llama.cpp on bare metal on gb10-1"
+summary = "llama.cpp's CUDA prebuilt natively under systemd on gb10-1, llama-bench pp/tg, and anchor cells against the container. New tool: llama-bench."
 
 [goals.experiment.hosting.spike-model-engines.tasks.vllm-gb10-native]
-name = "vLLM on bare metal on the GB10s"
-summary = "vLLM's aarch64 wheel natively, with anchor cells against the container. New tool: uv."
+name = "vLLM on bare metal on gb10-1"
+summary = "vLLM's aarch64 wheel natively on gb10-1, with anchor cells against the container. New tool: uv."
 
 [goals.experiment.hosting.spike-model-engines.tasks.llama-strix-rocm]
 name = "llama.cpp's ROCm build on the Framework"
@@ -579,7 +588,8 @@ How are models placed across the three workstations' memory pools to make the be
 and what context and how many concurrent sessions does each placed model hold? Validates context
 x sessions per model with one pinned standard load tool in agreed, capped runs; weighs role
 placement across hosts behind a session-sticky gateway against a full set on each host; two-node
-GB10 serving over QSFP only if the layout needs it. Decides the layout v1.ai.hosting specifies.
+GB10 serving over QSFP only if the layout needs it, borrowing the reserved gb10-2 as its task
+brief names (`ai-hosting.md`, "Hosts and access"). Decides the layout v1.ai.hosting specifies.
 Runs on spike-model-engines' answer; reads spike-model-hosting's memory budget, slot sweep, and
 pool document.
 '''
