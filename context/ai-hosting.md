@@ -109,6 +109,14 @@ experiments run. Sessions do on any of them whatever needs no sudo, the docker g
 root stays the architect's, run from exact commands. Every session starts by bringing its hosts up
 to date, and every measurement records the engine version and the host's stack.
 
+**gb10-2 is reserved** for experiment.ai's spike-ai-pipeline from 2026-10-26 (`ai-strategy.md`),
+so the two spikes can run at once without sharing a host. experiment.hosting runs on gb10-1 and
+the Framework, and gb10-2 is out of its host set and its every-session upgrade; the pipeline
+spike's sessions keep gb10-2 current. A hosting task that needs gb10-2, such as two-node serving
+over QSFP, names the borrow in its task brief. If a pipeline task is in progress, the architect
+and the session agree when to borrow it so the running task isn't disrupted, and the borrowing
+session restores gb10-2's pipeline engine afterward.
+
 ### spike-model-hosting
 
 spike-model-hosting (`~/experiments/spike-model-hosting`, remote
