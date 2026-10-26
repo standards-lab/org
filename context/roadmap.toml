@@ -430,7 +430,9 @@ the capstone tasks wait for those tasks, spike-model-gateway's answer, and exper
 intake, and the spike returns to `planned` between. Reads tau, spike-harness-driver, herald,
 spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client surface,
 the processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
-(`ai-strategy.md`, "Experiment: spike-ai-pipeline").
+(`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model is to change from
+embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve EmbeddingGemma 2 on GB10
+(`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.host]
