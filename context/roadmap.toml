@@ -17,13 +17,13 @@
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
-# spike-html-design and spike-html-conventions have answered (html-artifacts.md, "Answers ·
-# experiment.html"), and spike-html-packages is active. Middleware is last: CORS waits for a
-# client served cross-origin.
+# spike-html-design, spike-html-conventions, and spike-html-packages have answered
+# (html-artifacts.md, "Answers · experiment.html"), and spike-html-apps is active. Middleware is
+# last: CORS waits for a client served cross-origin.
 
 active = [
   "experiment.hosting.spike-model-engines",
-  "experiment.html.spike-html-packages",
+  "experiment.html.spike-html-apps",
   "experiment.ai.spike-ai-pipeline",
 ]
 
@@ -32,7 +32,6 @@ planned = [
   "experiment.hosting.spike-model-layout",
   "experiment.hosting.spike-model-gateway",
   "experiment.hosting.spike-host-admin",
-  "experiment.html.spike-html-apps",
   "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
   "experiment.ai.spike-go-harness",
@@ -765,101 +764,6 @@ v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages 
 Go demos; and whether an external-client goal follows 1.0. It weighs spike-html-conventions'
 finding that spike-html-design ships each layer as a self-layered, `@import`-free, exported
 sheet (`html-artifacts.md`, "Experiment: spike-html-design"). It then archives the six spikes.
-'''
-
-[goals.experiment.html.spike-html-packages]
-name = "Packaging and release by tag"
-root = "spike-html-packages"
-repos = [
-  "spike-html-packages",
-  "spike-html-packages-foundation",
-  "spike-html-packages-sdk",
-  "spike-html-packages-components",
-]
-remote = "https://github.com/JaimeStill/spike-html-packages.git"
-path = "~/experiments/spike-html-packages"
-summary = '''
-How are the foundation's lateral concerns, its JS/TS modules, and the components packaged and
-released by tag over spike-html-design v0.7.0: tag naming, release builds beside the sources,
-and one library or several packages? Also decides the hosting and repository layout, on which
-spike-html-conventions' pnpm pick depends, and the import extension the releases use, and ships
-the components' and the foundation's `.css` beside the emitted `.js`. Decides how v1.client
-packages its layers (`html-artifacts.md`, "Experiment: spike-html-packages", which holds
-spike-html-conventions' facts for these decisions).
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.layers]
-name = "The layers and their release build"
-summary = '''
-Copies of spike-html-conventions' layers (the foundation port on the default profiles, the Lit
-shadow components, the SDK declarations) and spike-html-design v0.7.0's tools, split into
-utilities, structure, and meta sheets, with its registry and keys family, each with its
-provenance. A release build of unbundled .js and .d.ts with every .css beside it, named by exports
-and files and installed offline from a packed tarball under npm, pnpm, and bun; and the import
-extension, .js specifiers against .ts rewritten by tsc, measured unbundled and through Vite. Grows
-the check to spike-html-conventions'. No tag. Evidence 4, 5.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.layout]
-name = "One package or several"
-summary = '''
-The layers as one package with subpath exports against several workspace packages in one
-repository, with the layer direction enforced at install by declared dependencies measured against
-the lint rule alone. Evidence 2.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.hosting]
-name = "The foundation and SDK as repositories of their own"
-summary = '''
-The foundation and the SDK as repositories of their own, JaimeStill/spike-html-packages-foundation
-and -sdk, each a complete marathon project with its own check, CI, and a release workflow that cuts
-v0.1.0 as a pack commit on its merge to main, built and released like the Go workspace's
-repositories; packages/ leaves this repository. Evidence 2, 3.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.components]
-name = "The components as a repository of their own"
-summary = '''
-The components as JaimeStill/spike-html-packages-components, a complete marathon project copied
-from this repository's history at c2b4a19 with provenance, built on lit 3.3.3 and
-github:JaimeStill/spike-html-packages-foundation#v0.1.0 as a consumer installs them, with its own
-check, CI, the Go ruleset, and the foundation's release workflow cutting v0.1.0 on its merge to
-main. Evidence 2, 3.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.by-tag]
-name = "The three layers installed and loaded by tag"
-summary = '''
-This repository's consumer check installing the three v0.1.0 tags under npm, pnpm, and bun, as
-the three together and as the components alone, offline in `mise run check` from caches and a
-lockfile per manager that `mise run install` fills, with each manager's guard in the fixture's
-config; and jsDelivr /gh/ and the import-map page over the three tags, proven by a networked task
-in headless chrome that prints a dated table. Evidence 1, 3.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.registries]
-name = "GitHub Packages and JSR"
-summary = '''
-Real 0.0.x publishes under @jaimestill to GitHub Packages, with gh's token passed by environment
-variable, and to JSR, whose versions can never be removed (a one-way door); what each carries of the
-.css and what a consumer pays to install. How JSR is published is settled in this task's plan.
-Evidence 1.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.consumers]
-name = "Consumers and the release flow"
-summary = '''
-A page loading the release unbundled and a Vite app with the local CSS plugin, both rendering
-components on the foundation, with the nested-dependency guards each hosting trips; and a release
-cut on a green check with pnpm's built-in versioning, against a hand script. Evidence 6, 7.
-'''
-
-[goals.experiment.html.spike-html-packages.tasks.answer]
-name = "The reweighed picks and the answer"
-summary = '''
-npm against pnpm, and ESLint+Prettier against Biome, weighed again on the chosen hosting and layout;
-"The answer" in the README, and the answer section for `html-artifacts.md` as a pending edit.
-Evidence 8.
 '''
 
 [goals.experiment.html.spike-html-hosting]

@@ -118,6 +118,9 @@ remote = "https://github.com/JaimeStill/spike-html-design.git"
 [repos.spike-html-conventions]
 remote = "https://github.com/JaimeStill/spike-html-conventions.git"
 
+[repos.spike-html-packages]
+remote = "https://github.com/JaimeStill/spike-html-packages.git"
+
 [repos.spike-html-packages-foundation]
 remote = "https://github.com/JaimeStill/spike-html-packages-foundation.git"
 
