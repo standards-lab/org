@@ -287,11 +287,14 @@ spike-html-conventions' facts for these decisions:
     test run outside a browser needs the same treatment. Source: Results 4.
 - **Hosting.** jsDelivr `/gh/` caches an exact tag for good, serves `.ts` as `text/plain` with
   `nosniff`, and returns 404 for `/+esm`. GitHub Packages needs a token for every install, public
-  packages included, and takes only scoped packages. JSR emits JS and `.d.ts` from `.ts` and
-  installs natively in pnpm 10.9+ and Yarn 4.9+, while npm needs `.npmrc` setup and Bun's support
-  isn't documented. Verdaccio is a server you run. All 13 surveyed web-component libraries
-  publish to the npm registry, which stays ruled out unless no workable alternative exists, so a
-  registry release means GitHub Packages, JSR, or a self-hosted registry.
+  packages included, and takes only scoped packages. JSR emits JS and `.d.ts` only from TS
+  entrypoints: tsc's `.js` without `@ts-self-types` gets no types in its npm-compatibility package.
+  JSR refuses `.css` exports and CSS module script imports, so the components can't go on JSR as
+  built. It installs natively in pnpm 10.9+ and Yarn 4.9+, while npm and Bun install it through
+  npm.jsr.io as `@jsr/<scope>__<name>`, with `.npmrc` setup (jsr.io/docs/npm-compatibility).
+  Verdaccio is a server you run. All 13 surveyed web-component libraries publish to the npm
+  registry, which stays ruled out unless no workable alternative exists, so a registry release means
+  GitHub Packages, JSR, or a self-hosted registry.
 - **npm's monorepo gaps.** Workspace runs follow the `workspaces` array's order, not the
   dependency graph (npm/rfcs#707). npm has no `workspace:` protocol (npm/cli#8845) and no
   catalogs (npm/rfcs#872), and five linked-layout bugs are open, two on workspaces
@@ -490,3 +493,66 @@ Vite build for both app branches over an SDK declared on the platform.
    serving half runs anywhere. spike-html-apps builds them.
 
 [The answer](https://github.com/JaimeStill/spike-html-conventions/blob/main/context/README.md#the-answer) · [spike-html-conventions](https://github.com/JaimeStill/spike-html-conventions)
+
+### Answer · experiment.html.spike-html-packages
+
+**Question:** How are the foundation's lateral concerns, its JS/TS modules, and the components
+packaged and released by tag over spike-html-design v0.7.0: tag naming, release builds beside
+the sources, and one library or several packages? It also decides the hosting and repository
+layout, on which spike-html-conventions' pnpm pick depends, and the import extension the
+releases use.
+
+**Answer:** One repository per layer, each released by a plain `vX.Y.Z` git tag on a commit
+whose tree is its pack, tsc's `.js` and `.d.ts` with every `.css` beside them, from `.ts`
+sources with `.ts` specifiers; the components take the foundation as a peer; a release is cut
+by hand on a green check; pnpm, and ESLint + Prettier.
+
+1. Hosting: the git tag is the channel, installed by its tag under npm, pnpm, and bun, and
+   loaded from jsDelivr /gh/ through an import map. Proven offline by the check's
+   `test:consumers` tier, and from the network by `mise run live` ("Live, 2026-10-23" and
+   "Live, 2026-10-26, components v0.2.0"), which adds the release assets' URLs. GitHub
+   Packages is the measured alternative, published for real at the tags' versions: its one
+   gain is that the peer range resolves there, so the components alone install their
+   foundation, at the price of a registry setting and a token under every manager. Proven by
+   `mise run live` ("Live, 2026-10-26, GitHub Packages at 0.0.1" and "Live, 2026-10-26,
+   components v0.2.0"). JSR is recorded from deno 2.9.8's dry runs only, with no publish.
+2. Layout: one repository per layer, each one package, built on the layer below by its tag,
+   each with its own check, CI, and release workflow. The architect's decision in the goal
+   record; one package against workspace packages was measured in the README's Measures tables
+   of 2026-10-22, now retired.
+3. Tag naming: one plain `vX.Y.Z` per repository. Proven by the check's `test:consumers` tier
+   under npm, pnpm, and bun, and by `mise run live`'s tables, which add jsDelivr /gh/.
+4. The release build: tsc's `.js` and `.d.ts` with every `.css` copied beside them, named by
+   `exports` and `files`, carried in the tag's tree on a pack commit parented on the merge
+   commit, with the same pack as the release asset. Proven by the check's `test:consumers` tier
+   and `mise run live`'s tables, every install its tag's tree file for file, and by `mise run
+   release-flow`'s table of 2026-10-26, where the pack commit equals the tarball.
+5. The import extension: `.ts` relative specifiers, rewritten to `.js` by tsc
+   (`rewriteRelativeImportExtensions`), by the goal record's decision on the Measures table of
+   2026-10-22, now retired; the emit loads unbundled and through Vite in the check's
+   `test:consumers` tier. The emitted `.d.ts` keep `.ts` specifiers, which typescript-go 7.0.2
+   and typescript 6.0.3 accept; other `.d.ts` readers are unmeasured.
+6. Consumers: a page loading each install unbundled by an import map, and a Vite app with the
+   local CSS module script plugin, built and on its dev server, each rendering the components on
+   one foundation, a peer at `^0.1.0`, styled by its page.css. Proven offline by the check's
+   `test:consumers` tier over the tags, and from the network by `mise run live` ("Live,
+   2026-10-26, components v0.2.0") over the release assets and GitHub Packages. Only npm needs
+   a guard, `allow-git=root` at the tags.
+7. The release flow: the hand flow, a version bump and a Keep a Changelog section, released by
+   each layer's `release.yml` on a green check. pnpm's change-intent flow is rejected: its tree
+   can't be published, its notes carry the changelog's preamble, and it bumps no dependent
+   repository. Proven by `mise run release-flow`'s table of 2026-10-26 and the goal record's
+   decision on it.
+8. The manager and the lint: pnpm, no longer provisional, on a consumer's git tag with no
+   setting, phantom imports refused, and a minimum release age by default, against npm's
+   standard by use and stewardship. ESLint + Prettier, settled, with Biome the measured
+   alternative: Biome 2.6.3 matched every case with far less surface, but judges a declaration
+   import by a naming convention. The lint is proven by `mise run biome`'s table of 2026-10-26;
+   both picks are the goal record's decisions; the download and funding figures are sourced
+   facts only, read 2026-10-26.
+
+A change in ESLint's or Prettier's stewardship reopens the lint, with Biome the alternative. A
+registry release reopens npm against pnpm; GitHub Packages stays published as the measured
+alternative.
+
+[The answer](https://github.com/JaimeStill/spike-html-packages/blob/main/context/README.md#the-answer) · [spike-html-packages](https://github.com/JaimeStill/spike-html-packages)

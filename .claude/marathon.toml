@@ -57,9 +57,6 @@ order = [
 # The locations of repositories a goal names that aren't order keys: a spike's layer
 # repositories, beside the spike.
 [workspace.paths]
-spike-html-packages-foundation = "~/experiments/spike-html-packages-foundation"
-spike-html-packages-sdk = "~/experiments/spike-html-packages-sdk"
-spike-html-packages-components = "~/experiments/spike-html-packages-components"
 spike-ai-pipeline-client = "~/experiments/spike-ai-pipeline-client"
 spike-ai-pipeline-processing = "~/experiments/spike-ai-pipeline-processing"
 spike-ai-pipeline-office = "~/experiments/spike-ai-pipeline-office"
