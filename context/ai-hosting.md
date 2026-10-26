@@ -261,6 +261,13 @@ These are decided once the experiments show what the tooling has to serve.
   Halo, while the GB10s' GPU and memory use can't come from `nvidia-smi`; and Vulkan versus CUDA
   builds.
 
+**Set A's embedding model.** It should no longer be EmbeddingGemma 2 (architect, 2026-10-26).
+vLLM v0.32.0 can't serve it on the GB10 (SM121) under any attention backend (vLLM issue
+#60847; the fixes #60631, #60848, and #60942 are open and unmerged), while llama.cpp can.
+granite-embedding-english-r2 (IBM, Apache-2.0, BF16) serves on both engines (spike-model-engines,
+`docs/findings/bench-gb10-container.md`, "Embeddings"). v1.ai.hosting and the goals that serve
+set A make the change.
+
 ## Answers · experiment.hosting
 
 ### Answer · experiment.hosting.spike-model-hosting
