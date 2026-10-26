@@ -196,6 +196,11 @@ Asked what llama.cpp's Vulkan router on the Framework establishes for the self-h
 Answered with a host-class profile, three consumers at once, tool-call reliability, a memory
 budget on unified memory, and a measurement method; experiment.hosting's intake archives it.
 
+### spike-model-engines
+Asks which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
+Its engine guides and `engines` suite are the source spike-ai-pipeline copies gb10-2's llama.cpp
+scripts from; experiment.hosting's intake archives it.
+
 ## Prior R&D — Go web service architecture
 
 ### herald
