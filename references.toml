@@ -130,6 +130,9 @@ remote = "https://github.com/JaimeStill/spike-html-packages-components.git"
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 
+[repos.spike-model-engines]
+remote = "https://github.com/JaimeStill/spike-model-engines.git"
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"

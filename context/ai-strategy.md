@@ -105,43 +105,56 @@ cancel.
 under go-elemental, carry a pipeline that a browser follows live? The pipeline is transactional
 and evented: it captures metadata, extracts data by inference, and stores embeddings in
 PostgreSQL with pgvector for semantic search, and each stage emits the events the browser
-follows. The spike has three repositories, one per layer, as spike-html-packages has:
+follows. The spike has four repositories, as spike-html-packages has one per layer:
 
-- **`spike-ai-pipeline-client`** gives primitives over the engines' native APIs. Its baseline
-  is OpenAI Chat Completions, with the wire format a pluggable layer beneath a stable request
-  and response model, as tau's `protocol` and `format` split it.
-- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native
-  model capabilities. herald's `internal/format` is its prior art.
-- **`spike-ai-pipeline`**, the root, holds the capstone: a backend on the members and a web UI
-  on experiment.html's stack. It takes messages, uploads, and streams, and shows what each
-  stage does as it runs.
+- **`spike-ai-pipeline-client`** gives Go primitives over the engines' native APIs, built as
+  owned, optimized infrastructure from the best of spike-harness-driver's `model` and tau's
+  libraries. One standard-library base module holds a stable request and response model; each
+  wire format is a package behind one Format interface, chosen by typed constructor at the
+  composition root, with no provider registry. Chat Completions is the baseline, and Anthropic
+  Messages, which the router also serves, proves the layer pluggable. Streaming is an iterator of
+  typed deltas over an in-house SSE decoder, and retry is opt-in.
+- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native model
+  capabilities. It runs mature system tools through adapters it owns (`system-tools.md`), with
+  herald's `internal/format` as its prior art: an exec runner for binaries and scripts and a
+  container runner for pinned images. The PDF renderer is chosen by bake-off (pdftoppm,
+  pdftocairo, gs, vips, and ImageMagick over gs); ImageMagick is the image tool and its
+  correction stage; ffmpeg and ffprobe take audio and video, live sources included.
+- **`spike-ai-pipeline-office`** is a command-line tool on Microsoft's Open XML SDK, published as
+  NativeAOT binaries, that turns docx, xlsx, and pptx into a JSON document model and Markdown,
+  with chart data and embedded pictures in place of page images. Legacy .doc, .xls, and .ppt are
+  converted to OOXML first by LibreOffice in a container. No Go OOXML library is both well
+  supported and freely licensed across the three formats, and the .NET converters for the legacy
+  formats are unmaintained or paid.
+- **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts and the consumer check, and the
+  capstone: a backend on the layers and a web UI on experiment.html's stack. It takes messages,
+  uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
+  outbox in each stage's transaction relayed to JetStream. How the browser consumes them, NATS
+  over WebSocket or a backend relay, is measured and decided at the capstone's plan round, since
+  v1.client lands after the capstone. pgvector is a declared native-tier extension, and the
+  workspace's extension strategy is written from this case.
 
-It reads tau, spike-harness-driver's `model` and `workflow`, herald, and the members, as
-references, not implementations.
+It reads tau, spike-harness-driver's `model` and `workflow`, herald, spike-model-hosting,
+spike-model-engines, and the members, as references, not implementations. Its decisions and
+evidence are in the spike's `context/README.md` and goal record.
 
 **Host.** gb10-2 is reserved for the spike from 2026-10-26, outside experiment.hosting's host set,
-and the spike's sessions keep it current (`ai-hosting.md`, "Hosts and access"). The Framework
-stays with experiment.hosting, whose Strix tasks swap its engine.
+and the spike's sessions keep it current (`ai-hosting.md`, "Hosts and access"). It serves set A
+from llama.cpp's router container and only serves models; the media tools run where processing
+runs. The Framework stays with experiment.hosting, whose Strix tasks swap its engine.
 
-**Gates.** The client and processing tasks run now, on gb10-2. The capstone tasks wait for three
-things: those two tasks, spike-model-gateway's answer, and experiment.html's intake. The spike
+**Gates.** The host, client, and processing tasks run now, on gb10-2. The capstone tasks wait for
+three things: those tasks, spike-model-gateway's answer, and experiment.html's intake. The spike
 returns to `planned` in between.
 
 **Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
-processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. Its setup
-settles five open choices:
-
-- the client's base: spike-harness-driver's `model` or a fresh client
-- PDF rendering: herald's ImageMagick and Ghostscript, which is AGPL, or a non-AGPL renderer
-- the browser push: SSE or WebSocket
-- pgvector as the workspace's first Postgres extension
-- what gb10-2 serves: llama.cpp's router container with set A (gpt-oss-120b, Gemma 4 26B-A4B with
-  vision, gemma-4-E4B with audio, and EmbeddingGemma 2) is the recommended start
-- its evidence list
+processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. It is also
+the first case for the system-tools principle and the Postgres-extension strategy, which
+experiment.ai's intake carries forward.
 
 **Home.** `~/experiments/spike-ai-pipeline`, remote
-[JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its two
-layer repositories beside it, set up by `plan experiment.ai.spike-ai-pipeline`.
+[JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its three
+layer repositories beside it.
 
 ## Experiment: spike-go-harness
 
@@ -152,6 +165,10 @@ spike-model-hosting's harness-fit profiles as its design input.
 
 **Decision it changes.** Whether go-ai carries its own agent loop, and what replacing the
 process-backed drivers costs.
+
+**Open for its setup.** An MCP runner for spike-ai-pipeline's tool contract: whether a
+long-running service reached over MCP joins the processing layer's exec and container runners,
+or stays a client of its own (architect, 2026-10-26).
 
 **Home.** `~/experiments/spike-go-harness`, remote
 [JaimeStill/spike-go-harness](https://github.com/JaimeStill/spike-go-harness), set up by
