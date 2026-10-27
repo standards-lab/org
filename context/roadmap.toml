@@ -426,8 +426,9 @@ mature system tools through adapters it owns (`system-tools.md`); the Open XML C
 (`spike-ai-pipeline-office`), a NativeAOT tool for office documents; and the root, which holds
 gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
 it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
-the capstone tasks wait for those tasks, spike-model-gateway's answer, and experiment.html's
-intake, and the spike returns to `planned` between. Reads tau, spike-harness-driver, herald,
+the capstone tasks wait for those tasks and for the answers of spike-model-engines,
+spike-model-layout, spike-model-gateway, and spike-html-apps, not for either experiment's intake,
+and the spike returns to `planned` between. Reads tau, spike-harness-driver, herald,
 spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client surface,
 the processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
 (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model is to change from
@@ -823,18 +824,104 @@ spike-html-go-wasm").
 [goals.experiment.html.spike-html-apps]
 name = "Client applications"
 root = "spike-html-apps"
-repos = ["spike-html-apps"]
+repos = [
+  "spike-html-apps",
+  "spike-html-apps-foundation",
+  "spike-html-apps-components",
+  "spike-html-apps-sdk",
+]
 remote = "https://github.com/JaimeStill/spike-html-apps.git"
 path = "~/experiments/spike-html-apps"
 summary = '''
-What does a client application look like? Compares herald's embedded app (a Go package embedding
-a bun-built Lit client) with other configurations, and with an external client that calls
-several services. Builds the router, the API client, the default token provider, and the
-foundation's formatters to the conventions spike's declarations, and proves its proposed Go
-serving half in go-web-service's `sdk/` package before go-web-sdk takes it. Runs after
-spike-html-packages, on its answer and the conventions spike's. Decides v1.client's app architecture
-and whether an external-client goal follows 1.0 (`html-artifacts.md`, "Experiment:
-spike-html-apps").
+What does a client application look like, and do the layers hold when they compose the UI
+primitives spike-ai-pipeline's capstone needs, live over a backend? Three layer repositories
+(foundation, components, sdk), copied from spike-html-packages' tags and released by tag, and a
+root holding the apps, a minimal Go pipeline emulator (in memory, embedded nats-server, no
+containers), and the serving half. Builds the router, the API client, the default token
+provider, an event-sequence interface with a NATS-over-WebSocket adapter, the foundation's
+formatters and spike-html-design's theming, eleven components, a pipeline app, and an external
+client over two services; proves its proposed Go serving half in its own sdk package, shaped as
+go-web-service's sdk/ stages it, before go-web-sdk takes it. Quality is held at every layer,
+with the architect's acceptance of each UI task's screenshots as the design review. herald is a
+frame of reference only; GitHub Pages is spike-html-hosting's. Decides v1.client's app
+architecture and whether an external-client goal follows 1.0, and the capstone's UI builds on
+its releases (`html-artifacts.md`, "Experiment: spike-html-apps").
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.layers]
+name = "The layer repositories"
+repos = [
+  "spike-html-apps",
+  "spike-html-apps-foundation",
+  "spike-html-apps-components",
+  "spike-html-apps-sdk",
+]
+summary = '''
+spike-html-apps-foundation, -components, and -sdk created from spike-html-packages-foundation
+v0.1.0, -components v0.2.0, and -sdk v0.1.0 with provenance, each with its check, CI,
+release.yml, CHANGELOG, and STANDARDS.md carrying the design bar; the root's check grown to
+spike-html-conventions' check plus the Go steps. Evidence 7 and 9.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.foundation]
+name = "Formatters and theming"
+repos = ["spike-html-apps-foundation", "spike-html-apps-components"]
+summary = '''
+The foundation's Intl formatters to format.d.ts; spike-html-design v0.7.0's profiles,
+preferences module, and theme menu, with the menu's sheet as a .css file; the screenshot
+baseline per state and profile. Releases foundation v0.1.0, with components following its minor.
+Evidence 2 and 10.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.sdk]
+name = "The SDK runtime and event sync"
+repos = ["spike-html-apps-sdk"]
+summary = '''
+The router, the API client (RFC 9457 failures, the title filled), the anonymous token provider,
+and the domain service to sdk v0.1.0's declarations; the event-sequence interface, resumable by
+an opaque cursor, and its NATS-over-WebSocket adapter as a subpath with optional
+@nats-io/nats-core and @nats-io/jetstream peers, tested against a fake. Releases sdk v0.1.0.
+Evidence 1 and 3.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.emulator]
+name = "The pipeline emulator"
+repos = ["spike-html-apps"]
+summary = '''
+A Go service generated from go-web-sdk-template template/v0.13.0, in memory: documents, runs
+(scripted stages on timers, one CloudEvent each), conversations (a scripted Open Responses
+stream over HTTP), and search. Embeds nats-server with WebSocket and JetStream, published
+through go-messaging's nats provider, behind one static token. NewClient serving at /app and at
+the root, CORS for an external client, and the adapter's live cases against it. Evidence 3 and 4.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.primitives]
+name = "The capstone's UI primitives"
+repos = ["spike-html-apps-components"]
+summary = '''
+Eight components (chat thread over a structural subset of Open Responses 2026-04-24 items,
+composer, upload dropzone with progress, stage timeline, event log, search results, artifact
+viewer for text, JSON, and Markdown, and document list), each finished in every state and
+profile, binding no key; a components minor. Evidence 5 and 10.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.pipeline]
+name = "The pipeline app and the external client"
+repos = ["spike-html-apps"]
+summary = '''
+The pipeline app composing the primitives live over the emulator, embedded in its binary, with
+single-key shortcuts (/ search, ? help, t theme menu, Escape) and the full-sequence walkthrough
+in both themes; the external client calling two emulator instances cross-origin. Evidence 6, 8,
+and 10.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.answer]
+name = "The answer"
+repos = ["spike-html-apps"]
+summary = '''
+Consumption by tag from outside the spike, the gaps (Firefox and WebKit, real auth, real
+inference, persistence), the NATS-over-WebSocket record for spike-ai-pipeline, and the answer
+section. Evidence 9.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────

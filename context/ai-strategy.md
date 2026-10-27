@@ -144,7 +144,9 @@ from llama.cpp's router container and only serves models; the media tools run wh
 runs. The Framework stays with experiment.hosting, whose Strix tasks swap its engine.
 
 **Gates.** The host, client, and processing tasks run now, on gb10-2. The capstone tasks wait for
-three things: those tasks, spike-model-gateway's answer, and experiment.html's intake. The spike
+those tasks and for the answers of four spikes: experiment.hosting's spike-model-engines,
+spike-model-layout, and spike-model-gateway, and experiment.html's spike-html-apps, whose layer
+releases the capstone's UI builds on. They don't wait for either experiment's intake. The spike
 returns to `planned` in between.
 
 **Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
