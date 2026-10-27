@@ -329,12 +329,30 @@ Pages sites embed live demos.
 
 ## Experiment: spike-html-apps
 
-What does a client application look like? It compares herald's embedded app
-(`~/code/herald/app`, a Go package embedding a bun-built Lit client) with other configurations,
-and with an external client that calls several services. It runs after spike-html-packages, on
-the conventions and packaging those two spikes settle. It builds the application SDK that
-spike-html-conventions specifies, and names the SDK's go-web-sdk serving half. Decides
-v1.client's app architecture and whether an external-client goal follows 1.0.
+What does a client application look like, and do the layers hold when they compose the UI
+primitives spike-ai-pipeline's capstone needs, live over a backend? It runs after
+spike-html-packages, on the conventions and packaging those two spikes settle, in four
+repositories: the root (the apps, a Go pipeline emulator, and the serving half) and three layer
+repositories, spike-html-apps-foundation, -components, and -sdk, each releasing
+`@jaimestill/spike-html-apps-<layer>` by tag from v0.1.0, copied from spike-html-packages' tags.
+It builds the application SDK that spike-html-conventions specifies, the foundation's formatters
+and spike-html-design's theming, eleven components (a chat thread, composer, upload dropzone,
+stage timeline, event log, search results, artifact viewer, and document list, beside the
+status badge, entry, and pagination), a pipeline app composing them, and an external client over
+two services. Quality is held at every layer: each component is finished in every state and
+profile, and the app's full sequence (upload, stages live, chat, search, artifact) reads as one
+product; the architect's acceptance of each UI task's screenshots is the design review. herald
+(`~/code/herald/app`) is a frame of reference only, not a compared configuration. GitHub Pages
+stays with spike-html-hosting. Decides v1.client's app architecture and whether an
+external-client goal follows 1.0, and the capstone's UI builds on its releases.
+
+- **The emulator.** One Go binary generated from go-web-sdk-template template/v0.13.0, all state
+  in memory: documents, runs (scripted stages on timers, one CloudEvent each), conversations (a
+  scripted Open Responses stream over HTTP), and search (a text match). It embeds nats-server
+  with WebSocket and JetStream, publishing through go-messaging's nats provider; go-messaging
+  creates its stream with file storage, so the embedded server takes a temporary store
+  directory. No Postgres, blob storage, outbox, or containers: the spike proves the client, not
+  the capstone's backend.
 
 What it builds from spike-html-conventions (Results 8):
 
@@ -344,8 +362,9 @@ What it builds from spike-html-conventions (Results 8):
   go-web-sdk's `Write` omits it for a status outside net/http's table, so the client fills it.
   The browser floor is Safari 26.2, Firefox 147, and Chromium, set by the Navigation API
   (web-features 3.43.0).
-- **The Go serving half.** It proves the half spike-html-conventions proposes in go-web-service's
-  `sdk/` package before go-web-sdk takes it. The proposal is one handler for an app's embedded
+- **The Go serving half.** It proves the half spike-html-conventions proposes in its own `sdk`
+  package, shaped as go-web-service's `sdk/` stages it, before go-web-sdk takes it; a spike
+  never writes to go-web-service. The proposal is one handler for an app's embedded
   Vite build output, `func NewClient(dist fs.FS, opts ClientOptions) (http.Handler, error)`.
   - `ClientOptions` holds the base path, the page title, the manifest key of the app's entry,
     and a config value. `NewClient` reads `.vite/manifest.json` from `dist` once, and fails if
@@ -363,16 +382,19 @@ What it builds from spike-html-conventions (Results 8):
     so spike-html-apps settles how an app at the server's root mounts (`Router.SetNotFound` is
     the candidate), and makes Vite's `base`, the shell's `<base href>`, and `RouterOptions.base`
     agree.
-- **Live transport.** It is a named gap: the spec declares neither server-sent events nor the
-  WebSocket bridge. spike-html-apps names it with v1.client, to which `messaging.md` gives the
-  bridge.
+- **Live transport.** The spec declares neither server-sent events nor the WebSocket bridge.
+  spike-html-apps adds an event-sequence interface to the SDK, an ordered stream of CloudEvents
+  resumable by an opaque cursor, with a NATS-over-WebSocket adapter (`@nats-io/nats-core` and
+  `@nats-io/jetstream`, optional peers) reading a JetStream ordered consumer from the emulator,
+  under one static token from the token provider. Its record is evidence for
+  spike-ai-pipeline's choice between NATS over WebSocket and a backend relay; real auth stays a
+  gap.
 - **herald's elements.** Four of herald's element files in `app/client/ui/elements` import from
   `@domains` (herald 6fc22b3): `classify-progress.ts` the `WORKFLOW_STAGES` constant and the
   `WorkflowStage` type, `document-card.ts` the `WorkflowStage` and `Document` types,
   `prompt-card.ts` the `Prompt` type, and `blob-viewer.ts` the `findFormat` lookup. Under
-  spike-html-conventions' layout a component may not import domain code, so the types become the
-  element's own properties, and the constant and the lookup move up to the app or down into the
-  element.
+  spike-html-conventions' layout a component may not import domain code, so the spike's own
+  components take their data as their own properties, and lookups live in the app.
 - **Pagination.** herald's pagination takes `total_pages` (`pkg/pagination` `PageResult`, the
   element's `total-pages` attribute, 6fc22b3). go-web-sdk's Page envelope carries `items`,
   `page`, `size`, `total`, `more`, and `next`, and omits `page` and `total` under a cursor
