@@ -460,6 +460,17 @@ sent back; embeddings and transcription; the members' CI pair. Tags client v0.1.
 '''
 proof = "The integration tier passes against set A on gb10-2, and v0.1.0 is released."
 
+[goals.experiment.ai.spike-ai-pipeline.tasks.host-scripts]
+name = "gb10-2's scripts re-copied under host/"
+repos = ["spike-ai-pipeline"]
+summary = '''
+After spike-model-engines' host-rename merges: re-copy its llama.cpp scripts byte-identical from
+that merge commit into the root's `host/` (renamed from `engines/`), update the root's references
+and its README's diff check, and rebuild gb10-2's router with llama's update so its preset mount
+names the new path.
+'''
+proof = "The README's diff check against host-rename's merge commit prints nothing, and gb10-2's router answers set A on 8080."
+
 [goals.experiment.ai.spike-ai-pipeline.tasks.client-streaming]
 name = "Streaming"
 repos = ["spike-ai-pipeline-client"]
@@ -642,6 +653,17 @@ API-surface probes; gb10-2 is reserved for spike-ai-pipeline, so no cross-check.
 spike-model-engines' own edits for the reservation: its README, Path, and "Running on the GB10s"
 practices. New tool: hf.
 '''
+
+[goals.experiment.hosting.spike-model-engines.tasks.host-rename]
+name = "The engines suite's directory renamed to host/"
+summary = '''
+Rename the suite's directory from `engines/` to `host/`, so `engines/engines` stops stuttering
+(spike-ai-pipeline's request, 2026-10-26): every shellcheck `source=` directive, mise file, guide,
+note, and finding cites `host/`. llama's update also replaces a container whose preset mount isn't
+the clone's, and gb10-1's llama container is rebuilt from the new path; both engines are left
+stopped on gb10-1. Runs before llama-gb10-native, which keeps its approved brief.
+'''
+proof = "The architect rebuilds gb10-1's llama container with `host/engines llama update` from the guide and it answers on 8080."
 
 [goals.experiment.hosting.spike-model-engines.tasks.llama-gb10-native]
 name = "llama.cpp on bare metal on gb10-1"
