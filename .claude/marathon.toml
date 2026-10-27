@@ -60,6 +60,9 @@ order = [
 spike-ai-pipeline-client = "~/experiments/spike-ai-pipeline-client"
 spike-ai-pipeline-processing = "~/experiments/spike-ai-pipeline-processing"
 spike-ai-pipeline-office = "~/experiments/spike-ai-pipeline-office"
+spike-html-apps-foundation = "~/experiments/spike-html-apps-foundation"
+spike-html-apps-components = "~/experiments/spike-html-apps-components"
+spike-html-apps-sdk = "~/experiments/spike-html-apps-sdk"
 
 # The hosting convention `marathon experiment` proposes for a new spike.
 [workspace.experiments]
