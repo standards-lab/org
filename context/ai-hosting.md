@@ -178,8 +178,9 @@ experiment.hosting.spike-model-engines", under "Answers · experiment.hosting" b
 ### spike-hosting-upgrades
 
 What convention evaluates an upgrade to the hosting stack (a host's hardware configuration, its
-model host, or its models) from what others publish rather than benchmarks of our own? An agent
-skill gathers the current public benchmarks, engine releases, and model cards for each host class,
+model host, or its models) from what others publish rather than benchmarks of our own? A
+project-local Claude Code skill in the spike, whose plugin form the intake routes to
+claude-plugins, gathers the current public benchmarks, engine releases, and model cards for each host class,
 engine, and model, cites them, and writes a dated report of ranked upgrades; anchor cells A and B
 verify each on our host before it is adopted. The spike screens the pool document's candidates
 the same way. The large-scale suite waits in the backlog as `model-evaluation`, for the workloads

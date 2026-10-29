@@ -203,6 +203,11 @@ Vulkan image on the Framework.
 Its engine guides and `engines` suite are the source spike-ai-pipeline copies gb10-2's llama.cpp
 scripts from; experiment.hosting's intake archives it.
 
+### spike-hosting-upgrades
+Asks what convention evaluates an upgrade to the hosting stack (hardware configuration, model
+host, or models) from what others publish: a project-local Claude Code skill writes dated, cited
+reports of ranked upgrades, and anchors A and B verify each on our host. Active.
+
 ## Prior R&D — Go web service architecture
 
 ### herald
