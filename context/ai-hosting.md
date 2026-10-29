@@ -17,12 +17,15 @@ personal-agents (`github.com/JaimeStill/personal-agents`, local `~/code/personal
 marathon context project outside the workspace. It configures one host class, the
 Framework desktop:
 
-- **Hardware**: AMD Strix Halo, 128GB of unified memory, about 96GB of it exposed to the GPU.
+- **Hardware**: AMD Strix Halo, 128GB of unified memory, 112 GiB of it reachable by the GPU as
+  GTT (spike-model-engines, llama-strix-rocm).
 - **Serving**: llama.cpp's router in Vulkan mode, run as a systemd service from
   spike-model-hosting's rendered presets and unit. It runs upstream build b11734 (at
   spike-model-hosting's screen task) and is held to a minimum build of b11452. It binds only to
   the tailnet, and Tailscale's device authentication is the access boundary on the dev
-  workstations. Production has no tailnet ("Experiment: experiment.hosting", "Production").
+  workstations. Production has no tailnet ("Experiment: experiment.hosting", "Production"). The
+  router is stopped and disabled while the spike-model-engines sessions own the Framework, until
+  that spike's answer task retires it.
 - **Models**: spike-model-hosting's starting set, set A, sharing four slots and a unified KV cache:
   - gpt-oss-120b MXFP4, at 131072 context
   - Gemma 4 26B-A4B Q4_0, with vision, at 32768 context
@@ -68,10 +71,10 @@ models: which engine and hosting method on each, how a model's compatibility and
 are settled, how the models are laid out across their memory pools, which gateway routes requests
 across the pool and restricts access to it, and what tool administers them? Its intake
 decides what `v1.ai.hosting` builds. The spikes run one at a time: spike-model-hosting's
-Framework baseline, then spike-model-engines, spike-model-benchmarks, spike-model-layout,
-spike-model-gateway, and spike-host-admin. The benchmarks and host-admin spikes moved here from
-experiment.ai, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The four
-layers"; architect, 2026-10-26). Their answers land in "Answers · experiment.hosting" below.
+Framework baseline, then spike-model-engines, spike-hosting-upgrades, spike-model-layout,
+spike-model-gateway, and spike-host-admin. The benchmarks spike, which spike-hosting-upgrades
+replaced (architect, 2026-10-29), and the host-admin spike moved here from experiment.ai, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The
+four layers"; architect, 2026-10-26). Their answers land in "Answers · experiment.hosting" below.
 
 **Production.** Production has no tailnet; the tailnet only fences the dev workstations. A
 containerized service on Azure Container Apps will route inference between Azure AI Foundry and
@@ -161,7 +164,7 @@ questions moved:
 - the model layout to spike-model-layout
 - the gateway and access control to spike-model-gateway
 - the admin CLI to spike-host-admin
-- benchmarking and model candidates to spike-model-benchmarks
+- upgrade evaluation and model candidates to spike-hosting-upgrades
 
 ### spike-model-engines
 
@@ -171,20 +174,22 @@ engine, llama.cpp or vLLM, serves each workstation, and is it hosted in a contai
 metal? Measures raw capability by model shape (vision included), quantization, and concurrency,
 with no model sets, and documents each engine as a guide to setup, models, APIs, updates, and
 uninstall, and whether it loads models on demand. The GB10s go first, containers before bare
-metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's ROCm image. Load
-runs use GuideLLM, and llama-bench measures llama.cpp's backends. The QSFP link was measured
-during the GB10s' setup (dotfiles), and two-node serving stays with spike-model-layout. IL6 is out
-of its scope (architect, 2026-10-23). Decides the engine and hosting method per host class.
+metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's official ROCm
+image (vllm/vllm-openai-rocm; AMD's rocm/vllm images are deprecated). Load runs use GuideLLM, and
+llama-bench measures llama.cpp's backends. The QSFP link was measured during the GB10s' setup
+(dotfiles), and two-node serving stays with spike-model-layout. IL6 is out of its scope
+(architect, 2026-10-23). Decides the engine and hosting method per host class.
 
-### spike-model-benchmarks
+### spike-hosting-upgrades
 
-What is the smallest benchmark that quickly settles a candidate model's compatibility with a host
-and engine and its initial configuration: context, slots, and the settings its card names? It
-runs after spike-model-engines and screens the pool document's candidates, and a host keeps only
-the models that pass on it. The configuration is a starting point: requirements drive any tuning
-beyond it. The large-scale suite waits in the backlog as `model-evaluation`: composable
-benchmark elements, results by model, build, preset, and host, a run queue per host, and a
-management interface. Decides the benchmark method.
+What convention evaluates an upgrade to the hosting stack (a host's hardware configuration, its
+model host, or its models) from what others publish rather than benchmarks of our own? An agent
+skill gathers the current public benchmarks, engine releases, and model cards for each host class,
+engine, and model, cites them, and writes a dated report of ranked upgrades; anchor cells A and B
+verify each on our host before it is adopted. The spike screens the pool document's candidates
+the same way. The large-scale suite waits in the backlog as `model-evaluation`, for the workloads
+only we can measure: our agents, and our role sets under our own sessions. Decides the
+upgrade-evaluation convention and its cadence.
 
 ### spike-model-layout
 
@@ -328,17 +333,18 @@ The original evidence's other items moved:
   and hosting method per host class); the profile format is settled at experiment.ai's
   spike-host-admin's setup.
 - 3, how each platform is set up and managed: spike-model-engines (scripted install and setup)
-  and experiment.ai's spike-host-admin.
+  and experiment.hosting's spike-host-admin.
 - 6, a capability matrix per platform: spike-model-engines (raw capability by model shape,
   embedding and ASR among them).
 - 7, presets, context sizing, and the footprint method beyond the Framework:
   spike-model-layout (context × sessions per placed model) and spike-model-engines (vLLM).
 - 8, each gateway approach: spike-model-gateway, budgets, rate limits, OpenTelemetry traces,
   memory and latency overhead, and one configuration on both host classes included.
-- 9, one admin tool over every platform and host: experiment.ai's spike-host-admin.
+- 9, one admin tool over every platform and host: experiment.hosting's spike-host-admin.
 - 10, IL6 on paper: spike-model-gateway; the engines' IL6 check was dropped from
   spike-model-engines (architect, 2026-10-23).
-- The model candidates and the benchmark method: experiment.ai's spike-model-benchmarks.
+- The model candidates and the upgrade-evaluation convention: experiment.hosting's
+  spike-hosting-upgrades.
 
 [The answer](https://github.com/JaimeStill/spike-model-hosting#the-answer) ·
 [spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)
