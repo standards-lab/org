@@ -619,8 +619,9 @@ path = "~/experiments/spike-hosting-upgrades"
 summary = '''
 What convention evaluates an upgrade to the hosting stack — a host's hardware configuration
 (kernel, firmware, memory ceiling), its model host (engine, backend, image), or its models — at
-any moment, from what others publish rather than benchmarks of our own? An agent skill, pluggable
-into any environment with access to AI hosting hardware, gathers the current sources for each
+any moment, from what others publish rather than benchmarks of our own? An agent skill, a
+project-local Claude Code skill packaged as a claude-plugins plugin after the intake, gathers the
+current sources for each
 host class × engine × model (public benchmarks, engine releases, model cards), cites them, and
 writes a dated report of ranked upgrades; each is verified on our host by anchors A and B before
 it is adopted. Screens the pool document's candidates the same way: a host keeps a model the
@@ -628,6 +629,56 @@ sources support and the anchors confirm. Local runs are only the anchors and the
 publishes (footprint, cold start, API surface, whether a feature works). Decides the
 upgrade-evaluation convention and cadence v1.ai.hosting specifies. Replaces
 spike-model-benchmarks.
+'''
+
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.skill]
+name = "The skill and its first report"
+summary = '''
+The project-local Claude Code skill (`.claude/skills/`) and its first dated report, on paper, for
+framework and gb10-1, with no host step: it takes the inventory of host class × engine × model,
+gathers engine releases, public benchmarks, model cards, and host-stack notes, cites each with its
+URL and read date, and ranks upgrades in three kinds (hardware configuration, model host, models),
+each with its sources, claimed gain, risk, and a verdict of verify, hold, or skip. Its one new tool
+is the skill itself. Evidence 1 and 2.
+'''
+proof = "A dated report under docs/reports/ that the skill wrote, every claim cited, ranked per host class."
+
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.verify-framework]
+name = "Verifying framework's top upgrade"
+summary = '''
+framework's top-ranked upgrade, verified by anchors A and B before and after in one session, then
+adopted or rolled back, with the published claim set beside the anchors; the skill gains its
+verification step. Engine changes run spike-model-engines' `engines` suite read-only. No new tool:
+GuideLLM 0.8.1 is already pinned. Evidence 3 and 5.
+'''
+proof = "A dated finding with before and after anchors on one build pair, the claim beside them, and the upgrade adopted or rolled back."
+
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.verify-gb10]
+name = "Verifying gb10-1's top upgrade"
+summary = '''
+The same on gb10-1, its root steps the architect's; gb10-2 stays reserved for spike-ai-pipeline.
+Evidence 3 and 5.
+'''
+proof = "A dated finding with before and after anchors on gb10-1, the claim beside them, and the upgrade adopted or rolled back."
+
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.screen]
+name = "Screening the pool"
+summary = '''
+The skill screens the pool document's candidates (spike-model-hosting `docs/pool.md`) for both
+host classes; each candidate the sources support is verified on its host with anchors A and B
+beside its role's incumbent in the same session, plus the local-only checks (footprint, cold
+start, API surface, whether a feature works). A host keeps only what both support. Its one new
+tool, if any, is settled at its plan. Evidence 4.
+'''
+proof = "The screened pool per host class, each kept candidate with its sources and same-session anchors beside its incumbent."
+
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.answer]
+name = "The answer"
+summary = '''
+A second dated report showing what moved since the first, the convention and its cadence (when
+the skill runs, what triggers a verification, the record an adoption leaves, and what stays with
+model-evaluation), README "The answer", and the answer section for `ai-hosting.md`. Evidence 2
+and 6.
 '''
 
 [goals.experiment.hosting.spike-model-layout]
