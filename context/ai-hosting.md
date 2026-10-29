@@ -19,21 +19,15 @@ Framework desktop:
 
 - **Hardware**: AMD Strix Halo, 128GB of unified memory, 112 GiB of it reachable by the GPU as
   GTT (spike-model-engines, llama-strix-rocm).
-- **Serving**: llama.cpp's router in Vulkan mode, run as a systemd service from
-  spike-model-hosting's rendered presets and unit. It runs upstream build b11734 (at
-  spike-model-hosting's screen task) and is held to a minimum build of b11452. It binds only to
-  the tailnet, and Tailscale's device authentication is the access boundary on the dev
-  workstations. Production has no tailnet ("Experiment: experiment.hosting", "Production"). The
-  router is stopped and disabled while the spike-model-engines sessions own the Framework, until
-  that spike's answer task retires it.
-- **Models**: spike-model-hosting's starting set, set A, sharing four slots and a unified KV cache:
-  - gpt-oss-120b MXFP4, at 131072 context
-  - Gemma 4 26B-A4B Q4_0, with vision, at 32768 context
-  - gemma-4-E4B Q8_0, with audio, at 32768 context
-  - EmbeddingGemma 2 Q8_0, for embeddings
-
-  With all four loaded and four requests in flight per model, 3.30 GiB of the 96GB GPU pool stays
-  free.
+- **Serving**: llama.cpp's router in ggml's Vulkan image, run as spike-model-engines' `llama`
+  container at b11960 ([setup, "12. Serve set A"](https://github.com/JaimeStill/spike-model-engines/blob/main/docs/engines/llama.cpp/setup.md#12-serve-set-a)).
+  It binds only to the tailnet, and Tailscale's device authentication is the access boundary on
+  the dev workstations; production has no tailnet ("Experiment: experiment.hosting",
+  "Production"). spike-model-hosting's systemd router, `llama-router`, was retired on 2026-10-29.
+- **Models**: set A, on the 112 GiB pool: gpt-oss-120b MXFP4, on four slots sharing a unified KV
+  cache at 131072 context; Google's Gemma 4 26B-A4B QAT Q4_0, with vision; gemma-4-E4B Q8_0, with
+  audio; and granite-embedding-english-r2 BF16, for embeddings. Loaded, the four hold 92.1 GiB of
+  GTT.
 - **Client**: Pi reaches the router directly through `LLAMA_BASE_URL`.
 
 Its `reference/` directory holds the measured method:
@@ -178,7 +172,8 @@ metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's 
 image (vllm/vllm-openai-rocm; AMD's rocm/vllm images are deprecated). Load runs use GuideLLM, and
 llama-bench measures llama.cpp's backends. The QSFP link was measured during the GB10s' setup
 (dotfiles), and two-node serving stays with spike-model-layout. IL6 is out of its scope
-(architect, 2026-10-23). Decides the engine and hosting method per host class.
+(architect, 2026-10-23). The spike has answered: "Answer ·
+experiment.hosting.spike-model-engines", under "Answers · experiment.hosting" below.
 
 ### spike-hosting-upgrades
 
@@ -348,6 +343,78 @@ The original evidence's other items moved:
 
 [The answer](https://github.com/JaimeStill/spike-model-hosting#the-answer) ·
 [spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)
+
+### Answer · experiment.hosting.spike-model-engines
+
+**Question:** Which engine, llama.cpp or vLLM, serves each workstation (the GB10s, then the
+Framework's Strix Halo), and is it hosted in a container or on bare metal?
+
+**Answer:** llama.cpp in a container on both host classes, in ggml's CUDA image on the GB10s and
+in ggml's Vulkan image on the Framework; vLLM's leads are kept as evidence, and slots are a
+per-scenario tuning setting, not a limit.
+
+The answer is drawn from two host classes, so it is stated as rules keyed by a host's traits,
+with the GB10s and the Framework as worked instances. No figure is compared across sessions or
+versions.
+
+1. On NVIDIA, llama.cpp on CUDA. On gb10-1 llama.cpp led gpt-oss-120b at 1 stream (50.0
+   against 34.0 output tok/s) and the Gemma 4 shapes at 4 streams; vLLM led gpt-oss-120b from
+   4 streams (168 against 129 at 16), kept as evidence, since one engine serves a host and a
+   split host wasn't measured. Proven by measured runs: `docs/findings/bench-gb10-container.md`
+   (llama.cpp b11669, vLLM v0.32.0, 2026-10-26).
+2. On AMD, llama.cpp on Vulkan. On the Framework ggml's Vulkan image led its ROCm image at both
+   anchors (by 6.39% and 5.21%) and on every llama-bench row; ROCm's sooner cold loads and its
+   vision leads are kept as evidence (`docs/findings/llama-strix-rocm.md`, b11669,
+   2026-10-27). vLLM's ROCm image served 22.4% and 20.6% of llama.cpp's output at anchors A and
+   B (`docs/findings/vllm-strix.md`, vLLM v0.32.0, llama.cpp b11960, 2026-10-28). Proven by
+   measured runs.
+3. Unified memory: llama.cpp takes the model's buffers, and vLLM reserves 0.80 of the pool
+   whatever the model, so one llama.cpp router holds several models; set A's four hold 92.1 of
+   the Framework's 112 GiB GTT ceiling. Proven by measured runs:
+   `docs/findings/bench-gb10-container.md` (2026-10-26), `docs/findings/vllm-strix.md`
+   (2026-10-28), and `docs/findings/answer.md` (b11960, 2026-10-29).
+4. Streams: the measured curves are the evidence, and the answer sets no slot limit.
+   gpt-oss-120b on 16 slots served 48.5, 77.1, 129.0, and 126.2 output tok/s at 1, 4, 16, and
+   32 streams on gb10-1 (b11669, 2026-10-26), and 43.6, 69.5, 81.6, and 80.1 on the Framework
+   over a DERP relay (b11960, 2026-10-29); the two curves ran in different sessions on
+   different builds and are not compared. The Framework sweep gives gpt-oss-120b an initial
+   setting of 4 streams, where set A starts. Proven by measured runs:
+   `docs/findings/bench-gb10-container.md` and `docs/findings/answer.md`.
+5. Embeddings at concurrency: vLLM's lead is kept as evidence. On granite-embedding-english-r2
+   at 16 streams vLLM served 295.1 requests/s against llama.cpp's 55.5 on gb10-1 (2026-10-26)
+   and 215.3 against 40.5 on the Framework (2026-10-28). Proven by measured runs:
+   `docs/findings/bench-gb10-container.md` and `docs/findings/vllm-strix.md`.
+6. Models on demand: llama.cpp's router loads and unloads models through its API in seconds,
+   and vLLM serves one model a start, in minutes; on gb10-1 gpt-oss-120b loaded in 48 s against
+   vLLM's 577 s cold start. Proven by measured runs: `docs/findings/bench-gb10-container.md`
+   (2026-10-26) and `docs/findings/vllm-strix.md` (2026-10-28).
+7. A container on both host classes. On gb10-1 llama.cpp ran at the same speed, startup, and
+   memory in ggml's container and natively, and vLLM at parity, its container starting 137 s
+   sooner. Proven by measured runs: `docs/findings/llama-gb10-native.md` (b11669) and
+   `docs/findings/vllm-gb10-native.md` (v0.32.0), 2026-10-27. The Framework's bare metal is
+   unproven: ggml's native Vulkan build led the image at prompt processing by 4.49 to 9.49%,
+   likely from the host's newer Mesa, untested (`docs/findings/llama-strix-rocm.md`,
+   b11669, 2026-10-27).
+8. The Framework serves set A from the `llama` container in ggml's Vulkan image at b11960, and
+   spike-model-hosting's router is retired. Proven by a running demo: the walkthrough's
+   retirement and Pi's tool calls on set A (`docs/findings/answer.md`, 2026-10-29).
+
+Gaps in the answer: the Framework's API probes, not measured; the Framework's bare metal, not
+measured as a server; and vLLM's slow NVFP4 decode on SM121, cause open.
+
+Requirements for the intake to route:
+
+- Workload-based tuning: slots and context tuned per model, workload, and host, owned by the
+  backlog goal model-evaluation and by spike-model-layout; not measured.
+- Request priority: llama-server queues past its slots first come, first served, with no
+  limit, priority, or 429, while vLLM has a priority scheduler; not measured.
+- Model management separated from inference and held by an admin: llama-server's router
+  exposes load, unload, download, and delete to any client that reaches it, `?autoload=true`
+  overrides `--no-models-autoload`, and every API key has the same access, by the source,
+  untested. Today the tailnet, ufw, and `tag:inference` bound it.
+
+[The answer](https://github.com/JaimeStill/spike-model-engines#the-answer) ·
+[spike-model-engines](https://github.com/JaimeStill/spike-model-engines)
 
 ## Assumptions
 
