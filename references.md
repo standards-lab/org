@@ -197,7 +197,9 @@ Answered with a host-class profile, three consumers at once, tool-call reliabili
 budget on unified memory, and a measurement method; experiment.hosting's intake archives it.
 
 ### spike-model-engines
-Asks which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
+Asked which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
+Answered llama.cpp in a container on both host classes, in ggml's CUDA image on the GB10s and its
+Vulkan image on the Framework.
 Its engine guides and `engines` suite are the source spike-ai-pipeline copies gb10-2's llama.cpp
 scripts from; experiment.hosting's intake archives it.
 
