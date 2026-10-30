@@ -799,6 +799,8 @@ repos = [
   "spike-html-apps-foundation",
   "spike-html-apps-components",
   "spike-html-apps-sdk",
+  "spike-html-apps-noctis",
+  "spike-html-apps-tooling",
 ]
 remote = "https://github.com/JaimeStill/spike-html-apps.git"
 path = "~/experiments/spike-html-apps"
@@ -873,6 +875,24 @@ Eight components (chat thread over a structural subset of Open Responses 2026-04
 composer, upload dropzone with progress, stage timeline, event log, search results, artifact
 viewer for text, JSON, and Markdown, and document list), each finished in every state and
 profile, binding no key; a components minor. Evidence 5 and 10.
+'''
+
+[goals.experiment.html.spike-html-apps.tasks.tooling]
+name = "Shared browser and screenshot tooling"
+repos = [
+  "spike-html-apps-tooling",
+  "spike-html-apps-foundation",
+  "spike-html-apps-components",
+  "spike-html-apps-sdk",
+  "spike-html-apps-noctis",
+  "spike-html-apps",
+]
+summary = '''
+spike-html-apps-tooling, released as v0.1.0 by tag: the raw DevTools pipe driver with visible
+scrollbars, the page wait, a node:http static server, and one screenshot command (util.parseArgs;
+terminal through kitten icat, directory, and browser gallery outputs), with a diagnosis of images
+in a Neovim terminal buffer. The root and the four layer and extension repositories move onto it,
+dropping their drifted copies, with no layer release.
 '''
 
 [goals.experiment.html.spike-html-apps.tasks.pipeline]
