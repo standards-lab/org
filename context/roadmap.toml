@@ -635,7 +635,7 @@ spike-model-benchmarks.
 name = "The skill and its first report"
 summary = '''
 The project-local Claude Code skill (`.claude/skills/`) and its first dated report, on paper, for
-framework and gb10-1, with no host step: it takes the inventory of host class × engine × model,
+framework and gb10-1, with read-only, no-root host probes: it takes the inventory of host class × engine × model,
 gathers engine releases, public benchmarks, model cards, and host-stack notes, cites each with its
 URL and read date, and ranks upgrades in three kinds (hardware configuration, model host, models),
 each with its sources, claimed gain, risk, and a verdict of verify, hold, or skip. Its one new tool
@@ -647,8 +647,8 @@ proof = "A dated report under docs/reports/ that the skill wrote, every claim ci
 name = "Verifying framework's top upgrade"
 summary = '''
 framework's top-ranked upgrade, verified by anchors A and B before and after in one session, then
-adopted or rolled back, with the published claim set beside the anchors; the skill gains its
-verification step. Engine changes run spike-model-engines' `engines` suite read-only. No new tool:
+adopted or rolled back, with the published claim set beside the anchors; applies the run's take
+and verify items, with rollbacks; the skill gains its verification step. Engine changes run spike-model-engines' `engines` suite read-only. No new tool:
 GuideLLM 0.8.1 is already pinned. Evidence 3 and 5.
 '''
 proof = "A dated finding with before and after anchors on one build pair, the claim beside them, and the upgrade adopted or rolled back."
@@ -656,8 +656,9 @@ proof = "A dated finding with before and after anchors on one build pair, the cl
 [goals.experiment.hosting.spike-hosting-upgrades.tasks.verify-gb10]
 name = "Verifying gb10-1's top upgrade"
 summary = '''
-The same on gb10-1, its root steps the architect's; gb10-2 stays reserved for spike-ai-pipeline.
-Evidence 3 and 5.
+The same on gb10-1, its root steps the architect's; applies the run's take and verify items, with
+rollbacks, and the run's decided removals (the vLLM container and image, both bare-metal units);
+gb10-2 stays reserved for spike-ai-pipeline. Evidence 3 and 5.
 '''
 proof = "A dated finding with before and after anchors on gb10-1, the claim beside them, and the upgrade adopted or rolled back."
 
@@ -667,7 +668,9 @@ summary = '''
 The skill screens the pool document's candidates (spike-model-hosting `docs/pool.md`) for both
 host classes; each candidate the sources support is verified on its host with anchors A and B
 beside its role's incumbent in the same session, plus the local-only checks (footprint, cold
-start, API surface, whether a feature works). A host keeps only what both support. Its one new
+start, API surface, whether a feature works), with BFCL samples (100 single-turn, 20 multi-turn)
+and the tool-reliability check on the agent candidates no card can place, Gemma 4 26B-A4B QAT
+first. A host keeps only what both support. Its one new
 tool, if any, is settled at its plan. Evidence 4.
 '''
 proof = "The screened pool per host class, each kept candidate with its sources and same-session anchors beside its incumbent."
@@ -697,7 +700,13 @@ brief names (`ai-hosting.md`, "Hosts and access"); weighs serving models on dema
 engine loads none itself, against keeping them resident; llama-swap in front of vLLM is the
 existing tool (drives Docker, ships arm64 builds) (spike-model-engines, the vLLM guide). Decides
 the layout v1.ai.hosting specifies. Runs on spike-model-engines' answer; reads
-spike-model-hosting's memory budget, slot sweep, and pool document.
+spike-model-hosting's memory budget, slot sweep, and pool document. Weighs the architect's idea of
+2026-10-30: split hosts by role, with one GB10 for the agent model alone (about 49 GiB of KV after
+weights and headroom, roughly 10 concurrent 128K sessions by estimate), the second GB10 or the
+Framework for the capability models (vision, audio, embedding), and the remaining workstation
+routing overflow. Open points: gb10-2 is reserved for spike-ai-pipeline and becomes available to
+the layout spike once that goal completes; the routing layer; and whether the capability host's
+backend changes which builds pass the floor.
 '''
 
 [goals.experiment.hosting.spike-model-gateway]
