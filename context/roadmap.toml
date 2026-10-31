@@ -525,12 +525,23 @@ The adapter over the Open XML CLI, and legacy .doc, .xls, and .ppt converted to 
 LibreOffice headless on the container runner. Tags processing v0.3.0. Evidence 12.
 '''
 
+[goals.experiment.ai.spike-ai-pipeline.tasks.pst]
+name = "Outlook mail stores"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+Outlook .pst (and .ost) stores, proprietary binary, not OOXML ([MS-PST]), read through a mature
+system tool on the container runner (libpff or readpst, chosen in its plan) into folders,
+messages (headers, body, threads), and attachments; each attachment routed back through the
+document stages. Tags processing v0.4.0. Evidence: a new item for mail stores, written when the
+task is planned.
+'''
+
 [goals.experiment.ai.spike-ai-pipeline.tasks.audio]
 name = "Audio past the model's limit"
 repos = ["spike-ai-pipeline-processing"]
 summary = '''
 ffmpeg and ffprobe adapters; windows cut at silences under 30 s with overlap, transcribed
-concurrently within set A's audio slots, and joined at the seams. Tags processing v0.4.0.
+concurrently within set A's audio slots, and joined at the seams. Tags processing v0.5.0.
 Evidence 5.
 '''
 
@@ -540,7 +551,7 @@ repos = ["spike-ai-pipeline-processing"]
 summary = '''
 Live or real-time-paced audio and video through ffmpeg, audio windows transcribed as they arrive
 and video frames sampled to vision, plus chat streams through processing, all as cancellable
-events. Tags processing v0.5.0; the spike then returns to `planned` until the capstone's gates
+events. Tags processing v0.6.0; the spike then returns to `planned` until the capstone's gates
 clear. Evidence 6, 13.
 '''
 
