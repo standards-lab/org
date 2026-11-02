@@ -105,7 +105,7 @@ cancel.
 under go-elemental, carry a pipeline that a browser follows live? The pipeline is transactional
 and evented: it captures metadata, extracts data by inference, and stores embeddings in
 PostgreSQL with pgvector for semantic search, and each stage emits the events the browser
-follows. The spike has four repositories, as spike-html-packages has one per layer:
+follows. The spike has five repositories, as spike-html-packages has one per layer:
 
 - **`spike-ai-pipeline-client`** gives Go primitives over the engines' native APIs, built as
   owned, optimized infrastructure from the best of spike-harness-driver's `model` and tau's
@@ -126,6 +126,12 @@ follows. The spike has four repositories, as spike-html-packages has one per lay
   converted to OOXML first by LibreOffice in a container. No Go OOXML library is both well
   supported and freely licensed across the three formats, and the .NET converters for the legacy
   formats are unmaintained or paid.
+- **`spike-ai-pipeline-mail`** is a command-line tool in Rust, published as static musl binaries,
+  that reads Outlook .pst stores through Microsoft's outlook-pst and .msg messages through
+  msg_parser into one JSON model: folders, messages with their threading fields as stored, and
+  attachments. Processing builds the threads and routes each attachment to its stage. readpst
+  (last released 2021) and libpff (alpha) were denied, no maintained Go or .NET .pst reader
+  exists, and .ost, which outlook-pst doesn't read, is a known limit.
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts and the consumer check, and the
   capstone: a backend on the layers and a web UI on experiment.html's stack. It takes messages,
   uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
