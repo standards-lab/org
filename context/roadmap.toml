@@ -411,6 +411,7 @@ repos = [
   "spike-ai-pipeline-client",
   "spike-ai-pipeline-processing",
   "spike-ai-pipeline-office",
+  "spike-ai-pipeline-mail",
 ]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
 path = "~/experiments/spike-ai-pipeline"
@@ -418,11 +419,13 @@ summary = '''
 Can a Go model client and a message, document, and stream processing layer, built under
 go-elemental, carry a transactional, evented pipeline (metadata capture, inference extraction,
 and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser follows
-stage by stage in real time? Four repositories: the client (`spike-ai-pipeline-client`), owned
+stage by stage in real time? Five repositories: the client (`spike-ai-pipeline-client`), owned
 Go infrastructure over the engines' native APIs with a pluggable wire format (Chat Completions,
 then Anthropic Messages); the processing layer (`spike-ai-pipeline-processing`), which runs
 mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
-(`spike-ai-pipeline-office`), a NativeAOT tool for office documents; and the root, which holds
+(`spike-ai-pipeline-office`), a NativeAOT tool for office documents; the mail CLI
+(`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores and .msg messages; and the
+root, which holds
 gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
 it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
 the capstone tasks wait for those tasks and for the answers of spike-model-engines,
@@ -525,15 +528,28 @@ The adapter over the Open XML CLI, and legacy .doc, .xls, and .ppt converted to 
 LibreOffice headless on the container runner. Tags processing v0.3.0. Evidence 12.
 '''
 
-[goals.experiment.ai.spike-ai-pipeline.tasks.pst]
-name = "Outlook mail stores"
+[goals.experiment.ai.spike-ai-pipeline.tasks.mail-cli]
+name = "The mail CLI"
+repos = ["spike-ai-pipeline-mail"]
+summary = '''
+Outlook .pst stores ([MS-PST]) through Microsoft's outlook-pst and .msg messages through
+msg_parser, both MIT, to one JSON model: the folder tree, each message in the folder it is stored
+in, with headers, bodies, and threading fields (Message-ID, In-Reply-To, References,
+conversation topic and index) as stored and no thread grouping; attachments written out by
+SHA-256, embedded messages nested. .ost is refused with a reason, a known limit (outlook-pst
+reads no .ost). Static musl binaries for linux-x64 and linux-arm64; CI and release; fixtures
+public and generated on Linux from .eml sources. Tags mail v0.1.0. Evidence 16.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.email]
+name = "Outlook mail in processing"
 repos = ["spike-ai-pipeline-processing"]
 summary = '''
-Outlook .pst (and .ost) stores, proprietary binary, not OOXML ([MS-PST]), read through a mature
-system tool on the container runner (libpff or readpst, chosen in its plan) into folders,
-messages (headers, body, threads), and attachments; each attachment routed back through the
-document stages. Tags processing v0.4.0. Evidence: a new item for mail stores, written when the
-task is planned.
+Package `email`: the adapter over the mail CLI, pinned from its release through mise and run by
+the exec runner; threads built across folders from the stored fields; each attachment's route
+named (PDF to document, OOXML and legacy office to office, pictures to vision, embedded mail to
+a nested message, anything else unrouted) for the caller to run, proven against the real stages
+in the integration tier. Tags processing v0.4.0. Evidence 16.
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.audio]
