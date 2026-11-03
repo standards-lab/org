@@ -66,6 +66,9 @@ spike-html-apps-components = "~/experiments/spike-html-apps-components"
 spike-html-apps-sdk = "~/experiments/spike-html-apps-sdk"
 spike-html-apps-noctis = "~/experiments/spike-html-apps-noctis"
 spike-html-apps-tooling = "~/experiments/spike-html-apps-tooling"
+spike-html-hosting-components = "~/experiments/spike-html-hosting-components"
+spike-html-hosting-architecture = "~/experiments/spike-html-hosting-architecture"
+spike-html-hosting-sqlate = "~/experiments/spike-html-hosting-sqlate"
 spike-model-engines = "~/experiments/spike-model-engines"
 
 # The hosting convention `marathon experiment` proposes for a new spike.

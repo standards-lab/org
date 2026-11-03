@@ -148,6 +148,18 @@ remote = "https://github.com/JaimeStill/spike-html-apps-noctis.git"
 [repos.spike-html-apps-tooling]
 remote = "https://github.com/JaimeStill/spike-html-apps-tooling.git"
 
+[repos.spike-html-hosting]
+remote = "https://github.com/JaimeStill/spike-html-hosting.git"
+
+[repos.spike-html-hosting-components]
+remote = "https://github.com/JaimeStill/spike-html-hosting-components.git"
+
+[repos.spike-html-hosting-architecture]
+remote = "https://github.com/JaimeStill/spike-html-hosting-architecture.git"
+
+[repos.spike-html-hosting-sqlate]
+remote = "https://github.com/JaimeStill/spike-html-hosting-sqlate.git"
+
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 
