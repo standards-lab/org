@@ -640,7 +640,7 @@ archives the six spikes. experiment.ai's harness spikes wait for it.
 [goals.experiment.hosting.spike-hosting-upgrades]
 name = "Evaluating hosting-stack upgrades"
 root = "spike-hosting-upgrades"
-repos = ["spike-hosting-upgrades"]
+repos = ["spike-hosting-upgrades", "spike-model-engines"]
 remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 path = "~/experiments/spike-hosting-upgrades"
 summary = '''
@@ -675,7 +675,7 @@ name = "Verifying framework's top upgrade"
 summary = '''
 framework's top-ranked upgrade, verified by anchors A and B before and after in one session, then
 adopted or rolled back, with the published claim set beside the anchors; applies the run's take
-and verify items, with rollbacks; the skill gains its verification step. Engine changes run spike-model-engines' `engines` suite read-only. No new tool:
+and verify items, with rollbacks; the skill gains its verification step. Engine changes run spike-model-engines' `engines` suite, whose `host/` experiment.hosting owns (`ai-hosting.md`). No new tool:
 GuideLLM 0.8.1 is already pinned. Evidence 3 and 5.
 '''
 proof = "A dated finding with before and after anchors on one build pair, the claim beside them, and the upgrade adopted or rolled back."
@@ -683,9 +683,16 @@ proof = "A dated finding with before and after anchors on one build pair, the cl
 [goals.experiment.hosting.spike-hosting-upgrades.tasks.verify-gb10]
 name = "Verifying gb10-1's top upgrade"
 summary = '''
-The same on gb10-1, its root steps the architect's; applies the run's take and verify items, with
-rollbacks, and the run's decided removals (the vLLM container and image, both bare-metal units);
-gb10-2 stays reserved for spike-ai-pipeline. Evidence 3 and 5.
+The same on gb10-1, its root steps the architect's: the newest llama.cpp cuda13 image verified
+against b11669 by a 12-cell pass (anchors A and B, the vision and audio cells) on both builds, with
+the prefill claims set beside TTFT, then adopted or rolled back; the verify mode gains its engine
+item. Applies the run's take and verify items and settles every hold, with rollbacks; carries out
+the decided removals (the vLLM container and image, both bare-metal units) and the stale
+snapshots; sets gb10-1's audio model to E4B Q8_0 and its agent to set A's section; takes framework's
+DHCP hostname setting. On adoption, spike-model-engines pins llama.cpp per host class through a
+pull request citing the finding, and framework stays on b11960. gb10-2 stays reserved for
+spike-ai-pipeline, which brings it in line with gb10-1 from a dated report verify-gb10 writes to
+it. No new tool. Evidence 3 and 5.
 '''
 proof = "A dated finding with before and after anchors on gb10-1, the claim beside them, and the upgrade adopted or rolled back."
 
