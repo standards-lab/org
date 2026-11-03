@@ -126,6 +126,22 @@ over QSFP, names the borrow in its task brief. If a pipeline task is in progress
 and the session agree when to borrow it so the running task isn't disrupted, and the borrowing
 session restores gb10-2's pipeline engine afterward.
 
+**spike-model-engines' `host/` is owned by experiment.hosting** until its intake. Its spikes may
+change the repository's `host/` (scripts and presets) through pull requests, each citing the
+finding behind it, so the host tooling stays in step with the findings; every other reference
+stays read-only. A spike that changes it lists spike-model-engines in its `repos`, so its lock
+covers the change. After the intake, the de facto management repository for the workstations is
+established in `~/architecture`, from spike-model-engines' `host/` as it then stands. The lean for
+its shape: one repository that adapts to its host through an explicit host-class profile
+(strix-halo, gb10), checked against what the host detects, with the per-platform parts kept to
+those profiles (dotfiles' `platforms/<class>/` pattern). Rejected: extracting `host/` into a new
+repository now, which the intake would only move again (architect, 2026-11-02).
+
+**Dual-stack serving waits.** Publishing the router on tailnet IPv4 and IPv6
+(`net.ipv6.ip_nonlocal_bind = 1` beside the IPv4 key, on the Framework and the GB10s) is taken up
+once MagicDNS serves AAAA records for dual-stack nodes (tailscale#1152, open). Until then the hosts
+keep their bare names tailnet-only by sending no hostname in DHCP (architect, 2026-11-02).
+
 ### spike-model-hosting
 
 spike-model-hosting (`~/experiments/spike-model-hosting`, remote
