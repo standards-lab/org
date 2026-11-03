@@ -17,13 +17,13 @@
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
-# spike-html-design, spike-html-conventions, and spike-html-packages have answered
-# (html-artifacts.md, "Answers · experiment.html"), and spike-html-apps is active. Middleware is
-# last: CORS waits for a client served cross-origin.
+# spike-html-design, spike-html-conventions, spike-html-packages, and spike-html-apps have
+# answered (html-artifacts.md, "Answers · experiment.html"), and spike-html-hosting is active.
+# Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
 
 active = [
   "experiment.hosting.spike-hosting-upgrades",
-  "experiment.html.spike-html-apps",
+  "experiment.html.spike-html-hosting",
   "experiment.ai.spike-ai-pipeline",
 ]
 
@@ -31,7 +31,6 @@ planned = [
   "experiment.hosting.spike-model-layout",
   "experiment.hosting.spike-model-gateway",
   "experiment.hosting.spike-host-admin",
-  "experiment.html.spike-html-hosting",
   "experiment.html.spike-html-go-wasm",
   "experiment.ai.spike-go-harness",
   "experiment.ai.spike-local-models",
@@ -65,6 +64,9 @@ backlog = [
   "web-service-port-settings",
   "api-versioning",
   "model-evaluation",
+  "nats-credentials",
+  "foundation-extension",
+  "screenshots-in-neovim",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -112,7 +114,14 @@ concrete adoption for the remaining three is not: versions, real-IP's trusted-pr
 configuration, and each library's own entry in go-web-sdk's dependency-line statement.
 CORS's trigger is the first client served cross-origin, such as an external client or a
 Pages-hosted page that calls a service; v1.client's embedded client is same-origin and sends no
-cross-origin requests (standards-lab/context/web-client.md). Real client IP and
+cross-origin requests (standards-lab/context/web-client.md). That trigger has fired:
+spike-html-apps' external client calls two services. It needed one allowed-origins list shared
+by the CORS middleware and the NATS WebSocket listener, Authorization and Content-Type allowed, a
+preflight on every upload sent with a progress listener, and the caller naming the methods.
+rs/cors reads an empty list as admitting every origin, which the spike's wrapper turns into a
+pass-through. rs/cors's latest tag is v1.11.1 (2024-08) while its main stays active, with #220
+(credentialed wildcard) and #222 (malformed origins) open; jub0bs/cors is the alternative to
+weigh, and herald's CORS middleware (`HERALD_CORS_*`) is prior art. Real client IP and
 compression have none recorded and wait for one — neither has a live consumer yet: real-IP's
 only other use, keying rate limiting, is covered by `RemoteAddr`; compression has no
 large-response case until more of the data layer lands.
@@ -256,7 +265,15 @@ Starts once the experiment.html intake closes, as the next goal in the exclusive
 intake decides what it builds from the six spikes' answers, and its
 own planning writes its tasks. Its sites work repoints `architecture/context/README.md`, which
 names docs-site as the owner of site hosting. Recorded inputs: the organization logo's fallback
-(v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
+(v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`);
+and `NewClient`, proven in spike-html-apps' `sdk` package. `NewClient(dist fs.FS,
+ClientOptions{Base, Title, Entry, RenderBlocking, Config})` reads Vite's manifest once;
+RenderBlocking lists the manifest keys whose modules the shell loads with `blocking="render"`
+ahead of the entry. At the root it is the router's not-found handler, so it answers only what no
+module or native route claims; under a prefix it is a handler module, and the bare prefix
+redirects (301) to prefix/. A path under the manifest's directories, a dotfile path, or a last
+segment with an extension, with no file behind it, is a 404 problem, never the shell. It moves
+to go-web-service's `sdk/`, then go-web-sdk.
 '''
 context = ["standards-lab/context/web-client.md", "standards-lab/context/html-artifacts.md"]
 
@@ -430,10 +447,13 @@ gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2
 it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
 the capstone tasks wait for those tasks and for the answers of spike-model-engines,
 spike-model-layout, spike-model-gateway, and spike-html-apps, not for either experiment's intake,
-and the spike returns to `planned` between. Reads tau, spike-harness-driver, herald,
-spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client surface,
-the processing layer's home, v1.ai.local-models, and v1.ai's library and service tasks
-(`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model is to change from
+and the spike returns to `planned` between. The capstone's UI builds on spike-html-apps'
+foundation v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequence interface at
+`./events.js` and its adapter at `./events/nats.js`, and cites spike-html-apps'
+NATS-over-WebSocket record, under "The answer" in its README. Reads tau, spike-harness-driver,
+herald, spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client
+surface, the processing layer's home, v1.ai.local-models, and v1.ai's library and service
+tasks (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model is to change from
 embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve EmbeddingGemma 2 on GB10
 (`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
 '''
@@ -834,129 +854,6 @@ v1.repository-docs and the Pages sites embed live demos (`html-artifacts.md`, "E
 spike-html-go-wasm").
 '''
 
-[goals.experiment.html.spike-html-apps]
-name = "Client applications"
-root = "spike-html-apps"
-repos = [
-  "spike-html-apps",
-  "spike-html-apps-foundation",
-  "spike-html-apps-components",
-  "spike-html-apps-sdk",
-  "spike-html-apps-noctis",
-  "spike-html-apps-tooling",
-]
-remote = "https://github.com/JaimeStill/spike-html-apps.git"
-path = "~/experiments/spike-html-apps"
-summary = '''
-What does a client application look like, and do the layers hold when they compose the UI
-primitives spike-ai-pipeline's capstone needs, live over a backend? Three layer repositories
-(foundation, components, sdk), copied from spike-html-packages' tags and released by tag, and a
-root holding the apps, a minimal Go pipeline emulator (in memory, embedded nats-server, no
-containers), and the serving half. Builds the router, the API client, the default token
-provider, an event-sequence interface with a NATS-over-WebSocket adapter, the foundation's
-formatters and spike-html-design's theming, eleven components, a pipeline app, and an external
-client over two services; proves its proposed Go serving half in its own sdk package, shaped as
-go-web-service's sdk/ stages it, before go-web-sdk takes it. Quality is held at every layer,
-with the architect's acceptance of each UI task's screenshots as the design review. herald is a
-frame of reference only; GitHub Pages is spike-html-hosting's. Decides v1.client's app
-architecture and whether an external-client goal follows 1.0, and the capstone's UI builds on
-its releases (`html-artifacts.md`, "Experiment: spike-html-apps").
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.layers]
-name = "The layer repositories"
-repos = [
-  "spike-html-apps",
-  "spike-html-apps-foundation",
-  "spike-html-apps-components",
-  "spike-html-apps-sdk",
-]
-summary = '''
-spike-html-apps-foundation, -components, and -sdk created from spike-html-packages-foundation
-v0.1.0, -components v0.2.0, and -sdk v0.1.0 with provenance, each with its check, CI,
-release.yml, CHANGELOG, and STANDARDS.md carrying the design bar; the root's check grown to
-spike-html-conventions' check plus the Go steps. Evidence 7 and 9.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.foundation]
-name = "Formatters and theming"
-repos = ["spike-html-apps-foundation", "spike-html-apps-components"]
-summary = '''
-The foundation's Intl formatters to format.d.ts; spike-html-design v0.7.0's profiles,
-preferences module, and theme menu, with the menu's sheet as a .css file; the screenshot
-baseline per state and profile. Releases foundation v0.1.0, with components following its minor.
-Evidence 2 and 10.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.sdk]
-name = "The SDK runtime and event sync"
-repos = ["spike-html-apps-sdk"]
-summary = '''
-The router, the API client (RFC 9457 failures, the title filled), the anonymous token provider,
-and the domain service to sdk v0.1.0's declarations; the event-sequence interface, resumable by
-an opaque cursor, and its NATS-over-WebSocket adapter as a subpath with optional
-@nats-io/nats-core and @nats-io/jetstream peers, tested against a fake. Releases sdk v0.1.0.
-Evidence 1 and 3.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.emulator]
-name = "The pipeline emulator"
-repos = ["spike-html-apps"]
-summary = '''
-A Go service generated from go-web-sdk-template template/v0.13.0, in memory: documents, runs
-(scripted stages on timers, one CloudEvent each), conversations (a scripted Open Responses
-stream over HTTP), and search. Embeds nats-server with WebSocket and JetStream, published
-through go-messaging's nats provider, behind one static token. NewClient serving at /app and at
-the root, CORS for an external client, and the adapter's live cases against it. Evidence 3 and 4.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.primitives]
-name = "The capstone's UI primitives"
-repos = ["spike-html-apps-components"]
-summary = '''
-Eight components (chat thread over a structural subset of Open Responses 2026-04-24 items,
-composer, upload dropzone with progress, stage timeline, event log, search results, artifact
-viewer for text, JSON, and Markdown, and document list), each finished in every state and
-profile, binding no key; a components minor. Evidence 5 and 10.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.tooling]
-name = "Shared browser and screenshot tooling"
-repos = [
-  "spike-html-apps-tooling",
-  "spike-html-apps-foundation",
-  "spike-html-apps-components",
-  "spike-html-apps-sdk",
-  "spike-html-apps-noctis",
-  "spike-html-apps",
-]
-summary = '''
-spike-html-apps-tooling, released as v0.1.0 by tag: the raw DevTools pipe driver with visible
-scrollbars, the page wait, a node:http static server, and one screenshot command (util.parseArgs;
-terminal through kitten icat, directory, and browser gallery outputs), with a diagnosis of images
-in a Neovim terminal buffer. The root and the four layer and extension repositories move onto it,
-dropping their drifted copies, with no layer release.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.pipeline]
-name = "The pipeline app and the external client"
-repos = ["spike-html-apps"]
-summary = '''
-The pipeline app composing the primitives live over the emulator, embedded in its binary, with
-single-key shortcuts (/ search, ? help, t theme menu, Escape) and the full-sequence walkthrough
-in both themes; the external client calling two emulator instances cross-origin. Evidence 6, 8,
-and 10.
-'''
-
-[goals.experiment.html.spike-html-apps.tasks.answer]
-name = "The answer"
-repos = ["spike-html-apps"]
-summary = '''
-Consumption by tag from outside the spike, the gaps (Firefox and WebKit, real auth, real
-inference, persistence), the NATS-over-WebSocket record for spike-ai-pipeline, and the answer
-section. Evidence 9.
-'''
-
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 
 [goals.graph-ergonomics]
@@ -1110,4 +1007,29 @@ scenario; results kept by model, build, preset, and host; a run queue per host; 
 interface. Builds on experiment.hosting.spike-hosting-upgrades' upgrade-evaluation convention
 and spike-host-admin's CLI, and stays the place for workloads only we can measure: our agents,
 and our role sets under our own sessions.
+'''
+
+[goals.nats-credentials]
+name = "NATS credentials in go-messaging"
+summary = '''
+go-messaging's `nats.Config` gains a credentials field, and `Start`'s error stops printing a
+token in its URL.
+'''
+
+[goals.foundation-extension]
+name = "A foundation minor for the components' local patterns"
+summary = '''
+The architect's request during spike-html-apps' primitives task: a later foundation minor takes
+the patterns the components keep locally, staged from the "Foundation candidates" note in
+spike-html-apps-components' context. Among them are a control block-size token, status colour
+tokens, a disabled text-field look, a dark-aware `<progress>` track, a "keep whole" rule,
+ellipsis truncation, the scrolling-frame recipe, `formatJson`, and `formatBytes(0)`'s wording.
+'''
+
+[goals.screenshots-in-neovim]
+name = "Inline screenshots in a Neovim terminal"
+summary = '''
+An idea for a later spike-html-apps-tooling release: its screenshot command shows captures
+inline in a Neovim `:terminal` by sending kitty graphics through `nvim_ui_send` over `$NVIM` and
+printing icat's unicode placeholders (tooling, escalation 1).
 '''

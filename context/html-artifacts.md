@@ -47,6 +47,10 @@ renders on github.com.
   - The review script renders into a `mktemp -d` directory and removes it in an EXIT trap.
     Streaming sends the pixels inline, so deleting the file can't break the image. Screenshots
     are never committed.
+  - For the spike-html-apps repositories, the review script is spike-html-apps-tooling's
+    screenshot bin. It shows captures with `kitten icat --transfer-mode=stream`. Inside a Neovim
+    `:terminal` it shows none, since the buffer reports no pixel size and libvterm doesn't pass
+    the graphics through, so `--output browser` opens a gallery instead.
 - **Style baseline.** One native, dependency-free package of CSS and ES modules, released by
   git tag from its own repository. A consumer installs it by tag or links a pinned
   `cdn.jsdelivr.net/gh/<owner>/<repo>@vX.Y.Z/...` URL, which serves CSS as `text/css` and never
@@ -331,10 +335,12 @@ Pages sites embed live demos.
 
 What does a client application look like, and do the layers hold when they compose the UI
 primitives spike-ai-pipeline's capstone needs, live over a backend? It runs after
-spike-html-packages, on the conventions and packaging those two spikes settle, in four
-repositories: the root (the apps, a Go pipeline emulator, and the serving half) and three layer
+spike-html-packages, on the conventions and packaging those two spikes settle, in six
+repositories: the root (the apps, a Go pipeline emulator, and the serving half); three layer
 repositories, spike-html-apps-foundation, -components, and -sdk, each releasing
-`@jaimestill/spike-html-apps-<layer>` by tag from v0.1.0, copied from spike-html-packages' tags.
+`@jaimestill/spike-html-apps-<layer>` by tag from v0.1.0, copied from spike-html-packages' tags;
+the extension repository spike-html-apps-noctis; and spike-html-apps-tooling, the browser-test
+and screenshot tooling the others take by tag.
 It builds the application SDK that spike-html-conventions specifies, the foundation's formatters
 and spike-html-design's theming, eleven components (a chat thread, composer, upload dropzone,
 stage timeline, event log, search results, artifact viewer, and document list, beside the
@@ -386,7 +392,9 @@ What it builds from spike-html-conventions (Results 8):
   spike-html-apps adds an event-sequence interface to the SDK, an ordered stream of CloudEvents
   resumable by an opaque cursor, with a NATS-over-WebSocket adapter (`@nats-io/nats-core` and
   `@nats-io/jetstream`, optional peers) reading a JetStream ordered consumer from the emulator,
-  under one static token from the token provider. Its record is evidence for
+  under one static token from the token provider. The sdk proves the adapter against a pinned
+  nats-server, and the emulator proves it end to end. Its record, in spike-html-apps' "The
+  answer" under "NATS over WebSocket, for spike-ai-pipeline", is evidence for
   spike-ai-pipeline's choice between NATS over WebSocket and a backend relay; real auth stays a
   gap.
 - **herald's elements.** Four of herald's element files in `app/client/ui/elements` import from
@@ -578,3 +586,49 @@ registry release reopens npm against pnpm; GitHub Packages stays published as th
 alternative.
 
 [The answer](https://github.com/JaimeStill/spike-html-packages/blob/main/context/README.md#the-answer) · [spike-html-packages](https://github.com/JaimeStill/spike-html-packages)
+
+### Answer · experiment.html.spike-html-apps
+
+**Question:** What does a client application on experiment.html's stack look like, and do its
+layers hold up when they compose the capstone's UI primitives, live over a backend?
+
+**Answer:** Three layers released by tag, a foundation, Lit shadow components that take
+properties and send events, and an SDK of router, API client, token provider, and a resumable
+event sequence over NATS WebSocket, composed by apps of their own files and served by a Go
+`NewClient`; they hold, live over the emulator in one app and over two services in an external
+client.
+
+1. The SDK runtime: the router, the API client with upload progress and streamed responses,
+   the token provider, and the domain service. Proven only by tests: the sdk's unit and browser
+   tiers and the root's browser tier.
+2. The foundation's Intl formatters, against foundation v0.1.0's `format.d.ts`. Proven only by
+   tests: the foundation's `test/unit/format.test.ts`.
+3. An event-sequence interface in the SDK, resumable by an opaque cursor, with a
+   NATS-over-WebSocket adapter. Proven only by tests: the sdk's `test/unit/nats.test.ts`
+   against a pinned nats-server, and the root's `test/browser/live.test.ts` against the
+   emulator. The README records it for spike-ai-pipeline's capstone.
+4. The Go serving half, `NewClient`, at `/app` and at the server's root. Proven by
+   `sdk/web_test.go`, the integration tier, and `test/browser/base.test.ts`, and by a running
+   demo: `mise run serve`.
+5. Eleven primitives as Lit shadow components. Proven by the components' browser tier, every
+   specimen page in every profile, and by the specimen pages under the components'
+   `mise run demo`.
+6. A pipeline app composing them live over the emulator. Proven by the root's browser tier,
+   and by `mise run serve` and `mise run screenshots`.
+7. The layers clean at scale: zero direction violations, proven by tests, each tier's ESLint
+   table with `test/unit/apps.test.ts` and each layer's `layers.test.ts`. Size at ship, all
+   12 components with Lit, marked, and their foundation modules: 151.0 kB min, 39.2 kB gzip,
+   34.5 kB brotli, beside Material Web's 72.1 kB gzip. The budget is left to the experiment's
+   final review before intake.
+8. An external client hosted apart, over two services under the spike's CORS. Proven by
+   `test/browser/external.test.ts` and `instances.test.ts`, and by a running demo:
+   `mise run demo`.
+9. Consumption by tag from outside the spike, under npm, pnpm, and bun, and the gaps, each
+   naming who decides it. Proven by `mise run consumers` on 2026-11-03; npm needs
+   `allow-git=root`.
+10. Quality at every layer, judged as a finished product. Proven by the architect's acceptance
+    of the screenshots at each UI task's design review.
+
+The spike's conventions are its `context/conventions.md`, for the intake to adopt.
+
+[The answer](https://github.com/JaimeStill/spike-html-apps/blob/main/context/README.md#the-answer) · [spike-html-apps](https://github.com/JaimeStill/spike-html-apps)

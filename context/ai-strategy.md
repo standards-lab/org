@@ -137,8 +137,11 @@ follows. The spike has five repositories, as spike-html-packages has one per lay
   uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
   outbox in each stage's transaction relayed to JetStream. How the browser consumes them, NATS
   over WebSocket or a backend relay, is measured and decided at the capstone's plan round, since
-  v1.client lands after the capstone. pgvector is a declared native-tier extension, and the
-  workspace's extension strategy is written from this case.
+  v1.client lands after the capstone. The capstone's UI builds on spike-html-apps' foundation
+  v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequence interface at
+  `./events.js` and its adapter at `./events/nats.js`, and cites spike-html-apps'
+  NATS-over-WebSocket record, under "The answer" in its README. pgvector is a declared
+  native-tier extension, and the workspace's extension strategy is written from this case.
 
 It reads tau, spike-harness-driver's `model` and `workflow`, herald, spike-model-hosting,
 spike-model-engines, and the members, as references, not implementations. Its decisions and
