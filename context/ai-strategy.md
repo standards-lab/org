@@ -8,6 +8,8 @@ experiments come first:
 - **experiment.ai** settles the layers above it:
   - spike-ai-pipeline proves the client and processing layers now, on gb10-2, which is reserved
     for it, and proves them together in a capstone once its gates clear.
+  - spike-scanned-documents follows it on gb10-2, to settle whether the document stage needs an
+    OCR tier.
   - spike-go-harness and spike-local-models take the harness layer after experiment.hosting's
     intake, beside spike-harness-driver, which has answered.
 
@@ -127,11 +129,17 @@ follows. The spike has five repositories, as spike-html-packages has one per lay
   supported and freely licensed across the three formats, and the .NET converters for the legacy
   formats are unmaintained or paid.
 - **`spike-ai-pipeline-mail`** is a command-line tool in Rust, published as static musl binaries,
-  that reads Outlook .pst stores through Microsoft's outlook-pst and .msg messages through
-  msg_parser into one JSON model: folders, messages with their threading fields as stored, and
-  attachments. Processing builds the threads and routes each attachment to its stage. readpst
-  (last released 2021) and libpff (alpha) were denied, no maintained Go or .NET .pst reader
-  exists, and .ost, which outlook-pst doesn't read, is a known limit.
+  that reads Outlook .pst stores through Microsoft's outlook-pst, .msg messages through its own
+  MS-OXMSG reader over cfb, and .eml messages and mbox files through Stalwart's mail-parser into
+  JSON Lines of one schema: folders, messages with their threading fields as stored, their bodies
+  as stored plus HTML recovered from RTF and a Markdown body, and attachments. Processing builds
+  the threads and routes each attachment to its stage. readpst (last released 2021) and libpff
+  (alpha) were denied, no maintained Go or .NET .pst reader exists, and msg_parser reads no
+  embedded messages or threading fields beyond Message-ID. Two limits are known: .ost, which
+  outlook-pst doesn't read, is refused, and embedded messages in a .pst are listed without
+  content, since outlook-pst 1.2.0 can't read them. Its
+  [mail-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-mail/blob/main/docs/findings/mail-cli.md)
+  records the fields it recovers per kind and its time and memory per store (evidence 16).
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts and the consumer check, and the
   capstone: a backend on the layers and a web UI on experiment.html's stack. It takes messages,
   uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
@@ -166,6 +174,24 @@ experiment.ai's intake carries forward.
 **Home.** `~/experiments/spike-ai-pipeline`, remote
 [JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its three
 layer repositories beside it.
+
+## Experiment: spike-scanned-documents
+
+**Question.** spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision
+transcription on only 7 scanned pages: the model invented seal text, never read page 7's faded
+NOFORN, and scored a scanned CER of about 0.11 to 0.13. Does that transcription hold at scale, on
+olmOCR-bench (allenai/olmOCR-bench: 1,403 PDFs and 7,010 checkable assertions, ODC-BY as
+reported), and does a dedicated OCR model, olmOCR's own on vLLM, or Tesseract beat it on GB10?
+
+**Decision it changes.** Whether processing's document stage needs an OCR tier beside vision.
+It delays experiment.ai's intake, which waits for its answer.
+
+**Host.** gb10-2, once spike-ai-pipeline returns to `planned` after its formats task.
+Third-party and crawled documents are processed only in sandboxed converters.
+
+**Home.** `~/experiments/spike-scanned-documents`, remote
+[JaimeStill/spike-scanned-documents](https://github.com/JaimeStill/spike-scanned-documents), set
+up by `plan experiment.ai.spike-scanned-documents`.
 
 ## Experiment: spike-go-harness
 

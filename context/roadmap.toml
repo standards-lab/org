@@ -32,6 +32,7 @@ planned = [
   "experiment.hosting.spike-model-gateway",
   "experiment.hosting.spike-host-admin",
   "experiment.html.spike-html-go-wasm",
+  "experiment.ai.spike-scanned-documents",
   "experiment.ai.spike-go-harness",
   "experiment.ai.spike-local-models",
   "v1.client",
@@ -395,8 +396,8 @@ summary = '''
 The spikes that settle the layers above hosting, which v1.ai and v1.harness build on: the Go
 model client and message, document, and stream processing first, then the harness, lowest
 priority. spike-harness-driver has answered. spike-ai-pipeline runs now, beside
-experiment.hosting; spike-go-harness and spike-local-models run after experiment.hosting's
-intake. Then one combined intake.
+experiment.hosting, and spike-scanned-documents follows it on gb10-2; spike-go-harness and
+spike-local-models run after experiment.hosting's intake. Then one combined intake.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
@@ -406,9 +407,10 @@ context = [
 [goals.experiment.ai.tasks.intake]
 name = "The combined intake"
 summary = '''
-Run by `marathon intake experiment.ai` once spike-ai-pipeline, spike-go-harness, and
-spike-local-models have their answers in `ai-strategy.md`, beside spike-harness-driver's. Decides
-go-ai's shape: its model-client surface and wire-format layer from spike-ai-pipeline, its harness
+Run by `marathon intake experiment.ai` once spike-ai-pipeline, spike-scanned-documents,
+spike-go-harness, and spike-local-models have their answers in `ai-strategy.md`, beside spike-harness-driver's. Decides
+go-ai's shape: its model-client surface and wire-format layer from spike-ai-pipeline, whether the
+document stage carries an OCR tier from spike-scanned-documents, its harness
 surface from spike-harness-driver, and whether it carries its own agent loop from
 spike-go-harness. Also decides the processing layer's home, v1.ai's library and service tasks,
 and both local-models conventions: v1.ai.local-models from spike-ai-pipeline and
@@ -416,7 +418,8 @@ v1.harness.local-models from spike-local-models. It also writes a v1.data task t
 workspace's Postgres-extension strategy from spike-ai-pipeline's pgvector evidence, and promotes
 the system-tools principle (`system-tools.md`) to a go-elemental page. Its one coordinator pull
 request writes those tasks and removes the experiment; it then archives spike-harness-driver,
-spike-ai-pipeline with its three layer repositories, spike-go-harness, and spike-local-models. personal-agents is a
+spike-ai-pipeline with its four layer repositories, spike-scanned-documents, spike-go-harness, and
+spike-local-models. personal-agents is a
 reference, never archived by this intake.
 '''
 
@@ -441,8 +444,8 @@ Go infrastructure over the engines' native APIs with a pluggable wire format (Ch
 then Anthropic Messages); the processing layer (`spike-ai-pipeline-processing`), which runs
 mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
 (`spike-ai-pipeline-office`), a NativeAOT tool for office documents; the mail CLI
-(`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores and .msg messages; and the
-root, which holds
+(`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores, .msg messages, .eml
+messages, and mbox files; and the root, which holds
 gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
 it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
 the capstone tasks wait for those tasks and for the answers of spike-model-engines,
@@ -552,33 +555,93 @@ LibreOffice headless on the container runner. Tags processing v0.3.0. Evidence 1
 name = "The mail CLI"
 repos = ["spike-ai-pipeline-mail"]
 summary = '''
-Outlook .pst stores ([MS-PST]) through Microsoft's outlook-pst and .msg messages through
-msg_parser, both MIT, to one JSON model: the folder tree, each message in the folder it is stored
-in, with headers, bodies, and threading fields (Message-ID, In-Reply-To, References,
-conversation topic and index) as stored and no thread grouping; attachments written out by
-SHA-256, embedded messages nested. .ost is refused with a reason, a known limit (outlook-pst
-reads no .ost). Static musl binaries for linux-x64 and linux-arm64; CI and release; fixtures
-public and generated on Linux from .eml sources. Tags mail v0.1.0. Evidence 16.
+Outlook .pst stores ([MS-PST]) through Microsoft's outlook-pst, and .msg messages through the
+CLI's own MS-OXMSG reader over cfb, both MIT, to JSON Lines of schema "1": the folder tree, each
+message in the folder it is stored in, with headers, bodies, and threading fields (Message-ID,
+In-Reply-To, References, conversation topic and index) as stored and no thread grouping. Bodies
+as stored (text, HTML, RTF decompressed), plus derived ones: HTML recovered from RTF
+(MS-OXRTFEX) and Markdown through htmd. Attachments written out by SHA-256; embedded messages
+nested in a .msg, and in a .pst listed without content, a known limit (outlook-pst 1.2.0 can't
+read them). .ost is refused with a reason, a known limit. Static musl binaries for linux-x64
+and linux-arm64; CI and release; fixtures public and generated on Linux from .eml sources.
+Tags mail v0.1.0. Evidence 16.
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.email]
 name = "Outlook mail in processing"
 repos = ["spike-ai-pipeline-processing"]
 summary = '''
-Package `email`: the adapter over the mail CLI, pinned from its release through mise and run by
-the exec runner; threads built across folders from the stored fields; each attachment's route
-named (PDF to document, OOXML and legacy office to office, pictures to vision, embedded mail to
-a nested message, anything else unrouted) for the caller to run, proven against the real stages
-in the integration tier. Tags processing v0.4.0. Evidence 16.
+Package `email`: the adapter over the mail CLI at v0.1.0, pinned from its release through mise
+and run by the exec runner, streaming schema "1" records from a pipe as typed Go values, with
+mail's warnings and exit codes as errors. Threads rebuilt across folders by RFC 5256's
+REFERENCES algorithm, with a message that names no parent taking its conversation index's
+parent. Each attachment's route named by its content's signature (PDF to document, OOXML and
+legacy office to office, PNG, JPEG, GIF, and BMP to vision, TIFF, EMF, and WMF to vision through
+office's ConvertPicture, now exported, embedded and by-value .msg nested, anything else
+unrouted) for the caller to run, proven against the real stages in the integration tier. A
+findings tier scores threads and routes over mail's fixtures and times the adapter on plaso's
+store and a 2.1 GB generated store. Tags processing v0.4.0. Evidence 16.
 '''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.mail-mime]
+name = "MIME mail in the mail CLI"
+repos = ["spike-ai-pipeline-mail"]
+summary = '''
+.eml messages and mbox files read into schema "1", additively, through Stalwart's mail-parser
+1.0.1 (Apache-2.0 OR MIT, feature full_encoding). An .eml is accepted by an RFC 5322
+header-shape check (its first line a field, a From or Date field in its header block); anything
+else exits 3. mbox: mboxrd read, mboxo read with the >From caveat, mboxcl and mboxcl2 a known
+limit (Content-Length ignored); a store line, then the messages with no folder line, each
+message's id its 1-based ordinal in the file. Nested message/rfc822 parts parsed. Parts
+labelled US-ASCII or ISO-8859-1 decoded as WHATWG windows-1252. Thread-Index and Thread-Topic
+into conversation_index and conversation_topic; Importance, X-Priority, and Sensitivity into
+importance and sensitivity. Fixtures: mail's 8 generated .eml with truth.json, a generated
+mboxrd from them, a generated .eml carrying Thread-Index and Thread-Topic, and Apache James
+mime4j's mbox.rlug with its expected splits. Rejected: mailparse 0.18 (no mbox, no nested
+parse), mbox-reader (unmaintained), and Go in processing (the standard library decodes few
+encoded-word charsets, reads no mbox, and would duplicate mail's SHA-256 naming and Markdown).
+Tags mail v0.2.0. Evidence 16.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.email-mime]
+name = ".eml and mbox in processing"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+Package `email` over mail v0.2.0: the pin and MailMinimum raised, the fixtures refreshed (`mise
+run fixtures:mail`), and threads and routes over the .eml and mbox fixtures. A by-value .eml
+routes as nested, by extension .eml or type message/rfc822 plus mail's header-shape check, an
+exception to the signature rule (mail's 08-forward .msg carries one, unrouted at v0.4.0). The
+email finding gains an addendum; the known-limit text in README, CHANGELOG, email/doc.go, and
+route.go is updated; the root's evidence 16 gains its sentence. No Reader or Request API change.
+Tags processing v0.5.0. Evidence 16.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.gb10-2-align]
+name = "gb10-2 aligned with gb10-1"
+repos = ["spike-ai-pipeline"]
+summary = '''
+gb10-2 brought in line with gb10-1 from verify-gb10's report
+(spike-hosting-upgrades/docs/findings/gb10-2-upgrade.md): the routing check before and after;
+gb10-2's DHCP connections listed (the session, no root); their DHCP hostname send stopped, and
+the router's leases cleared only if a gb10-2.lan record remains (the architect, root). The
+root's scripts read the per-class pins first (`scripts/host-update-lib.sh`'s clone_router_state
+and `scripts/currency.sh`, on LLAMA_BUILD_GB10 and LLAMA_REPOSITORY), then `host/` is re-copied
+from the merge commit of spike-model-engines' verify-gb10 pull request, moving llama.cpp from
+b11669 to b12063, gb10-1's adopted pin. The architect overruled the 4-stream ASR regression:
+"outside of legitimate broken behavior, we should prioritize staying on the latest version."
+Gated on that merge and on the architect's root steps on gb10-2 (apt update and upgrade, the CDI
+spec regenerated, a reboot if asked). Ends the email decision that held llama.cpp at b11669.
+'''
+proof = "host/README.md's diff check against verify-gb10's merge commit prints nothing, gb10-2's /props reads b12063, and the routing check passes."
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.audio]
 name = "Audio past the model's limit"
 repos = ["spike-ai-pipeline-processing"]
 summary = '''
 ffmpeg and ffprobe adapters; windows cut at silences under 30 s with overlap, transcribed
-concurrently within set A's audio slots, and joined at the seams. Tags processing v0.5.0.
-Evidence 5.
+concurrently within set A's audio slots, and joined at the seams. Long sources: the AMI
+Meeting Corpus (CC BY 4.0), Earnings-21 and -22, and LibriSpeech's original MP3s. Tags processing
+v0.6.0. Evidence 5.
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.streams]
@@ -587,8 +650,38 @@ repos = ["spike-ai-pipeline-processing"]
 summary = '''
 Live or real-time-paced audio and video through ffmpeg, audio windows transcribed as they arrive
 and video frames sampled to vision, plus chat streams through processing, all as cancellable
-events. Tags processing v0.6.0; the spike then returns to `planned` until the capstone's gates
-clear. Evidence 6, 13.
+events. Chat streams include chat exports, generated synthetically in each tool's real export
+format, since no openly licensed dataset exists. Tags processing v0.7.0. Evidence 6, 13.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.formats]
+name = "Further formats in processing"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+Known solutions on the existing stages: ODF and RTF through LibreOffice to office; HEIC, WebP,
+and AVIF to PNG for vision; multi-page TIFF split to pages; encrypted PDFs detected and refused;
+PDF forms and embedded files; zip archives recursed within size and depth limits. Tags
+processing v0.8.0; the spike then returns to `planned` until the capstone's gates clear.
+'''
+
+# Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
+# until the capstone needs it (plan, 2026-11-03).
+
+[goals.experiment.ai.spike-scanned-documents]
+name = "Scanned-document fidelity at scale"
+root = "spike-scanned-documents"
+repos = ["spike-scanned-documents"]
+remote = "https://github.com/JaimeStill/spike-scanned-documents.git"
+path = "~/experiments/spike-scanned-documents"
+summary = '''
+spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision transcription on only 7
+scanned pages: the model invented seal text, never read page 7's NOFORN, and scored a scanned CER
+of about 0.11 to 0.13. Does that transcription hold on olmOCR-bench (allenai/olmOCR-bench: 1,403
+PDFs, 7,010 checkable assertions, ODC-BY as reported), and does a dedicated OCR model (olmOCR's
+own, on vLLM) or Tesseract beat it on GB10? Decides whether processing's document stage needs an
+OCR tier. Runs on gb10-2 once spike-ai-pipeline returns to `planned` after its formats task; set
+up by `plan experiment.ai.spike-scanned-documents`. Third-party and crawled documents are
+processed only in sandboxed converters. It delays experiment.ai's intake.
 '''
 
 [goals.experiment.ai.spike-go-harness]
