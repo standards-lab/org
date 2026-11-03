@@ -311,16 +311,23 @@ spike-html-conventions' facts for these decisions:
 What do the repositories' Pages sites and the hosting of persistent artifacts look like? It
 starts from a hypothesis: architecture is its own project site; org holds the charter and the
 hosted artifacts and links to every project site; each code repository serves its own docs/
-guide. It publishes native web with no generator, and tests the org site's URL (as-is the `org`
-repository serves at `standards-lab.github.io/org/`), navigation shared across sites, and one
-baseline pin. It draws the line between HTML and Markdown, including whether the coordinator's
-leadership briefs/ become HTML, and hosts a persistent report in the coordinator. It builds
-the review script, covers recorded CLI demos (VHS), and shows that no screenshot files remain
-after a review. Its Pages workflow runs a Vite build step with spike-html-conventions' local CSS
-plugin (`scripts/css-sheets.js`) and uploads the build output, not the source tree, because a
-page that loads components unbundled fails in Safari (spike-html-conventions' Results 8).
-Decides the Pages topology that v1.client and v1.repository-docs build, and whether
-v1.harness.sitrep publishes HTML.
+guide. Three JaimeStill project sites stand in for org, architecture, and sqlate, carrying
+pinned copies with provenance, so the spike writes to no repository it reads. They measure the
+`/<repo>/` base path every project site of one owner shares. An org site at the origin root, a
+`standards-lab.github.io` repository, is recorded as a sourced option and not built. The spike
+tests navigation shared across sites and one baseline pin, spike-html-apps-foundation by tag.
+The Markdown sources stay Markdown and are rendered at build, since agents load them and
+github.com renders them. The sites' components are a documentation layer of their own,
+spike-html-hosting-components, not spike-html-apps-components, whose components serve the
+pipeline app. It draws the line between HTML and Markdown, including whether the coordinator's
+leadership briefs/ become HTML, and hosts a persistent report in the org stand-in. It reviews
+with spike-html-apps-tooling's screenshot command, shows that no capture files remain after a
+review, and records a sqlint demo through VHS, rendered in the Pages workflow. Each Pages
+workflow runs a Vite build with vite-plugin-standard-css-modules, the ecosystem plugin
+spike-html-apps adopted in place of spike-html-conventions' local `scripts/css-sheets.js`. It
+uploads the build output, not the source tree, because a page that loads components unbundled
+fails in Safari (spike-html-conventions' Results 8). Decides the Pages topology that v1.client
+and v1.repository-docs build, and whether v1.harness.sitrep publishes HTML.
 
 ## Experiment: spike-html-go-wasm
 
