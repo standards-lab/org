@@ -1032,7 +1032,9 @@ spike-html-hosting-sdk created, after go-web-sdk-template: a site SDK package re
 (the renderBlocking and markdownPages Vite plugins, the ESLint leftover check, the tsconfig and
 Prettier bases, the browser-test body, site.css) and a template/ subtree tagged template/v* that
 each site copies once, replacing the hand-copied site files; a site keeps pace by bumping the
-SDK. The root's chrome-headless-shell moves to 157.0.8103.38. Open for its plan: whether
+SDK. It takes each site's screenshots capture file and `mise run screenshots` task, and fixes
+spike-html-apps-tooling's unknown-profile message, which prints the page's path and so names no
+page for an index at "", in the capture file or the tooling. Open for its plan: whether
 pages.yml becomes a reusable workflow called by tag.
 '''
 
@@ -1062,7 +1064,9 @@ summary = '''
 The section tree (bracketed key hints, reading progress, arrow-key scrolling), the page header
 from front matter, the site index, and cross-site navigation, on the foundation as a peer;
 components v0.1.0 released and pinned by tag on all three sites, with the reader's stored theme
-carrying across the shared origin. Evidence 4 and 6.
+carrying across the shared origin. It fixes the architecture index's horizontal scroll at 390px,
+where an element, probably a table, is wider than the viewport, here or in site.css. Evidence 4
+and 6.
 '''
 
 [goals.experiment.html.spike-html-hosting.tasks.org]
