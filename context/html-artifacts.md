@@ -319,7 +319,9 @@ tests navigation shared across sites and one baseline pin, spike-html-apps-found
 The Markdown sources stay Markdown and are rendered at build, since agents load them and
 github.com renders them. The sites' components are a documentation layer of their own,
 spike-html-hosting-components, not spike-html-apps-components, whose components serve the
-pipeline app. It draws the line between HTML and Markdown, including whether the coordinator's
+pipeline app. The sites share their build through a site SDK released by tag and a template
+copied once, spike-html-hosting-sdk, after go-web-sdk-template, and highlight code fences at
+build. It draws the line between HTML and Markdown, including whether the coordinator's
 leadership briefs/ become HTML, and hosts a persistent report in the org stand-in. It reviews
 with spike-html-apps-tooling's screenshot command, shows that no capture files remain after a
 review, and records a sqlint demo through VHS, rendered in the Pages workflow. Each Pages

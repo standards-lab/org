@@ -70,6 +70,7 @@ spike-html-apps-tooling = "~/experiments/spike-html-apps-tooling"
 spike-html-hosting-components = "~/experiments/spike-html-hosting-components"
 spike-html-hosting-architecture = "~/experiments/spike-html-hosting-architecture"
 spike-html-hosting-sqlate = "~/experiments/spike-html-hosting-sqlate"
+spike-html-hosting-sdk = "~/experiments/spike-html-hosting-sdk"
 spike-model-engines = "~/experiments/spike-model-engines"
 
 # The hosting convention `marathon experiment` proposes for a new spike.
