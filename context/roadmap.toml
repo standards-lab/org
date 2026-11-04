@@ -418,7 +418,7 @@ v1.harness.local-models from spike-local-models. It also writes a v1.data task t
 workspace's Postgres-extension strategy from spike-ai-pipeline's pgvector evidence, and promotes
 the system-tools principle (`system-tools.md`) to a go-elemental page. Its one coordinator pull
 request writes those tasks and removes the experiment; it then archives spike-harness-driver,
-spike-ai-pipeline with its four layer repositories, spike-scanned-documents, spike-go-harness, and
+spike-ai-pipeline with its five layer repositories, spike-scanned-documents, spike-go-harness, and
 spike-local-models. personal-agents is a
 reference, never archived by this intake.
 '''
@@ -432,6 +432,7 @@ repos = [
   "spike-ai-pipeline-processing",
   "spike-ai-pipeline-office",
   "spike-ai-pipeline-mail",
+  "spike-ai-pipeline-onenote",
 ]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
 path = "~/experiments/spike-ai-pipeline"
@@ -439,13 +440,14 @@ summary = '''
 Can a Go model client and a message, document, and stream processing layer, built under
 go-elemental, carry a transactional, evented pipeline (metadata capture, inference extraction,
 and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser follows
-stage by stage in real time? Five repositories: the client (`spike-ai-pipeline-client`), owned
+stage by stage in real time? Six repositories: the client (`spike-ai-pipeline-client`), owned
 Go infrastructure over the engines' native APIs with a pluggable wire format (Chat Completions,
 then Anthropic Messages); the processing layer (`spike-ai-pipeline-processing`), which runs
 mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
 (`spike-ai-pipeline-office`), a NativeAOT tool for office documents; the mail CLI
 (`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores, .msg messages, .eml
-messages, and mbox files; and the root, which holds
+messages, and mbox files; the OneNote CLI (`spike-ai-pipeline-onenote`), a static Rust tool for
+OneNote sections, packages, and notebooks; and the root, which holds
 gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
 it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
 the capstone tasks wait for those tasks and for the answers of spike-model-engines,
@@ -616,6 +618,34 @@ route.go is updated; the root's evidence 16 gains its sentence. No Reader or Req
 Tags processing v0.5.0. Evidence 16.
 '''
 
+[goals.experiment.ai.spike-ai-pipeline.tasks.onenote-cli]
+name = "The OneNote CLI"
+repos = ["spike-ai-pipeline-onenote"]
+summary = '''
+OneNote .one sections (desktop OneNote 2016 and later, and OneDrive downloads), .onepkg exports,
+and notebook directories through their .onetoc2, read through onenote_parser 2.1 (MPL-2.0, used
+unmodified) to JSON Lines of schema "1": the notebook, its section groups and sections, and each
+page at its latest revision, the recycle bin skipped with a warning. A page's outlines as rich
+text with hyperlinks, lists, tables, math, and note tags, plus a Markdown body; images and
+embedded files written out by SHA-256; ink as its recognized text and its strokes as SVG. Files
+only, never Microsoft Graph. Static musl binaries for linux-x64 and linux-arm64; CI and release.
+Fixtures: onenote.rs's MIT samples, never its AGPL ones, and a notebook the architect authors in
+OneNote, in both variants, with hand truth. Rejected: an [MS-ONESTORE] reader of our own; a mail
+subcommand; pyOneNote and Apache Tika, which give no document model. Tags onenote v0.1.0.
+Evidence 17.
+'''
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.onenote]
+name = "OneNote notebooks in processing"
+repos = ["spike-ai-pipeline-processing"]
+summary = '''
+Package `onenote`: the adapter over the OneNote CLI at v0.1.0, pinned from its release through
+mise and run by the exec runner, streaming its records as typed Go values; pages to Markdown;
+images and embedded files routed by email's signature routes, and ink's SVG to vision through
+magick, for the caller to run, proven against the real stages in the integration tier; a finding.
+Tags processing v0.6.0. Evidence 17.
+'''
+
 [goals.experiment.ai.spike-ai-pipeline.tasks.gb10-2-align]
 name = "gb10-2 aligned with gb10-1"
 repos = ["spike-ai-pipeline"]
@@ -641,7 +671,7 @@ summary = '''
 ffmpeg and ffprobe adapters; windows cut at silences under 30 s with overlap, transcribed
 concurrently within set A's audio slots, and joined at the seams. Long sources: the AMI
 Meeting Corpus (CC BY 4.0), Earnings-21 and -22, and LibriSpeech's original MP3s. Tags processing
-v0.6.0. Evidence 5.
+v0.7.0. Evidence 5.
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.streams]
@@ -651,7 +681,7 @@ summary = '''
 Live or real-time-paced audio and video through ffmpeg, audio windows transcribed as they arrive
 and video frames sampled to vision, plus chat streams through processing, all as cancellable
 events. Chat streams include chat exports, generated synthetically in each tool's real export
-format, since no openly licensed dataset exists. Tags processing v0.7.0. Evidence 6, 13.
+format, since no openly licensed dataset exists. Tags processing v0.8.0. Evidence 6, 13.
 '''
 
 [goals.experiment.ai.spike-ai-pipeline.tasks.formats]
@@ -661,7 +691,7 @@ summary = '''
 Known solutions on the existing stages: ODF and RTF through LibreOffice to office; HEIC, WebP,
 and AVIF to PNG for vision; multi-page TIFF split to pages; encrypted PDFs detected and refused;
 PDF forms and embedded files; zip archives recursed within size and depth limits. Tags
-processing v0.8.0; the spike then returns to `planned` until the capstone's gates clear.
+processing v0.9.0; the spike then returns to `planned` until the capstone's gates clear.
 '''
 
 # Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
