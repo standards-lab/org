@@ -107,7 +107,7 @@ cancel.
 under go-elemental, carry a pipeline that a browser follows live? The pipeline is transactional
 and evented: it captures metadata, extracts data by inference, and stores embeddings in
 PostgreSQL with pgvector for semantic search, and each stage emits the events the browser
-follows. The spike has five repositories, as spike-html-packages has one per layer:
+follows. The spike has six repositories, as spike-html-packages has one per layer:
 
 - **`spike-ai-pipeline-client`** gives Go primitives over the engines' native APIs, built as
   owned, optimized infrastructure from the best of spike-harness-driver's `model` and tau's
@@ -140,6 +140,14 @@ follows. The spike has five repositories, as spike-html-packages has one per lay
   content, since outlook-pst 1.2.0 can't read them. Its
   [mail-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-mail/blob/main/docs/findings/mail-cli.md)
   records the fields it recovers per kind and its time and memory per store (evidence 16).
+- **`spike-ai-pipeline-onenote`** is a command-line tool in Rust, published as static musl
+  binaries, that reads OneNote .one sections, from desktop OneNote 2016 and later or from
+  OneDrive, .onepkg exports, and notebook directories through onenote_parser (MPL-2.0, used
+  unmodified) into JSON Lines of one schema: the notebook, its sections, and each page at its
+  latest revision, with its rich text, tables, a Markdown body, its images and embedded files,
+  and its ink as recognized text and SVG strokes. It reads files only, never Microsoft 365.
+  Processing routes the pages' media to their stages (evidence 17). A reader of our own for
+  [MS-ONESTORE] was rejected, as were pyOneNote and Apache Tika, which give no document model.
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts and the consumer check, and the
   capstone: a backend on the layers and a web UI on experiment.html's stack. It takes messages,
   uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
