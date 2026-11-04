@@ -955,6 +955,7 @@ repos = [
   "spike-html-hosting-components",
   "spike-html-hosting-architecture",
   "spike-html-hosting-sqlate",
+  "spike-html-hosting-sdk",
 ]
 remote = "https://github.com/JaimeStill/spike-html-hosting.git"
 path = "~/experiments/spike-html-hosting"
@@ -997,6 +998,58 @@ provenance, rendered at build by marked: front matter read, relative .md links r
 the site, the README as the index. Evidence 3 and 4.
 '''
 
+[goals.experiment.html.spike-html-hosting.tasks.screenshots]
+name = "Screenshots on every site"
+repos = [
+  "spike-html-hosting",
+  "spike-html-hosting-architecture",
+  "spike-html-hosting-sqlate",
+]
+summary = '''
+`mise run screenshots` in every site, as each spike-html-apps* repository has: the
+spike-html-apps-tooling v0.3.0 `spike-html-apps-screenshots` bin, already pinned for the browser
+tests, over a scripts/screenshots.config.ts that captures pages light and dark, wide and narrow,
+and with the theme menu open, with the bin's --page, --scheme, --output, --dir, and --keep.
+Precedent: spike-html-apps-foundation's mise.toml [tasks.screenshots] and its
+scripts/screenshots.config.ts (openThemeMenu clicks button[commandfor=theme]; pressHelp sends keys
+over CDP). Runs first, so every later session brief can show captures.
+'''
+proof = '''
+`mise run screenshots` captures each site's pages in both schemes, wide and narrow, and with the
+theme menu open, and leaves no capture file without --keep.
+'''
+
+[goals.experiment.html.spike-html-hosting.tasks.template]
+name = "The shared site template"
+repos = [
+  "spike-html-hosting-sdk",
+  "spike-html-hosting",
+  "spike-html-hosting-architecture",
+  "spike-html-hosting-sqlate",
+]
+summary = '''
+spike-html-hosting-sdk created, after go-web-sdk-template: a site SDK package released by tag
+(the renderBlocking and markdownPages Vite plugins, the ESLint leftover check, the tsconfig and
+Prettier bases, the browser-test body, site.css) and a template/ subtree tagged template/v* that
+each site copies once, replacing the hand-copied site files; a site keeps pace by bumping the
+SDK. The root's chrome-headless-shell moves to 157.0.8103.38. Open for its plan: whether
+pages.yml becomes a reusable workflow called by tag.
+'''
+
+[goals.experiment.html.spike-html-hosting.tasks.highlighting]
+name = "Code highlighting"
+repos = [
+  "spike-html-hosting-sdk",
+  "spike-html-hosting",
+  "spike-html-hosting-architecture",
+  "spike-html-hosting-sqlate",
+]
+summary = '''
+Code fences highlighted at build in the SDK's Markdown renderer, matched to the foundation's
+color profiles and schemes. Shiki 4.6.0 is the candidate; it ships no flexoki theme, the default
+profile.
+'''
+
 [goals.experiment.html.spike-html-hosting.tasks.components]
 name = "The documentation components"
 repos = [
@@ -1026,8 +1079,8 @@ for the coordinator's briefs/ and v1.harness.sitrep. Evidence 2, 5, and 8.
 name = "Review, the CLI demo, and cost"
 repos = ["spike-html-hosting", "spike-html-hosting-sqlate"]
 summary = '''
-spike-html-apps-tooling v0.3.0's review across every site, with a check that no capture file
-remains; sqlint at sqlate's sqlint/v0.1.1 recorded through VHS, rendered in the sqlate site's
+The review across every site, on the screenshots task's captures, with a check that no capture
+file remains; sqlint at sqlate's sqlint/v0.1.1 recorded through VHS, rendered in the sqlate site's
 Pages workflow from a committed tape and embedded in a docs page; brotli page weight, build
 time, and push-to-live time per site. Evidence 9, 10, and 11.
 '''
