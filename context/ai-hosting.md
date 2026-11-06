@@ -96,7 +96,10 @@ tailnet.
   engine install, update, and uninstall, model loads, readiness waits, cold-start timing, log and
   memory read-outs, and health and version checks) the session runs itself over Tailscale SSH and
   records. Every command a session or the architect runs appears in the docs exactly as run.
-  Scripting stays minimal: only what must be idempotent (install, update, uninstall).
+  Scripting stays minimal: only what must be idempotent (install, update, uninstall), and step
+  helpers that a session sources and calls one step at a time in the architect's view, each
+  command logged with its timestamp so the docs quote the log; a helper never runs a benchmark
+  on its own (architect, 2026-11-06).
 - A benchmark is built and run a step at a time from the commands the brief agreed, by the
   session in the architect's view or by the architect, never scripted out of the architect's
   sight.

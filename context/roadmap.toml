@@ -852,14 +852,33 @@ tool, if any, is settled at its plan. Evidence 4.
 '''
 proof = "The screened pool per host class, each kept candidate with its sources and same-session anchors beside its incumbent."
 
+[goals.experiment.hosting.spike-hosting-upgrades.tasks.skill-revision]
+name = "Revising the skill"
+summary = '''
+Redesigns the skill from the screen's evaluation: a short entry file with one reference per mode
+and shared rules defined once; two modes, `survey` (the public record: debt, hardware, model host,
+models, a flag-by-flag configuration review against published practice, and discovery of models
+others run on the host class) and `measure` (engine moves and candidate screens under one harness,
+one dated record per run); descriptors whose Purposes carry per-host load targets, so a host can
+serve any subset of purposes; a committed blocker register checked upstream with gh each run, a
+committed research cache updated in place; a build gate before engine moves; default rules for
+what screen escalated; per-host run noise (within a session and across days); clock and memory
+monitors; shipped step helpers whose timestamped command log the records quote. Verified by a
+paper survey of gb10-1 and a measure on framework that discharges its owed no-cache check. No new
+tool. Evidence 1, 3 and 4.
+'''
+proof = "gb10-1's revised survey surfaces the screen's configuration findings and the seeded register, cited; framework's measure record quotes its command log and sets its noise figures."
+
 [goals.experiment.hosting.spike-hosting-upgrades.tasks.answer]
 name = "The answer"
 summary = '''
-A second dated report showing what moved since the first, the convention and its cadence (when
-the skill runs, what triggers a verification, the record an adoption leaves, and what stays with
-model-evaluation), README "The answer", and the answer section for `ai-hosting.md`. Evidence 2
-and 6.
+A second dated report per host, written by the revised `survey`, showing what moved since the
+first; the convention and its cadence (when survey and measure run, what triggers a measurement,
+the record an adoption leaves, the blocker register, the research cache, per-host load targets,
+and what stays with model-evaluation); README "The answer"; and the answer section for
+`ai-hosting.md`. Evidence 2 and 6.
 '''
+proof = "A second dated survey for each of framework and gb10-1, and the answer section stating the convention and its cadence."
 
 [goals.experiment.hosting.spike-model-layout]
 name = "Model layout across the workstations"
