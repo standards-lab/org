@@ -690,8 +690,12 @@ repos = ["spike-ai-pipeline-processing"]
 summary = '''
 Known solutions on the existing stages: ODF and RTF through LibreOffice to office; HEIC, WebP,
 and AVIF to PNG for vision; multi-page TIFF split to pages; encrypted PDFs detected and refused;
-PDF forms and embedded files; zip archives recursed within size and depth limits. Tags
-processing v0.9.0; the spike then returns to `planned` until the capstone's gates clear.
+PDF forms and embedded files; zip archives recursed within size and depth limits; Skype for
+Business conversation history archived in a PST (IPM.Note.Microsoft.Conversation and
+IPM.Note.Microsoft.Missed items from Exchange's Conversation History folder) through the mail CLI
+and the email package as conversation records, its fixture authored in Outlook or generated, since
+no open sample is known (evidence 6). Tags processing v0.9.0; the spike then returns to `planned`
+until the capstone's gates clear.
 '''
 
 # Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
