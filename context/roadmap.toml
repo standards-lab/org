@@ -698,6 +698,41 @@ no open sample is known (evidence 6). Tags processing v0.9.0; the spike then ret
 until the capstone's gates clear.
 '''
 
+[goals.experiment.ai.spike-ai-pipeline.tasks.docproc]
+name = "docproc: the processing suite over an input set"
+repos = ["spike-ai-pipeline"]
+summary = '''
+A CLI in the root, `docproc`, on go-cli-sdk v0.2.0, that runs every processing v0.9.0 stage over
+an input set such as ~/docs, with no inference, the processing library's own boundary. The root
+wires all ten routes over its own mise pins (office, mail, onenote, 7zz) and the host's gs,
+magick, qpdf, pdfdetach, ffmpeg and docker; a missing tool leaves its stage out, listed. It
+dispatches through processing's pool (NumCPU workers by default) and a file index a re-run
+reuses, captures each file's metadata (name, path, size, mode, modified and, through statx,
+created time; signature kind, route and sniffed MIME), and writes a run directory, a versioned
+contract (schema "1"): outputs stored once by content, a JSON Lines record of every event, and a
+static HTML report. A finding records a run over ~/docs. No tag. It presents the processing layer
+and is docinfer's input.
+'''
+proof = "The check passes, and docs/findings/docproc.md records docproc over ~/docs."
+
+[goals.experiment.ai.spike-ai-pipeline.tasks.docinfer]
+name = "docinfer: a docproc run through any workstation's models"
+repos = ["spike-ai-pipeline"]
+summary = '''
+A second CLI in the root, `docinfer`, that reads a docproc run directory and sends its outputs
+through spike-ai-pipeline-client v0.4.0 to any workstation its go-core layered config names (named
+endpoints per capability, models checked against /models), not gb10-2's set A alone: vision on
+every image output, transcription of audio windows joined by audio.Join, and, centrally,
+embeddings of every text, Markdown, vision text and transcript, plus one metadata text per input,
+split by a structure-aware chunker. Each chunk is one JSON line with its text, span, the input's
+metadata, and a base64 float32 vector, ready for the capstone's pgvector load. Results go to its
+own versioned directory (schema "1") with an HTML report; a re-run skips held results. A fake
+server covers the hermetic check and a configured workstation the integration tier; a finding
+records a run through set A. No tag. The spike then returns to `planned` until the capstone's
+gates clear.
+'''
+proof = "The check passes, and the root's finding records docinfer through set A on gb10-2."
+
 # Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
 # until the capstone needs it (plan, 2026-11-03).
 
