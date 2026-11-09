@@ -55,14 +55,15 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   citable by slug path, with every goal listed as `active`, `planned`, or `backlog`.
 - **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership.
   `../briefs/orientation.md` is the first, and the agent-interview prompt `../interview.md`
-  accompanies it.
+  accompanies it. Both move to status-reports at its `layout` task.
 - **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
   — portable identity for every repository in the effort, with a per-machine local-directory
   map, the standards declarations, and a private annex in `../private/`. `../references.md`
   states the mechanics.
 - **Experiments** — running spikes are tasks of the `experiment` goals in `roadmap.toml`;
   archived spikes are in the references catalog, and the hosting convention is
-  `[workspace.experiments]` in `.claude/marathon.toml`.
+  `[workspace.experiments]` in `.claude/marathon.toml`. Capstones are `capstone.<slug>` goals,
+  checked out at `~/capstones/<slug>` and listed in `[workspace.paths]` (`naming.md`).
 - **Cross-repo coordination** — the references catalog is the repository list, and the
   workspace order in `.claude/marathon.toml` is its dependency graph in machine-readable form.
 
@@ -79,9 +80,11 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   commands emit events, where the primitives live, lifecycle registration, the capability
   ledger, and spike-messaging's evidence.
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
-  processing, harness) and their homes, the pivot from tau to external harnesses, experiment.ai's
-  questions (the client and processing layers first, then the harness), and experiment.hosting's
-  questions and decomposition of personal-agents.
+  processing, harness) and their homes, the pivot from tau to external harnesses, the questions
+  of experiment.ai (client and processing), experiment.ocr, and experiment.harness, and
+  experiment.hosting's and experiment.admin's questions and decomposition of personal-agents.
+- `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
+  gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
 - `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session

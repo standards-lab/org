@@ -1,18 +1,19 @@
 # AI
 
 The planned AI capability builds in four layers, each on the one below (architect,
-2026-10-26). `v1.ai` builds them, and go-web-service's AI layer demonstrates them. Two
-experiments come first:
+2026-10-26). `v1.ai` builds them, and go-web-service's AI layer demonstrates them. The
+experiments are ordered around the capstone, capstone.data-intelligence (`data-intelligence.md`;
+plan, 2026-11-09):
 
-- **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack.
-- **experiment.ai** settles the layers above it:
-  - spike-ai-pipeline proved the client and processing layers on gb10-2, through its docproc and
-    docinfer CLIs over a real input set, and is planned; its capstone, in a repository of its own,
-    waits for its gates.
-  - spike-scanned-documents follows it on gb10-2, to settle whether the document stage needs an
-    OCR tier.
-  - spike-go-harness and spike-local-models take the harness layer after experiment.hosting's
-    intake, beside spike-harness-driver, which has answered.
+- **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack, before the
+  capstone.
+- **experiment.ai** settles the client and processing layers before the capstone:
+  spike-ai-pipeline proved them on gb10-2, through its docproc and docinfer CLIs over a real
+  input set, and its `answer` task closes it.
+- **experiment.ocr**, after the capstone: spike-scanned-documents settles whether the document
+  stage needs an OCR tier, on gb10-2.
+- **experiment.harness**, after the capstone: spike-go-harness and spike-local-models take the
+  harness layer, beside spike-harness-driver, which has answered. The capstone needs no harness.
 
 The client and processing layers come first because they feed the team's operational
 requirements. Most service integrations build on them, not on a harness. The team adopts go-ai
@@ -219,27 +220,8 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
-- **The capstone**, planned for its own repository, is a backend on the layers and a web UI on
-  experiment.html's stack. It takes messages,
-  uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
-  outbox in each stage's transaction relayed to JetStream. How the browser consumes them, NATS
-  over WebSocket or a backend relay, is measured and decided at the capstone's plan round, since
-  v1.client lands after the capstone. The capstone's UI builds on spike-html-apps' foundation
-  v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequence interface at
-  `./events.js` and its adapter at `./events/nats.js`, and cites spike-html-apps'
-  NATS-over-WebSocket record, under "The answer" in its README. pgvector is a declared
-  native-tier extension, and the workspace's extension strategy is written from this case. Its
-  planned storage serves AI-assisted processing and semantic search. Source blobs stay in blob
-  storage; the database holds what the stages derive from them, each stage's output a versioned
-  artifact (source blob hash → extraction → chunk → embedding) keyed by its input and
-  configuration hash (model, revision, prompt, parameters, chunker version), so a stage reruns
-  only when its input or configuration changes. Embeddings live in registered embedding spaces
-  (model, revision, dims, metric, normalization, prompt template, chunker), vectors partitioned
-  by space with one partial ANN index each. A model change adds a space and re-embeds the stored
-  chunks (blue/green, switched after a recall evaluation), a chunker change re-chunks, and only an
-  extractor change reruns inference. Translation between spaces is limited to truncation and
-  quantization within one model; a learned mapping only bridges a migration. To be settled
-  at the capstone's plan round.
+- **The capstone** moved to its own goal and repository, capstone.data-intelligence, with
+  evidence 7, 8, 10, and 15 and its storage design (`data-intelligence.md`).
 
 It reads tau, spike-harness-driver's `model` and `workflow`, herald, spike-model-hosting,
 spike-model-engines, and the members, as references, not implementations. Its decisions and
@@ -251,16 +233,16 @@ outside experiment.hosting's host set, and the spike's sessions kept it current 
 from llama.cpp's router container and only serves models; the media tools run where processing
 runs. The Framework stays with experiment.hosting, whose Strix tasks swap its engine.
 
-**Gates.** The host, client, and processing tasks are done, on gb10-2. The capstone tasks wait for
-those tasks and for the answers of four spikes: experiment.hosting's spike-model-engines,
-spike-model-layout, and spike-model-gateway, and experiment.html's spike-html-apps, whose layer
-releases the capstone's UI builds on. They don't wait for either experiment's intake. The spike
-returns to `planned` in between.
+**Gates.** None remain. The host, client, processing, and docinfer tasks are done, on gb10-2, and
+the spike's `answer` task closes it. The capstone's gates moved with it (`data-intelligence.md`,
+"Gates"): it waits for spike-model-layout's and spike-model-gateway's answers and for
+experiment.hosting's, experiment.ai's, and experiment.html's intakes and the libraries they
+promote. spike-model-engines and spike-html-apps have answered.
 
 **Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
 processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. It is also
 the first case for the system-tools principle and the Postgres-extension strategy, which
-experiment.ai's intake carries forward. Evidence 5 bears on go-ai's layering. Processing prepares
+experiment.ai's intake carries forward, with docproc's and docinfer's homes and output formats. Evidence 5 bears on go-ai's layering. Processing prepares
 long audio, cutting windows at silences and releasing the join, and the layer above transcribes
 it and owns the inference guards: Gemma 4 E4B answered a short window with its own instruction,
 and the join can't tell that from speech. No LLM pass smooths the seams, since a gpt-oss pass
@@ -269,7 +251,7 @@ error rate 0.298 against 0.258 unsplit on a 4-speaker meeting, 0.069 against 0.0
 8-speaker call), so the intake weighs whether audio that fits one request goes unsplit.
 
 **Home.** `~/experiments/spike-ai-pipeline`, remote
-[JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its three
+[JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its five
 layer repositories beside it.
 
 ## Experiment: spike-scanned-documents
@@ -279,16 +261,22 @@ transcription on only 7 scanned pages: the model invented seal text, never read 
 NOFORN, and scored a scanned CER of about 0.11 to 0.13. Does that transcription hold at scale, on
 olmOCR-bench (allenai/olmOCR-bench: 1,403 PDFs and 7,010 checkable assertions, ODC-BY as
 reported), and does a dedicated OCR model, olmOCR's own on vLLM, or Tesseract beat it on GB10?
+It also measures the vision models themselves on spike-ai-pipeline-processing's committed scanned
+fixtures (document/testdata/scanned.pdf, ground truth beside it): a larger image-token budget than
+gemma-4-26B-A4B's default, a dense vision model, and a lighter quantization than Q4_0, since Gemma
+4 26B-A4B Q4_0 never read page 7's faded NOFORN, even on a 122-token 300-dpi tile, which points to
+the model, not resolution (processing's docs/findings/documents.md; the architect, documents).
 
-**Decision it changes.** Whether processing's document stage needs an OCR tier beside vision.
-It delays experiment.ai's intake, which waits for its answer.
+**Decision it changes.** Whether processing's document stage needs an OCR tier beside vision,
+and which vision model, image-token budget, and quantization the vision tier runs. It is
+experiment.ocr's one spike, after the capstone, which runs on vision transcription without it.
 
-**Host.** gb10-2, once spike-ai-pipeline returns to `planned` after its formats task.
-Third-party and crawled documents are processed only in sandboxed converters.
+**Host.** gb10-2, after capstone.data-intelligence. Third-party and crawled documents are
+processed only in sandboxed converters.
 
 **Home.** `~/experiments/spike-scanned-documents`, remote
 [JaimeStill/spike-scanned-documents](https://github.com/JaimeStill/spike-scanned-documents), set
-up by `plan experiment.ai.spike-scanned-documents`.
+up by `plan experiment.ocr.spike-scanned-documents`.
 
 ## Experiment: spike-go-harness
 
@@ -306,7 +294,7 @@ or stays a client of its own (architect, 2026-10-26).
 
 **Home.** `~/experiments/spike-go-harness`, remote
 [JaimeStill/spike-go-harness](https://github.com/JaimeStill/spike-go-harness), set up by
-`plan experiment.ai.spike-go-harness` once experiment.hosting's intake has run.
+`plan experiment.harness.spike-go-harness` after capstone.data-intelligence.
 
 ## Experiment: spike-local-models
 
@@ -343,19 +331,23 @@ gateway is spike-model-gateway's decision; this spike routes through what it set
 
 **Home.** `~/experiments/spike-local-models`, remote
 [JaimeStill/spike-local-models](https://github.com/JaimeStill/spike-local-models), set up by
-`plan experiment.ai.spike-local-models` once experiment.hosting's intake has run.
+`plan experiment.harness.spike-local-models` after spike-go-harness.
 
 ## Constraint: model origin
 
 Models of Chinese origin are avoided where an alternative serves, because of the risk of
 censorship and of hidden behavior in their weights. The constraint binds experiment.hosting,
-experiment.ai, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
+experiment.ai, experiment.ocr, experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
 the choice records why. A model fine-tuned from a Chinese-origin base takes its base's origin,
 whoever publishes the fine-tune.
 
 ## Answers · experiment.ai
 
-### Answer · experiment.ai.spike-harness-driver
+## Answers · experiment.ocr
+
+## Answers · experiment.harness
+
+### Answer · experiment.harness.spike-harness-driver
 
 **Question:** Can Go drive an external agent harness (Pi, Claude Code, OpenCode) as the
 infrastructure for agentic work: capabilities, sessions, scoped exchanges, and long-running
