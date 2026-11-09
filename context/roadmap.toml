@@ -10,7 +10,9 @@
 # experiment.html's spike-html-design, spike-html-conventions, spike-html-packages, and
 # spike-html-apps have answered (html-artifacts.md, "Answers · experiment.html"), and
 # spike-html-hosting is active. experiment.ai's spike-ai-pipeline has answered (ai-strategy.md,
-# "Answers · experiment.ai"), and its intake is next.
+# "Answers · experiment.ai"), and its intake is next. experiment.graph's spike-graph is active,
+# proving go-core's candidate graph and lifecycle API on the full go-web-service and slab
+# (graph-ergonomics.md).
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
@@ -21,9 +23,11 @@
 # (optimally designed against the architecture standards, fitting the workspace, working without
 # issues); (c) design the capstone's protocols and practices, its first tasks; (d) build the
 # capstone; (e) continue the roadmap. The waves, each running its goals side by side:
-# - A: spike-model-layout, spike-html-hosting, spike-ai-pipeline's `answer`, and graph-ergonomics
+# - A: spike-model-layout, spike-html-hosting, spike-ai-pipeline's `answer`, graph-ergonomics
 #   (go-core's graph and lifecycle, reviewed while the exclusive group is free, before go-ai and
-#   the client SDK build on them); then experiment.ai's intake.
+#   the client SDK build on them), and spike-graph, which proves its candidate API; then
+#   experiment.ai's and experiment.graph's intakes, and graph-ergonomics' release and per-tier
+#   migrations from the latter, ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
 #   experiment.html's intakes.
 # - C: v1.ai (go-ai, and ai-hosting through v1.ai.hosting) beside v1.client, which holds the
@@ -42,6 +46,7 @@ active = [
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-hosting",
   "graph-ergonomics",
+  "experiment.graph.spike-graph",
 ]
 
 planned = [
@@ -62,7 +67,6 @@ planned = [
   "v1.deployment",
   "v1.repository-docs",
   "v1.middleware",
-  "experiment.graph.spike-graph",
 ]
 
 backlog = [
@@ -417,6 +421,37 @@ and read. Proposes the API the architect approves, with its migration across the
 repositories; the goal's later tasks are written from it.
 '''
 
+[goals.graph-ergonomics.tasks.release]
+name = "The breaking graph and lifecycle release"
+repos = ["go-core"]
+summary = '''
+One breaking go-core release of `graph` and `lifecycle` with the API experiment.graph's intake
+settles, and no deprecation period. Waits on experiment.graph's intake.
+'''
+
+[goals.graph-ergonomics.tasks.migrate-libraries]
+name = "Migrate the libraries and go-cli-sdk"
+repos = ["go-database", "go-observability", "go-storage", "go-web-sdk", "go-cli-sdk"]
+summary = '''
+Moves go-database, go-observability, go-storage, go-web-sdk (which gains `web.Run`), and
+go-cli-sdk onto the release. Waits on experiment.graph's intake.
+'''
+
+[goals.graph-ergonomics.tasks.migrate-templates]
+name = "Migrate the templates"
+repos = ["go-web-sdk-template", "go-cli-sdk-template"]
+summary = '''
+Moves go-web-sdk-template and go-cli-sdk-template onto the release. Waits on experiment.graph's
+intake.
+'''
+
+[goals.graph-ergonomics.tasks.migrate-service]
+name = "Migrate go-web-service and slab"
+repos = ["go-web-service"]
+summary = '''
+Moves go-web-service and its slab CLI onto the release. Waits on experiment.graph's intake.
+'''
+
 # ── The capstone ───────────────────────────────────────────────────────────────────────────
 
 [goals.capstone]
@@ -441,7 +476,9 @@ spike-ai-pipeline's evidence 7, 8, 10, and 15 (`data-intelligence.md`). Runs in 
 active goal apart from status-reports and training, after experiment.ai's, experiment.hosting's,
 and experiment.html's intakes and the libraries they promote; its repos gain those libraries at
 staging, so a capstone task can update a library and use the change. Its repository is created
-at staging. Design tasks come first; build tasks are written once they close.
+at staging. experiment.graph's spike-graph is a prerequisite: its composition root is written
+against the graph and lifecycle API that experiment.graph's intake settles and graph-ergonomics
+ships. Design tasks come first; build tasks are written once they close.
 '''
 context = ["standards-lab/context/data-intelligence.md"]
 
