@@ -188,7 +188,7 @@ validated against SeaweedFS's S3 gateway, and whether the blobfs CLI runs unchan
 ### spike-harness-driver
 Asked whether Go can drive an external agent harness (Pi, Claude Code, OpenCode) as the
 infrastructure for agentic work. Answered yes, with a harness-session and a model-client
-surface; experiment.ai's intake archives it. Its `model` client stands in for go-ai in
+surface; experiment.harness's intake archives it. Its `model` client stands in for go-ai in
 spike-model-hosting.
 
 ### spike-model-hosting
