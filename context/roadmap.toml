@@ -703,33 +703,28 @@ archives the six spikes. experiment.ai's harness spikes wait for it.
 [goals.experiment.hosting.spike-model-layout]
 name = "Model layout across the workstations"
 root = "spike-model-layout"
-repos = ["spike-model-layout"]
+repos = ["spike-model-layout", "spike-model-engines"]
 remote = "https://github.com/JaimeStill/spike-model-layout.git"
 path = "~/experiments/spike-model-layout"
 summary = '''
 How are models placed across the three workstations' memory pools to make the best use of memory,
-and what context and how many concurrent sessions does each placed model hold? Validates context
-x sessions per model with one pinned standard load tool in agreed, capped runs; weighs role
-placement across hosts behind a session-sticky gateway against a full set on each host; two-node
-GB10 serving over QSFP only if the layout needs it, using gb10-2 as its task
-brief names (`ai-hosting.md`, "Hosts and access"); weighs serving models on demand, where an
-engine loads none itself, against keeping them resident; llama-swap in front of vLLM is the
-existing tool (drives Docker, ships arm64 builds) (spike-model-engines, the vLLM guide). Decides
-the layout v1.ai.hosting specifies. Runs on spike-model-engines' answer; reads
-spike-model-hosting's memory budget, slot sweep, and pool document. Weighs the architect's idea of
-2026-10-30: split hosts by role, with one GB10 for the agent model alone (about 49 GiB of KV after
-weights and headroom, roughly 10 concurrent 128K sessions by estimate), the second GB10 or the
-Framework for the capability models (vision, audio, embedding), and the remaining workstation
-routing overflow. Open points: gb10-2, reserved for spike-ai-pipeline until its docinfer task
-shipped, is available to the layout spike; the routing layer; and whether the capability host's
-backend changes which builds pass the floor. Also weighs hosting the agent model alone on vLLM for
-concurrent-session throughput: on gb10-1, gpt-oss-120b on vLLM v0.32.0 gave 34.0 tok/s at 1 stream
-against llama.cpp's 50.0, and 168.2 against 129.0 at 16 (spike-hosting-upgrades, gb10-1 report
-2026-10-31); llama.cpp's idle-slot saves stalled multi-turn load before b12080; a published vLLM
-figure for an NVFP4 Gemma 4 26B-A4B on a DGX Spark gives 303 tok/s aggregate at 16 concurrent (a
-lead), beside llama.cpp's 210.5 for Gemma's QAT section in gb10-1's sweep; and a llama.cpp
-maintainer notes it "mostly optimizes upto 8 parallel sequences at the moment" (#31711)
-(spike-hosting-upgrades, `docs/screens/gb10-1/2026-11-05.md`, "Research read 2026-11-05").
+and what context and how many concurrent sessions does each placed model hold? Runs on gb10-1,
+gb10-2 and the Framework (`ai-hosting.md`, "Hosts and access"), with GuideLLM 0.8.1's multi-turn
+datasets in agreed, capped runs. Compares set A on one GB10 against the roles split across both
+GB10s: one serving the agent model alone (about 49 GiB of KV after weights and headroom, roughly
+10 concurrent 128K sessions by the architect's estimate of 2026-10-30), the other vision, audio and
+embedding, with requests directed to a host by capability; the Framework's role (overflow or
+capability host) follows from that comparison. Serving on demand uses llama.cpp's native router
+(autoload, LRU `--models-max`, `--models-memory-margin`, `--sleep-idle-seconds`); llama-swap
+fronts only a vLLM server. Measures the agent alone on vLLM, in a container: on gb10-1,
+gpt-oss-120b on vLLM v0.32.0 gave 34.0 tok/s at 1 stream against llama.cpp's 50.0, and 168.2
+against 129.0 at 16 (spike-hosting-upgrades, gb10-1 report 2026-10-31), and a llama.cpp maintainer
+notes it "mostly optimizes upto 8 parallel sequences at the moment" (#31711). Measures
+gpt-oss-120b across both GB10s over QSFP with vLLM and Ray, weighing both GB10s pooled for the
+agent with the Framework serving the capability models. Routing stays on paper, handed to
+spike-model-gateway as requirements. Lists spike-model-engines in repos to change its `host/`
+presets by pull request. Decides the layout v1.ai.hosting specifies. Its evidence and path are in
+the spike's `context/README.md`.
 '''
 # Inputs to sizing set A's slots, from spike-ai-pipeline-processing's findings:
 # - Vision (documents finding, the architect): gemma-4-26B-A4B's image-token budget on gb10-2, the
@@ -738,6 +733,73 @@ maintainer notes it "mostly optimizes upto 8 parallel sequences at the moment" (
 #   with mmproj-gemma-4-26B-A4B-it-Q8_0, not Google's QAT Q4_0, which gb10-2 now serves.
 # - Audio (audio finding): on gb10-2's E4B Q8_0, a 10-minute 16 kHz mono WAV is 15,028 input
 #   tokens through `/v1/audio/transcriptions`, against its 32,768-token context.
+
+[goals.experiment.hosting.spike-model-layout.tasks.hosts]
+name = "gb10-2 joins the experiment"
+summary = '''
+gb10-2 moved onto spike-model-engines' engines suite and shared preset, spike-ai-pipeline's two
+vision keys (ub 1120, image-min-tokens 560) carried into that preset by pull request; all three
+hosts brought current; anchors A and B on both GB10s in one session, so cells across them compare.
+Evidence 1.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.footprint]
+name = "Memory per model per host class"
+summary = '''
+Weights, KV per 1,000 tokens of context, and compute buffers, loaded idle and at the warmed peak,
+for set A on a GB10 and on the Framework; the capacity table each placement is computed from.
+Evidence 2.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.role-split]
+name = "Full set against role split"
+summary = '''
+Set A on one GB10, then the roles split across both GB10s (one serving the agent model alone, the
+other vision, audio and embedding), requests directed by capability, compared in one session: the
+sessions and requests each placed model holds at its context, speed per stream, and the memory
+each arrangement leaves. Evidence 3 and 4.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.framework]
+name = "The Framework's role"
+summary = '''
+The Framework measured in the role the role-split findings point to: overflow for the full set,
+overflow for the agent, or capability host (noting Gemma 4 26B-A4B's Vulkan abort with several
+slots), chosen in this task's plan round. Evidence 3 and 5.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.agent-vllm]
+name = "The agent on vLLM"
+summary = '''
+gpt-oss-120b on vLLM v0.33.0 in a container against llama.cpp on the agent GB10, in one session,
+at the agent's load target: speed, TTFT under multi-turn load, memory, and cold start. The vLLM
+pin moves in spike-model-engines' host/ by pull request first. Evidence 6.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.on-demand]
+name = "On demand against resident"
+summary = '''
+Each model's cold load and first-request latency through llama.cpp's router (autoload, LRU
+--models-max, --models-memory-margin, --sleep-idle-seconds), against the memory it frees, on each
+host; which purposes can load on demand. Evidence 7.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.two-node]
+name = "Two-node serving over QSFP"
+summary = '''
+gpt-oss-120b across both GB10s with vLLM and Ray in containers, against one node in the same
+session; Ray is the task's one new tool. Weighs both GB10s pooled for the agent with the Framework
+serving the capability models. Evidence 8.
+'''
+
+[goals.experiment.hosting.spike-model-layout.tasks.answer]
+name = "The layout"
+summary = '''
+docs/layout.md finalized: per host its purposes, models, context, slots and load targets; the
+routing requirements (session stickiness, overflow) for spike-model-gateway; the host
+descriptors' purposes and load targets for the intake; README "The answer"; and the answer
+section in ai-hosting.md. Evidence 9.
+'''
 
 [goals.experiment.hosting.spike-model-gateway]
 name = "Routing and access across the model pool"
