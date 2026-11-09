@@ -171,6 +171,13 @@ remote = "https://github.com/JaimeStill/spike-model-engines.git"
 [repos.spike-hosting-upgrades]
 remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 
+[repos.spike-model-layout]
+remote = "https://github.com/JaimeStill/spike-model-layout.git"
+
+# Read by spike-model-layout for gb10-2's former preset and llama.env; never written.
+[repos.spike-ai-pipeline]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"

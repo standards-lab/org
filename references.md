@@ -206,7 +206,18 @@ scripts from; experiment.hosting's intake archives it.
 ### spike-hosting-upgrades
 Asks what convention evaluates an upgrade to the hosting stack (hardware configuration, model
 host, or models) from what others publish: a project-local Claude Code skill writes dated, cited
-reports of ranked upgrades, and anchors A and B verify each on our host. Active.
+reports of ranked upgrades, and anchors A and B verify each on our host. Answered with the
+survey-and-measure convention and its cadence; experiment.hosting's intake archives it.
+
+### spike-model-layout
+Asks how models are placed across the memory pools of gb10-1, gb10-2 and the Framework, and what
+context and how many concurrent sessions each placed model holds: a full set on one GB10 against
+the roles split across both, the Framework's role, vLLM for the agent, on-demand loading, and
+two-node serving over QSFP. Active.
+
+### spike-ai-pipeline
+experiment.ai's pipeline spike, complete; it served set A on gb10-2 from its own preset, which
+spike-model-layout reads, never writes, while moving gb10-2 onto spike-model-engines' preset.
 
 ## Prior R&D — Go web service architecture
 
