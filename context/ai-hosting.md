@@ -121,13 +121,48 @@ its hosts up to date, and every measurement records the engine version, the host
 laptop's network path to the host (`tailscale ping`): a DERP relay adds its round trip to TTFT
 and request latency, but not to inter-token latency or the server's own counters.
 
-**gb10-2 is reserved** for experiment.ai's spike-ai-pipeline from 2026-10-26 (`ai-strategy.md`),
-so the two spikes can run at once without sharing a host. experiment.hosting runs on gb10-1 and
-the Framework, and gb10-2 is out of its host set and its every-session upgrade; the pipeline
-spike's sessions keep gb10-2 current. A hosting task that needs gb10-2, such as two-node serving
-over QSFP, names the borrow in its task brief. If a pipeline task is in progress, the architect
-and the session agree when to borrow it so the running task isn't disrupted, and the borrowing
-session restores gb10-2's pipeline engine afterward.
+**gb10-2 was reserved** for experiment.ai's spike-ai-pipeline from 2026-10-26 (`ai-strategy.md`)
+until the spike returned to `planned` after its docinfer task (2026-11-09), so the two experiments
+could run at once without sharing a host. Which work uses gb10-2 next is the next `marathon plan`
+session's. It still serves set A from spike-ai-pipeline's preset; a session that changes its engine
+and wants the pipeline's back leaves the llama container running, since the root's host-update
+fails on a stopped container rather than starting it.
+
+**gb10-2 serves set A** from llama.cpp's router at server-cuda13-b12098, the gb10 pin in
+spike-ai-pipeline's own `llama.env`, and the root's `mise run host-update` brings it current at the
+start of each of the spike's sessions. Its Gemma 4 26B-A4B is Google's QAT Q4_0
+(google/gemma-4-26B-A4B-it-qat-q4_0-gguf, with its own projector), as set A names it, in place of
+ggml-org's post-training Q4_0, which fails the quantization floor. Its store holds set A alone.
+Its preset sets two keys for that model:
+
+- `ub = 1120` in the vision section, since llama.cpp caps a non-causal image's tokens at n_ubatch
+  (default 512) where the model allows 1120, at a cost of 800 MiB. The Framework's set A likely
+  has the same 512 cap.
+- `image-min-tokens = 560`, so a small image of dense text gets enough tokens to be read.
+
+**The llama container binds before Tailscale is up.** It publishes port 8080 on gb10-2's Tailscale
+address, which races Tailscale at boot: docker's start fails ("cannot assign requested address")
+and leaves the container on no network, and a later `docker start` runs it with no published
+port. gb10-2 sets `net.ipv4.ip_nonlocal_bind = 1` (`/etc/sysctl.d/90-nonlocal-bind.conf`,
+architect, 2026-10-30), so the bind succeeds first. `docker network connect bridge llama` fixes a
+container already stranded.
+
+**llama.cpp's `/v1/messages` and `/v1/responses` rebuild a request as Chat Completions,** so each
+drops what Chat Completions can't carry:
+
+- At b11669, `/v1/messages` drops output_config, a tool's strict, and the none tool choice. It
+  maps named and allowed_tools choices to required, yet gpt-oss-120b made no call under either
+  and repeated its answer to the 1024-token bound. Its stream error frame carries no
+  `"type":"error"`.
+- At b11669, `/v1/responses` drops text, reasoning's summary, store, include, and an image's
+  detail, and treats named and allowed_tools choices as auto. It refuses previous_response_id, a
+  content part other than text, image, or file, and a reasoning item without content. Every reply
+  reports completed, even at the token bound. It streams reasoning under OpenAI's
+  `response.reasoning_text` names, with no sequence numbers or indexes, and its stream error frame
+  is `{"error":{...}}` with no type.
+- At b12098, `/v1/messages` ignores `thinking: disabled` and `reasoning_effort`; only
+  `chat_template_kwargs.enable_thinking = false` stops the reasoning, so vision sent through
+  Messages reasons.
 
 **spike-model-engines' `host/` is owned by experiment.hosting** until its intake. Its spikes may
 change the repository's `host/` (scripts and presets) through pull requests, each citing the
@@ -288,8 +323,8 @@ memory than SM121 has, and vLLM issue #60847 reports FLASH_ATTN's head size unsu
 and FLASHINFER without encoder-only attention; the fixes #60631, #60848, and #60942 are open and
 unmerged. llama.cpp serves it. granite-embedding-english-r2 (IBM, Apache-2.0, BF16) serves on both
 engines (spike-model-engines, `docs/findings/bench-gb10-container.md`, "Embeddings" and "Engine
-limits"). v1.ai.hosting and the goals that serve
-set A make the change.
+limits"). v1.ai.hosting and the goals that serve set A make the change. gb10-2 serves
+granite-embedding-english-r2 BF16 from llama.cpp (spike-ai-pipeline, client-core).
 
 ## Answers · experiment.hosting
 

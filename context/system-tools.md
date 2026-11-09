@@ -27,6 +27,10 @@ sources a library, with a third choice: run a mature tool through an adapter.
 ## First case
 
 spike-ai-pipeline's processing layer (`ai-strategy.md`, "Experiment: spike-ai-pipeline") runs the
-PDF renderers, ImageMagick, ffmpeg, LibreOffice in a container for legacy office formats, and the
-spike's own Open XML CLI, built as a system tool so the processing layer runs it like the others.
+PDF renderers, ImageMagick, ffmpeg, LibreOffice in a container for legacy office formats and EMF
+and WMF pictures, and the spike's own Open XML and mail CLIs, each built as a system tool so the
+processing layer runs it like the others. spike-ai-pipeline-processing's `tool` package is the
+contract: a binary, a script through its interpreter, and a digest-pinned image through the docker
+CLI each run as one Tool, which its constructor finds and version-checks (evidence 14, processing
+v0.1.0).
 experiment.ai's intake promotes the principle to a go-elemental page from that evidence.

@@ -6,8 +6,9 @@ experiments come first:
 
 - **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack.
 - **experiment.ai** settles the layers above it:
-  - spike-ai-pipeline proves the client and processing layers now, on gb10-2, which is reserved
-    for it, and proves them together in a capstone once its gates clear.
+  - spike-ai-pipeline proved the client and processing layers on gb10-2, through its docproc and
+    docinfer CLIs over a real input set, and is planned; its capstone, in a repository of its own,
+    waits for its gates.
   - spike-scanned-documents follows it on gb10-2, to settle whether the document stage needs an
     OCR tier.
   - spike-go-harness and spike-local-models take the harness layer after experiment.hosting's
@@ -111,23 +112,73 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
 
 - **`spike-ai-pipeline-client`** gives Go primitives over the engines' native APIs, built as
   owned, optimized infrastructure from the best of spike-harness-driver's `model` and tau's
-  libraries. One standard-library base module holds a stable request and response model; each
-  wire format is a package behind one Format interface, chosen by typed constructor at the
-  composition root, with no provider registry. Chat Completions is the baseline, and Anthropic
-  Messages, which the router also serves, proves the layer pluggable. Streaming is an iterator of
-  typed deltas over an in-house SSE decoder, and retry is opt-in.
-- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native model
-  capabilities. It runs mature system tools through adapters it owns (`system-tools.md`), with
-  herald's `internal/format` as its prior art: an exec runner for binaries and scripts and a
-  container runner for pinned images. The PDF renderer is chosen by bake-off (pdftoppm,
-  pdftocairo, gs, vips, and ImageMagick over gs); ImageMagick is the image tool and its
-  correction stage; ffmpeg and ffprobe take audio and video, live sources included.
+  libraries, on the standard library alone. Its protocol is Open Responses (spec 2026-04-24)
+  in its stateless subset; client extensions, audio input first, fill the spec's gaps and are
+  removed when it adopts them. Four layers import one way: the `client` transport, with
+  Generate, GenerateStream, Embed, and Transcribe; `protocol`; the `format` contract; and a
+  `format/<api>` adapter per wire format, named by endpoint and chosen by typed constructor:
+  `completions` (Chat Completions), `messages` (Anthropic Messages), and `responses` (Open
+  Responses). GenerateStream yields Open Responses' streaming events, which a
+  `protocol.Accumulator` folds into the Response Generate returns. Retry is opt-in.
+- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native
+  model capabilities before inference; a layer above defines and orchestrates the inference
+  and embeddings, and processing runs none. It runs mature system tools through adapters it
+  owns (`system-tools.md`), with herald's `internal/format` as its prior art. Its `tool`
+  package, on the standard library alone, is the contract: a Tool bound to one program, found
+  and version-checked at construction, runs an invocation under the caller's context through
+  the exec runner (binaries, and scripts through their interpreter) or the container runner
+  (the docker CLI, an image pinned by digest, each run locked down), and reports the run's CPU
+  time. Its `route` package identifies content by its signature and names the stage it goes to
+  next, for every format in the spike's inventory, "no processor yet" where no stage exists.
+  Its `picture` package converts TIFF, EMF, WMF, and SVG pictures to PNG, EMF and WMF through
+  LibreOffice in a digest-pinned container, and holds ImageMagick's page corrections, their
+  catalog for a prompt, and a page assessment; no stage re-encodes a picture lossily. Its
+  `document` package prepares a PDF's pages: Ghostscript, which won the renderer bake-off
+  against pdftoppm, pdftocairo, vips, and ImageMagick over gs, renders pages and regions as PNG
+  and reads text layers, and a page stream yields the prepared pages in order. Its `office`
+  package runs the spike's Open XML CLI over docx, xlsx, and pptx, and converts legacy .doc,
+  .xls, and .ppt to OOXML through LibreOffice in the same container. Its `email` package runs
+  the spike's mail CLI over .pst stores, .msg messages, .eml messages, and mbox files, streams
+  their records as typed values, rebuilds threads by RFC 5256's REFERENCES algorithm with
+  conversation-index parents, and resumes a store after a message. Its `onenote` package runs
+  the spike's OneNote CLI over sections, notebooks, and packages, streams their records as
+  typed values, and lists each page's images, embedded files, and ink with their routes. Each
+  format package's text, a Markdown body or a text layer, is complete without inference; only
+  pictures and page images go to vision. Its `inspect` package inspects every part before its
+  stage: active content, such as macros, scripts, embeddings, and executables, is flagged and
+  still prepared, since no stage executes it, and content unsafe to read, such as a ZIP entry
+  escaping its directory, a symbolic link, or a bomb, is quarantined. Its `dispatch` package
+  walks an input and every part found in it (attachments, embedded messages, media, and ZIP
+  entries) to those stages with no default caps, under a content-addressed index that prepares
+  each distinct content once across a share's inputs, runs, and workers, removes each part's
+  file once the caller has consumed it, and resumes a store by cursor. Its `audio` package
+  runs ffmpeg and ffprobe: it cuts a recording at its silences into windows of at most 30 s
+  that overlap by 2 s, as 16 kHz mono WAV, and joins their transcripts by aligning the
+  overlapping words at each seam, and the dispatcher's audio stage yields a part's plan and
+  windows for a layer above to transcribe. Its
+  [audio finding](https://github.com/JaimeStill/spike-ai-pipeline-processing/blob/main/docs/findings/audio.md)
+  records windowed transcription 2.6 to 3.4 times faster than one unsplit request and less
+  accurate on multi-speaker audio, and a gpt-oss pass over the seams making every run worse
+  (evidence 5). Its `media` package reads a live or recorded source through one ffmpeg run, a
+  reader, a file paced at real time or read unpaced, or an srt, rtmp, http(s), live HLS, or
+  udp URL, each run confined to its source's protocols, and streams cancellable events as they
+  arrive: audio windows cut at silences a noise-floor tracker finds as the samples come, and
+  frames taken at the first frame, at each scene change, and after 10 s without one. The
+  dispatcher's video stage yields a recorded video's frames and windows the same way. Its
+  [streams finding](https://github.com/JaimeStill/spike-ai-pipeline-processing/blob/main/docs/findings/streams.md)
+  records three videos read at real time with no window, frame, or request failed: each
+  window came once the stream passed its 30 s limit and was transcribed 0.8 to 4.6 s later,
+  each frame was described within 4 s, and the live transcript matched audio's file path
+  under the same detector (evidence 13).
 - **`spike-ai-pipeline-office`** is a command-line tool on Microsoft's Open XML SDK, published as
   NativeAOT binaries, that turns docx, xlsx, and pptx into a JSON document model and Markdown,
-  with chart data and embedded pictures in place of page images. Legacy .doc, .xls, and .ppt are
-  converted to OOXML first by LibreOffice in a container. No Go OOXML library is both well
-  supported and freely licensed across the three formats, and the .NET converters for the legacy
-  formats are unmaintained or paid.
+  with chart data and embedded pictures in place of page images. Its JSON model is a versioned
+  output contract (schema `1` at v0.1.0). Its Markdown is the document's text, complete without
+  inference, and its media blocks are the only content a higher layer may send to vision; it runs
+  no inference itself. It refuses legacy .doc, .xls, and .ppt, and processing's `office` package
+  converts them to OOXML through LibreOffice in a container before running it. No Go OOXML
+  library is both well supported and freely licensed across the three formats, and the .NET
+  converters for the legacy formats are unmaintained or paid.
 - **`spike-ai-pipeline-mail`** is a command-line tool in Rust, published as static musl binaries,
   that reads Outlook .pst stores through Microsoft's outlook-pst, .msg messages through its own
   MS-OXMSG reader over cfb, and .eml messages and mbox files through Stalwart's mail-parser into
@@ -135,9 +186,10 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   as stored plus HTML recovered from RTF and a Markdown body, and attachments. Processing builds
   the threads and routes each attachment to its stage. readpst (last released 2021) and libpff
   (alpha) were denied, no maintained Go or .NET .pst reader exists, and msg_parser reads no
-  embedded messages or threading fields beyond Message-ID. Two limits are known: .ost, which
-  outlook-pst doesn't read, is refused, and embedded messages in a .pst are listed without
-  content, since outlook-pst 1.2.0 can't read them. Its
+  embedded messages or threading fields beyond Message-ID. Its known limits: .ost, which
+  outlook-pst doesn't read, is refused; embedded messages in a .pst are listed without content,
+  since outlook-pst 1.2.0 can't read them; and every mbox is read as an mboxrd, so mboxcl's
+  Content-Length is ignored and an mboxo body line that was ">From " loses its ">". Its
   [mail-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-mail/blob/main/docs/findings/mail-cli.md)
   records the fields it recovers per kind and its time and memory per store (evidence 16).
 - **`spike-ai-pipeline-onenote`** is a command-line tool in Rust, published as static musl
@@ -146,10 +198,29 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   unmodified) into JSON Lines of one schema: the notebook, its sections, and each page at its
   latest revision, with its rich text, tables, a Markdown body, its images and embedded files,
   and its ink as recognized text and SVG strokes. It reads files only, never Microsoft 365.
-  Processing routes the pages' media to their stages (evidence 17). A reader of our own for
-  [MS-ONESTORE] was rejected, as were pyOneNote and Apache Tika, which give no document model.
-- **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts and the consumer check, and the
-  capstone: a backend on the layers and a web UI on experiment.html's stack. It takes messages,
+  Processing's `onenote` package runs it as a system tool, and its `dispatch` package carries
+  each page's images, embedded files, and ink to their stages (evidence 17). A reader of our own
+  for [MS-ONESTORE] was rejected, as were pyOneNote and Apache Tika, which give no document model.
+  Its known limits: password-protected sections are refused, since [MS-ONESTORE] leaves their
+  encryption undocumented; no OneNote-written .onepkg is tested; and onenote_parser issue #48 can
+  make a large OneDrive section with a long edit history need gigabytes of memory. Its
+  [onenote-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-onenote/blob/main/docs/findings/onenote-cli.md)
+  records every expected field recovered against the public fixtures' hand-written expectations,
+  and its time and peak memory per input. Processing's
+  [onenote finding](https://github.com/JaimeStill/spike-ai-pipeline-processing/blob/main/docs/findings/onenote.md)
+  records each medium routed to its real stage and vision reading page ink at a character error
+  rate of 0.028, against 0.68 for OneNote's stored recognition (evidence 17).
+- **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts, the consumer check, and two
+  CLIs. `docproc` runs processing's whole suite over an input set into a versioned run
+  directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
+  any configured workstation: every image to vision with reasoning off, every audio window to
+  transcription, joined per part by `audio.Join`, and every text and each input's metadata,
+  chunked, to embeddings. It writes a directory of its own, schema "1", the capstone's input. Its
+  [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
+  records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
+  28,937 chunk lines in 6.0 h, with 0 failures.
+- **The capstone**, planned for its own repository, is a backend on the layers and a web UI on
+  experiment.html's stack. It takes messages,
   uploads, and streams, and shows each stage as it runs. Its events go through go-messaging, an
   outbox in each stage's transaction relayed to JetStream. How the browser consumes them, NATS
   over WebSocket or a backend relay, is measured and decided at the capstone's plan round, since
@@ -157,18 +228,30 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequence interface at
   `./events.js` and its adapter at `./events/nats.js`, and cites spike-html-apps'
   NATS-over-WebSocket record, under "The answer" in its README. pgvector is a declared
-  native-tier extension, and the workspace's extension strategy is written from this case.
+  native-tier extension, and the workspace's extension strategy is written from this case. Its
+  planned storage serves AI-assisted processing and semantic search. Source blobs stay in blob
+  storage; the database holds what the stages derive from them, each stage's output a versioned
+  artifact (source blob hash → extraction → chunk → embedding) keyed by its input and
+  configuration hash (model, revision, prompt, parameters, chunker version), so a stage reruns
+  only when its input or configuration changes. Embeddings live in registered embedding spaces
+  (model, revision, dims, metric, normalization, prompt template, chunker), vectors partitioned
+  by space with one partial ANN index each. A model change adds a space and re-embeds the stored
+  chunks (blue/green, switched after a recall evaluation), a chunker change re-chunks, and only an
+  extractor change reruns inference. Translation between spaces is limited to truncation and
+  quantization within one model; a learned mapping only bridges a migration. To be settled
+  at the capstone's plan round.
 
 It reads tau, spike-harness-driver's `model` and `workflow`, herald, spike-model-hosting,
 spike-model-engines, and the members, as references, not implementations. Its decisions and
-evidence are in the spike's `context/README.md` and goal record.
+evidence are in the spike's `context/README.md` and findings, and in its goal record's last
+version in the root's history (the sync deleted the record).
 
-**Host.** gb10-2 is reserved for the spike from 2026-10-26, outside experiment.hosting's host set,
-and the spike's sessions keep it current (`ai-hosting.md`, "Hosts and access"). It serves set A
+**Host.** gb10-2 was reserved for the spike from 2026-10-26 until its docinfer task shipped,
+outside experiment.hosting's host set, and the spike's sessions kept it current (`ai-hosting.md`, "Hosts and access"). It serves set A
 from llama.cpp's router container and only serves models; the media tools run where processing
 runs. The Framework stays with experiment.hosting, whose Strix tasks swap its engine.
 
-**Gates.** The host, client, and processing tasks run now, on gb10-2. The capstone tasks wait for
+**Gates.** The host, client, and processing tasks are done, on gb10-2. The capstone tasks wait for
 those tasks and for the answers of four spikes: experiment.hosting's spike-model-engines,
 spike-model-layout, and spike-model-gateway, and experiment.html's spike-html-apps, whose layer
 releases the capstone's UI builds on. They don't wait for either experiment's intake. The spike
@@ -177,7 +260,13 @@ returns to `planned` in between.
 **Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
 processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. It is also
 the first case for the system-tools principle and the Postgres-extension strategy, which
-experiment.ai's intake carries forward.
+experiment.ai's intake carries forward. Evidence 5 bears on go-ai's layering. Processing prepares
+long audio, cutting windows at silences and releasing the join, and the layer above transcribes
+it and owns the inference guards: Gemma 4 E4B answered a short window with its own instruction,
+and the join can't tell that from speech. No LLM pass smooths the seams, since a gpt-oss pass
+over the seam words made every run worse. Windowing costs accuracy on multi-speaker audio (word
+error rate 0.298 against 0.258 unsplit on a 4-speaker meeting, 0.069 against 0.053 on an
+8-speaker call), so the intake weighs whether audio that fits one request goes unsplit.
 
 **Home.** `~/experiments/spike-ai-pipeline`, remote
 [JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its three

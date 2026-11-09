@@ -8,23 +8,56 @@
 # (standards-lab/context/web-client.md). Outside the exclusive group,
 # experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
 # answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active;
-# gateway and host-admin follow one at a time. experiment.ai.spike-ai-pipeline is active beside them for its
-# host, client, and processing tasks (ai-strategy.md, "Experiment: spike-ai-pipeline"); it returns to
-# `planned` until its capstone's gates clear. gb10-2 is reserved for it, so experiment.hosting
-# runs on gb10-1 and the Framework (ai-hosting.md, "Hosts and access"). experiment.ai's harness
-# spikes wait for
-# experiment.hosting's intake. The infrastructure libraries come before the data layer, and the data layer before auth by
+# gateway and host-admin follow one at a time. experiment.ai.spike-ai-pipeline is planned: its
+# host, client, and processing tasks and its docproc and docinfer CLIs are done (ai-strategy.md,
+# "Experiment: spike-ai-pipeline"), and gb10-2 is no longer reserved for it. experiment.ai's
+# harness spikes wait for experiment.hosting's intake. The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
 # their own repositories and run one at a time, in the order `planned` lists them.
 # spike-html-design, spike-html-conventions, spike-html-packages, and spike-html-apps have
 # answered (html-artifacts.md, "Answers · experiment.html"), and spike-html-hosting is active.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
+#
+# Direction for the next `marathon plan` session (the architect, 2026-11-07), which that session
+# reads and replaces: organize the experiments around what spike-ai-pipeline's capstone requires
+# and what can follow it, so the workspace can (a) finish the pre-capstone experiments; (b) ingest
+# and build out the standards-lab libraries and infrastructure that emerge from them to support the
+# capstone, with thorough reviews of what is promoted, so the code is optimally structured, aligns
+# with the architecture standards, and fits the ~/architecture workspace; (c) run the capstone
+# build itself; and (d) continue the ~/architecture marathon roadmap. Between (b) and (c), the
+# architect asks for appropriate time designing the protocols and practices that let the capstone
+# execute well (2026-11-09): the output formats of docproc's and docinfer's directories, settled at
+# the experiment's intake rather than in the spike; the chunk record and embedding spaces the
+# pgvector load reads; the choice between a page's text layer and its vision text (the docinfer
+# finding: two-column text layers interleave their columns, and 24 of 1,289 text-heavy pages came
+# back described); and the vision prompt and sampling. A first sort, as input: before the
+# capstone, spike-hosting-upgrades (active), spike-model-layout and spike-model-gateway (the
+# capstone's gates), an intake for spike-ai-pipeline alone, promoting go-ai's client and
+# processing (today experiment.ai's one intake waits on all four spikes, the harness spikes
+# included), and experiment.html's intake (the web client stack the capstone's UI needs); after
+# it, spike-scanned-documents (the OCR tier; the capstone runs on vision transcription without
+# it), spike-go-harness, spike-local-models, spike-host-admin, and spike-html-go-wasm. Decided: the
+# capstone lives in its own non-experimental repository under github.com/JaimeStill, not
+# spike-ai-pipeline's root and not an experiment (the architect, docinfer r6); the session sets it
+# up: its name, its goal, and the spike's capstone gates, evidence 7 and 15, and the capstone note
+# carried to it.
+#
+# Carried to that session: ai-strategy.md's "Gates" paragraph under "Experiment:
+# spike-ai-pipeline", which should say the capstone waits for the host, client, and processing
+# tasks and for spike-model-layout's and spike-model-gateway's answers, and that
+# spike-model-engines and spike-html-apps have answered and neither experiment's intake is a gate
+# (the architect, 2026-11-05); spike-scanned-documents' summary and the capstone's gate ordering;
+# and a spike-model-benchmarks goal, which doesn't exist yet: measure vision models on
+# spike-ai-pipeline-processing's committed scanned fixtures (document/testdata/scanned.pdf, ground
+# truth beside it) with a larger image-token budget than gemma-4-26B-A4B's default, a dense vision
+# model, and a lighter quantization than Q4_0, since Gemma 4 26B-A4B Q4_0 never read scanned page
+# 7's faded NOFORN, even on a 122-token 300-dpi tile, which points to the model, not resolution
+# (processing's docs/findings/documents.md; the architect, documents).
 
 active = [
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-hosting",
-  "experiment.ai.spike-ai-pipeline",
 ]
 
 planned = [
@@ -34,6 +67,7 @@ planned = [
   "experiment.ai.spike-scanned-documents",
   "experiment.ai.spike-go-harness",
   "experiment.ai.spike-local-models",
+  "experiment.ai.spike-ai-pipeline",
   "v1.client",
   "v1.ai",
   "v1.data",
@@ -394,8 +428,8 @@ name = "The AI experiments"
 summary = '''
 The spikes that settle the layers above hosting, which v1.ai and v1.harness build on: the Go
 model client and message, document, and stream processing first, then the harness, lowest
-priority. spike-harness-driver has answered. spike-ai-pipeline runs now, beside
-experiment.hosting, and spike-scanned-documents follows it on gb10-2; spike-go-harness and
+priority. spike-harness-driver has answered. spike-ai-pipeline has done its host,
+client, and processing tasks and is planned, and spike-scanned-documents follows it on gb10-2; spike-go-harness and
 spike-local-models run after experiment.hosting's intake. Then one combined intake.
 '''
 context = [
@@ -421,6 +455,9 @@ spike-ai-pipeline with its five layer repositories, spike-scanned-documents, spi
 spike-local-models. personal-agents is a
 reference, never archived by this intake.
 '''
+# For go-ai: a /models listing would be a helpful diagnostic function of the client library;
+# spike-ai-pipeline's docinfer reads /models itself on net/http, since client v0.4.0 has none
+# (docinfer r5 q5).
 
 [goals.experiment.ai.spike-ai-pipeline]
 name = "The model client and processing layers, proven by a pipeline"
@@ -441,14 +478,15 @@ go-elemental, carry a transactional, evented pipeline (metadata capture, inferen
 and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser follows
 stage by stage in real time? Six repositories: the client (`spike-ai-pipeline-client`), owned
 Go infrastructure over the engines' native APIs with a pluggable wire format (Chat Completions,
-then Anthropic Messages); the processing layer (`spike-ai-pipeline-processing`), which runs
+Anthropic Messages, and Open Responses); the processing layer (`spike-ai-pipeline-processing`), which runs
 mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
 (`spike-ai-pipeline-office`), a NativeAOT tool for office documents; the mail CLI
 (`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores, .msg messages, .eml
 messages, and mbox files; the OneNote CLI (`spike-ai-pipeline-onenote`), a static Rust tool for
-OneNote sections, packages, and notebooks; and the root, which holds
-gb10-2's host scripts and, once its gates clear, the capstone. It runs on gb10-2, reserved for
-it; the Framework stays with experiment.hosting. The host, client, and processing tasks run now;
+OneNote sections, packages, and notebooks; and the root, which holds gb10-2's host scripts and
+the docproc and docinfer CLIs; the capstone moves to its own repository (docinfer r6). It ran on gb10-2, reserved for
+it until docinfer shipped; the Framework stayed with experiment.hosting. The host, client, and
+processing tasks are done;
 the capstone tasks wait for those tasks and for the answers of spike-model-engines,
 spike-model-layout, spike-model-gateway, and spike-html-apps, not for either experiment's intake,
 and the spike returns to `planned` between. The capstone's UI builds on spike-html-apps'
@@ -457,280 +495,120 @@ foundation v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequ
 NATS-over-WebSocket record, under "The answer" in its README. Reads tau, spike-harness-driver,
 herald, spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client
 surface, the processing layer's home, v1.ai.local-models, and v1.ai's library and service
-tasks (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model is to change from
+tasks (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model changed from
 embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve EmbeddingGemma 2 on GB10
 (`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
 '''
 
-[goals.experiment.ai.spike-ai-pipeline.tasks.host]
-name = "gb10-2 serving set A"
-repos = ["spike-ai-pipeline"]
-summary = '''
-gb10-2 brought current, with root steps the architect's and the CDI spec regenerated; the three
-missing set A GGUFs downloaded with `hf` (gemma-4-26B-A4B-it Q4_0, gemma-4-E4B-it Q8_0,
-embeddinggemma-2 Q8_0); llama.cpp's router container (server-cuda13-b11669) serving set A, loading
-models on demand, from spike-model-engines' llama.cpp scripts copied into the root with their
-source commit; `mise run host-update` for every session's start; and a probe across every
-capability that also records `/v1/responses` support and whether transcription returns
-timestamps.
-'''
-proof = "`mise run integration` in the root passes against gb10-2 for chat, vision, audio, embeddings, and transcription."
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.client-core]
-name = "The model and the Chat Completions format"
-repos = ["spike-ai-pipeline-client"]
-summary = '''
-The stable request and response model, the Config (base URL, query, token source, the caller's
-http.Client), the Format interface and the Chat Completions format; unstreamed chat with text,
-image, and audio parts, tools with tool_choice, structured output, and reasoning returned and
-sent back; embeddings and transcription; the members' CI pair. Tags client v0.1.0. Evidence 1, 3.
-'''
-proof = "The integration tier passes against set A on gb10-2, and v0.1.0 is released."
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.host-scripts]
-name = "gb10-2's scripts re-copied under host/"
-repos = ["spike-ai-pipeline"]
-summary = '''
-After spike-model-engines' host-rename merges: re-copy its llama.cpp scripts byte-identical from
-that merge commit into the root's `host/` (renamed from `engines/`), update the root's references
-and its README's diff check, and rebuild gb10-2's router with llama's update so its preset mount
-names the new path.
-'''
-proof = "The README's diff check against host-rename's merge commit prints nothing, and gb10-2's router answers set A on 8080."
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.client-streaming]
-name = "Streaming"
-repos = ["spike-ai-pipeline-client"]
-summary = '''
-An in-house SSE decoder to the full spec, typed deltas as an iter.Seq2 with an accumulator that
-folds them into the final response, cancellation, and the opt-in retry policy. Tags client
-v0.2.0. Evidence 1.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.client-messages]
-name = "The Anthropic Messages format"
-repos = ["spike-ai-pipeline-client"]
-summary = '''
-The Anthropic Messages format beneath the same request and response model, with its typed SSE
-events and thinking blocks, proven against the router's `/v1/messages`. Tags client v0.3.0.
-Evidence 2.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.tools]
-name = "The tool contract"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-The tool contract with its exec runner (binaries, and scripts through their interpreter) and
-container runner (a pinned image per invocation), binary discovery, version checks at
-construction, context cancellation, and the CI pair. Tags processing v0.1.0. Evidence 14.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.documents]
-name = "PDF pages through vision"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-The renderer bake-off (pdftoppm, pdftocairo, gs, vips, and magick over gs) behind the page-renderer
-interface; ImageMagick as the image tool and image-correction stage; a PDF's pages through vision
-as a whole blob and as a page stream. Tags processing v0.2.0. Evidence 4, 11.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.office-cli]
-name = "The Open XML CLI"
-repos = ["spike-ai-pipeline-office"]
-summary = '''
-docx, xlsx, and pptx to the JSON document model and its Markdown rendering through the Open XML
-SDK, with chart series and embedded media written out; NativeAOT binaries for linux-x64 and
-linux-arm64; CI and release; the baseline against markitdown and xberg. Tags office v0.1.0.
-Evidence 12.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.office]
-name = "Office documents in processing"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-The adapter over the Open XML CLI, and legacy .doc, .xls, and .ppt converted to OOXML by
-LibreOffice headless on the container runner. Tags processing v0.3.0. Evidence 12.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.mail-cli]
-name = "The mail CLI"
-repos = ["spike-ai-pipeline-mail"]
-summary = '''
-Outlook .pst stores ([MS-PST]) through Microsoft's outlook-pst, and .msg messages through the
-CLI's own MS-OXMSG reader over cfb, both MIT, to JSON Lines of schema "1": the folder tree, each
-message in the folder it is stored in, with headers, bodies, and threading fields (Message-ID,
-In-Reply-To, References, conversation topic and index) as stored and no thread grouping. Bodies
-as stored (text, HTML, RTF decompressed), plus derived ones: HTML recovered from RTF
-(MS-OXRTFEX) and Markdown through htmd. Attachments written out by SHA-256; embedded messages
-nested in a .msg, and in a .pst listed without content, a known limit (outlook-pst 1.2.0 can't
-read them). .ost is refused with a reason, a known limit. Static musl binaries for linux-x64
-and linux-arm64; CI and release; fixtures public and generated on Linux from .eml sources.
-Tags mail v0.1.0. Evidence 16.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.email]
-name = "Outlook mail in processing"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-Package `email`: the adapter over the mail CLI at v0.1.0, pinned from its release through mise
-and run by the exec runner, streaming schema "1" records from a pipe as typed Go values, with
-mail's warnings and exit codes as errors. Threads rebuilt across folders by RFC 5256's
-REFERENCES algorithm, with a message that names no parent taking its conversation index's
-parent. Each attachment's route named by its content's signature (PDF to document, OOXML and
-legacy office to office, PNG, JPEG, GIF, and BMP to vision, TIFF, EMF, and WMF to vision through
-office's ConvertPicture, now exported, embedded and by-value .msg nested, anything else
-unrouted) for the caller to run, proven against the real stages in the integration tier. A
-findings tier scores threads and routes over mail's fixtures and times the adapter on plaso's
-store and a 2.1 GB generated store. Tags processing v0.4.0. Evidence 16.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.mail-mime]
-name = "MIME mail in the mail CLI"
-repos = ["spike-ai-pipeline-mail"]
-summary = '''
-.eml messages and mbox files read into schema "1", additively, through Stalwart's mail-parser
-1.0.1 (Apache-2.0 OR MIT, feature full_encoding). An .eml is accepted by an RFC 5322
-header-shape check (its first line a field, a From or Date field in its header block); anything
-else exits 3. mbox: mboxrd read, mboxo read with the >From caveat, mboxcl and mboxcl2 a known
-limit (Content-Length ignored); a store line, then the messages with no folder line, each
-message's id its 1-based ordinal in the file. Nested message/rfc822 parts parsed. Parts
-labelled US-ASCII or ISO-8859-1 decoded as WHATWG windows-1252. Thread-Index and Thread-Topic
-into conversation_index and conversation_topic; Importance, X-Priority, and Sensitivity into
-importance and sensitivity. Fixtures: mail's 8 generated .eml with truth.json, a generated
-mboxrd from them, a generated .eml carrying Thread-Index and Thread-Topic, and Apache James
-mime4j's mbox.rlug with its expected splits. Rejected: mailparse 0.18 (no mbox, no nested
-parse), mbox-reader (unmaintained), and Go in processing (the standard library decodes few
-encoded-word charsets, reads no mbox, and would duplicate mail's SHA-256 naming and Markdown).
-Tags mail v0.2.0. Evidence 16.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.email-mime]
-name = ".eml and mbox in processing"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-Package `email` over mail v0.2.0: the pin and MailMinimum raised, the fixtures refreshed (`mise
-run fixtures:mail`), and threads and routes over the .eml and mbox fixtures. A by-value .eml
-routes as nested, by extension .eml or type message/rfc822 plus mail's header-shape check, an
-exception to the signature rule (mail's 08-forward .msg carries one, unrouted at v0.4.0). The
-email finding gains an addendum; the known-limit text in README, CHANGELOG, email/doc.go, and
-route.go is updated; the root's evidence 16 gains its sentence. No Reader or Request API change.
-Tags processing v0.5.0. Evidence 16.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.onenote-cli]
-name = "The OneNote CLI"
-repos = ["spike-ai-pipeline-onenote"]
-summary = '''
-OneNote .one sections (desktop OneNote 2016 and later, and OneDrive downloads), .onepkg exports,
-and notebook directories through their .onetoc2, read through onenote_parser 2.1 (MPL-2.0, used
-unmodified) to JSON Lines of schema "1": the notebook, its section groups and sections, and each
-page at its latest revision, the recycle bin skipped with a warning. A page's outlines as rich
-text with hyperlinks, lists, tables, math, and note tags, plus a Markdown body; images and
-embedded files written out by SHA-256; ink as its recognized text and its strokes as SVG. Files
-only, never Microsoft Graph. Static musl binaries for linux-x64 and linux-arm64; CI and release.
-Fixtures: onenote.rs's MIT samples, never its AGPL ones, and a notebook the architect authors in
-OneNote, in both variants, with hand truth. Rejected: an [MS-ONESTORE] reader of our own; a mail
-subcommand; pyOneNote and Apache Tika, which give no document model. Tags onenote v0.1.0.
-Evidence 17.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.onenote]
-name = "OneNote notebooks in processing"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-Package `onenote`: the adapter over the OneNote CLI at v0.1.0, pinned from its release through
-mise and run by the exec runner, streaming its records as typed Go values; pages to Markdown;
-images and embedded files routed by email's signature routes, and ink's SVG to vision through
-magick, for the caller to run, proven against the real stages in the integration tier; a finding.
-Tags processing v0.6.0. Evidence 17.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.gb10-2-align]
-name = "gb10-2 aligned with gb10-1"
-repos = ["spike-ai-pipeline"]
-summary = '''
-gb10-2 brought in line with gb10-1 from verify-gb10's report
-(spike-hosting-upgrades/docs/findings/gb10-2-upgrade.md): the routing check before and after;
-gb10-2's DHCP connections listed (the session, no root); their DHCP hostname send stopped, and
-the router's leases cleared only if a gb10-2.lan record remains (the architect, root). The
-root's scripts read the per-class pins first (`scripts/host-update-lib.sh`'s clone_router_state
-and `scripts/currency.sh`, on LLAMA_BUILD_GB10 and LLAMA_REPOSITORY), then `host/` is re-copied
-from the merge commit of spike-model-engines' verify-gb10 pull request, moving llama.cpp from
-b11669 to b12063, gb10-1's adopted pin. The architect overruled the 4-stream ASR regression:
-"outside of legitimate broken behavior, we should prioritize staying on the latest version."
-Gated on that merge and on the architect's root steps on gb10-2 (apt update and upgrade, the CDI
-spec regenerated, a reboot if asked). Ends the email decision that held llama.cpp at b11669.
-'''
-proof = "host/README.md's diff check against verify-gb10's merge commit prints nothing, gb10-2's /props reads b12063, and the routing check passes."
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.audio]
-name = "Audio past the model's limit"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-ffmpeg and ffprobe adapters; windows cut at silences under 30 s with overlap, transcribed
-concurrently within set A's audio slots, and joined at the seams. Long sources: the AMI
-Meeting Corpus (CC BY 4.0), Earnings-21 and -22, and LibriSpeech's original MP3s. Tags processing
-v0.7.0. Evidence 5.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.streams]
-name = "Live media and chat streams"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-Live or real-time-paced audio and video through ffmpeg, audio windows transcribed as they arrive
-and video frames sampled to vision, plus chat streams through processing, all as cancellable
-events. Chat streams include chat exports, generated synthetically in each tool's real export
-format, since no openly licensed dataset exists. Tags processing v0.8.0. Evidence 6, 13.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.formats]
-name = "Further formats in processing"
-repos = ["spike-ai-pipeline-processing"]
-summary = '''
-Known solutions on the existing stages: ODF and RTF through LibreOffice to office; HEIC, WebP,
-and AVIF to PNG for vision; multi-page TIFF split to pages; encrypted PDFs detected and refused;
-PDF forms and embedded files; zip archives recursed within size and depth limits; Skype for
-Business conversation history archived in a PST (IPM.Note.Microsoft.Conversation and
-IPM.Note.Microsoft.Missed items from Exchange's Conversation History folder) through the mail CLI
-and the email package as conversation records, its fixture authored in Outlook or generated, since
-no open sample is known (evidence 6). Tags processing v0.9.0; the spike then returns to `planned`
-until the capstone's gates clear.
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.docproc]
-name = "docproc: the processing suite over an input set"
-repos = ["spike-ai-pipeline"]
-summary = '''
-A CLI in the root, `docproc`, on go-cli-sdk v0.2.0, that runs every processing v0.9.0 stage over
-an input set such as ~/docs, with no inference, the processing library's own boundary. The root
-wires all ten routes over its own mise pins (office, mail, onenote, 7zz) and the host's gs,
-magick, qpdf, pdfdetach, ffmpeg and docker; a missing tool leaves its stage out, listed. It
-dispatches through processing's pool (NumCPU workers by default) and a file index a re-run
-reuses, captures each file's metadata (name, path, size, mode, modified and, through statx,
-created time; signature kind, route and sniffed MIME), and writes a run directory, a versioned
-contract (schema "1"): outputs stored once by content, a JSON Lines record of every event, and a
-static HTML report. A finding records a run over ~/docs. No tag. It presents the processing layer
-and is docinfer's input.
-'''
-proof = "The check passes, and docs/findings/docproc.md records docproc over ~/docs."
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.docinfer]
-name = "docinfer: a docproc run through any workstation's models"
-repos = ["spike-ai-pipeline"]
-summary = '''
-A second CLI in the root, `docinfer`, that reads a docproc run directory and sends its outputs
-through spike-ai-pipeline-client v0.4.0 to any workstation its go-core layered config names (named
-endpoints per capability, models checked against /models), not gb10-2's set A alone: vision on
-every image output, transcription of audio windows joined by audio.Join, and, centrally,
-embeddings of every text, Markdown, vision text and transcript, plus one metadata text per input,
-split by a structure-aware chunker. Each chunk is one JSON line with its text, span, the input's
-metadata, and a base64 float32 vector, ready for the capstone's pgvector load. Results go to its
-own versioned directory (schema "1") with an HTML report; a re-run skips held results. A fake
-server covers the hermetic check and a configured workstation the integration tier; a finding
-records a run through set A. No tag. The spike then returns to `planned` until the capstone's
-gates clear.
-'''
-proof = "The check passes, and the root's finding records docinfer through set A on gb10-2."
+# Notes on experiment.ai.spike-ai-pipeline, for the plan session that takes it up.
+#
+# For the capstone's own goal (the plan session carries these to it):
+# - Metadata (the architect, docproc r4 q6): plan compositional metadata structures that extend
+#   docproc's base file metadata per format (PDF, office, mail, OneNote, media), and decide where
+#   authoritative metadata capture lives: the web layer, the processing layer, or elsewhere.
+#   docproc's schema "1" metadata and docinfer's chunk records are the input the capstone's
+#   pgvector load reads.
+# - Text layer or vision (docinfer): whether to skip vision on a page with a text layer. The
+#   docinfer finding's text-layer comparison is the evidence for a skip rule: where a layer holds
+#   the page, vision repeats it (median word recall 0.91 to 1.00); vision rescued 49 pages with a
+#   thin layer and 61 with none; and 24 of 1,289 text-heavy pages came back described instead of
+#   transcribed. A skip rule must tell a thin layer from a whole one. The finding also recommends
+#   a stricter vision prompt ("Transcribe all the text in this picture, word for word, in reading
+#   order. Do not summarize or describe text…") and a lower temperature against described pages.
+#
+# Backlog:
+# - ODF, WordPerfect, .xlsb, and ODG still report "no processor yet", and legacy OLE2 macros go
+#   unflagged; the architect judged them unlikely on the deployment's share drives (formats r1).
+#   Text encoding detection (uchardet named 10 of 11 sample encodings) is revisited if the
+#   windows-1252 fallback misreads many files (formats r3).
+# - rtsp sources in processing's `media` need an rtsp server, such as MediaMTX in a container, as
+#   the integration tier's loopback sender, since ffmpeg 9.0.2's rtsp listener fails (streams r2
+#   q1).
+# - Capture devices in processing's `media`: v4l2loopback, a kernel module the architect loads as
+#   root, is the camera test seam. On Wayland, as on the architect's Omarchy laptop, which has no
+#   X11, ffmpeg has no screen input: a portal capture tool such as gpu-screen-recorder streams the
+#   screen to a URL or the reader, and pw-record feeds audio; x11grab applies only to X11 hosts.
+#   The container runner would need device passthrough, the device's group, and socket mounts
+#   (streams r2 q2).
+# - An authored OneNote notebook, committed to spike-ai-pipeline-onenote with hand truth from
+#   onenote-cli's round 2 authoring spec, needs desktop OneNote on Windows or a Mac, since OneNote
+#   for the web can neither download nor export a notebook (onenote r6 q1).
+#
+# By repository:
+# - spike-ai-pipeline (the root):
+#   - host-update could detect a running llama container with no published port (or no network)
+#     and print the fix, instead of waiting out its 120 s health check.
+#   - Once spike-model-engines' gb10 pin reaches the root's (its screen branch, at 4d5e114, sets
+#     b12098), re-copy host/ from that merge commit so llama.env is a copy again.
+#   - Its next task: STANDARDS.md applies cli-applications.md to docproc and domain-files.md to
+#     docproc's command packages only; say whether docinfer's packages follow both too.
+# - spike-ai-pipeline-client, its next task: its CI trails jdx/mise-action v5.2.4 -> v5.2.7 and
+#   taiki-e/create-gh-release-action v1.11.0 -> v1.12.0.
+# - spike-ai-pipeline-processing:
+#   - ClamAV could become an `inspect` check; v0.6.0 excludes it (onenote r6 q4).
+#   - The `tool` package could bound every run's memory. The OneNote CLI's memory is unbounded:
+#     onenote_parser issue #48 (a 375 MB OneDrive-format section needs over 9 GB) didn't show on
+#     the 161 MB Large OneDrive.one, which peaks at 135 MiB, but bounds what a large, long-edited
+#     section can need (onenote-cli finding; processing's onenote finding, "Known limits").
+#   - The email `Threader` holds about 60 bytes a message for the whole read, about 60 MB past a
+#     million messages; spilling its keys to disk would bound it.
+#   - A bare RFC 822 file with no extension is unrouted, since the nested route needs an .eml name
+#     or a message type.
+#   - `Encryption.one`, a password-protected section, is reported failed rather than encrypted,
+#     since the OneNote CLI gives no encryption signal; a signal from onenote, or an inspect check
+#     for OneNote encryption, would make it Encrypted.
+#   - Backlog: inspect exports no options check, so dispatch's bombRule validates its options
+#     through `inspect.CheckListing(route.Zstd, 0, nil, opts)`. An exported check would replace
+#     the indirect call.
+#   - Its next task: its README's adapter convention could name the root's docproc as the shipped
+#     composition root, since every wiring in the repository is a test's.
+#   - Its next task: a PDF whose form read fails (qpdf refuses a field whose value is an indirect
+#     reference, as in ~/docs' cfr-2024-title32-vol1.pdf) fails the whole document part after its
+#     pages render, so the index never records it and every docproc re-run renders its 1,823 pages
+#     again (docproc finding). A failed form read could be a warning beside the pages.
+#   - Its next task: the audio stage's windows each run an ffmpeg that decodes the source from its
+#     start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every other input
+#     finished in 332 s (docproc finding). Seeking per window, or one decode streamed into
+#     windows, would bound it.
+# - spike-ai-pipeline-office:
+#   - Its next task: fixtures/README.md calls slide-objects' pictures "beside another", but
+#     generate.py places both of slide 3's at one default position, so the blue square covers the
+#     red; say so, or place them apart. office's README should state the limit processing now
+#     records: pictures are listed with no layout, so a covered, off-slide, or cropped-away
+#     picture is still a media block.
+#   - office could write a huge workbook sheet by sheet, since it reads a whole document into its
+#     model before writing it.
+# - spike-ai-pipeline-mail:
+#   - Its next task: the static musl release binary takes 2.0 to 2.3 times a glibc build's time on
+#     large stores (13.27 s against 6.51 s on the 2.1 GB scale store at v0.1.0, 14.82 s against
+#     6.88 s at v0.2.0) and 1.7 times on the 2.7 GB scale mboxrd (6.86 s against 4.09 s). Its
+#     system time (3.2 s against 0.7 s on the store at v0.1.0, 2.6 to 2.8 s against 1.0 s on the
+#     mboxrd) points at musl's allocator (docs/findings/mail-cli.md, "The release binary against a
+#     glibc build" and ".eml and mbox"); measure a replacement allocator if processing's email
+#     runs find the time matters.
+#   - Its next task: its .claude/marathon.toml still says "No CI runs yet" and merges without
+#     waiting on checks, though its CI runs; office and onenote chain `gh pr checks --watch` before
+#     the merge (onenote-cli).
+#   - mail caps a .msg's nesting at 16 levels; raise or lift the cap if real stores nest deeper.
+# - spike-ai-pipeline-onenote: OneNote section decryption waits for a specification or an open
+#   implementation, since [MS-ONESTORE] 2.5.19 leaves the scheme undocumented (onenote-cli,
+#   round 2 q7).
+#
+# For `marathon retro` (architecture candidates):
+# - "Follow the spec wherever possible", the architect's standing rule for the client
+#   (client-streaming), may belong in STANDARDS.md or the architecture layer as a standard.
+# - processing's STANDARDS.md says a mature tool is never reimplemented in Go, and audio's
+#   `Tracker` is the recorded exception, its reason in `audio/doc.go` (streams r2 q3). Should the
+#   standard name it, so later reviews don't flag it?
+# - processing's findings cite the goal record (`context/goals/…`), which sync deletes; the links
+#   break once the spike syncs.
+# - mail's fixture generator rewrites every output on each run (random GUIDs, MsgKit timestamps),
+#   so keeping an unchanged output's committed bytes takes a manifest edit its "never edit" note
+#   forbids (formats kept v0.3.0's bytes by script). Should the generator keep unchanged outputs,
+#   or the note allow the edit?
+# - Agent shells resolve Arch's /usr/bin/rustc and /usr/bin/dotnet ahead of mise's tools, which
+#   broke mail's check and fixtures task in formats; a scratch PATH of rustup proxies worked
+#   around it.
 
 # Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
 # until the capstone needs it (plan, 2026-11-03).
@@ -789,8 +667,8 @@ summary = '''
 Six spikes that settle how the workstations (the Framework and the two GB10s) serve local
 models: spike-model-hosting's Framework baseline, then engines, hosting-upgrades, layout,
 gateway, and host-admin, one at a time; then one intake. Serves v1.ai.hosting. From 2026-10-26
-its hosts are gb10-1 and the Framework; gb10-2 is reserved for experiment.ai.spike-ai-pipeline
-and borrowed only as a task brief names (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
+its hosts are gb10-1 and the Framework; gb10-2 was reserved for experiment.ai.spike-ai-pipeline
+until its docinfer task shipped (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
 (`ai-hosting.md`, "Experiment: experiment.hosting"): one new tool per task, explained in its brief
 and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
 task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
@@ -804,6 +682,10 @@ current, and only same-session cells compare, with an anchor cell rerun for any 
 sessions.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
+# For spike-model-engines' host/ (from spike-ai-pipeline): its copied scripts publish the llama
+# container's port on the host's Tailscale address, which races Tailscale at boot and strands the
+# container with no published port; gb10-2 sets `net.ipv4.ip_nonlocal_bind = 1` so the bind
+# succeeds first (`ai-hosting.md`, "Hosts and access").
 
 [goals.experiment.hosting.tasks.intake]
 name = "The hosting intake"
@@ -829,7 +711,7 @@ How are models placed across the three workstations' memory pools to make the be
 and what context and how many concurrent sessions does each placed model hold? Validates context
 x sessions per model with one pinned standard load tool in agreed, capped runs; weighs role
 placement across hosts behind a session-sticky gateway against a full set on each host; two-node
-GB10 serving over QSFP only if the layout needs it, borrowing the reserved gb10-2 as its task
+GB10 serving over QSFP only if the layout needs it, using gb10-2 as its task
 brief names (`ai-hosting.md`, "Hosts and access"); weighs serving models on demand, where an
 engine loads none itself, against keeping them resident; llama-swap in front of vLLM is the
 existing tool (drives Docker, ships arm64 builds) (spike-model-engines, the vLLM guide). Decides
@@ -838,8 +720,8 @@ spike-model-hosting's memory budget, slot sweep, and pool document. Weighs the a
 2026-10-30: split hosts by role, with one GB10 for the agent model alone (about 49 GiB of KV after
 weights and headroom, roughly 10 concurrent 128K sessions by estimate), the second GB10 or the
 Framework for the capability models (vision, audio, embedding), and the remaining workstation
-routing overflow. Open points: gb10-2 is reserved for spike-ai-pipeline and becomes available to
-the layout spike once that goal completes; the routing layer; and whether the capability host's
+routing overflow. Open points: gb10-2, reserved for spike-ai-pipeline until its docinfer task
+shipped, is available to the layout spike; the routing layer; and whether the capability host's
 backend changes which builds pass the floor. Also weighs hosting the agent model alone on vLLM for
 concurrent-session throughput: on gb10-1, gpt-oss-120b on vLLM v0.32.0 gave 34.0 tok/s at 1 stream
 against llama.cpp's 50.0, and 168.2 against 129.0 at 16 (spike-hosting-upgrades, gb10-1 report
@@ -849,6 +731,13 @@ lead), beside llama.cpp's 210.5 for Gemma's QAT section in gb10-1's sweep; and a
 maintainer notes it "mostly optimizes upto 8 parallel sequences at the moment" (#31711)
 (spike-hosting-upgrades, `docs/screens/gb10-1/2026-11-05.md`, "Research read 2026-11-05").
 '''
+# Inputs to sizing set A's slots, from spike-ai-pipeline-processing's findings:
+# - Vision (documents finding, the architect): gemma-4-26B-A4B's image-token budget on gb10-2, the
+#   model's default --image-max-tokens, is about 477 tokens a page; image tokens follow an image's
+#   area at about 2,100 to 2,400 pixels a token. Those measurements were on ggml-org's Q4_0 weights
+#   with mmproj-gemma-4-26B-A4B-it-Q8_0, not Google's QAT Q4_0, which gb10-2 now serves.
+# - Audio (audio finding): on gb10-2's E4B Q8_0, a 10-minute 16 kHz mono WAV is 15,028 input
+#   tokens through `/v1/audio/transcriptions`, against its 32,768-token context.
 
 [goals.experiment.hosting.spike-model-gateway]
 name = "Routing and access across the model pool"
