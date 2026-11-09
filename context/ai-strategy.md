@@ -343,6 +343,99 @@ whoever publishes the fine-tune.
 
 ## Answers · experiment.ai
 
+### Answer · experiment.ai.spike-ai-pipeline
+
+**Question:** Can a Go model client and a message, document, and stream processing layer, built
+under go-elemental, carry a transactional, evented pipeline (metadata capture, inference
+extraction, and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser
+follows stage by stage in real time?
+
+**Answer:** Yes for the two layers it kept: a standard-library Go client over three wire formats
+and a processing layer of owned system-tool adapters carried every image, audio window, and text
+prepared from a real share, ~/docs, through vision, transcription and embeddings with no request
+failed; the transactional, evented pipeline in pgvector and the browser that follows it moved,
+unproven, to capstone.data-intelligence.
+
+The items keep the spike's own evidence numbers.
+
+**1.** The client: chat with tools and a reasoning round trip, streamed and unstreamed, vision,
+audio input, embeddings, and transcription each pass against set A; its retry policy is proven
+only by tests. docinfer ran 3,470 images, 1,254 audio windows, and 28,937 chunk lines of ~/docs
+through it in 21,634 s, 0 of 6,172 requests failed. Proven by the client's integration tier
+(b11669) and a running demo, docinfer over ~/docs (b12098, 2026-11-08).
+
+**2.** Anthropic Messages and Open Responses fit under Chat Completions' request and response model
+with no change to callers; the router drops some hints: `/v1/messages` reasoning effort, structured
+output's schema, `strict`, and the `none` tool choice; `/v1/responses` `text`. Proven only by tests:
+the client's integration tier (b11669, 2026-10-27 and 2026-10-28).
+
+**3.** The client's base module is standard library only. Proven only by the check: a strict
+depguard rule over every Go file.
+
+**4.** A PDF's pages go through vision whole and as a page stream; Ghostscript wins the renderer
+bake-off (0.126 s a page, 27 MiB of memory), run as a separate program since it is AGPL, and the
+model reads with reasoning off; page 7's NOFORN marking is read on no build. Proven only by tests:
+processing's integration and bake-off tiers (b11669, 2026-10-29 and 2026-10-30).
+
+**5.** Mixed: long audio cut at silences and transcribed in windows is 2.6 to 3.4 times faster
+than one unsplit pass, but less accurate on many speakers (word error rate 0.298 against 0.258 on
+a 4-speaker meeting); the gpt-oss seam pass is falsified, making every run worse. Proven only by
+tests: processing's findings tier (b12098, 2026-11-05 and 2026-11-06).
+
+**6.** Skype for Business conversation history in a PST passes through as conversation records,
+each of 4 equal to the hand truth. Fixture only: the PST is generated, its transcript HTML
+invented, and no real store read. Proven only by processing's findings tier (2026-11-07, no
+model).
+
+**9.** The dependency runs one way, processing to client: processing imports the client only in
+test code and runs no inference; the root's docinfer imports both. Proven by the check, whose
+depguard rule keeps the client from importing anything but the standard library, and by
+docinfer's running demo (item 1); processing's rule allows the client anywhere, so the test-only
+import is how processing v0.9.0 stands, not a rule. Where the layer lives is experiment.ai's
+intake's decision.
+
+**11.** ImageMagick's corrections don't help vision reliably: which help and which hurt flips with
+the DPI and the build. Proven only by tests: processing's bake-off tier (b11669, 2026-10-29 and
+2026-10-30).
+
+**12.** The Open XML CLI keeps 1,768 of 1,768 elements where markitdown and xberg lose most, at a
+17.2 ms median from a 28.80 MiB binary; LibreOffice's legacy round trip loses structure in .doc, a
+little in .xls, nothing in .ppt, from a 1.02 GB container. Proven by office's bench (2026-10-31,
+no model) and processing's integration tier (b11669, 2026-11-02).
+
+**13.** Live media is processed as it arrives: three videos read at real time with no window,
+frame, or request failed, each window transcribed 0.8 to 4.6 s after it is yielded, and a
+cancellation stops the stream within 0.5 s. Proven only by tests: processing's findings tier's
+paced runs (b12098, 2026-11-06).
+
+**14.** One tool, ffprobe, runs through the exec and container runners under the same contract;
+docproc wired all ten stages over ~/docs, 515 of 592 inputs prepared and 4 failed. Proven by
+processing's integration tier and a running demo, docproc over ~/docs (2026-11-07, no model).
+
+**16.** The mail CLI recovers every stored field of the generated fixtures' truth (147 of 180, 33
+not stored, none wrong) and reads a 2.1 GB store in 13.27 s; the adapter places 11 of 11 messages
+under the parent the hand truth gives and routes 51 of 51 attachments. Proven by mail's bench
+(from 2026-11-03, no model) and processing's findings and integration tiers (b11669, 2026-11-03
+and 2026-11-04).
+
+**17.** The OneNote CLI recovers every expected field of the public fixtures (236 of 236 over the
+sections) and reads a 161 MB section in 0.24 s; vision reads a page's ink at a character error
+rate of 0.028 against 0.68 for OneNote's own recognition. No authored notebook exists, so no
+authored hand truth. Proven by onenote's bench (2026-11-04, no model) and processing's findings
+tier (b11669, 2026-11-05).
+
+Moved to capstone.data-intelligence, not failed: 7 (the transactional pipeline into pgvector,
+its events and UI), 8 (the client through a gateway), 10 (pgvector as a native-tier extension),
+15 (the browser's consumption of the events), and the gates, spike-model-layout's and
+spike-model-gateway's answers, which join the capstone's own (`data-intelligence.md`, "Evidence"
+and "Gates").
+
+Architect's input to the intake, not a spike finding: the architect expects the processing
+library and its tools to become supplemental repositories, like sqlate and blobfs.
+
+[The answer](https://github.com/JaimeStill/spike-ai-pipeline#the-answer) ·
+[spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline)
+
 ## Answers · experiment.ocr
 
 ## Answers · experiment.harness

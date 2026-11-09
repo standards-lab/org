@@ -9,7 +9,8 @@
 # gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
 # experiment.html's spike-html-design, spike-html-conventions, spike-html-packages, and
 # spike-html-apps have answered (html-artifacts.md, "Answers · experiment.html"), and
-# spike-html-hosting is active. experiment.ai.spike-ai-pipeline is active for its `answer` task.
+# spike-html-hosting is active. experiment.ai's spike-ai-pipeline has answered (ai-strategy.md,
+# "Answers · experiment.ai"), and its intake is next.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
@@ -40,7 +41,6 @@
 active = [
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-hosting",
-  "experiment.ai.spike-ai-pipeline",
   "graph-ergonomics",
 ]
 
@@ -579,59 +579,11 @@ lands the workspace's Postgres-extension strategy from spike-ai-pipeline's pgvec
 promotes the system-tools principle (`system-tools.md`) to a go-elemental page. go-ai and the
 tool repositories stay outside the exclusive group until wave C ends. Its one coordinator pull
 request writes those tasks and removes the experiment; it then archives spike-ai-pipeline with
-its five layer repositories. The layer repositories' notes under spike-ai-pipeline's table are
-its input.
+its five layer repositories. The notes on spike-ai-pipeline below this table are its input.
 '''
 # For go-ai: a /models listing would be a helpful diagnostic function of the client library;
 # spike-ai-pipeline's docinfer reads /models itself on net/http, since client v0.4.0 has none
 # (docinfer r5 q5).
-
-[goals.experiment.ai.spike-ai-pipeline]
-name = "The model client and processing layers, proven by a pipeline"
-root = "spike-ai-pipeline"
-repos = [
-  "spike-ai-pipeline",
-  "spike-ai-pipeline-client",
-  "spike-ai-pipeline-processing",
-  "spike-ai-pipeline-office",
-  "spike-ai-pipeline-mail",
-  "spike-ai-pipeline-onenote",
-]
-remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
-path = "~/experiments/spike-ai-pipeline"
-summary = '''
-Can a Go model client and a message, document, and stream processing layer, built under
-go-elemental, carry a transactional, evented pipeline (metadata capture, inference extraction,
-and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser follows
-stage by stage in real time? Six repositories: the client (`spike-ai-pipeline-client`), owned
-Go infrastructure over the engines' native APIs with a pluggable wire format (Chat Completions,
-Anthropic Messages, and Open Responses); the processing layer (`spike-ai-pipeline-processing`), which runs
-mature system tools through adapters it owns (`system-tools.md`); the Open XML CLI
-(`spike-ai-pipeline-office`), a NativeAOT tool for office documents; the mail CLI
-(`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores, .msg messages, .eml
-messages, and mbox files; the OneNote CLI (`spike-ai-pipeline-onenote`), a static Rust tool for
-OneNote sections, packages, and notebooks; and the root, which holds gb10-2's host scripts and
-the docproc and docinfer CLIs. It ran on gb10-2, reserved for it until docinfer shipped; the
-Framework stayed with experiment.hosting. The host, client, processing, and docinfer tasks are
-done. The capstone moved to its own goal, capstone.data-intelligence, with evidence 7, 8, 10, and
-15 and the gates (plan, 2026-11-09; `data-intelligence.md`). Reads tau, spike-harness-driver,
-herald, spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client
-surface, the processing layer's home, v1.ai.local-models, and v1.ai's library and service
-tasks (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model changed from
-embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve EmbeddingGemma 2 on GB10
-(`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
-'''
-
-[goals.experiment.ai.spike-ai-pipeline.tasks.answer]
-name = "The answer"
-repos = ["spike-ai-pipeline"]
-summary = '''
-Close the spike in its root: write "The answer" in the README from evidence 1 to 6, 9, and 11 to
-17; record evidence 7, 8, 10, and 15 and the Gates section as moved to capstone.data-intelligence
-(`standards-lab/context/data-intelligence.md`), not failed; and carry the answer section for
-`ai-strategy.md`, "Answers · experiment.ai", in the pending edits, whose sync proposes
-experiment.ai's intake. The layer repositories' notes below go to the intake, not this task.
-'''
 
 # Notes on experiment.ai.spike-ai-pipeline, for experiment.ai's intake (the layer repositories'
 # fixes are re-reviewed when go-ai and the tools are promoted).
