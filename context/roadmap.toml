@@ -62,6 +62,7 @@ planned = [
   "v1.deployment",
   "v1.repository-docs",
   "v1.middleware",
+  "experiment.graph.spike-graph",
 ]
 
 backlog = [
@@ -681,6 +682,82 @@ its five layer repositories. The notes on spike-ai-pipeline below this table are
 # - Agent shells resolve Arch's /usr/bin/rustc and /usr/bin/dotnet ahead of mise's tools, which
 #   broke mail's check and fixtures task in formats; a scratch PATH of rustup proxies worked
 #   around it.
+
+[goals.experiment.graph]
+name = "The graph ergonomics experiment"
+summary = '''
+The spike that settles the API go-core's breaking `graph` and `lifecycle` release ships, which
+graph-ergonomics then migrates its nine consumers to: spike-graph proves the candidate API from
+go-core's design note on the full go-web-service and slab, against real infrastructure. A
+prerequisite of capstone.data-intelligence (plan, 2026-11-09).
+'''
+context = ["standards-lab/context/graph-ergonomics.md"]
+
+[goals.experiment.graph.tasks.intake]
+name = "The graph ergonomics intake"
+summary = '''
+Run by `marathon intake experiment.graph` once spike-graph has its answer in
+`graph-ergonomics.md`. Decides which of graph-ergonomics' decisions 9–14 ship as written, whether
+arity adapters ship, the rule the name check applies, what `web.Run` returns and reports and where
+the ready, failed, and stopped logs go, and how a `*Nodes` method reaches a plain value; sharpens
+graph-ergonomics' release and migration tasks from them; archives spike-graph.
+'''
+
+[goals.experiment.graph.spike-graph]
+name = "The candidate graph API on real composition roots"
+root = "spike-graph"
+repos = ["spike-graph"]
+remote = "https://github.com/JaimeStill/spike-graph.git"
+path = "~/experiments/spike-graph"
+summary = '''
+Does the candidate API (go-core `context/graph-ergonomics.md`, decisions 9–14), built on today's
+graph semantics, make go-web-service's real composition root and slab's real CLI shorter, and
+their layer placement legible, run against the spike's own copy of go-web-service's stack, with
+arity adapters and methods on `*Nodes` compared on one tier? Copies both whole at go-web-service
+5bb590e as a baseline on go-core v0.10.0, then migrates them in place onto forks of go-core's
+`graph` (whole) and `lifecycle` (Coordinator and New; the rest aliased, so published go-web-sdk
+works unchanged) and go-cli-sdk's `cli`, plus a `web.Run` of its own. Decides the exact API
+go-core's breaking release ships. Its evidence and path are in the spike's `context/README.md`.
+'''
+
+[goals.experiment.graph.spike-graph.tasks.baseline]
+name = "Baseline"
+summary = '''
+Copies go-web-service and slab whole at 5bb590e, import paths rewritten, and go-web-service's
+compose stack under the spike's own project name and ports; the copies' check and integration
+pass on go-core v0.10.0, committed unchanged.
+'''
+
+[goals.experiment.graph.spike-graph.tasks.candidate]
+name = "The candidate graph"
+summary = '''
+Forks go-core v0.10.0's `graph` and implements graph.After and graph.In at Define, groups,
+g.Value, graph.Fresh, Ref on Dependency, Observe(func(Ref)), LayerOf, and String, with
+Scope.After removed; forks `lifecycle`'s Coordinator and New; go-core's ported tests pass.
+Evidence 1.
+'''
+
+[goals.experiment.graph.spike-graph.tasks.web]
+name = "The web composition root"
+summary = '''
+Migrates the service's composition root and layer tests onto the candidate, adds `web.Run`, and
+settles the name check and how a `*Nodes` method reaches a plain value; unit and integration
+tiers pass on the stack. Evidence 2, 3, 5, 6, 7.
+'''
+
+[goals.experiment.graph.spike-graph.tasks.cli]
+name = "The CLI"
+summary = '''
+Forks go-cli-sdk v0.2.0's `cli` onto the candidate and migrates slab; help and usage errors
+build nothing, and its scenarios run against the migrated service. Evidence 4.
+'''
+
+[goals.experiment.graph.spike-graph.tasks.adapters]
+name = "Arity adapters and the answer"
+summary = '''
+Writes one tier with arity adapters beside methods on `*Nodes`, measures each root against the
+baseline commit, and gives the answer. Evidence 8, 9.
+'''
 
 [goals.experiment.harness]
 name = "The harness experiments"
