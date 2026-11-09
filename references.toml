@@ -177,6 +177,27 @@ remote = "https://github.com/JaimeStill/spike-model-layout.git"
 # Read by spike-model-layout for gb10-2's former preset and llama.env; never written.
 [repos.spike-ai-pipeline]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
+archived = true
+
+[repos.spike-ai-pipeline-client]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline-client.git"
+archived = true
+
+[repos.spike-ai-pipeline-processing]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline-processing.git"
+archived = true
+
+[repos.spike-ai-pipeline-office]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline-office.git"
+archived = true
+
+[repos.spike-ai-pipeline-mail]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline-mail.git"
+archived = true
+
+[repos.spike-ai-pipeline-onenote]
+remote = "https://github.com/JaimeStill/spike-ai-pipeline-onenote.git"
+archived = true
 
 # Prior R&D — Go web service architecture.
 [repos.herald]

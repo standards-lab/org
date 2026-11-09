@@ -407,7 +407,7 @@ What it builds from spike-html-conventions (Results 8):
   under one static token from the token provider. The sdk proves the adapter against a pinned
   nats-server, and the emulator proves it end to end. Its record, in spike-html-apps' "The
   answer" under "NATS over WebSocket, for spike-ai-pipeline", is evidence for
-  spike-ai-pipeline's choice between NATS over WebSocket and a backend relay; real auth stays a
+  capstone.data-intelligence's choice between NATS over WebSocket and a backend relay; real auth stays a
   gap.
 - **herald's elements.** Four of herald's element files in `app/client/ui/elements` import from
   `@domains` (herald 6fc22b3): `classify-progress.ts` the `WORKFLOW_STAGES` constant and the
