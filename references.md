@@ -200,7 +200,7 @@ budget on unified memory, and a measurement method; experiment.hosting's intake 
 Asked which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
 Answered llama.cpp in a container on both host classes, in ggml's CUDA image on the GB10s and its
 Vulkan image on the Framework.
-Its engine guides and `engines` suite are the source spike-ai-pipeline copies gb10-2's llama.cpp
+Its engine guides and `engines` suite are the source spike-ai-pipeline copied gb10-2's llama.cpp
 scripts from; experiment.hosting's intake archives it.
 
 ### spike-hosting-upgrades
@@ -216,8 +216,16 @@ the roles split across both, the Framework's role, vLLM for the agent, on-demand
 two-node serving over QSFP. Active.
 
 ### spike-ai-pipeline
-experiment.ai's pipeline spike, complete; it served set A on gb10-2 from its own preset, which
+Asked whether a Go model client and a message, document, and stream processing layer can carry a
+transactional, evented pipeline that a browser follows live. Answered yes for the client and
+processing layers, which v1.ai builds as go-ai, unravel, and the tools layer; the pipeline and
+browser moved to capstone.data-intelligence. It served set A on gb10-2 from its own preset, which
 spike-model-layout reads, never writes, while moving gb10-2 onto spike-model-engines' preset.
+
+### spike-ai-pipeline-client, spike-ai-pipeline-processing, spike-ai-pipeline-office, spike-ai-pipeline-mail, spike-ai-pipeline-onenote
+spike-ai-pipeline's layer repositories: the model client, the processing layer, and the Open XML,
+mail, and OneNote CLIs. They are the references for go-ai, unravel, office-read, mail-read, and
+onenote-read.
 
 ## Prior R&D — Go web service architecture
 
@@ -287,8 +295,8 @@ lifecycle adapted from Herald. (Deferred to the later events/NATS layer.)
 ### personal-agents
 The architect's self-hosted model setup: a llama.cpp router on the Framework desktop (Strix Halo,
 Vulkan) driven by Pi over Tailscale, the `outpost` admin dispatcher, and a measured reference on
-model tiers, context sizing, and memory footprint. Read-only for experiment.ai and
-experiment.hosting; archived once `ai-hosting` lands.
+model tiers, context sizing, and memory footprint. Read-only for experiment.hosting; archived once
+`ai-hosting` lands.
 Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
 context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
 outpost's verb set.

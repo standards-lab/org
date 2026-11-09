@@ -80,8 +80,9 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   commands emit events, where the primitives live, lifecycle registration, the capability
   ledger, and spike-messaging's evidence.
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
-  processing, harness) and their homes, the pivot from tau to external harnesses, the questions
-  of experiment.ai (client and processing), experiment.ocr, and experiment.harness, and
+  processing, harness) and their homes, the pivot from tau to external harnesses, the decided
+  design of the client and processing layers (go-ai, unravel, and the tools layer), the
+  questions of experiment.ocr and experiment.harness, and
   experiment.hosting's and experiment.admin's questions and decomposition of personal-agents.
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.

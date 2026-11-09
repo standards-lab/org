@@ -7,9 +7,8 @@ plan, 2026-11-09):
 
 - **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack, before the
   capstone.
-- **experiment.ai** settles the client and processing layers before the capstone:
-  spike-ai-pipeline proved them on gb10-2, through its docproc and docinfer CLIs over a real
-  input set, and its `answer` task closes it.
+- **v1.ai** builds the client and processing layers before the capstone, in go-ai and unravel,
+  from spike-ai-pipeline's answer ("The client and processing layers").
 - **experiment.ocr**, after the capstone: spike-scanned-documents settles whether the document
   stage needs an OCR tier, on gb10-2.
 - **experiment.harness**, after the capstone: spike-go-harness and spike-local-models take the
@@ -25,8 +24,8 @@ reference.
 | Layer | What it covers | Home |
 |---|---|---|
 | 1 Hosting | The machines that serve local models (the Framework desktop and the two GB10 workstations), covering four things: model selection and configuration, layout across the hardware, a convention for evaluating upgrades to the hardware, the engines, and the models, and a gateway that serves the pool as one service | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
-| 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai` (`topology-and-naming.md` reserves the name), its model-client surface |
-| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | settled by experiment.ai's intake; local models for application workloads through `v1.ai.local-models` (planned) |
+| 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai`, its model-client surface, through `v1.ai.client` (planned) |
+| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `unravel`, through `v1.ai.processing` (planned), running the tools layer's office-read, mail-read, and onenote-read (`v1.ai.tools`, planned); experiment.hosting's intake takes in the model roles its application workloads use |
 | 4 Harness | Agentic sessions driven from Go (go-ai's harness-session surface), and local models taking subagent work in Claude Code sessions; lowest priority | `go-ai`, and claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
 
 go-web-service's AI layer demonstrates the four layers (its capability map, "AI").
@@ -103,17 +102,71 @@ on each of the four parts. It also records:
 step drives Pi against the Framework desktop's router: one session, two scoped exchanges, and a
 cancel.
 
-## Experiment: spike-ai-pipeline
+## The client and processing layers
 
-**Question.** Can a Go model client and a message, document, and stream processing layer, built
-under go-elemental, carry a pipeline that a browser follows live? The pipeline is transactional
-and evented: it captures metadata, extracts data by inference, and stores embeddings in
-PostgreSQL with pgvector for semantic search, and each stage emits the events the browser
-follows. The spike has six repositories, as spike-html-packages has one per layer:
+v1.ai builds the client and processing layers from spike-ai-pipeline's answer. go-ai is the model
+client, unravel is the processing library, and a new tools layer holds the three command-line
+tools unravel runs. The spike proved both layers over a real share, ~/docs, through set A on
+gb10-2 ("The spike's answer"). The transactional pgvector pipeline and the browser that follows it
+moved, unproven, to capstone.data-intelligence (`data-intelligence.md`).
 
-- **`spike-ai-pipeline-client`** gives Go primitives over the engines' native APIs, built as
-  owned, optimized infrastructure from the best of spike-harness-driver's `model` and tau's
-  libraries, on the standard library alone. Its protocol is Open Responses (spec 2026-04-24)
+### Repositories and placement
+
+- **go-ai** is the model client, an infrastructure library beside go-storage in `order`. Its base
+  module uses the standard library only. It holds one Open Responses `protocol` and three
+  wire-format packages, Chat Completions, Anthropic Messages, and Open Responses, the standard
+  formats the model engines serve natively. The client gains a `/models` listing. Its convenience
+  CLI, `infer`, lives in the nested module `tools/infer`, with the subcommands chat, embed,
+  transcribe, and models.
+- **unravel** is the processing library, an enabling library adjacent to the standard, beside
+  sqlate. Its library module requires `golang.org/x/text` only and drops the client. Three nested
+  modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and go-core; `cmd/docinfer` requires
+  go-ai, the only module that does; and `cmd/internal` holds `schema` and `rundir`, which only
+  `cmd/` can import. The model-calling tests move into docinfer's module, and the run-directory
+  schema stays at "1".
+- **The tools layer** sits beside the architecture tiers, not within them. Its three
+  repositories, `office-read`, `mail-read`, and `onenote-read`, each build a binary of the same
+  name with a versioned JSON contract that unravel pins by release. They sit in claude-plugins'
+  layer of `order` and stay outside `exclusive`.
+
+An adjacent library's repository may carry a command module that depends on a tier, while its
+library modules never do: unravel's `cmd/docinfer` requires go-ai. A repository's place in `order`
+follows its base module. Nested command modules don't move it, as
+blobfs's example module doesn't move blobfs. A cross-repository task orders its own exceptions in
+its brief. go-ai and unravel join `exclusive` after wave C; the tools never do. Each new
+repository joins `order`, `exclusive` where it belongs there, and the references catalog at its
+sub-goal's first `plan`.
+
+### How v1.ai builds them
+
+v1.ai holds four sub-goals (`roadmap.toml`): v1.ai.tools, v1.ai.hosting, v1.ai.client (go-ai),
+and v1.ai.processing (unravel). v1.ai.tools stages first, since it holds the architecture lock
+ahead of v1.ai.hosting. Each sub-goal opens with a `design` review of the spike code against the
+full standards and the workspace, written into its note, and closes with an `acceptance` task
+that reruns the real workloads and fixes what it finds, never redesigning. v1.ai.tools'
+`architecture` task writes the tools-layer section of `repository-topology.md`, the go-elemental
+system-tools page (`system-tools.md`), and the command-module and placement rules in
+`dependencies.md` and `tool-beside-library.md`.
+
+Local models for application workloads have no sub-goal of their own. experiment.hosting's intake
+takes in set A's application-workload roles (vision with reasoning off, transcription, and
+embeddings) and decides whether hosting stays under v1.ai or becomes its own goal.
+
+Evidence 5 bears on the layering. unravel prepares long audio, cutting windows at silences and
+releasing the join, and the layer above transcribes it and owns the inference guards: Gemma 4 E4B
+answered a short window with its own instruction, and the join can't tell that from speech. No
+LLM pass smooths the seams, since a gpt-oss pass over the seam words made every run worse.
+Windowing costs accuracy on multi-speaker audio (word error rate 0.298 against 0.258 unsplit on a
+4-speaker meeting, 0.069 against 0.053 on an 8-speaker call), so v1.ai.processing's `acceptance`
+settles whether audio that fits one request goes unsplit.
+
+### What spike-ai-pipeline built
+
+The spike's six repositories are the references each sub-goal's design review reads:
+
+- **`spike-ai-pipeline-client`**, go-ai's reference, gives Go primitives over the engines'
+  native APIs, built as owned, optimized infrastructure from the best of spike-harness-driver's
+  `model` and tau's libraries, on the standard library alone. Its protocol is Open Responses (spec 2026-04-24)
   in its stateless subset; client extensions, audio input first, fill the spec's gaps and are
   removed when it adopts them. Four layers import one way: the `client` transport, with
   Generate, GenerateStream, Embed, and Transcribe; `protocol`; the `format` contract; and a
@@ -121,7 +174,7 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   `completions` (Chat Completions), `messages` (Anthropic Messages), and `responses` (Open
   Responses). GenerateStream yields Open Responses' streaming events, which a
   `protocol.Accumulator` folds into the Response Generate returns. Retry is opt-in.
-- **`spike-ai-pipeline-processing`** prepares messages, documents, and streams for native
+- **`spike-ai-pipeline-processing`**, unravel's library reference, prepares messages, documents, and streams for native
   model capabilities before inference; a layer above defines and orchestrates the inference
   and embeddings, and processing runs none. It runs mature system tools through adapters it
   owns (`system-tools.md`), with herald's `internal/format` as its prior art. Its `tool`
@@ -171,7 +224,7 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   window came once the stream passed its 30 s limit and was transcribed 0.8 to 4.6 s later,
   each frame was described within 4 s, and the live transcript matched audio's file path
   under the same detector (evidence 13).
-- **`spike-ai-pipeline-office`** is a command-line tool on Microsoft's Open XML SDK, published as
+- **`spike-ai-pipeline-office`**, office-read's reference, is a command-line tool on Microsoft's Open XML SDK, published as
   NativeAOT binaries, that turns docx, xlsx, and pptx into a JSON document model and Markdown,
   with chart data and embedded pictures in place of page images. Its JSON model is a versioned
   output contract (schema `1` at v0.1.0). Its Markdown is the document's text, complete without
@@ -180,7 +233,7 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   converts them to OOXML through LibreOffice in a container before running it. No Go OOXML
   library is both well supported and freely licensed across the three formats, and the .NET
   converters for the legacy formats are unmaintained or paid.
-- **`spike-ai-pipeline-mail`** is a command-line tool in Rust, published as static musl binaries,
+- **`spike-ai-pipeline-mail`**, mail-read's reference, is a command-line tool in Rust, published as static musl binaries,
   that reads Outlook .pst stores through Microsoft's outlook-pst, .msg messages through its own
   MS-OXMSG reader over cfb, and .eml messages and mbox files through Stalwart's mail-parser into
   JSON Lines of one schema: folders, messages with their threading fields as stored, their bodies
@@ -193,7 +246,7 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   Content-Length is ignored and an mboxo body line that was ">From " loses its ">". Its
   [mail-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-mail/blob/main/docs/findings/mail-cli.md)
   records the fields it recovers per kind and its time and memory per store (evidence 16).
-- **`spike-ai-pipeline-onenote`** is a command-line tool in Rust, published as static musl
+- **`spike-ai-pipeline-onenote`**, onenote-read's reference, is a command-line tool in Rust, published as static musl
   binaries, that reads OneNote .one sections, from desktop OneNote 2016 and later or from
   OneDrive, .onepkg exports, and notebook directories through onenote_parser (MPL-2.0, used
   unmodified) into JSON Lines of one schema: the notebook, its sections, and each page at its
@@ -212,47 +265,109 @@ follows. The spike has six repositories, as spike-html-packages has one per laye
   records each medium routed to its real stage and vision reading page ink at a character error
   rate of 0.028, against 0.68 for OneNote's stored recognition (evidence 17).
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts, the consumer check, and two
-  CLIs. `docproc` runs processing's whole suite over an input set into a versioned run
-  directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
+  CLIs, the references for unravel's `cmd/docproc` and `cmd/docinfer`. `docproc` runs
+  processing's whole suite over an input set into a versioned run directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
   any configured workstation: every image to vision with reasoning off, every audio window to
   transcription, joined per part by `audio.Join`, and every text and each input's metadata,
   chunked, to embeddings. It writes a directory of its own, schema "1", the capstone's input. Its
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
-- **The capstone** moved to its own goal and repository, capstone.data-intelligence, with
-  evidence 7, 8, 10, and 15 and its storage design (`data-intelligence.md`).
 
-It reads tau, spike-harness-driver's `model` and `workflow`, herald, spike-model-hosting,
-spike-model-engines, and the members, as references, not implementations. Its decisions and
-evidence are in the spike's `context/README.md` and findings, and in its goal record's last
-version in the root's history (the sync deleted the record).
-
-**Host.** gb10-2 was reserved for the spike from 2026-10-26 until its docinfer task shipped,
-outside experiment.hosting's host set, and the spike's sessions kept it current (`ai-hosting.md`, "Hosts and access"). It serves set A
-from llama.cpp's router container and only serves models; the media tools run where processing
-runs. The Framework stays with experiment.hosting, whose Strix tasks swap its engine.
-
-**Gates.** None remain. The host, client, processing, and docinfer tasks are done, on gb10-2, and
-the spike's `answer` task closes it. The capstone's gates moved with it (`data-intelligence.md`,
-"Gates"): it waits for spike-model-layout's and spike-model-gateway's answers and for
-experiment.hosting's, experiment.ai's, and experiment.html's intakes and the libraries they
-promote. spike-model-engines and spike-html-apps have answered.
-
-**Decision it changes.** go-ai's model-client surface and its wire-format layer, where the
-processing layer lives, `v1.ai.local-models`, and v1.ai's library and service tasks. It is also
-the first case for the system-tools principle and the Postgres-extension strategy, which
-experiment.ai's intake carries forward, with docproc's and docinfer's homes and output formats. Evidence 5 bears on go-ai's layering. Processing prepares
-long audio, cutting windows at silences and releasing the join, and the layer above transcribes
-it and owns the inference guards: Gemma 4 E4B answered a short window with its own instruction,
-and the join can't tell that from speech. No LLM pass smooths the seams, since a gpt-oss pass
-over the seam words made every run worse. Windowing costs accuracy on multi-speaker audio (word
-error rate 0.298 against 0.258 unsplit on a 4-speaker meeting, 0.069 against 0.053 on an
-8-speaker call), so the intake weighs whether audio that fits one request goes unsplit.
-
-**Home.** `~/experiments/spike-ai-pipeline`, remote
+The spike's decisions and evidence are in its `context/README.md` and findings, and in its goal
+record's last version in the root's history (the sync deleted the record). It lives at
+`~/experiments/spike-ai-pipeline`, remote
 [JaimeStill/spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline), with its five
-layer repositories beside it.
+layer repositories beside it; all six are archived.
+
+### The spike's answer
+
+**Question:** Can a Go model client and a message, document, and stream processing layer, built
+under go-elemental, carry a transactional, evented pipeline (metadata capture, inference
+extraction, and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser
+follows stage by stage in real time?
+
+**Answer:** Yes for the two layers it kept: a standard-library Go client over three wire formats
+and a processing layer of owned system-tool adapters carried every image, audio window, and text
+prepared from a real share, ~/docs, through vision, transcription and embeddings with no request
+failed; the transactional, evented pipeline in pgvector and the browser that follows it moved,
+unproven, to capstone.data-intelligence.
+
+The items keep the spike's own evidence numbers.
+
+**1.** The client: chat with tools and a reasoning round trip, streamed and unstreamed, vision,
+audio input, embeddings, and transcription each pass against set A; its retry policy is proven
+only by tests. docinfer ran 3,470 images, 1,254 audio windows, and 28,937 chunk lines of ~/docs
+through it in 21,634 s, 0 of 6,172 requests failed. Proven by the client's integration tier
+(b11669) and a running demo, docinfer over ~/docs (b12098, 2026-11-08).
+
+**2.** Anthropic Messages and Open Responses fit under Chat Completions' request and response model
+with no change to callers; the router drops some hints: `/v1/messages` reasoning effort, structured
+output's schema, `strict`, and the `none` tool choice; `/v1/responses` `text`. Proven only by tests:
+the client's integration tier (b11669, 2026-10-27 and 2026-10-28).
+
+**3.** The client's base module is standard library only. Proven only by the check: a strict
+depguard rule over every Go file.
+
+**4.** A PDF's pages go through vision whole and as a page stream; Ghostscript wins the renderer
+bake-off (0.126 s a page, 27 MiB of memory), run as a separate program since it is AGPL, and the
+model reads with reasoning off; page 7's NOFORN marking is read on no build. Proven only by tests:
+processing's integration and bake-off tiers (b11669, 2026-10-29 and 2026-10-30).
+
+**5.** Mixed: long audio cut at silences and transcribed in windows is 2.6 to 3.4 times faster
+than one unsplit pass, but less accurate on many speakers (word error rate 0.298 against 0.258 on
+a 4-speaker meeting); the gpt-oss seam pass is falsified, making every run worse. Proven only by
+tests: processing's findings tier (b12098, 2026-11-05 and 2026-11-06).
+
+**6.** Skype for Business conversation history in a PST passes through as conversation records,
+each of 4 equal to the hand truth. Fixture only: the PST is generated, its transcript HTML
+invented, and no real store read. Proven only by processing's findings tier (2026-11-07, no
+model).
+
+**9.** The dependency runs one way, processing to client: processing imports the client only in
+test code and runs no inference; the root's docinfer imports both. Proven by the check, whose
+depguard rule keeps the client from importing anything but the standard library, and by
+docinfer's running demo (item 1); processing's rule allows the client anywhere, so the test-only
+import is how processing v0.9.0 stands, not a rule.
+
+**11.** ImageMagick's corrections don't help vision reliably: which help and which hurt flips with
+the DPI and the build. Proven only by tests: processing's bake-off tier (b11669, 2026-10-29 and
+2026-10-30).
+
+**12.** The Open XML CLI keeps 1,768 of 1,768 elements where markitdown and xberg lose most, at a
+17.2 ms median from a 28.80 MiB binary; LibreOffice's legacy round trip loses structure in .doc, a
+little in .xls, nothing in .ppt, from a 1.02 GB container. Proven by office's bench (2026-10-31,
+no model) and processing's integration tier (b11669, 2026-11-02).
+
+**13.** Live media is processed as it arrives: three videos read at real time with no window,
+frame, or request failed, each window transcribed 0.8 to 4.6 s after it is yielded, and a
+cancellation stops the stream within 0.5 s. Proven only by tests: processing's findings tier's
+paced runs (b12098, 2026-11-06).
+
+**14.** One tool, ffprobe, runs through the exec and container runners under the same contract;
+docproc wired all ten stages over ~/docs, 515 of 592 inputs prepared and 4 failed. Proven by
+processing's integration tier and a running demo, docproc over ~/docs (2026-11-07, no model).
+
+**16.** The mail CLI recovers every stored field of the generated fixtures' truth (147 of 180, 33
+not stored, none wrong) and reads a 2.1 GB store in 13.27 s; the adapter places 11 of 11 messages
+under the parent the hand truth gives and routes 51 of 51 attachments. Proven by mail's bench
+(from 2026-11-03, no model) and processing's findings and integration tiers (b11669, 2026-11-03
+and 2026-11-04).
+
+**17.** The OneNote CLI recovers every expected field of the public fixtures (236 of 236 over the
+sections) and reads a 161 MB section in 0.24 s; vision reads a page's ink at a character error
+rate of 0.028 against 0.68 for OneNote's own recognition. No authored notebook exists, so no
+authored hand truth. Proven by onenote's bench (2026-11-04, no model) and processing's findings
+tier (b11669, 2026-11-05).
+
+Moved to capstone.data-intelligence, not failed: 7 (the transactional pipeline into pgvector,
+its events and UI), 8 (the client through a gateway), 10 (pgvector as a native-tier extension),
+15 (the browser's consumption of the events), and the gates, spike-model-layout's and
+spike-model-gateway's answers, which join the capstone's own (`data-intelligence.md`, "Evidence"
+and "Gates").
+
+[The answer](https://github.com/JaimeStill/spike-ai-pipeline#the-answer) ·
+[spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline)
 
 ## Experiment: spike-scanned-documents
 
@@ -288,7 +403,7 @@ spike-model-hosting's harness-fit profiles as its design input.
 **Decision it changes.** Whether go-ai carries its own agent loop, and what replacing the
 process-backed drivers costs.
 
-**Open for its setup.** An MCP runner for spike-ai-pipeline's tool contract: whether a
+**Open for its setup.** An MCP runner for unravel's `tool` contract: whether a
 long-running service reached over MCP joins the processing layer's exec and container runners,
 or stays a client of its own (architect, 2026-10-26).
 
@@ -337,104 +452,9 @@ gateway is spike-model-gateway's decision; this spike routes through what it set
 
 Models of Chinese origin are avoided where an alternative serves, because of the risk of
 censorship and of hidden behavior in their weights. The constraint binds experiment.hosting,
-experiment.ai, experiment.ocr, experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
+experiment.ocr, experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
 the choice records why. A model fine-tuned from a Chinese-origin base takes its base's origin,
 whoever publishes the fine-tune.
-
-## Answers · experiment.ai
-
-### Answer · experiment.ai.spike-ai-pipeline
-
-**Question:** Can a Go model client and a message, document, and stream processing layer, built
-under go-elemental, carry a transactional, evented pipeline (metadata capture, inference
-extraction, and embeddings stored in PostgreSQL with pgvector for semantic search) that a browser
-follows stage by stage in real time?
-
-**Answer:** Yes for the two layers it kept: a standard-library Go client over three wire formats
-and a processing layer of owned system-tool adapters carried every image, audio window, and text
-prepared from a real share, ~/docs, through vision, transcription and embeddings with no request
-failed; the transactional, evented pipeline in pgvector and the browser that follows it moved,
-unproven, to capstone.data-intelligence.
-
-The items keep the spike's own evidence numbers.
-
-**1.** The client: chat with tools and a reasoning round trip, streamed and unstreamed, vision,
-audio input, embeddings, and transcription each pass against set A; its retry policy is proven
-only by tests. docinfer ran 3,470 images, 1,254 audio windows, and 28,937 chunk lines of ~/docs
-through it in 21,634 s, 0 of 6,172 requests failed. Proven by the client's integration tier
-(b11669) and a running demo, docinfer over ~/docs (b12098, 2026-11-08).
-
-**2.** Anthropic Messages and Open Responses fit under Chat Completions' request and response model
-with no change to callers; the router drops some hints: `/v1/messages` reasoning effort, structured
-output's schema, `strict`, and the `none` tool choice; `/v1/responses` `text`. Proven only by tests:
-the client's integration tier (b11669, 2026-10-27 and 2026-10-28).
-
-**3.** The client's base module is standard library only. Proven only by the check: a strict
-depguard rule over every Go file.
-
-**4.** A PDF's pages go through vision whole and as a page stream; Ghostscript wins the renderer
-bake-off (0.126 s a page, 27 MiB of memory), run as a separate program since it is AGPL, and the
-model reads with reasoning off; page 7's NOFORN marking is read on no build. Proven only by tests:
-processing's integration and bake-off tiers (b11669, 2026-10-29 and 2026-10-30).
-
-**5.** Mixed: long audio cut at silences and transcribed in windows is 2.6 to 3.4 times faster
-than one unsplit pass, but less accurate on many speakers (word error rate 0.298 against 0.258 on
-a 4-speaker meeting); the gpt-oss seam pass is falsified, making every run worse. Proven only by
-tests: processing's findings tier (b12098, 2026-11-05 and 2026-11-06).
-
-**6.** Skype for Business conversation history in a PST passes through as conversation records,
-each of 4 equal to the hand truth. Fixture only: the PST is generated, its transcript HTML
-invented, and no real store read. Proven only by processing's findings tier (2026-11-07, no
-model).
-
-**9.** The dependency runs one way, processing to client: processing imports the client only in
-test code and runs no inference; the root's docinfer imports both. Proven by the check, whose
-depguard rule keeps the client from importing anything but the standard library, and by
-docinfer's running demo (item 1); processing's rule allows the client anywhere, so the test-only
-import is how processing v0.9.0 stands, not a rule. Where the layer lives is experiment.ai's
-intake's decision.
-
-**11.** ImageMagick's corrections don't help vision reliably: which help and which hurt flips with
-the DPI and the build. Proven only by tests: processing's bake-off tier (b11669, 2026-10-29 and
-2026-10-30).
-
-**12.** The Open XML CLI keeps 1,768 of 1,768 elements where markitdown and xberg lose most, at a
-17.2 ms median from a 28.80 MiB binary; LibreOffice's legacy round trip loses structure in .doc, a
-little in .xls, nothing in .ppt, from a 1.02 GB container. Proven by office's bench (2026-10-31,
-no model) and processing's integration tier (b11669, 2026-11-02).
-
-**13.** Live media is processed as it arrives: three videos read at real time with no window,
-frame, or request failed, each window transcribed 0.8 to 4.6 s after it is yielded, and a
-cancellation stops the stream within 0.5 s. Proven only by tests: processing's findings tier's
-paced runs (b12098, 2026-11-06).
-
-**14.** One tool, ffprobe, runs through the exec and container runners under the same contract;
-docproc wired all ten stages over ~/docs, 515 of 592 inputs prepared and 4 failed. Proven by
-processing's integration tier and a running demo, docproc over ~/docs (2026-11-07, no model).
-
-**16.** The mail CLI recovers every stored field of the generated fixtures' truth (147 of 180, 33
-not stored, none wrong) and reads a 2.1 GB store in 13.27 s; the adapter places 11 of 11 messages
-under the parent the hand truth gives and routes 51 of 51 attachments. Proven by mail's bench
-(from 2026-11-03, no model) and processing's findings and integration tiers (b11669, 2026-11-03
-and 2026-11-04).
-
-**17.** The OneNote CLI recovers every expected field of the public fixtures (236 of 236 over the
-sections) and reads a 161 MB section in 0.24 s; vision reads a page's ink at a character error
-rate of 0.028 against 0.68 for OneNote's own recognition. No authored notebook exists, so no
-authored hand truth. Proven by onenote's bench (2026-11-04, no model) and processing's findings
-tier (b11669, 2026-11-05).
-
-Moved to capstone.data-intelligence, not failed: 7 (the transactional pipeline into pgvector,
-its events and UI), 8 (the client through a gateway), 10 (pgvector as a native-tier extension),
-15 (the browser's consumption of the events), and the gates, spike-model-layout's and
-spike-model-gateway's answers, which join the capstone's own (`data-intelligence.md`, "Evidence"
-and "Gates").
-
-Architect's input to the intake, not a spike finding: the architect expects the processing
-library and its tools to become supplemental repositories, like sqlate and blobfs.
-
-[The answer](https://github.com/JaimeStill/spike-ai-pipeline#the-answer) ·
-[spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline)
 
 ## Answers · experiment.ocr
 

@@ -69,7 +69,7 @@ Framework baseline, then spike-model-engines, spike-hosting-upgrades, spike-mode
 spike-model-gateway; its intake runs before capstone.data-intelligence (`data-intelligence.md`).
 spike-host-admin moved to experiment.admin, after the capstone, which doesn't need the admin tool
 (plan, 2026-11-09); its answer lands in "Answers · experiment.admin". The benchmarks spike, which spike-hosting-upgrades
-replaced (architect, 2026-10-29), and the host-admin spike moved here from experiment.ai, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The
+replaced (architect, 2026-10-29), and the host-admin spike moved here from the client and processing experiment, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The
 four layers"; architect, 2026-10-26). Their answers land in "Answers · experiment.hosting" below.
 
 **Production.** Production has no tailnet; the tailnet only fences the dev workstations. A
@@ -123,8 +123,8 @@ its hosts up to date, and every measurement records the engine version, the host
 laptop's network path to the host (`tailscale ping`): a DERP relay adds its round trip to TTFT
 and request latency, but not to inter-token latency or the server's own counters.
 
-**experiment.hosting runs on all three hosts.** gb10-2 was reserved for experiment.ai's
-spike-ai-pipeline from 2026-10-26 until that spike completed (2026-11-09); it now serves
+**experiment.hosting runs on all three hosts.** gb10-2 was reserved for spike-ai-pipeline from
+2026-10-26 until that spike completed (2026-11-09); it now serves
 experiment.hosting's remaining spikes beside gb10-1 and the Framework, which spike-model-layout
 needs to lay models out across every pool before spike-model-gateway (architect, 2026-11-09). Each
 session brings all three current. spike-model-layout's `hosts` task moves gb10-2 onto
@@ -134,8 +134,7 @@ capstone.data-intelligence's design measurements and build, and then to experime
 2026-11-09).
 
 **gb10-2 serves set A** from llama.cpp's router at server-cuda13-b12098, the gb10 pin in
-spike-ai-pipeline's own `llama.env`, and the root's `mise run host-update` brings it current at the
-start of each of the spike's sessions. Its Gemma 4 26B-A4B is Google's QAT Q4_0
+spike-ai-pipeline's own `llama.env`. Its Gemma 4 26B-A4B is Google's QAT Q4_0
 (google/gemma-4-26B-A4B-it-qat-q4_0-gguf, with its own projector), as set A names it, in place of
 ggml-org's post-training Q4_0, which fails the quantization floor. Its store holds set A alone.
 Its preset sets two keys for that model:
