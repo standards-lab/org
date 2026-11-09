@@ -3,73 +3,59 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories. No active goal holds it: v1.client, the next goal
-# in the group, is proposed, not staged, and waits on the experiment.html intake closing
-# (standards-lab/context/web-client.md). Outside the exclusive group,
+# the reference-architecture code repositories; graph-ergonomics holds it now. Outside the group,
 # experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
-# answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active;
-# gateway and host-admin follow one at a time. experiment.ai.spike-ai-pipeline is planned: its
-# host, client, and processing tasks and its docproc and docinfer CLIs are done (ai-strategy.md,
-# "Experiment: spike-ai-pipeline"), and gb10-2 is no longer reserved for it. experiment.ai's
-# harness spikes wait for experiment.hosting's intake. The infrastructure libraries come before the data layer, and the data layer before auth by
+# answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active, with
+# gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
+# experiment.html's spike-html-design, spike-html-conventions, spike-html-packages, and
+# spike-html-apps have answered (html-artifacts.md, "Answers · experiment.html"), and
+# spike-html-hosting is active. experiment.ai.spike-ai-pipeline is active for its `answer` task.
+# The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# experiment.html runs beside the active goals, outside the exclusive group: its spikes lock only
-# their own repositories and run one at a time, in the order `planned` lists them.
-# spike-html-design, spike-html-conventions, spike-html-packages, and spike-html-apps have
-# answered (html-artifacts.md, "Answers · experiment.html"), and spike-html-hosting is active.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
 #
-# Direction for the next `marathon plan` session (the architect, 2026-11-07), which that session
-# reads and replaces: organize the experiments around what spike-ai-pipeline's capstone requires
-# and what can follow it, so the workspace can (a) finish the pre-capstone experiments; (b) ingest
-# and build out the standards-lab libraries and infrastructure that emerge from them to support the
-# capstone, with thorough reviews of what is promoted, so the code is optimally structured, aligns
-# with the architecture standards, and fits the ~/architecture workspace; (c) run the capstone
-# build itself; and (d) continue the ~/architecture marathon roadmap. Between (b) and (c), the
-# architect asks for appropriate time designing the protocols and practices that let the capstone
-# execute well (2026-11-09): the output formats of docproc's and docinfer's directories, settled at
-# the experiment's intake rather than in the spike; the chunk record and embedding spaces the
-# pgvector load reads; the choice between a page's text layer and its vision text (the docinfer
-# finding: two-column text layers interleave their columns, and 24 of 1,289 text-heavy pages came
-# back described); and the vision prompt and sampling. A first sort, as input: before the
-# capstone, spike-hosting-upgrades (active), spike-model-layout and spike-model-gateway (the
-# capstone's gates), an intake for spike-ai-pipeline alone, promoting go-ai's client and
-# processing (today experiment.ai's one intake waits on all four spikes, the harness spikes
-# included), and experiment.html's intake (the web client stack the capstone's UI needs); after
-# it, spike-scanned-documents (the OCR tier; the capstone runs on vision transcription without
-# it), spike-go-harness, spike-local-models, spike-host-admin, and spike-html-go-wasm. Decided: the
-# capstone lives in its own non-experimental repository under github.com/JaimeStill, not
-# spike-ai-pipeline's root and not an experiment (the architect, docinfer r6); the session sets it
-# up: its name, its goal, and the spike's capstone gates, evidence 7 and 15, and the capstone note
-# carried to it.
-#
-# Carried to that session: ai-strategy.md's "Gates" paragraph under "Experiment:
-# spike-ai-pipeline", which should say the capstone waits for the host, client, and processing
-# tasks and for spike-model-layout's and spike-model-gateway's answers, and that
-# spike-model-engines and spike-html-apps have answered and neither experiment's intake is a gate
-# (the architect, 2026-11-05); spike-scanned-documents' summary and the capstone's gate ordering;
-# and a spike-model-benchmarks goal, which doesn't exist yet: measure vision models on
-# spike-ai-pipeline-processing's committed scanned fixtures (document/testdata/scanned.pdf, ground
-# truth beside it) with a larger image-token budget than gemma-4-26B-A4B's default, a dense vision
-# model, and a lighter quantization than Q4_0, since Gemma 4 26B-A4B Q4_0 never read scanned page
-# 7's faded NOFORN, even on a 122-token 300-dpi tile, which points to the model, not resolution
-# (processing's docs/findings/documents.md; the architect, documents).
+# The path to the capstone, capstone.data-intelligence (plan, 2026-11-09): (a) finish the
+# pre-capstone experiments; (b) take them in and build out the libraries and infrastructure the
+# capstone needs, each library promoted into ~/architecture closed by a holistic design review
+# (optimally designed against the architecture standards, fitting the workspace, working without
+# issues); (c) design the capstone's protocols and practices, its first tasks; (d) build the
+# capstone; (e) continue the roadmap. The waves, each running its goals side by side:
+# - A: spike-model-layout, spike-html-hosting, spike-ai-pipeline's `answer`, and graph-ergonomics
+#   (go-core's graph and lifecycle, reviewed while the exclusive group is free, before go-ai and
+#   the client SDK build on them); then experiment.ai's intake.
+# - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
+#   experiment.html's intakes.
+# - C: v1.ai (go-ai, and ai-hosting through v1.ai.hosting) beside v1.client, which holds the
+#   exclusive group; go-ai and the tool repositories stay outside the group until C ends. Each
+#   promoted library closes with its design review. Then the pgvector v1.data task.
+#   status-reports and training.foundation start here; status-reports' first backfill report
+#   covers ~/architecture as it stands at the capstone's start.
+# - D: capstone.data-intelligence, the sole active goal apart from status-reports and training;
+#   it holds the libraries it may change, so a capstone task can fix a library and use the fix.
+#   status-reports' second backfill report orients readers to the capstone.
+# - E: experiment.ocr, experiment.admin, and experiment.harness, then v1.data, v1.auth,
+#   v1.admin-listener, v1.deployment, v1.repository-docs, and v1.middleware; training units that
+#   lock libraries run where the exclusive group is free.
 
 active = [
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-hosting",
+  "experiment.ai.spike-ai-pipeline",
+  "graph-ergonomics",
 ]
 
 planned = [
   "experiment.hosting.spike-model-gateway",
-  "experiment.hosting.spike-host-admin",
   "experiment.html.spike-html-go-wasm",
-  "experiment.ai.spike-scanned-documents",
-  "experiment.ai.spike-go-harness",
-  "experiment.ai.spike-local-models",
-  "experiment.ai.spike-ai-pipeline",
-  "v1.client",
   "v1.ai",
+  "v1.client",
+  "status-reports",
+  "training.foundation",
+  "capstone.data-intelligence",
+  "experiment.ocr.spike-scanned-documents",
+  "experiment.admin.spike-host-admin",
+  "experiment.harness.spike-go-harness",
+  "experiment.harness.spike-local-models",
   "v1.data",
   "v1.auth",
   "v1.admin-listener",
@@ -81,7 +67,6 @@ planned = [
 backlog = [
   "v1.observability",
   "v1.harness",
-  "graph-ergonomics",
   "sqlate-past-last-total",
   "organization-image-active",
   "second-providers",
@@ -271,7 +256,8 @@ summary = '''
 Build `ai-hosting` fresh from experiment.hosting's spikes' answers, add it to the
 workspace's `order` and the references catalog, land the portable-method pages as notes in
 architecture, and archive personal-agents with a forward link. Waits on experiment.hosting's
-intake.
+intake and runs before the capstone, which runs on the hosts and gateway it specifies; the admin
+tooling joins ai-hosting after experiment.admin's intake.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
 
@@ -342,31 +328,9 @@ context = ["architecture/principles/context-architecture.md"]
 [goals.v1.harness]
 name = "The harness at v1"
 summary = '''
-The claude-plugins work beyond factory: situational awareness, extraction, the references
-extension, the deterministic tooling layer, and local models as subagents. Each waits for its
-trigger.
+The claude-plugins work beyond factory: extraction, the references extension, the
+deterministic tooling layer, and local models as subagents. Each waits for its trigger.
 '''
-
-[goals.v1.harness.tasks.sitrep]
-name = "The marathon-sitrep extension"
-repos = ["claude-plugins", "standards-lab"]
-summary = '''
-Waits until the architect calls for it. The organization's situational-awareness tool:
-enterprise-wide awareness of progress on engineering efforts, published to a GitHub Pages dev
-blog. Two entry categories to start: the sitrep, an update at a set interval for a project or
-workspace, drafted from marathon's own record (the reset file, the roadmap deltas, the commit
-history, and the pull-request descriptions) and calibrated by a style profile; and the brief,
-orientation for leadership framed per audience, into which the coordinator's briefs/ and
-interview.md transition. Further categories wait for a need. The blog scaffold and publish
-mechanics belong to a dev-blog skill (the capture, draft, publish pipeline the TAU dev blog
-established) that the extension calls rather than re-encodes; the extension owns reading the
-workspace and drafting. First member of the enhancement facet of the extension taxonomy; the
-taxonomy amendment lands with it if it ships before extraction.
-'''
-context = [
-  "claude-plugins/context/marathon-sitrep.md",
-  "claude-plugins/context/tool-based-skills.md",
-]
 
 [goals.v1.harness.tasks.extraction]
 name = "The marathon-extraction extension"
@@ -378,10 +342,7 @@ appending the bundle's sources to the references catalog; first member go-web-se
 data-layer record at v1.data.evaluation, crossing mechanics when a private consumer earns
 them.
 '''
-context = [
-  "claude-plugins/context/marathon-extraction.md",
-  "claude-plugins/context/marathon-sitrep.md",
-]
+context = ["claude-plugins/context/marathon-extraction.md"]
 
 [goals.v1.harness.tasks.references]
 name = "The references system as a marathon extension"
@@ -412,10 +373,181 @@ name = "Local models as Claude Code subagents"
 repos = ["claude-plugins"]
 summary = '''
 The convention for routing Claude Code subagent tasks to locally hosted models: the profile
-format, the routing mechanism, and which kinds of task may run locally, from experiment.ai's
-spike-local-models result. Waits on experiment.ai's intake.
+format, the routing mechanism, and which kinds of task may run locally, from experiment.harness's
+spike-local-models result. Waits on experiment.harness's intake.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
+
+# ── Before the capstone ────────────────────────────────────────────────────────────────────
+
+[goals.graph-ergonomics]
+name = "graph and lifecycle ergonomics"
+root = "go-core"
+repos = [
+  "go-core",
+  "go-database",
+  "go-observability",
+  "go-storage",
+  "go-web-sdk",
+  "go-cli-sdk",
+  "go-web-sdk-template",
+  "go-cli-sdk-template",
+  "go-web-service",
+]
+summary = '''
+go-core's `graph` and `lifecycle` work, and nothing found so far says otherwise, but their API is
+verbose and hard to reason about: nodes are string-keyed, and the define functions make it hard
+to see how a node is constructed and which layer it lands in. This goal improves their ergonomics
+and developer experience, not their behavior, starting with a design review. It runs in wave A,
+while the exclusive group is free, and closes before v1.ai and v1.client build go-ai and the
+client SDK on that API (plan, 2026-11-09). The composition-root principle
+(`composition-terms.md`) keeps the breaks inside composition roots, their fixtures, and the SDKs
+that run a graph; its repos are the nine that import either package. The spike-ai-pipeline
+repositories import them too, and are read, never changed.
+'''
+
+[goals.graph-ergonomics.tasks.design-review]
+name = "Design review of graph and lifecycle"
+repos = ["go-core"]
+summary = '''
+A holistic review of `graph` and `lifecycle` as their consumers use them across the workspace:
+how a node is declared, keyed, constructed, and placed in a layer, and how a lifecycle is wired
+and read. Proposes the API the architect approves, with its migration across the nine
+repositories; the goal's later tasks are written from it.
+'''
+
+# ── The capstone ───────────────────────────────────────────────────────────────────────────
+
+[goals.capstone]
+name = "Capstones"
+summary = '''
+Applications that bring the workspace's libraries together end to end, each a `capstone.<slug>`
+in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones").
+'''
+
+[goals.capstone.data-intelligence]
+name = "data-intelligence"
+root = "data-intelligence"
+repos = ["data-intelligence"]
+remote = "https://github.com/JaimeStill/data-intelligence.git"
+path = "~/capstones/data-intelligence"
+summary = '''
+Liberates data held in binary files on a file share: a backend on go-ai's model client and
+processing layer and a web UI on the promoted web client stack that take in messages, uploads,
+and streams; capture metadata, extract by inference, and store embeddings in PostgreSQL with
+pgvector for semantic search, each stage transactional; and show each stage as it runs. Carries
+spike-ai-pipeline's evidence 7, 8, 10, and 15 (`data-intelligence.md`). Runs in wave D as the sole
+active goal apart from status-reports and training, after experiment.ai's, experiment.hosting's,
+and experiment.html's intakes and the libraries they promote; its repos gain those libraries at
+staging, so a capstone task can update a library and use the change. Its repository is created
+at staging. Design tasks come first; build tasks are written once they close.
+'''
+context = ["standards-lab/context/data-intelligence.md"]
+
+[goals.capstone.data-intelligence.tasks.metadata]
+name = "Metadata"
+summary = '''
+Compositional metadata structures that extend docproc's base file metadata per format (PDF,
+office, mail, OneNote, media), and where authoritative metadata capture lives.
+'''
+
+[goals.capstone.data-intelligence.tasks.chunks]
+name = "The chunk record and embedding spaces"
+summary = '''
+The chunk record and the registered embedding spaces the pgvector load reads, from the docproc and
+docinfer output formats experiment.ai's intake settled.
+'''
+
+[goals.capstone.data-intelligence.tasks.text-layer]
+name = "Text layer or vision"
+summary = '''
+When a page's text layer stands in for its vision text: a skip rule that tells a thin layer from a
+whole one, from spike-ai-pipeline's docs/findings/docinfer.md.
+'''
+
+[goals.capstone.data-intelligence.tasks.vision]
+name = "The vision prompt and sampling"
+summary = '''
+The vision prompt and sampling that keep a page with text transcribed rather than described, from
+the same finding.
+'''
+
+[goals.capstone.data-intelligence.tasks.events]
+name = "The stage event protocol"
+summary = '''
+The stage event sequence and the browser's transport, NATS over WebSocket against a backend
+relay, compared on latency, ordering, auth, ports, and native-tier use (evidence 15).
+'''
+
+# ── Reports and training ───────────────────────────────────────────────────────────────────
+
+[goals.status-reports]
+name = "Status reports"
+root = "status-reports"
+repos = ["status-reports", "standards-lab"]
+remote = "https://github.com/standards-lab/status-reports.git"
+path = "~/architecture/status-reports"
+summary = '''
+The repository of status reports on the effort, a project site in the org's Pages topology.
+marathon sets it up and then steps back: the repository defines its own report layout,
+components, and conventions and a documented report workflow, and every report follows that
+workflow, not marathon tasks. The prose is the architect's: agents suggest revisions, through the
+editor, and make the supplements (diagrams, screenshots, demonstrations) and the components.
+Each report ends with "Explore it yourself", a guide prompt scoped to the report and built from
+a shared base guide, so a reader can dig deeper with an agent, as the coordinator's
+briefs/orientation.md does with interview.md. Starts in wave C. The first reports are backfills:
+~/architecture as it stands at the capstone's start (end of wave C) and an orientation to the
+capstone (start of wave D).
+'''
+
+[goals.status-reports.tasks.layout]
+name = "The report layout"
+summary = '''
+`init`, the standard report layout, its components on the foundation experiment.html's intake
+promotes, its conventions, the base exploration guide and per-report template, and the report
+workflow, with agent help planning reports. Takes in the coordinator's briefs/ and interview.md,
+which the org repository then drops; joins `order` and the catalog outside the exclusive group.
+'''
+
+[goals.training]
+name = "Training"
+summary = '''
+The standards-lab/training repository of training materials, which can host several curricula,
+at ~/architecture/training, published as a Pages site. Its first curriculum lays a short
+foundation, an orientation to what working through the Standards Lab architecture needs, then a
+guided path through the architecture that validates each layer the organization adopts. Each unit
+is a short sub-goal that lists the library repositories it builds against, so it holds them only
+while active, fixes what it finds, and runs their currency maintenance; a unit that locks
+exclusive-group libraries is staged only when the group is free. The prose is the architect's:
+agents suggest revisions, through the editor, and make the supplements and the components.
+'''
+
+[goals.training.foundation]
+name = "The foundation"
+root = "training"
+repos = ["training", "standards-lab"]
+remote = "https://github.com/standards-lab/training.git"
+path = "~/architecture/training"
+summary = '''
+The training repository and the first curriculum's foundation. Starts in wave C and continues
+beside the capstone in wave D; it locks no library.
+'''
+
+[goals.training.foundation.tasks.setup]
+name = "Setup"
+summary = '''
+`init`, the components on the foundation experiment.html's intake promotes, and the conventions;
+joins `order` and the catalog outside the exclusive group.
+'''
+
+[goals.training.foundation.tasks.syllabus]
+name = "The syllabus"
+summary = '''
+With agent help, the plan of the foundation and the architecture path, on four axes: dependency
+footprint, scope of capability, layer of reusability, and automation of testing and validation.
+Names each unit and the library repositories it builds against; the foundation's writing tasks
+and the `training.<layer>` sub-goals are written from it.
+'''
 
 # ── experiment ─────────────────────────────────────────────────────────────────────────────
 
@@ -424,36 +556,31 @@ name = "Experiments"
 summary = "The spikes that settle what a goal is built from, each topic a goal with an intake last."
 
 [goals.experiment.ai]
-name = "The AI experiments"
+name = "The model client and processing experiment"
 summary = '''
-The spikes that settle the layers above hosting, which v1.ai and v1.harness build on: the Go
-model client and message, document, and stream processing first, then the harness, lowest
-priority. spike-harness-driver has answered. spike-ai-pipeline has done its host,
-client, and processing tasks and is planned, and spike-scanned-documents follows it on gb10-2; spike-go-harness and
-spike-local-models run after experiment.hosting's intake. Then one combined intake.
+The spike that settles go-ai's model layers, which v1.ai builds on: the Go model client and
+message, document, and stream processing, proven by spike-ai-pipeline. Its intake runs before
+capstone.data-intelligence (plan, 2026-11-09); the harness spikes moved to experiment.harness and
+the scanned-document spike to experiment.ocr, both after the capstone.
 '''
-context = [
-  "standards-lab/context/ai-strategy.md",
-  "standards-lab/context/ai-hosting.md",
-]
+context = ["standards-lab/context/ai-strategy.md"]
 
 [goals.experiment.ai.tasks.intake]
-name = "The combined intake"
+name = "The model client and processing intake"
 summary = '''
-Run by `marathon intake experiment.ai` once spike-ai-pipeline, spike-scanned-documents,
-spike-go-harness, and spike-local-models have their answers in `ai-strategy.md`, beside spike-harness-driver's. Decides
-go-ai's shape: its model-client surface and wire-format layer from spike-ai-pipeline, whether the
-document stage carries an OCR tier from spike-scanned-documents, its harness
-surface from spike-harness-driver, and whether it carries its own agent loop from
-spike-go-harness. Also decides the processing layer's home, v1.ai's library and service tasks,
-and both local-models conventions: v1.ai.local-models from spike-ai-pipeline and
-v1.harness.local-models from spike-local-models. It also writes a v1.data task that lands the
-workspace's Postgres-extension strategy from spike-ai-pipeline's pgvector evidence, and promotes
-the system-tools principle (`system-tools.md`) to a go-elemental page. Its one coordinator pull
-request writes those tasks and removes the experiment; it then archives spike-harness-driver,
-spike-ai-pipeline with its five layer repositories, spike-scanned-documents, spike-go-harness, and
-spike-local-models. personal-agents is a
-reference, never archived by this intake.
+Run by `marathon intake experiment.ai` once spike-ai-pipeline has its answer in `ai-strategy.md`.
+Decides go-ai's model-client surface and wire-format layer and the processing layer's home; the
+homes of docproc and docinfer and the output formats of their directories, which the capstone's
+design stage takes as its input; where the Open XML, mail, and OneNote CLIs live; v1.ai's library
+and service tasks, each promoted library closed by a design-review task (optimally designed
+against the architecture standards, fitting the ~/architecture workspace, working without
+issues); and v1.ai.local-models. It also writes a v1.data task, run before the capstone, that
+lands the workspace's Postgres-extension strategy from spike-ai-pipeline's pgvector evidence, and
+promotes the system-tools principle (`system-tools.md`) to a go-elemental page. go-ai and the
+tool repositories stay outside the exclusive group until wave C ends. Its one coordinator pull
+request writes those tasks and removes the experiment; it then archives spike-ai-pipeline with
+its five layer repositories. The layer repositories' notes under spike-ai-pipeline's table are
+its input.
 '''
 # For go-ai: a /models listing would be a helpful diagnostic function of the client library;
 # spike-ai-pipeline's docinfer reads /models itself on net/http, since client v0.4.0 has none
@@ -484,15 +611,10 @@ mature system tools through adapters it owns (`system-tools.md`); the Open XML C
 (`spike-ai-pipeline-mail`), a static Rust tool for Outlook .pst stores, .msg messages, .eml
 messages, and mbox files; the OneNote CLI (`spike-ai-pipeline-onenote`), a static Rust tool for
 OneNote sections, packages, and notebooks; and the root, which holds gb10-2's host scripts and
-the docproc and docinfer CLIs; the capstone moves to its own repository (docinfer r6). It ran on gb10-2, reserved for
-it until docinfer shipped; the Framework stayed with experiment.hosting. The host, client, and
-processing tasks are done;
-the capstone tasks wait for those tasks and for the answers of spike-model-engines,
-spike-model-layout, spike-model-gateway, and spike-html-apps, not for either experiment's intake,
-and the spike returns to `planned` between. The capstone's UI builds on spike-html-apps'
-foundation v0.3.0, components v0.10.2, and sdk v0.4.0, with the SDK's event-sequence interface at
-`./events.js` and its adapter at `./events/nats.js`, and cites spike-html-apps'
-NATS-over-WebSocket record, under "The answer" in its README. Reads tau, spike-harness-driver,
+the docproc and docinfer CLIs. It ran on gb10-2, reserved for it until docinfer shipped; the
+Framework stayed with experiment.hosting. The host, client, processing, and docinfer tasks are
+done. The capstone moved to its own goal, capstone.data-intelligence, with evidence 7, 8, 10, and
+15 and the gates (plan, 2026-11-09; `data-intelligence.md`). Reads tau, spike-harness-driver,
 herald, spike-model-hosting, spike-model-engines, and the members. Decides go-ai's model-client
 surface, the processing layer's home, v1.ai.local-models, and v1.ai's library and service
 tasks (`ai-strategy.md`, "Experiment: spike-ai-pipeline"). Set A's embedding model changed from
@@ -500,21 +622,19 @@ embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve Embeddi
 (`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
 '''
 
-# Notes on experiment.ai.spike-ai-pipeline, for the plan session that takes it up.
-#
-# For the capstone's own goal (the plan session carries these to it):
-# - Metadata (the architect, docproc r4 q6): plan compositional metadata structures that extend
-#   docproc's base file metadata per format (PDF, office, mail, OneNote, media), and decide where
-#   authoritative metadata capture lives: the web layer, the processing layer, or elsewhere.
-#   docproc's schema "1" metadata and docinfer's chunk records are the input the capstone's
-#   pgvector load reads.
-# - Text layer or vision (docinfer): whether to skip vision on a page with a text layer. The
-#   docinfer finding's text-layer comparison is the evidence for a skip rule: where a layer holds
-#   the page, vision repeats it (median word recall 0.91 to 1.00); vision rescued 49 pages with a
-#   thin layer and 61 with none; and 24 of 1,289 text-heavy pages came back described instead of
-#   transcribed. A skip rule must tell a thin layer from a whole one. The finding also recommends
-#   a stricter vision prompt ("Transcribe all the text in this picture, word for word, in reading
-#   order. Do not summarize or describe text…") and a lower temperature against described pages.
+[goals.experiment.ai.spike-ai-pipeline.tasks.answer]
+name = "The answer"
+repos = ["spike-ai-pipeline"]
+summary = '''
+Close the spike in its root: write "The answer" in the README from evidence 1 to 6, 9, and 11 to
+17; record evidence 7, 8, 10, and 15 and the Gates section as moved to capstone.data-intelligence
+(`standards-lab/context/data-intelligence.md`), not failed; and carry the answer section for
+`ai-strategy.md`, "Answers · experiment.ai", in the pending edits, whose sync proposes
+experiment.ai's intake. The layer repositories' notes below go to the intake, not this task.
+'''
+
+# Notes on experiment.ai.spike-ai-pipeline, for experiment.ai's intake (the layer repositories'
+# fixes are re-reviewed when go-ai and the tools are promoted).
 #
 # Backlog:
 # - ODF, WordPerfect, .xlsb, and ODG still report "no processor yet", and legacy OLE2 macros go
@@ -610,27 +730,28 @@ embeddinggemma-2 to granite-embedding-english-r2, since vLLM can't serve Embeddi
 #   broke mail's check and fixtures task in formats; a scratch PATH of rustup proxies worked
 #   around it.
 
-# Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
-# until the capstone needs it (plan, 2026-11-03).
-
-[goals.experiment.ai.spike-scanned-documents]
-name = "Scanned-document fidelity at scale"
-root = "spike-scanned-documents"
-repos = ["spike-scanned-documents"]
-remote = "https://github.com/JaimeStill/spike-scanned-documents.git"
-path = "~/experiments/spike-scanned-documents"
+[goals.experiment.harness]
+name = "The harness experiments"
 summary = '''
-spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision transcription on only 7
-scanned pages: the model invented seal text, never read page 7's NOFORN, and scored a scanned CER
-of about 0.11 to 0.13. Does that transcription hold on olmOCR-bench (allenai/olmOCR-bench: 1,403
-PDFs, 7,010 checkable assertions, ODC-BY as reported), and does a dedicated OCR model (olmOCR's
-own, on vLLM) or Tesseract beat it on GB10? Decides whether processing's document stage needs an
-OCR tier. Runs on gb10-2 once spike-ai-pipeline returns to `planned` after its formats task; set
-up by `plan experiment.ai.spike-scanned-documents`. Third-party and crawled documents are
-processed only in sandboxed converters. It delays experiment.ai's intake.
+The spikes that settle the harness layer, which go-ai's harness surface and v1.harness build on:
+spike-harness-driver has answered; spike-go-harness, then spike-local-models, run after
+capstone.data-intelligence, which needs no harness (its model calls go through go-ai's client).
+Then one intake.
+'''
+context = ["standards-lab/context/ai-strategy.md"]
+
+[goals.experiment.harness.tasks.intake]
+name = "The harness intake"
+summary = '''
+Run by `marathon intake experiment.harness` once spike-go-harness and spike-local-models have
+their answers in `ai-strategy.md`, beside spike-harness-driver's. Decides go-ai's harness surface
+from spike-harness-driver, whether go-ai carries its own agent loop from spike-go-harness, tau's
+retirement, and v1.harness.local-models from spike-local-models. It archives spike-harness-driver,
+spike-go-harness, and spike-local-models. personal-agents is a reference, never archived by this
+intake.
 '''
 
-[goals.experiment.ai.spike-go-harness]
+[goals.experiment.harness.spike-go-harness]
 name = "A native Go harness"
 root = "spike-go-harness"
 repos = ["spike-go-harness"]
@@ -645,8 +766,7 @@ as its design input. Decides whether go-ai carries its own agent loop and what r
 process-backed drivers costs. Its Go layout is settled at its setup.
 '''
 
-
-[goals.experiment.ai.spike-local-models]
+[goals.experiment.harness.spike-local-models]
 name = "Using local models"
 root = "spike-local-models"
 repos = ["spike-local-models"]
@@ -660,15 +780,85 @@ spike-ai-pipeline's. Decides v1.harness.local-models (`ai-strategy.md`, "Experim
 spike-local-models").
 '''
 
+[goals.experiment.ocr]
+name = "The scanned-document experiment"
+summary = '''
+The spike that settles whether processing's document stage needs an OCR tier beside vision
+transcription. After capstone.data-intelligence, which runs on vision transcription without it,
+first in wave E, on gb10-2; then one intake.
+'''
+context = ["standards-lab/context/ai-strategy.md"]
+
+[goals.experiment.ocr.tasks.intake]
+name = "The scanned-document intake"
+summary = '''
+Run by `marathon intake experiment.ocr` once spike-scanned-documents has its answer in
+`ai-strategy.md`. Decides whether go-ai's document stage carries an OCR tier and which vision
+model, image-token budget, and quantization the vision tier runs, as v1.ai tasks. It archives
+spike-scanned-documents.
+'''
+
+[goals.experiment.ocr.spike-scanned-documents]
+name = "Scanned-document fidelity at scale"
+root = "spike-scanned-documents"
+repos = ["spike-scanned-documents"]
+remote = "https://github.com/JaimeStill/spike-scanned-documents.git"
+path = "~/experiments/spike-scanned-documents"
+summary = '''
+spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision transcription on only 7
+scanned pages: the model invented seal text, never read page 7's NOFORN, and scored a scanned CER
+of about 0.11 to 0.13. Does that transcription hold on olmOCR-bench (allenai/olmOCR-bench: 1,403
+PDFs, 7,010 checkable assertions, ODC-BY as reported), and does a dedicated OCR model (olmOCR's
+own, on vLLM) or Tesseract beat it on GB10? It also measures the vision models themselves on
+spike-ai-pipeline-processing's committed scanned fixtures (document/testdata/scanned.pdf, ground
+truth beside it): a larger image-token budget than gemma-4-26B-A4B's default, a dense vision
+model, and a lighter quantization than Q4_0, since Gemma 4 26B-A4B Q4_0 never read scanned page
+7's faded NOFORN, even on a 122-token 300-dpi tile, which points to the model, not resolution
+(processing's docs/findings/documents.md). Decides whether processing's document stage needs an
+OCR tier, and the vision tier's model. Runs on gb10-2 after capstone.data-intelligence; set up by
+`plan experiment.ocr.spike-scanned-documents`. Third-party and crawled documents are processed
+only in sandboxed converters.
+'''
+
+[goals.experiment.admin]
+name = "The host admin experiment"
+summary = '''
+The spike that settles ai-hosting's admin tooling, split from experiment.hosting since the
+capstone doesn't need it (plan, 2026-11-09). After capstone.data-intelligence; then one intake.
+'''
+context = ["standards-lab/context/ai-hosting.md"]
+
+[goals.experiment.admin.tasks.intake]
+name = "The host admin intake"
+summary = '''
+Run by `marathon intake experiment.admin` once spike-host-admin has its answer in `ai-hosting.md`.
+Decides ai-hosting's admin tooling, as a v1.ai task, and archives spike-host-admin.
+'''
+
+[goals.experiment.admin.spike-host-admin]
+name = "The admin tool on go-cli-sdk"
+root = "spike-host-admin"
+repos = ["spike-host-admin"]
+remote = "https://github.com/JaimeStill/spike-host-admin.git"
+path = "~/experiments/spike-host-admin"
+summary = '''
+Can one CLI, generated from go-cli-sdk-template (template/v0.1.0) on go-cli-sdk v0.2.0, manage
+every engine and host experiment.hosting keeps, from its runbooks and setup scripts: install,
+update, service status and restart, models, metrics, and GPU and memory use? Runs after
+capstone.data-intelligence, managing what experiment.hosting settled. outpost is read as the baseline, not
+rebuilt; the profile format is settled at its setup. Decides ai-hosting's admin tooling
+(`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
+'''
 
 [goals.experiment.hosting]
 name = "The self-hosted model stack"
 summary = '''
-Six spikes that settle how the workstations (the Framework and the two GB10s) serve local
-models: spike-model-hosting's Framework baseline, then engines, hosting-upgrades, layout,
-gateway, and host-admin, one at a time; then one intake. Serves v1.ai.hosting. From 2026-10-26
-its hosts are gb10-1 and the Framework; gb10-2 was reserved for experiment.ai.spike-ai-pipeline
-until its docinfer task shipped (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
+Five spikes that settle how the workstations (the Framework and the two GB10s) serve local
+models: spike-model-hosting's Framework baseline, then engines, hosting-upgrades, layout, and
+gateway, one at a time; then one intake, before capstone.data-intelligence. Serves v1.ai.hosting.
+spike-host-admin moved to experiment.admin, after the capstone (plan, 2026-11-09). Its hosts are
+gb10-1, the Framework, and, since spike-ai-pipeline's docinfer task shipped, gb10-2, which goes to
+the capstone after spike-model-gateway (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
 (`ai-hosting.md`, "Experiment: experiment.hosting"): one new tool per task, explained in its brief
 and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
 task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
@@ -691,13 +881,13 @@ context = ["standards-lab/context/ai-hosting.md"]
 name = "The hosting intake"
 summary = '''
 Run by `marathon intake experiment.hosting` once spike-model-hosting, spike-model-engines,
-spike-hosting-upgrades, spike-model-layout, spike-model-gateway, and spike-host-admin have their
-answers in `ai-hosting.md`. Decides what v1.ai.hosting builds: the engine and hosting method per
-host class, the upgrade-evaluation convention, the model layout across the three pools, the
-gateway and its access control, the admin tooling, and the
+spike-hosting-upgrades, spike-model-layout, and spike-model-gateway have their answers in
+`ai-hosting.md`. Decides what v1.ai.hosting builds before the capstone: the engine and hosting
+method per host class, the upgrade-evaluation convention, the model layout across the three
+pools, the gateway and its access control, and the
 setup scripts and runbooks `ai-hosting` holds; which method pages (model cards, context sizing, memory footprint, tool-call reliability)
 the architecture layer takes; and whether personal-agents' contents move into `ai-hosting`. It
-archives the six spikes. experiment.ai's harness spikes wait for it.
+archives the five spikes. experiment.harness's spikes wait for it.
 '''
 
 [goals.experiment.hosting.spike-model-layout]
@@ -823,21 +1013,6 @@ gateway fronts the stack, which, and its access control. Reads spike-model-hosti
 tool-reliability findings (bounded resample, parse-5xx fallback).
 '''
 
-[goals.experiment.hosting.spike-host-admin]
-name = "The admin tool on go-cli-sdk"
-root = "spike-host-admin"
-repos = ["spike-host-admin"]
-remote = "https://github.com/JaimeStill/spike-host-admin.git"
-path = "~/experiments/spike-host-admin"
-summary = '''
-Can one CLI, generated from go-cli-sdk-template (template/v0.1.0) on go-cli-sdk v0.2.0, manage
-every engine and host experiment.hosting keeps, from its runbooks and setup scripts: install,
-update, service status and restart, models, metrics, and GPU and memory use? Runs last in
-experiment.hosting, managing what the other spikes settled. outpost is read as the baseline, not
-rebuilt; the profile format is settled at its setup. Decides ai-hosting's admin tooling
-(`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
-'''
-
 [goals.experiment.html]
 name = "The web client experiments"
 summary = '''
@@ -855,11 +1030,13 @@ summary = '''
 Run by `marathon intake experiment.html` once all six spikes have their answers in
 `html-artifacts.md`. Decides whether the baseline graduates and where (the architecture layer or
 its own standards-lab repository); whether a web standard is founded, and with which pages; how
-v1.client packages its foundation and components and builds its client application; the Pages topology v1.client and v1.repository-docs build; whether
-v1.harness.sitrep and the coordinator's briefs/ publish HTML; whether the Pages sites embed live
-Go demos; and whether an external-client goal follows 1.0. It weighs spike-html-conventions'
+v1.client packages its foundation and components and builds its client application; the Pages topology v1.client, v1.repository-docs, status-reports, and training build;
+whether the Pages sites embed live Go demos; and whether an external-client goal follows 1.0. It weighs spike-html-conventions'
 finding that spike-html-design ships each layer as a self-layered, `@import`-free, exported
-sheet (`html-artifacts.md`, "Experiment: spike-html-design"). It then archives the six spikes.
+sheet (`html-artifacts.md`, "Experiment: spike-html-design"). status-reports and training each
+build components of their own on the foundation it promotes, and only overlap they prove moves
+into a shared documentation components layer (plan, 2026-11-09). It then archives the six spikes
+and runs before capstone.data-intelligence, whose UI builds on the stack it promotes.
 '''
 
 [goals.experiment.html.spike-html-hosting]
@@ -883,8 +1060,8 @@ sqlate, carrying pinned copies; each Pages workflow runs a Vite build with
 vite-plugin-standard-css-modules and uploads the build output. The Markdown sources stay
 Markdown, rendered at build. The sites pin spike-html-apps-foundation by tag and a documentation
 components layer of their own. Draws the line between HTML and Markdown. Decides the Pages
-topology v1.client and v1.repository-docs build, and whether v1.harness.sitrep and the
-coordinator's briefs/ publish HTML (`html-artifacts.md`, "Experiment: spike-html-hosting").
+topology v1.client and v1.repository-docs build, and how status-reports, which takes in the
+coordinator's briefs/, publishes HTML (`html-artifacts.md`, "Experiment: spike-html-hosting").
 '''
 
 [goals.experiment.html.spike-html-hosting.tasks.layers]
@@ -991,7 +1168,7 @@ summary = '''
 The org stand-in's charter, its index of every site, and a hosted persistent report; shared
 navigation measured build-time-by-tag against fetched-at-runtime with one site deployed ahead;
 briefs/orientation.md as HTML beside its Markdown and a dated sitrep-style entry, with verdicts
-for the coordinator's briefs/ and v1.harness.sitrep. Evidence 2, 5, and 8.
+for the coordinator's briefs/ and status-reports. Evidence 2, 5, and 8.
 '''
 
 [goals.experiment.html.spike-html-hosting.tasks.review]
@@ -1027,15 +1204,6 @@ spike-html-go-wasm").
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
-
-[goals.graph-ergonomics]
-name = "graph ergonomics"
-summary = '''
-go-core's `graph` works, but its API is early: nodes are string-keyed, and the define functions
-make it hard to see how a node is constructed and which layer it lands in. This goal irons those
-out as more applications use the graph. The composition-root principle (`composition-terms.md`)
-keeps the breaks inside composition roots, their fixtures, and the SDKs that run a graph.
-'''
 
 [goals.second-providers]
 name = "Second providers"

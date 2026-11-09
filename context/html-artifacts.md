@@ -12,7 +12,10 @@ Its intake decides what these goals adopt:
 
 - v1.client
 - v1.repository-docs
-- v1.harness.sitrep
+- status-reports and training, which each build components of their own on the foundation the
+  intake promotes; only overlap they prove moves into a shared documentation components layer
+  (plan, 2026-11-09)
+- capstone.data-intelligence, whose UI builds on the stack it promotes; the intake runs before it
 
 ## Scope
 
@@ -329,7 +332,7 @@ workflow runs a Vite build with vite-plugin-standard-css-modules, the ecosystem 
 spike-html-apps adopted in place of spike-html-conventions' local `scripts/css-sheets.js`. It
 uploads the build output, not the source tree, because a page that loads components unbundled
 fails in Safari (spike-html-conventions' Results 8). Decides the Pages topology that v1.client
-and v1.repository-docs build, and whether v1.harness.sitrep publishes HTML.
+and v1.repository-docs build, and how status-reports, a project site in it, publishes.
 
 ## Experiment: spike-html-go-wasm
 

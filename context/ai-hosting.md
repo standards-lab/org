@@ -65,8 +65,10 @@ models: which engine and hosting method on each, how a model's compatibility and
 are settled, how the models are laid out across their memory pools, which gateway routes requests
 across the pool and restricts access to it, and what tool administers them? Its intake
 decides what `v1.ai.hosting` builds. The spikes run one at a time: spike-model-hosting's
-Framework baseline, then spike-model-engines, spike-hosting-upgrades, spike-model-layout,
-spike-model-gateway, and spike-host-admin. The benchmarks spike, which spike-hosting-upgrades
+Framework baseline, then spike-model-engines, spike-hosting-upgrades, spike-model-layout, and
+spike-model-gateway; its intake runs before capstone.data-intelligence (`data-intelligence.md`).
+spike-host-admin moved to experiment.admin, after the capstone, which doesn't need the admin tool
+(plan, 2026-11-09); its answer lands in "Answers · experiment.admin". The benchmarks spike, which spike-hosting-upgrades
 replaced (architect, 2026-10-29), and the host-admin spike moved here from experiment.ai, so that this experiment owns the whole hosting layer (`ai-strategy.md`, "The
 four layers"; architect, 2026-10-26). Their answers land in "Answers · experiment.hosting" below.
 
@@ -127,7 +129,9 @@ experiment.hosting's remaining spikes beside gb10-1 and the Framework, which spi
 needs to lay models out across every pool before spike-model-gateway (architect, 2026-11-09). Each
 session brings all three current. spike-model-layout's `hosts` task moves gb10-2 onto
 spike-model-engines' engines suite and shared preset, carrying the two vision keys below into that
-preset; spike-ai-pipeline's repository stays untouched.
+preset; spike-ai-pipeline's repository stays untouched. After spike-model-gateway, gb10-2 goes to
+capstone.data-intelligence's design measurements and build, and then to experiment.ocr (plan,
+2026-11-09).
 
 **gb10-2 serves set A** from llama.cpp's router at server-cuda13-b12098, the gb10 pin in
 spike-ai-pipeline's own `llama.env`, and the root's `mise run host-update` brings it current at the
@@ -212,7 +216,7 @@ questions moved:
 - the engine (llama.cpp or vLLM) and hosting method (native or container) to spike-model-engines
 - the model layout to spike-model-layout
 - the gateway and access control to spike-model-gateway
-- the admin CLI to spike-host-admin
+- the admin CLI to spike-host-admin, now experiment.admin's
 - upgrade evaluation and model candidates to spike-hosting-upgrades
 
 ### spike-model-engines
@@ -264,10 +268,10 @@ control.
 
 ### spike-host-admin
 
-Can one CLI on go-cli-sdk manage every engine and host experiment.hosting keeps: install,
-update, service status and restart, models, metrics, and GPU and memory use? outpost is its
-baseline ("The existing setup: personal-agents"). It runs last, managing what the other spikes
-settled. Decides `ai-hosting`'s admin tooling ("Open for v1.ai.hosting's SETTLE").
+experiment.admin's one spike. Can one CLI on go-cli-sdk manage every engine and host
+experiment.hosting keeps: install, update, service status and restart, models, metrics, and GPU
+and memory use? outpost is its baseline ("The existing setup: personal-agents"). It runs after
+capstone.data-intelligence, managing what experiment.hosting settled. Decides `ai-hosting`'s admin tooling ("Open for v1.ai.hosting's SETTLE").
 
 ## Where personal-agents' parts go
 
@@ -390,17 +394,17 @@ measurement method stands on set A's two baseline runs, its screen proven by tes
 The original evidence's other items moved:
 
 - 2, one schema rendering every platform on both host classes: spike-model-engines (engine
-  and hosting method per host class); the profile format is settled at experiment.ai's
+  and hosting method per host class); the profile format is settled at experiment.admin's
   spike-host-admin's setup.
 - 3, how each platform is set up and managed: spike-model-engines (scripted install and setup)
-  and experiment.hosting's spike-host-admin.
+  and experiment.admin's spike-host-admin.
 - 6, a capability matrix per platform: spike-model-engines (raw capability by model shape,
   embedding and ASR among them).
 - 7, presets, context sizing, and the footprint method beyond the Framework:
   spike-model-layout (context × sessions per placed model) and spike-model-engines (vLLM).
 - 8, each gateway approach: spike-model-gateway, budgets, rate limits, OpenTelemetry traces,
   memory and latency overhead, and one configuration on both host classes included.
-- 9, one admin tool over every platform and host: experiment.hosting's spike-host-admin.
+- 9, one admin tool over every platform and host: experiment.admin's spike-host-admin.
 - 10, IL6 on paper: spike-model-gateway; the engines' IL6 check was dropped from
   spike-model-engines (architect, 2026-10-23).
 - The model candidates and the upgrade-evaluation convention: experiment.hosting's
@@ -601,6 +605,8 @@ Requirements for the intake to route:
 
 [The answer](https://github.com/JaimeStill/spike-hosting-upgrades#the-answer) ·
 [spike-hosting-upgrades](https://github.com/JaimeStill/spike-hosting-upgrades)
+
+## Answers · experiment.admin
 
 ## Assumptions
 
