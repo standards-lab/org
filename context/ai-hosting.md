@@ -46,7 +46,7 @@ units of the DGX Spark class. Like Strix Halo, they have unified memory and no d
 
 - **Hardware**: aarch64 with an sm_121 GPU, 20 cores, 3.6 TB of NVMe, and 128 GB of unified
   memory at 273 GB/s, of which about 121 GiB is visible and about 117 GiB available.
-- **Stack**: DGX OS 7.6.0, driver 580.178.04, CUDA 13.0, kernel 7.0.0-1019-nvidia, Docker
+- **Stack**: DGX OS 7.6.0, driver 580.178.04, CUDA 13.0, kernel 7.0.0-1025-nvidia, Docker
   29.6.2, and nvidia-container-toolkit 1.20.1.
 - **Interconnect**: a QSFP link over ConnectX-7 joins the two units, at about 185 Gb/s of RDMA
   across both port halves.
@@ -121,12 +121,13 @@ its hosts up to date, and every measurement records the engine version, the host
 laptop's network path to the host (`tailscale ping`): a DERP relay adds its round trip to TTFT
 and request latency, but not to inter-token latency or the server's own counters.
 
-**gb10-2 was reserved** for experiment.ai's spike-ai-pipeline from 2026-10-26 (`ai-strategy.md`)
-until the spike returned to `planned` after its docinfer task (2026-11-09), so the two experiments
-could run at once without sharing a host. Which work uses gb10-2 next is the next `marathon plan`
-session's. It still serves set A from spike-ai-pipeline's preset; a session that changes its engine
-and wants the pipeline's back leaves the llama container running, since the root's host-update
-fails on a stopped container rather than starting it.
+**experiment.hosting runs on all three hosts.** gb10-2 was reserved for experiment.ai's
+spike-ai-pipeline from 2026-10-26 until that spike completed (2026-11-09); it now serves
+experiment.hosting's remaining spikes beside gb10-1 and the Framework, which spike-model-layout
+needs to lay models out across every pool before spike-model-gateway (architect, 2026-11-09). Each
+session brings all three current. spike-model-layout's `hosts` task moves gb10-2 onto
+spike-model-engines' engines suite and shared preset, carrying the two vision keys below into that
+preset; spike-ai-pipeline's repository stays untouched.
 
 **gb10-2 serves set A** from llama.cpp's router at server-cuda13-b12098, the gb10 pin in
 spike-ai-pipeline's own `llama.env`, and the root's `mise run host-update` brings it current at the
@@ -245,7 +246,15 @@ experiment.hosting.spike-hosting-upgrades", under "Answers · experiment.hosting
 ### spike-model-layout
 
 How are models placed across the three memory pools, and what context and how many concurrent
-sessions does each placed model hold? Decides the layout.
+sessions does each placed model hold? It runs on gb10-1, gb10-2 and the Framework, and measures, in
+capped GuideLLM runs: host parity across the two GB10s; memory per model per host class; context ×
+sessions per placed model; set A on one GB10 against the roles split across both GB10s (one serving
+the agent model alone, the other vision, audio and embedding, with requests directed by
+capability); the Framework in the role that comparison points to; the agent on vLLM, in a
+container, against llama.cpp; on-demand loading through llama.cpp's router against resident
+models; and gpt-oss-120b across both GB10s over QSFP with vLLM and Ray. Routing stays on paper,
+handed to spike-model-gateway as requirements. Decides the layout v1.ai.hosting specifies. Its
+evidence and path are in the spike's `context/README.md`.
 
 ### spike-model-gateway
 
