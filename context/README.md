@@ -85,6 +85,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   questions of experiment.ocr and experiment.harness, and
   experiment.hosting's and experiment.admin's questions and decomposition of personal-agents.
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
+  Cerebro and Athena architecture and repositories, what it asks of the goals beneath it, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
