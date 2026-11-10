@@ -66,6 +66,7 @@ spike-html-hosting-components = "~/experiments/spike-html-hosting-components"
 spike-html-hosting-architecture = "~/experiments/spike-html-hosting-architecture"
 spike-html-hosting-sqlate = "~/experiments/spike-html-hosting-sqlate"
 spike-html-hosting-sdk = "~/experiments/spike-html-hosting-sdk"
+spike-html-hosting-icons = "~/experiments/spike-html-hosting-icons"
 spike-model-engines = "~/experiments/spike-model-engines"
 # The capstones (naming.md, "Capstones").
 data-intelligence = "~/capstones/data-intelligence"

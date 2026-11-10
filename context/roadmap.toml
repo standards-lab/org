@@ -7,10 +7,11 @@
 # experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
 # answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active, with
 # gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
-# experiment.html's spike-html-design, spike-html-conventions, spike-html-packages, and
-# spike-html-apps have answered (html-artifacts.md, "Answers · experiment.html"), and
-# spike-html-hosting is active. experiment.graph's intake has settled graph-ergonomics' API
-# (graph-ergonomics.md, "The settled API"); graph-ergonomics' release is next.
+# experiment.html's spike-html-design, spike-html-conventions, spike-html-packages,
+# spike-html-apps, and spike-html-hosting have answered (html-artifacts.md, "Answers ·
+# experiment.html"), and spike-html-go-wasm is active. experiment.graph's intake has settled
+# graph-ergonomics' API (graph-ergonomics.md, "The settled API"); graph-ergonomics' release is
+# next.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
@@ -21,11 +22,12 @@
 # the full architecture standards and the workspace) and closed by an acceptance task that reruns
 # the real workloads; (c) design the capstone's protocols and practices, its first tasks; (d)
 # build the capstone; (e) continue the roadmap. The waves, each running its goals side by side:
-# - A: spike-model-layout, spike-html-hosting, spike-ai-pipeline's `answer` (done),
-#   graph-ergonomics (go-core's graph and lifecycle, reviewed while the exclusive group is free,
-#   before go-ai and the client SDK build on them), and spike-graph, which proved its candidate
-#   API (done); then experiment.ai's intake (done) and experiment.graph's (done), and
-#   graph-ergonomics' release and per-tier migrations, ahead of wave C.
+# - A: spike-model-layout, spike-html-hosting (answered: html-artifacts.md, "Answers ·
+#   experiment.html"), spike-ai-pipeline's `answer` (done), graph-ergonomics (go-core's graph
+#   and lifecycle, reviewed while the exclusive group is free, before go-ai and the client SDK
+#   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
+#   intake (done) and experiment.graph's (done), and graph-ergonomics' release and per-tier
+#   migrations, ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
 #   experiment.html's intakes.
 # - C: v1.ai's sub-goals beside v1.client, which holds the exclusive group. v1.ai.tools stages
@@ -44,13 +46,12 @@
 
 active = [
   "experiment.hosting.spike-model-layout",
-  "experiment.html.spike-html-hosting",
+  "experiment.html.spike-html-go-wasm",
   "graph-ergonomics",
 ]
 
 planned = [
   "experiment.hosting.spike-model-gateway",
-  "experiment.html.spike-html-go-wasm",
   "v1.ai.tools",
   "v1.ai.hosting",
   "v1.ai.client",
@@ -584,7 +585,7 @@ churning: the accessibility layer over the README, the package documentation, an
 in the shape sqlate's guide established (concepts by example, a quick start, the features by
 package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
 changes it; sqlate's guide exists and is verified rather than written. Each guide publishes
-through the Pages topology experiment.html.spike-html-hosting settles and v1.client builds.
+through the Pages topology experiment.html.spike-html-hosting settled and v1.client builds.
 '''
 context = ["architecture/principles/context-architecture.md"]
 
@@ -1177,157 +1178,6 @@ sheet (`html-artifacts.md`, "Experiment: spike-html-design"). status-reports and
 build components of their own on the foundation it promotes, and only overlap they prove moves
 into a shared documentation components layer (plan, 2026-11-09). It then archives the six spikes
 and runs before capstone.data-intelligence, whose UI builds on the stack it promotes.
-'''
-
-[goals.experiment.html.spike-html-hosting]
-name = "Repository docs and artifact hosting"
-root = "spike-html-hosting"
-repos = [
-  "spike-html-hosting",
-  "spike-html-hosting-components",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-  "spike-html-hosting-sdk",
-]
-remote = "https://github.com/JaimeStill/spike-html-hosting.git"
-path = "~/experiments/spike-html-hosting"
-summary = '''
-What do the repositories' Pages sites and the hosting of persistent artifacts look like,
-published as native web? Tests the hypothesis: architecture its own project site; org holding
-the charter and the hosted artifacts and linking to every project site; each code repository
-serving its own docs/ guide. Three JaimeStill project sites stand in for org, architecture, and
-sqlate, carrying pinned copies; each Pages workflow runs a Vite build with
-vite-plugin-standard-css-modules and uploads the build output. The Markdown sources stay
-Markdown, rendered at build. The sites pin spike-html-apps-foundation by tag and a documentation
-components layer of their own. Draws the line between HTML and Markdown. Decides the Pages
-topology v1.client and v1.repository-docs build, and how status-reports, which takes in the
-coordinator's briefs/, publishes HTML (`html-artifacts.md`, "Experiment: spike-html-hosting").
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.layers]
-name = "The site and layer repositories"
-repos = [
-  "spike-html-hosting",
-  "spike-html-hosting-components",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-]
-summary = '''
-spike-html-hosting-components, -architecture, and -sqlate created, each with its check, CI, and
-STANDARDS.md, the components with release.yml and CHANGELOG. Each site, the root included,
-builds with Vite and vite-plugin-standard-css-modules on spike-html-apps-foundation v0.3.0 by
-tag, deploys its build output by its own Pages workflow under its /<repo>/ base, and fails its
-check on any CSS module script left in the output; [remote] ci waits on the deploy. Evidence 1
-and 7.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.content]
-name = "Markdown sources rendered at build"
-repos = ["spike-html-hosting-architecture", "spike-html-hosting-sqlate"]
-summary = '''
-Pinned copies of architecture at 8706d04 and of sqlate's README and docs/ at v0.6.1, with
-provenance, rendered at build by marked: front matter read, relative .md links rewritten across
-the site, the README as the index. Evidence 3 and 4.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.screenshots]
-name = "Screenshots on every site"
-repos = [
-  "spike-html-hosting",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-]
-summary = '''
-`mise run screenshots` in every site, as each spike-html-apps* repository has: the
-spike-html-apps-tooling v0.3.0 `spike-html-apps-screenshots` bin, already pinned for the browser
-tests, over a scripts/screenshots.config.ts that captures pages light and dark, wide and narrow,
-and with the theme menu open, with the bin's --page, --scheme, --output, --dir, and --keep.
-Precedent: spike-html-apps-foundation's mise.toml [tasks.screenshots] and its
-scripts/screenshots.config.ts (openThemeMenu clicks button[commandfor=theme]; pressHelp sends keys
-over CDP). Runs first, so every later session brief can show captures.
-'''
-proof = '''
-`mise run screenshots` captures each site's pages in both schemes, wide and narrow, and with the
-theme menu open, and leaves no capture file without --keep.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.template]
-name = "The shared site template"
-repos = [
-  "spike-html-hosting-sdk",
-  "spike-html-hosting",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-]
-summary = '''
-spike-html-hosting-sdk created, after go-web-sdk-template: a site SDK package released by tag
-(the renderBlocking and markdownPages Vite plugins, the ESLint leftover check, the tsconfig and
-Prettier bases, the browser-test body, site.css) and a template/ subtree tagged template/v* that
-each site copies once, replacing the hand-copied site files; a site keeps pace by bumping the
-SDK. It takes each site's screenshots capture file and `mise run screenshots` task, and fixes
-spike-html-apps-tooling's unknown-profile message, which prints the page's path and so names no
-page for an index at "", in the capture file or the tooling. Open for its plan: whether
-pages.yml becomes a reusable workflow called by tag.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.highlighting]
-name = "Code highlighting"
-repos = [
-  "spike-html-hosting-sdk",
-  "spike-html-hosting",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-]
-summary = '''
-Code fences highlighted at build in the SDK's Markdown renderer, matched to the foundation's
-color profiles and schemes. Shiki 4.6.0 is the candidate; it ships no flexoki theme, the default
-profile.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.components]
-name = "The documentation components"
-repos = [
-  "spike-html-hosting-components",
-  "spike-html-hosting",
-  "spike-html-hosting-architecture",
-  "spike-html-hosting-sqlate",
-]
-summary = '''
-The section tree (bracketed key hints, reading progress, arrow-key scrolling), the page header
-from front matter, the site index, and cross-site navigation, on the foundation as a peer;
-components v0.1.0 released and pinned by tag on all three sites, with the reader's stored theme
-carrying across the shared origin. It fixes the architecture index's horizontal scroll at 390px,
-where an element, probably a table, is wider than the viewport, here or in site.css. Evidence 4
-and 6.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.org]
-name = "The org site and its artifacts"
-repos = ["spike-html-hosting"]
-summary = '''
-The org stand-in's charter, its index of every site, and a hosted persistent report; shared
-navigation measured build-time-by-tag against fetched-at-runtime with one site deployed ahead;
-briefs/orientation.md as HTML beside its Markdown and a dated sitrep-style entry, with verdicts
-for the coordinator's briefs/ and status-reports. Evidence 2, 5, and 8.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.review]
-name = "Review, the CLI demo, and cost"
-repos = ["spike-html-hosting", "spike-html-hosting-sqlate"]
-summary = '''
-The review across every site, on the screenshots task's captures, with a check that no capture
-file remains; sqlint at sqlate's sqlint/v0.1.1 recorded through VHS, rendered in the sqlate site's
-Pages workflow from a committed tape and embedded in a docs page; brotli page weight, build
-time, and push-to-live time per site. Evidence 9, 10, and 11.
-'''
-
-[goals.experiment.html.spike-html-hosting.tasks.answer]
-name = "The answer"
-repos = ["spike-html-hosting"]
-summary = '''
-The answer section: the Pages topology v1.client and v1.repository-docs build, the org site's
-root URL as a sourced option (a standards-lab.github.io repository), and the documentation
-components layer weighed against spike-html-apps-components for the intake.
 '''
 
 [goals.experiment.html.spike-html-go-wasm]
