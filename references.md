@@ -227,6 +227,12 @@ spike-ai-pipeline's layer repositories: the model client, the processing layer, 
 mail, and OneNote CLIs. They are the references for go-ai, unravel, office-read, mail-read, and
 onenote-read.
 
+### spike-graph
+Asked whether go-core's candidate `graph` and `lifecycle` API makes go-web-service's composition
+root and slab's CLI shorter and their layer placement legible, on real infrastructure. Answered
+yes, without arity adapters; go-core's breaking release ships its API, and its migrated
+go-web-service and slab are the reference for graph-ergonomics' migrations.
+
 ## Prior R&D — Go web service architecture
 
 ### herald
