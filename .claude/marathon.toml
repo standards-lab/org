@@ -69,7 +69,9 @@ spike-html-hosting-sdk = "~/experiments/spike-html-hosting-sdk"
 spike-html-hosting-icons = "~/experiments/spike-html-hosting-icons"
 spike-model-engines = "~/experiments/spike-model-engines"
 # The capstones (naming.md, "Capstones").
-data-intelligence = "~/capstones/data-intelligence"
+capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
+capstone-cerebro = "~/capstones/capstone-cerebro"
+capstone-athena = "~/capstones/capstone-athena"
 
 # The hosting convention `marathon experiment` proposes for a new spike.
 [workspace.experiments]
