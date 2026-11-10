@@ -199,6 +199,10 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-ai-pipeline-onenote.git"
 archived = true
 
+[repos.spike-graph]
+remote = "https://github.com/JaimeStill/spike-graph.git"
+archived = true
+
 # Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"

@@ -2,66 +2,78 @@
 
 go-core's `graph` and `lifecycle` behave correctly but read badly, and their nine consumers
 repeat the same workarounds. Goal graph-ergonomics redesigns their API, not their behavior, in one
-breaking go-core release followed by one migration task per tier. The design direction (the pain
-points, the behavior that must not change, the candidate API, the open fork, the rejected
-alternatives, and the migration) lives in go-core's working context,
-`go-core/context/graph-ergonomics.md`; this note holds the experiment that settles it and its
-answers.
+breaking go-core release followed by one migration task per tier. experiment.graph's spike-graph
+proved the candidate API on the full go-web-service and slab, and its intake settled what the
+release ships; this note holds that settled API. The detail behind it (the pain points, the
+behavior that must not change, the rejected alternatives, and the sketches) lives in go-core's
+working context, `go-core/context/graph-ergonomics.md`, which the release task rewrites to the
+shipped API.
 
-## Experiment: spike-graph
+## The settled API
 
-experiment.graph has one spike, `experiment.graph.spike-graph`, at `~/experiments/spike-graph`
-(`github.com/JaimeStill/spike-graph`). Its question, evidence, and path are in the spike's
-`context/README.md`.
+graph-ergonomics' decisions 9–14, as the release ships them:
 
-- **The question.** Does the candidate API, built on today's graph semantics, make
-  go-web-service's real composition root and slab's real CLI shorter, and their layer placement
-  legible, run against real infrastructure, with arity adapters and methods on `*Nodes` compared
-  on one tier?
-- **The decision it changes.** The exact API go-core's breaking release ships: which of
-  graph-ergonomics' decisions 9–14 survive as written, whether arity adapters ship, and the three
-  details the design note leaves open (the rule the name check applies; what `web.Run` returns
-  and reports, and where the ready, failed, and stopped logs go; how a `*Nodes` method reaches a
-  plain value).
+- **Order and groups at Define (9).** A node's place is declared on its Define line with
+  `graph.After` and `graph.In`, and groups with `g.Group`; `Scope.After` is removed. An After
+  takes a handle defined earlier. `System.Dropped()` reports what a partial Build left out.
+- **Constructors as methods on `*Nodes` (10).** A constructor that needs a setting may return one;
+  a constructor that takes no node stays a plain function.
+- **Values (11, changed).** `g.Value(name, v)` and the method `g.Fresh[T](name)` (Go 1.27 method
+  type parameters) take Define's options, so a value can join a group.
+- **Explicit names, checked (12).** Names stay explicit; a fixture check replaces name comments.
+- **Handles in introspection (13).** `Ref` on a Dependency, `Observe(func(Ref))`, `LayerOf`, and
+  `String()`. `LayerOf` panics for a non-member, a nil ref, or a group handle.
+- **`web.Run` (14, changed).** go-web-sdk's runner matches `cli.Run`'s exit-code contract instead
+  of returning an error.
 
-The spike is a prerequisite of capstone.data-intelligence: the capstone's composition root is
-written against the API experiment.graph's intake settles and graph-ergonomics ships.
+## The three details
 
-## Answers · experiment.graph
+- **The name check.** A node's or group's name, lowercased with spaces removed, equals its Nodes
+  field's name lowercased. go-core gains `graph/graphtest` with `NameErrors(nodes any) []error` and
+  `CheckNames(t testing.TB, nodes any)`; Define, Value, Fresh, and Group refuse the empty name.
+- **`web.Run`.** `web.Run[S Server](ctx, g, lifecycleConfig, logger, server, roots, stderr) int`,
+  where `Server` has one method, `Addr() string`. It logs "server ready", "service failed", and
+  "server stopped" on the logger node; a Build failure goes to stderr, and a failed shutdown logs
+  "service failed" and returns 1. A service's `App.Run` becomes one call, and App drops its
+  fallback logger.
+- **Plain values.** A `*Nodes` method reaches a plain value through a `graph.Value` node, as the
+  logger Uses the "writer" node. `g.Value` infers `T` from the argument's static type.
 
-### Answer · experiment.graph.spike-graph
+## The node-named run failure
 
-**Question:** Does the candidate API, on today's graph semantics, make go-web-service's composition
-root and slab's CLI shorter, and their layer placement legible, run against real infrastructure,
-with arity adapters and methods on `*Nodes` compared on one tier?
+lifecycle's one behavior change: a Monitored value's runtime failure names its node,
+`run: <node>: <error>`, where go-core v0.10.0 reports `run: <error>`. It ships in the release, and
+go-cli-sdk's monitored-failure test changes with it in migrate-libraries.
 
-**Answer:** Yes: both real roots are shorter and their layer placement legible, with every node's
-layer stated at its Define line, no constructor body ordering anything, and the service root's
-wrapper constructors, closures, and name comments gone; arity adapters don't ship, so methods on
-`*Nodes` are the only constructor form.
+## Not shipped
 
-1. The candidate `graph` and `lifecycle` packages: sdk/graph's and sdk/lifecycle's tests, go-core's
-   ported and the candidate's own, under `mise run check`; both roots run on them.
-2. The service on the candidate: internal/app's tests under `mise run check`; `mise run integration`
-   passed on the spike-graph-integration stack (web task); the migrated service served slab's
-   scenarios on the spike-graph stack (cli task).
-3. `web.Run`: sdk/web's tests and internal/app's Run tests; the running service logged "server
-   ready" (cli task); "service failed" and "server stopped" are proven only by tests.
-4. slab migrated: `mise run slab` ran all six scenarios against the migrated service on the stack,
-   all exiting 0 (cli task); help and usage errors building nothing is proven only by tests.
-5. Layer tests on `Roots()`, `LayerOf`, and handles, with `Dropped()` empty: proven only by tests
-   (internal/app's layer tests, slab's `TestGraph_ScenarioLayers`).
-6. The name check: proven only by tests (`graphtest.CheckNames`, run on both roots' Nodes).
-7. A `*Nodes` method reaches a plain value through a `graph.Value` node (the logger's "writer"):
-   internal/app's tests; the running service logs through it.
-8. Arity adapters: decided, not measured. The architect decided they don't ship: the Define-line
-   changes already made the graph legible and fixed the reliability findings, so a second
-   constructor form isn't worth its cost (one adapter per arity, a projection node or wrapper for
-   each constructor that takes part of the config, no-error variants). No adapter tier was written.
-9. Before/after, from `mise run measure` against baseline 2999659: service code lines 460 → 411,
-   closures 21 → 0, wrapper constructors 14 → 0, name comments 21 → 0, `s.After` sites 7 → 0; slab
-   code lines 207 → 202, closures 11 → 7, wrappers 3 → 1, name comments 12 → 0, `s.After` 1 → 0.
-   Decisions 9, 10, 12, 13 kept; 11 and 14 changed; the open fork dropped.
+Arity adapters. The architect decided against them without an adapter tier: the Define-line
+changes already made the graph legible and fixed the reliability findings, and a second
+constructor form costs one adapter per arity, a projection node or wrapper for each constructor
+that takes part of the config, and no-error variants. Methods on `*Nodes` are the only constructor
+form.
+
+## Open findings
+
+The spike's findings the intake left to the tasks that ship the code:
+
+- For the release's plan rounds: `LayerOf` as `(int, bool)` or a `Has(ref)`; no
+  `Group.Members()`; observers persisting across Builds; `Replace` can't remove an edge.
+- For migrate-libraries' plan rounds: `web.Run`'s four handles against an options struct;
+  `cli.Command` has no children accessor; sdk/cli never reads `Dropped`.
+
+## Evidence
+
+spike-graph answered yes: both real roots are shorter and their layer placement legible, with
+every node's layer stated at its Define line. `mise run measure` against its baseline:
+
+| Root | Code lines | Closures | Wrapper constructors | Name comments | `s.After` sites |
+|---|---|---|---|---|---|
+| go-web-service | 460 → 411 | 21 → 0 | 14 → 0 | 21 → 0 | 7 → 0 |
+| slab | 207 → 202 | 11 → 7 | 3 → 1 | 12 → 0 | 1 → 0 |
+
+The layer tests, the name check, and `web.Run`'s "service failed" and "server stopped" logs are
+proven only by tests; the rest ran against real infrastructure.
 
 [The answer](https://github.com/JaimeStill/spike-graph/blob/main/context/README.md#the-answer) ·
-[spike-graph](https://github.com/JaimeStill/spike-graph)
+[spike-graph](https://github.com/JaimeStill/spike-graph) (archived)
