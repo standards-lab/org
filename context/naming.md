@@ -33,12 +33,13 @@ after the experiments and libraries it needs (plan, 2026-11-09). It is a workspa
 not a marathon concept; a marathon proposal waits until the first capstone ships.
 
 - **The goal** is `capstone.<slug>`, under the `capstone` container goal in `roadmap.toml`.
-- **The repository** is named by a descriptive slug for what the application does, with no
-  prefix: the container and the checkout directory already mark the category, and the name stays
-  right if the application outlives its capstone role.
+- **The repositories**: a capstone spans one repository per layer, each named
+  `capstone-<name>`, with the integration repository, `capstone-<slug>`, as the goal's root (the
+  architect, plan, 2026-11-10; it replaces the earlier no-prefix rule).
 - **The remote** is under JaimeStill, outside the standards-lab organization:
-  `https://github.com/JaimeStill/<slug>`.
-- **The checkout** is `~/capstones/<slug>`, listed in `[workspace.paths]` in
+  `https://github.com/JaimeStill/<repo>`.
+- **The checkout** is `~/capstones/<repo>`, listed in `[workspace.paths]` in
   `.claude/marathon.toml`, outside `order` and the references catalog.
 
-The first is data-intelligence (`data-intelligence.md`).
+The first is data-intelligence (`data-intelligence.md`): capstone-data-intelligence,
+capstone-cerebro, and capstone-athena.

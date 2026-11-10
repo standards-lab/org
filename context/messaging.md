@@ -220,10 +220,22 @@ memory.
 - Whether go-messaging names the change-only event pattern: an event that carries its producer's
   whole state and a monotonic sequence, so a consumer that skips stale input loses nothing.
 - A dead-letter stream, deferred until a consumer needs replay.
+- **A stream-backed root** (plan, 2026-11-10). capstone.data-intelligence's Cerebro has no SQL:
+  each job is a root Entity whose state is folded from the events on its own subject, so
+  appending an Event, guarded by an expected-last-sequence check, is the transaction that makes
+  the Command's change true (`architecture/architecture.md`, "The elements", asks for that
+  atomicity, not for SQL). go-messaging gains, as a planned goal ahead of the capstone
+  (`roadmap.toml`, `messaging-streams`): that expected-sequence append beside the outbox, a
+  work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
+  dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet, and a
+  standard object-store API over what is native through `Conn()` today
+  (`data-intelligence.md`, "Cerebro and Athena").
 
 ## Assumptions
 
 - Assumes JetStream's deduplication window covers the relay's retry interval.
 - Assumes every event a service emits reports a mutation in its own database, so an outbox table
-  in that database suffices.
+  in that database suffices. capstone.data-intelligence's Cerebro breaks it on purpose: a service
+  with no SQL whose root Entity is stored as a JetStream stream ("A stream-backed root", under
+  Open).
 - Assumes the service stays on `database/sql`-shaped sessions (sqlate's `Session`).

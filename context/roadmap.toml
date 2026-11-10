@@ -34,7 +34,8 @@
 #   first, since it holds the architecture lock ahead of v1.ai.hosting (ai-hosting);
 #   v1.ai.client (go-ai) and v1.ai.processing (unravel) follow it. go-ai, unravel, and the tool
 #   repositories stay outside the group until C ends; then go-ai and unravel join it. Then
-#   v1.data.extensions, the Postgres-extension strategy.
+#   v1.data.extensions, the Postgres-extension strategy, and messaging-streams, go-messaging's
+#   stream-backed root, work queue, and object store for the capstone's Cerebro (plan, 2026-11-10).
 #   status-reports and training.foundation start here; status-reports' first backfill report
 #   covers ~/architecture as it stands at the capstone's start.
 # - D: capstone.data-intelligence, the sole active goal apart from status-reports and training;
@@ -60,6 +61,7 @@ planned = [
   "status-reports",
   "training.foundation",
   "v1.data.extensions",
+  "messaging-streams",
   "capstone.data-intelligence",
   "experiment.ocr.spike-scanned-documents",
   "experiment.admin.spike-host-admin",
@@ -95,6 +97,9 @@ backlog = [
   "nats-credentials",
   "foundation-extension",
   "screenshots-in-neovim",
+  "retrieval",
+  "cross-service-tracing",
+  "chunked-upload-graduation",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -250,6 +255,10 @@ case. Staged after wave C, ahead of the capstone.
 '''
 context = ["standards-lab/context/data-intelligence.md"]
 
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - pgvector lives in capstone-athena only; Cerebro has no database.
+
 [goals.v1.data.extensions.tasks.strategy]
 name = "The extension strategy"
 summary = '''
@@ -303,6 +312,11 @@ the catalog at this sub-goal's first `plan`, and never join `exclusive`. Stages 
 v1.ai's sub-goals, since it holds the architecture lock ahead of v1.ai.hosting.
 '''
 context = ["standards-lab/context/system-tools.md", "standards-lab/context/ai-strategy.md"]
+
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - office-read, mail-read, and onenote-read ship inside Cerebro's image, pinned by their
+#   contracts' releases.
 
 [goals.v1.ai.tools.tasks.design]
 name = "Design review of the tools"
@@ -396,6 +410,11 @@ context = ["standards-lab/context/ai-hosting.md"]
 # published port (or no network) and print the fix, instead of waiting out its 120 s health
 # check; ai-hosting's update script can take the check.
 
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - Cerebro (bulk processing) and Athena (chat) are separate gateway consumers, each with a key
+#   and a budget; the gateway's 429 and queueing behave as go-ai's retry expects.
+
 [goals.v1.ai.client]
 name = "go-ai, the model client"
 repos = ["go-ai"]
@@ -407,6 +426,13 @@ Open Responses, the standard formats the model engines serve natively. Its conve
 beside go-storage and the catalog at this sub-goal's first `plan`, and `exclusive` after wave C.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
+
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - go-ai's first long-running service consumer: retry proven against the live gateway's 429,
+#   503, and Retry-After; per-call timeouts and cancellation by context; a per-consumer key
+#   header; Embed batching; streaming Generate whose events Cerebro can relay. Concurrency bounds
+#   stay the caller's.
 
 [goals.v1.ai.client.tasks.design]
 name = "Design review of the client"
@@ -451,6 +477,14 @@ wave C.
 '''
 context = ["standards-lab/context/ai-strategy.md", "standards-lab/context/system-tools.md"]
 
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - docinfer's orchestration (vision, transcription, chunking, embedding, the result cache)
+#   moves into the library behind inference interfaces unravel defines, free of go-ai; results
+#   come out in batches as made; the index and cache behind interfaces Cerebro backs with
+#   JetStream; input from a stream or spooled to scratch; stable exported event shapes;
+#   cancellation per job; the exec runner inside an image that bundles the tools.
+
 [goals.v1.ai.processing.tasks.design]
 name = "Design review of processing"
 summary = '''
@@ -471,7 +505,9 @@ never records it and every docproc rerun renders its 1,823 pages again; a failed
 be a warning beside the pages. The audio stage's windows each run an ffmpeg that decodes the
 source from its start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every
 other input finished in 332 s; seeking per window, or one decode streamed into windows, would
-bound it (docproc finding).
+bound it (docproc finding). For capstone.data-intelligence's Cerebro, the library also takes
+docinfer's orchestration behind inference interfaces it defines, with batched results and a
+pluggable index and cache (`data-intelligence.md`, "What it asks of the goals beneath it").
 '''
 # Backlog from spike-ai-pipeline-processing:
 # - ODF, WordPerfect, .xlsb, and ODG still report "no processor yet", and legacy OLE2 macros go
@@ -514,9 +550,10 @@ test's.
 [goals.v1.ai.processing.tasks.docinfer]
 name = "docinfer"
 summary = '''
-`cmd/docinfer`, from the spike root's docinfer, after go-ai's library release: sends a docproc
-run's outputs through go-ai to vision, transcription, and embeddings, and writes its own
-directory, schema "1". The model-calling tests move into its module.
+`cmd/docinfer`, from the spike root's docinfer, after go-ai's library release: a thin composition
+of the library's inference orchestration with go-ai adapters, sending a docproc run's outputs to
+vision, transcription, and embeddings and writing its own directory, schema "1". The
+model-calling tests move into its module.
 '''
 
 [goals.v1.ai.processing.tasks.reports]
@@ -560,6 +597,11 @@ segment with an extension, with no file behind it, is a 404 problem, never the s
 to go-web-service's `sdk/`, then go-web-sdk.
 '''
 context = ["standards-lab/context/web-client.md", "standards-lab/context/html-artifacts.md"]
+
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - The upload component gains resumable chunked upload on Cerebro's protocol; the stage
+#   timeline is driven by the event protocol, not hard-coded; the chat thread renders citations.
 
 [goals.v1.deployment]
 name = "Deployment"
@@ -671,6 +713,10 @@ repositories import them too, and are read, never changed.
 '''
 context = ["standards-lab/context/graph-ergonomics.md"]
 
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - capstone-cerebro's and capstone-athena's composition roots are written against its release.
+
 [goals.graph-ergonomics.tasks.design-review]
 name = "Design review of graph and lifecycle"
 repos = ["go-core"]
@@ -727,6 +773,32 @@ slab CLI onto the release and the libraries' new versions, as spike-graph migrat
 with `App.Run` one `web.Run` call; slab stays its own module.
 '''
 
+[goals.messaging-streams]
+name = "Stream-backed roots, work queues, and object storage in go-messaging"
+root = "go-messaging"
+repos = ["go-messaging"]
+summary = '''
+What capstone.data-intelligence's Cerebro needs from go-messaging, a service with no SQL
+(`messaging.md`, "A stream-backed root"): an Event append guarded by an expected last sequence
+beside the outbox, a work-queue package on JetStream work-queue retention (heartbeat, MaxDeliver,
+backoff, a dead-letter subject) whose contract a Postgres SKIP LOCKED provider could also meet,
+and a standard object-store API over what is native through Conn() today. Planned after wave C,
+ahead of the capstone (plan, 2026-11-10); the capstone holds go-messaging and may fix it.
+'''
+context = ["standards-lab/context/messaging.md", "standards-lab/context/data-intelligence.md"]
+
+[goals.messaging-streams.tasks.append]
+name = "The expected-sequence append"
+summary = "Appends an Event to a root's subject with an expected last sequence, beside the outbox."
+
+[goals.messaging-streams.tasks.work-queue]
+name = "The work-queue package"
+summary = "Durable jobs with heartbeat, bounded redelivery, backoff, and a dead-letter subject."
+
+[goals.messaging-streams.tasks.object-store]
+name = "The object-store API"
+summary = "A standard object-store API with TTLs, over JetStream's object store."
+
 # ── The capstone ───────────────────────────────────────────────────────────────────────────
 
 [goals.capstone]
@@ -738,22 +810,27 @@ in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones"
 
 [goals.capstone.data-intelligence]
 name = "data-intelligence"
-root = "data-intelligence"
-repos = ["data-intelligence"]
-remote = "https://github.com/JaimeStill/data-intelligence.git"
-path = "~/capstones/data-intelligence"
+root = "capstone-data-intelligence"
+repos = ["capstone-data-intelligence", "capstone-cerebro", "capstone-athena"]
+remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
+path = "~/capstones/capstone-data-intelligence"
 summary = '''
-Liberates data held in binary files on a file share: a backend on go-ai's model client and
-unravel's processing library and a web UI on the promoted web client stack that take in messages, uploads,
-and streams; capture metadata, extract by inference, and store embeddings in PostgreSQL with
-pgvector for semantic search, each stage transactional; and show each stage as it runs. Carries
-spike-ai-pipeline's evidence 7, 8, 10, and 15 (`data-intelligence.md`). Runs in wave D as the sole
+Liberates data held in binary files on a file share, in three repositories (plan, 2026-11-10):
+capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and unravel that
+never knows its caller, with no SQL, its jobs stored as JetStream streams, a Query and Command API
+with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
+capstone-athena, a prototype client-facing service that owns blob storage and PostgreSQL with
+pgvector, commits Cerebro's batches transactionally, chats through the model gateway, and shows
+each stage live on the promoted web client stack; and capstone-data-intelligence, the integration
+root with the compose stack and the ~/docs acceptance run. It shows how Cerebro and the gateway
+replace ~/s2va/athena's ingest layer without taking in its code (`data-intelligence.md`, "Cerebro
+and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
 active goal apart from status-reports and training, after experiment.hosting's and
-experiment.html's intakes and the libraries v1.ai and v1.client promote; its repos gain those libraries at
-staging, so a capstone task can update a library and use the change. Its repository is created
-at staging. graph-ergonomics is a prerequisite: its composition root is written against the
-graph and lifecycle API graph-ergonomics' release ships (`graph-ergonomics.md`). Design tasks
-come first; build tasks are written once they close.
+experiment.html's intakes, the libraries v1.ai and v1.client promote, and messaging-streams; its
+repos gain those libraries at staging, so a capstone task can update a library and use the change.
+Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
+roots are written against its release (`graph-ergonomics.md`). Design tasks come first; build
+tasks are written once they close.
 '''
 context = ["standards-lab/context/data-intelligence.md"]
 
@@ -786,11 +863,50 @@ The vision prompt and sampling that keep a page with text transcribed rather tha
 the same finding.
 '''
 
-[goals.capstone.data-intelligence.tasks.events]
-name = "The stage event protocol"
+[goals.capstone.data-intelligence.tasks.protocol]
+name = "Cerebro's protocol"
 summary = '''
-The stage event sequence and the browser's transport, NATS over WebSocket against a backend
-relay, compared on latency, ordering, auth, ports, and native-tier use (evidence 15).
+Cerebro's Queries and Commands, the small-document Command, the chunked upload protocol (session,
+chunks with offsets and digests, complete, resume) shaped to graduate to go-web-sdk, the
+processing profiles, the caller's extraction spec, and the nested `client` module.
+'''
+
+[goals.capstone.data-intelligence.tasks.state]
+name = "Cerebro's state"
+summary = '''
+The job as a stream-backed root folded from its events, the work queue, the object store and its
+TTLs, and the result cache keyed by content and stage identity, on messaging-streams' release.
+'''
+
+[goals.capstone.data-intelligence.tasks.events]
+name = "The stage and result event protocol"
+summary = '''
+Cerebro's stage, inference, and result-batch events and the final manifest, and the browser's
+transport on Athena's stream, NATS over WebSocket against a backend relay, compared on latency,
+ordering, auth, ports, and native-tier use (evidence 15).
+'''
+
+[goals.capstone.data-intelligence.tasks.athena-mapping]
+name = "Athena onto Cerebro"
+summary = '''
+Maps ~/s2va/athena's ingest onto Cerebro: its chunks-table contract, the 1024-dimension to
+768-dimension re-embed through its embedding spaces, Tesseract and Whisper onto vision and
+transcription, and what stays Athena's (summary through the extraction stage; regex entities,
+sparse rows, rerank). Read only; Athena's migration is later work outside the workspace.
+'''
+
+[goals.capstone.data-intelligence.tasks.credentials]
+name = "Service-to-service credentials"
+summary = '''
+Athena to Cerebro, each service's gateway consumer key, and NATS credentials, ahead of v1.auth and
+nats-credentials.
+'''
+
+[goals.capstone.data-intelligence.tasks.tool-packaging]
+name = "Tools in Cerebro's image"
+summary = '''
+Cerebro's container image with unravel's tools and the three tools-layer CLIs, run through the
+exec runner, since the docker runner needs the host's socket.
 '''
 
 # ── Reports and training ───────────────────────────────────────────────────────────────────
@@ -1065,6 +1181,10 @@ the spike's `context/README.md`.
 # - Audio (audio finding): on gb10-2's E4B Q8_0, a 10-minute 16 kHz mono WAV is 15,028 input
 #   tokens through `/v1/audio/transcriptions`, against its 32,768-token context.
 
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - Its per-capability capacity targets set Cerebro's default concurrency per capability.
+
 [goals.experiment.hosting.spike-model-layout.tasks.hosts]
 name = "gb10-2 joins the experiment"
 summary = '''
@@ -1151,7 +1271,10 @@ Container Apps service routing between Azure AI Foundry and the self-hosted stac
 Claude-model workloads stay off the gateway. Weighs routing chat requests to a cheaper tier (such
 as Gemma 4 26B-A4B) and reserving gpt-oss-120b for the tasks that need it. Decides whether a
 gateway fronts the stack, which, and its access control. Reads spike-model-hosting's
-tool-reliability findings (bounded resample, parse-5xx fallback).
+tool-reliability findings (bounded resample, parse-5xx fallback). Measures priority or reserved
+capacity per consumer key, so capstone.data-intelligence's interactive chat stays responsive
+during a ~/docs-scale processing run (3,470 vision images at 38.9 s each on gb10-2), and confirms
+its 429 and queueing behave as go-ai's retry expects (plan, 2026-11-10).
 '''
 
 [goals.experiment.html]
@@ -1194,6 +1317,29 @@ spike-html-go-wasm").
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
+
+[goals.retrieval]
+name = "A retrieval library"
+summary = '''
+Hybrid retrieval over pgvector, ANN fused with tsvector keyword search, and reranking, which
+~/s2va/athena defines in-process (`rag/`, `postgres/hybrid_search.go`); set A has no reranker. From
+capstone.data-intelligence (plan, 2026-11-10).
+'''
+
+[goals.cross-service-tracing]
+name = "Tracing across services"
+summary = '''
+One trace across Athena, Cerebro, and the gateway, through CloudEvents `traceparent` and
+v1.observability. From capstone.data-intelligence (plan, 2026-11-10).
+'''
+
+[goals.chunked-upload-graduation]
+name = "The chunked upload protocol in the SDKs"
+summary = '''
+Moves the chunked upload protocol capstone-cerebro proves and capstone-athena reuses into
+go-web-sdk, its browser half into v1.client's sdk. After capstone.data-intelligence (plan,
+2026-11-10).
+'''
 
 [goals.second-providers]
 name = "Second providers"
