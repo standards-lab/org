@@ -224,8 +224,8 @@ memory.
   each job is a root Entity whose state is folded from the events on its own subject, so
   appending an Event, guarded by an expected-last-sequence check, is the transaction that makes
   the Command's change true (`architecture/architecture.md`, "The elements", asks for that
-  atomicity, not for SQL). go-messaging gains, as a planned goal ahead of the capstone
-  (`roadmap.toml`, `messaging-streams`): that expected-sequence append beside the outbox, a
+  atomicity, not for SQL). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
+  `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, a
   work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
   dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet, and a
   standard object-store API over what is native through `Conn()` today

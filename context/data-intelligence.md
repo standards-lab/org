@@ -73,7 +73,7 @@ serve any consumer, a harness among them.
   counts, a digest, and the sequence range. The consumer commits each batch in one transaction,
   de-duplicated through go-messaging's inbox, and checks completeness against the manifest, so
   evidence 7's transactional stages are the consumer's.
-- **Distribution.** Jobs go through go-messaging's planned work-queue package. One job per input
+- **Distribution.** Jobs go through go-messaging's work-queue package, which the capstone builds. One job per input
   is the unit of retry; inference fans out inside it, bounded per capability (spike-model-layout's
   capacity targets set the defaults); a crash recovers through the result cache and unravel's
   checkpoint. Spreading one input's parts across replicas waits until the ~/docs acceptance run
@@ -138,8 +138,9 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
 - **v1.ai.hosting and spike-model-gateway:** Cerebro (bulk) and Athena (chat) are separate
   consumers, each with a key and a budget; 429 and queueing behave as go-ai's retry expects; chat
   stays responsive during a ~/docs-scale run (3,470 images at 38.9 s each on gb10-2).
-- **go-messaging (`messaging-streams`):** the expected-sequence append, the work-queue package,
-  and an object-store API.
+- **go-messaging (the capstone's `messaging-append`, `messaging-work-queue`, and
+  `messaging-object-store` tasks):** the expected-sequence append, the work-queue package, and an
+  object-store API. The capstone holds go-messaging and builds them itself.
 - **go-web-sdk:** the chunked upload primitive after graduation, and an SSE helper for Athena's
   chat.
 - **v1.data.extensions:** pgvector lives in capstone-athena only.
