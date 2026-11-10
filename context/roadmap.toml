@@ -34,8 +34,7 @@
 #   first, since it holds the architecture lock ahead of v1.ai.hosting (ai-hosting);
 #   v1.ai.client (go-ai) and v1.ai.processing (unravel) follow it. go-ai, unravel, and the tool
 #   repositories stay outside the group until C ends; then go-ai and unravel join it. Then
-#   v1.data.extensions, the Postgres-extension strategy, and messaging-streams, go-messaging's
-#   stream-backed root, work queue, and object store for the capstone's Cerebro (plan, 2026-11-10).
+#   v1.data.extensions, the Postgres-extension strategy.
 #   status-reports and training.foundation start here; status-reports' first backfill report
 #   covers ~/architecture as it stands at the capstone's start.
 # - D: capstone.data-intelligence, the sole active goal apart from status-reports and training;
@@ -61,7 +60,6 @@ planned = [
   "status-reports",
   "training.foundation",
   "v1.data.extensions",
-  "messaging-streams",
   "capstone.data-intelligence",
   "experiment.ocr.spike-scanned-documents",
   "experiment.admin.spike-host-admin",
@@ -773,32 +771,6 @@ slab CLI onto the release and the libraries' new versions, as spike-graph migrat
 with `App.Run` one `web.Run` call; slab stays its own module.
 '''
 
-[goals.messaging-streams]
-name = "Stream-backed roots, work queues, and object storage in go-messaging"
-root = "go-messaging"
-repos = ["go-messaging"]
-summary = '''
-What capstone.data-intelligence's Cerebro needs from go-messaging, a service with no SQL
-(`messaging.md`, "A stream-backed root"): an Event append guarded by an expected last sequence
-beside the outbox, a work-queue package on JetStream work-queue retention (heartbeat, MaxDeliver,
-backoff, a dead-letter subject) whose contract a Postgres SKIP LOCKED provider could also meet,
-and a standard object-store API over what is native through Conn() today. Planned after wave C,
-ahead of the capstone (plan, 2026-11-10); the capstone holds go-messaging and may fix it.
-'''
-context = ["standards-lab/context/messaging.md", "standards-lab/context/data-intelligence.md"]
-
-[goals.messaging-streams.tasks.append]
-name = "The expected-sequence append"
-summary = "Appends an Event to a root's subject with an expected last sequence, beside the outbox."
-
-[goals.messaging-streams.tasks.work-queue]
-name = "The work-queue package"
-summary = "Durable jobs with heartbeat, bounded redelivery, backoff, and a dead-letter subject."
-
-[goals.messaging-streams.tasks.object-store]
-name = "The object-store API"
-summary = "A standard object-store API with TTLs, over JetStream's object store."
-
 # ── The capstone ───────────────────────────────────────────────────────────────────────────
 
 [goals.capstone]
@@ -811,7 +783,7 @@ in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones"
 [goals.capstone.data-intelligence]
 name = "data-intelligence"
 root = "capstone-data-intelligence"
-repos = ["capstone-data-intelligence", "capstone-cerebro", "capstone-athena"]
+repos = ["capstone-data-intelligence", "capstone-cerebro", "capstone-athena", "go-messaging"]
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
@@ -826,8 +798,9 @@ root with the compose stack and the ~/docs acceptance run. It shows how Cerebro 
 replace ~/s2va/athena's ingest layer without taking in its code (`data-intelligence.md`, "Cerebro
 and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
 active goal apart from status-reports and training, after experiment.hosting's and
-experiment.html's intakes, the libraries v1.ai and v1.client promote, and messaging-streams; its
-repos gain those libraries at staging, so a capstone task can update a library and use the change.
+experiment.html's intakes and the libraries v1.ai and v1.client promote. It holds go-messaging and
+builds Cerebro's stream-backed root, work queue, and object store there itself (the messaging
+tasks; plan, 2026-11-10); its repos gain the other libraries at staging, so a capstone task can update a library and use the change.
 Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
 roots are written against its release (`graph-ergonomics.md`). Design tasks come first; build
 tasks are written once they close.
@@ -871,11 +844,32 @@ chunks with offsets and digests, complete, resume) shaped to graduate to go-web-
 processing profiles, the caller's extraction spec, and the nested `client` module.
 '''
 
+[goals.capstone.data-intelligence.tasks.messaging-append]
+name = "The expected-sequence append"
+repos = ["go-messaging"]
+summary = '''
+go-messaging appends an Event to a root's subject with an expected last sequence, beside the
+outbox, for a service with no SQL (`messaging.md`, "A stream-backed root").
+'''
+
+[goals.capstone.data-intelligence.tasks.messaging-work-queue]
+name = "The work-queue package"
+repos = ["go-messaging"]
+summary = '''
+go-messaging's durable jobs on JetStream work-queue retention: heartbeat, bounded redelivery,
+backoff, and a dead-letter subject, a contract a Postgres SKIP LOCKED provider could also meet.
+'''
+
+[goals.capstone.data-intelligence.tasks.messaging-object-store]
+name = "The object-store API"
+repos = ["go-messaging"]
+summary = "go-messaging's standard object-store API with TTLs, over JetStream's object store."
+
 [goals.capstone.data-intelligence.tasks.state]
 name = "Cerebro's state"
 summary = '''
 The job as a stream-backed root folded from its events, the work queue, the object store and its
-TTLs, and the result cache keyed by content and stage identity, on messaging-streams' release.
+TTLs, and the result cache keyed by content and stage identity, on the messaging tasks' release.
 '''
 
 [goals.capstone.data-intelligence.tasks.events]
