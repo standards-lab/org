@@ -91,8 +91,16 @@ renders on github.com.
       character-key shortcuts, as WCAG 2.1.4 requires, and the sequence wait.
     - Escape in a field, outside an open modal, blurs the field so shortcuts work again.
     - claude.dev's article pages are the reference: bracketed key hints on navigation, a section
-      tree with reading progress, and arrow-key scrolling. The section tree is
-      spike-html-hosting's to build.
+      tree with reading progress, and arrow-key scrolling. spike-html-hosting-components builds
+      the section tree as `sl-section-tree`, and departs from the reference where the keys
+      module forced it or the architect chose:
+      - J and K move between sections, through the keys module's `register()`. H and L move to
+        the previous and the next page, through the SDK's pager links.
+      - The arrow keys stay the browser's scrolling. The keys module cancels every key a binding
+        matches, and its off switch covers character keys only, so bound arrows took over
+        sideways scrolling and ignored the switch.
+      - By the architect's direction, a key hint is a kbd alone, without brackets, and the tree
+        marks the current section by an accent rule and bold text, with no reading progress.
 
 ## Experiment: spike-html-design
 
@@ -316,23 +324,25 @@ starts from a hypothesis: architecture is its own project site; org holds the ch
 hosted artifacts and links to every project site; each code repository serves its own docs/
 guide. Three JaimeStill project sites stand in for org, architecture, and sqlate, carrying
 pinned copies with provenance, so the spike writes to no repository it reads. They measure the
-`/<repo>/` base path every project site of one owner shares. An org site at the origin root, a
-`standards-lab.github.io` repository, is recorded as a sourced option and not built. The spike
-tests navigation shared across sites and one baseline pin, spike-html-apps-foundation by tag.
-The Markdown sources stay Markdown and are rendered at build, since agents load them and
-github.com renders them. The sites' components are a documentation layer of their own,
-spike-html-hosting-components, not spike-html-apps-components, whose components serve the
-pipeline app. The sites share their build through a site SDK released by tag and a template
-copied once, spike-html-hosting-sdk, after go-web-sdk-template, and highlight code fences at
-build. It draws the line between HTML and Markdown, including whether the coordinator's
-leadership briefs/ become HTML, and hosts a persistent report in the org stand-in. It reviews
-with spike-html-apps-tooling's screenshot command, shows that no capture files remain after a
-review, and records a sqlint demo through VHS, rendered in the Pages workflow. Each Pages
-workflow runs a Vite build with vite-plugin-standard-css-modules, the ecosystem plugin
-spike-html-apps adopted in place of spike-html-conventions' local `scripts/css-sheets.js`. It
-uploads the build output, not the source tree, because a page that loads components unbundled
-fails in Safari (spike-html-conventions' Results 8). Decides the Pages topology that v1.client
-and v1.repository-docs build, and how status-reports, a project site in it, publishes.
+`/<repo>/` base path every project site of one owner shares. The spike recommends an org site at
+the origin root, a `standards-lab.github.io` repository. It tests navigation shared across sites
+and one baseline pin, spike-html-apps-foundation by tag. The Markdown sources stay Markdown and
+are rendered at build, since agents load them and github.com renders them. The sites'
+components are a documentation layer of their own, spike-html-hosting-components, not
+spike-html-apps-components, whose components serve the pipeline app. The sites share their
+build through a site SDK released by tag, spike-html-hosting-sdk, after go-web-sdk-template,
+with a template inside its release, and highlight code fences at build. An icons layer,
+spike-html-hosting-icons, sits beneath the components and the SDK and ships Octicons. The spike
+draws the line between HTML and Markdown, including whether the coordinator's leadership
+briefs/ become HTML, and hosts a persistent report in the org stand-in. It reviews with
+spike-html-apps-tooling's screenshot command and shows that no capture files remain after a
+review. The review task built VHS demos and rejected them; the guide shows a CLI's output as
+text. Each Pages workflow runs a Vite build with vite-plugin-standard-css-modules, the
+ecosystem plugin spike-html-apps adopted in place of spike-html-conventions' local
+`scripts/css-sheets.js`. It uploads the build output, not the source tree, because a page that
+loads components unbundled fails in Safari (spike-html-conventions' Results 8). Decides the
+Pages topology that v1.client and v1.repository-docs build, and how status-reports, a project
+site in it, publishes.
 
 ## Experiment: spike-html-go-wasm
 
@@ -644,3 +654,99 @@ client.
 The spike's conventions are its `context/conventions.md`, for the intake to adopt.
 
 [The answer](https://github.com/JaimeStill/spike-html-apps/blob/main/context/README.md#the-answer) · [spike-html-apps](https://github.com/JaimeStill/spike-html-apps)
+
+### Answer · experiment.html.spike-html-hosting
+
+**Question:** What do the repositories' Pages sites and the hosting of persistent artifacts look
+like, published as native web?
+
+**Answer:** The hypothesis holds with the org site moved to the origin root: architecture and
+each code repository's docs/ guide are project sites under `/<repo>/`, built by Vite from
+Markdown through one site SDK and one documentation components layer, each released by tag, and
+the org site is a standards-lab.github.io repository holding the charter, the index of sites,
+and the site list every nav fetches.
+
+1. Three project sites. Proven by the live sites, each answering 200 on 2026-11-10, and by each
+   site's `mise run check`, which runs its Vite build.
+2. The org stand-in. Proven by the root's browser tier: the SDK's shell checks on its five
+   pages, its index held to sites.json, and the SDK's crawl; live from the org task, PR #7.
+3. The architecture stand-in. Proven by the architecture site's crawl, each page's head held to
+   its front matter's meta and every in-site link followed to its page and fragment.
+4. The sqlate stand-in. Proven by the components' `sl-section-tree` tests for J, K, and the
+   arrow keys, and by the sqlate site's crawl, with H and L pressed at 390px.
+5. Shared navigation when one site deploys ahead. Proven only by tests: the components' fixture
+   tests on one local origin, where the built list skews and the fetched list converges. Live,
+   only the root fetches its list, served with `max-age=600`.
+6. One baseline pin and a theme across sites. Proven by the components' two-base test, and live
+   on the three deployed sites, the theme set in storage rather than through the menu.
+7. No CSS module script in any build. Proven only by the check: the SDK's ESLint leftover check
+   over each build. No page was loaded in Safari.
+8. The HTML/Markdown line. Proven by the root's orientation brief both ways and its sitrep
+   entry, PR #7. Hand HTML cost 3.6 and 1.9 times the drafting tokens, counted with Gemma 4's
+   tokenizer.
+9. The review across every site. Proven by `mise run screenshots` and the browser test that it
+   leaves no capture file, and by the architect's review of the captures at the design task's
+   four checkpoints.
+10. The CLI demo: built and rejected. The review task recorded five VHS demos and removed them
+    at its second checkpoint.
+11. Cost per site. Proven by `mise run cost`, its run of 2026-11-10 over the live sites and
+    their Pages runs: Pages serves gzip, not brotli; GitHub's deployment queue dominates
+    push-to-live; a CDN node can serve the previous deploy minutes after a new one.
+12. One icon toolkit. Proven by the icons layer's unit and browser tiers and each site's
+    `showsGlyphs` shell check. Counted on the builds at SDK v0.6.1 (2026-11-10), the architecture,
+    sqlate, and root builds ship 7, 7, and 8 of 986 Octicons: arrow-left, arrow-right, gear,
+    list-ordered, list-unordered, question, and x, and the root also ships report.
+
+For the intake:
+
+- A pattern page for the keyboard-shortcut dialog, with Settings and Help its worked instances.
+  - An upload under U is an extension of the pattern.
+  - Close sits in the dialog's header row with the h2.
+  - The page is inert under a modal and keys fire only inside it, so no second modal opens over
+    Help; `sl-shortcuts` reads the bindings against the topmost modal.
+  - In a modal, Escape with a glyph hint showing closes the dialog and the hint; on a plain page
+    it closes the hint alone.
+- Settings and Help as foundation changes: the theme menu's fixed heading and T save, and the
+  keys help's built-in settings.
+  - The components layer builds both again, as sl-settings and sl-shortcuts, because the
+    foundation's theme menu and keys help lack them.
+- The foundation's `preferences.js` and `keys.js` dynamically import `theme-menu.js` and
+  `keys-help.js`, so every site builds both chunks without requesting them.
+- glyph-button as a foundation control.
+- Front matter as head meta, not visible, as v1.repository-docs' convention.
+- The sqlate quick-start revision against sqlate f2b2117, from spike-html-hosting-sqlate's
+  revised copy, `content/docs/quick-start.md`.
+  - Apply the copy's diff against blob 0c54507 at sqlate f2b2117.
+  - Step 1 adds `go get github.com/jackc/pgx/v5/stdlib`, without which step 5 doesn't build as
+    published.
+  - The task that runs the program is `program` throughout.
+  - Step 5 builds the catalog on `postgres.Patterns()`, with a paragraph on overlays, and closes
+    the pool when the catalog fails (`errors.Join(err, pool.Close())`).
+  - Each package's `sql_test.go` ends with a `layout` helper that puts each SQL clause on its own
+    line, changing only whitespace, and `go test -C <package> -run TestSQL[/<name>]` prints what
+    PostgreSQL receives, in place of a `sql` task.
+  - Step 9 adds a test printing the composed list read.
+  - Step 10 plants a statement with `guard_set` and no `guard_where`, and a RETURNING in a
+    standard file, shows sqlint's two findings and exit 1, then removes it. `guard_where` gives a
+    guarded command optimistic concurrency: the write applies only if the row's version is still
+    the one the caller read, and a stale write fails.
+  - Step 11's `print` helper becomes `printJSON`, since `print` shadowed Go's predeclared print.
+    Each output line names its request and its outcome, and a `refused` helper names the error
+    each refused request matches. Prose explains each line, and that `Replace` deletes and
+    creates in one transaction.
+  - A new step 12 scopes projects by organization: `app.tenant` and `app.live` layered with
+    `sql.guard_set` and `sql.guard_where` in a guarded returning command, and cursor paging on
+    PostgreSQL's keyset overlay. The intro gains a bullet for it.
+  - The clean-up step becomes 13.
+- A site-nav menu at narrow widths, and sub-navs: below 40rem the nav is one row and doesn't
+  wrap, and a real org's ten or so sites won't fit.
+- The VHS verdict: recorded terminal demos aren't worth the overhead for a guide whose text
+  shows the output. v1.repository-docs shows a CLI's output as text.
+- One `sl-drawer` in the foundation, its Close glyph passed through a slot.
+- 14 web repositories each keep their own `scripts/currency.sh`, where the sites run the SDK's
+  currency bin.
+- The SDK provenance convention differs: the root keeps one provenance line per SDK tag it
+  adopted, and the architecture and sqlate sites one line naming the latest tag whose content
+  the file carries.
+
+[The answer](https://github.com/JaimeStill/spike-html-hosting/blob/main/context/README.md#the-answer) · [spike-html-hosting](https://github.com/JaimeStill/spike-html-hosting)

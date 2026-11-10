@@ -160,6 +160,17 @@ remote = "https://github.com/JaimeStill/spike-html-hosting-architecture.git"
 [repos.spike-html-hosting-sqlate]
 remote = "https://github.com/JaimeStill/spike-html-hosting-sqlate.git"
 
+[repos.spike-html-hosting-sdk]
+remote = "https://github.com/JaimeStill/spike-html-hosting-sdk.git"
+
+[repos.spike-html-hosting-icons]
+remote = "https://github.com/JaimeStill/spike-html-hosting-icons.git"
+
+# Read by spike-html-hosting-icons at 9a274e2 (tag @primer/octicons@19.42.0), whose LICENSE it
+# copies; never written.
+[repos.octicons]
+remote = "https://github.com/primer/octicons.git"
+
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 
