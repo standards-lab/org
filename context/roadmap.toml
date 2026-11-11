@@ -3,8 +3,8 @@
 # its root repository.
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
-# the reference-architecture code repositories; it is free since graph-ergonomics synced, and
-# api-maintenance is next in it once `plan` sets it up. Outside the group,
+# the reference-architecture code repositories; api-maintenance holds it since graph-ergonomics
+# synced (plan, 2026-11-11). Outside the group,
 # experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
 # answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active, with
 # gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
@@ -28,7 +28,7 @@
 #   and lifecycle, reviewed while the exclusive group is free, before go-ai and the client SDK
 #   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
 #   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
-#   migrations (done), and then api-maintenance, ahead of wave C.
+#   migrations (done), and then api-maintenance (active), ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
 #   experiment.html's intakes.
 # - C: v1.ai's sub-goals beside v1.client, which holds the exclusive group. v1.ai.tools stages
@@ -46,12 +46,12 @@
 #   lock libraries run where the exclusive group is free.
 
 active = [
+  "api-maintenance",
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-go-wasm",
 ]
 
 planned = [
-  "api-maintenance",
   "experiment.hosting.spike-model-gateway",
   "v1.ai.tools",
   "v1.ai.hosting",
@@ -687,6 +687,7 @@ context = ["standards-lab/context/ai-strategy.md"]
 
 [goals.api-maintenance]
 name = "API construction and execution maintenance"
+root = "go-core"
 repos = [
   "go-core",
   "sqlate",
@@ -696,20 +697,77 @@ repos = [
   "go-storage",
   "go-messaging",
   "blobfs",
+  "go-cli-sdk",
   "go-web-sdk-template",
+  "go-cli-sdk-template",
   "go-web-service",
 ]
 summary = '''
-Converts the APIs that predate the construction-and-execution rule
-(`architecture/standards/go-elemental/principles/construction-and-execution.md`) to it:
-go-database's `sweep.New`, go-web-sdk's `middleware.RequestID`, go-storage's
-`storagetest.NewFake`, go-messaging's `New` (seven parameters) and its outbox Relay options,
-sqlate's `TxOption` (replaced by taking `*sql.TxOptions`), blobfs's `WriteFile` and `EnsureFile`
-(request structs) and its option families, and go-core's `reactor.New` and `event.NewRecorder`
-options. Its repos add the consumers each conversion breaks: go-observability, the web template,
-and go-web-service. Staged after graph-ergonomics completes, as the next goal in the exclusive
-group.
+Converts every exported library API in its repositories that breaks the construction-and-execution
+rule (`architecture/standards/go-elemental/principles/construction-and-execution.md`) to it, with
+no deprecated forms: functional options become one trailing options struct, and more than four
+required inputs, a context exempt, become an exported struct with a method. One task per tier,
+lowest first, each tagging its modules before the next migrates; every sub-module re-tags on its
+base's new requirement. Application code in go-web-service and slab migrates but is not
+converted. Each converting task points its repositories' STANDARDS.md to the principle; sync adds
+the context exemption to the principle page (plan, 2026-11-11).
 '''
+
+[goals.api-maintenance.tasks.core]
+name = "Convert go-core's reactor and event options and sqlate's TxOption"
+repos = ["go-core", "sqlate"]
+summary = '''
+Starts with sqlate's upgrades to latest. `reactor.New` takes `reactor.Options{CancelAfter}`, with
+`CancelWithin` returning half the drain as a duration; `event.NewRecorder` takes
+`event.Options{Clock, IDs}`; sqlate's `DB.Begin`, `DB.Transact`, `Transact`, and `Beginner` take a
+trailing `*sql.TxOptions`, and `TxOption`, `Isolation`, and `ReadOnly` go. Each repository's
+STANDARDS.md points to the principle. Tags go-core v0.12.0 and sqlate v0.7.0, postgres/v0.7.0,
+and sqlint/v0.4.0.
+'''
+
+[goals.api-maintenance.tasks.libraries]
+name = "Convert go-database's sweeper and go-web-sdk's RequestID and WriteProblem"
+repos = ["go-database", "go-web-sdk", "go-observability"]
+summary = '''
+Converts `sweep.New` and `middleware.RequestID` to options structs and `web.WriteProblem` to the
+rule's form (rate-limit's code follows), moves each module onto go-core v0.12.0 and sqlate v0.7.0,
+fixes go-observability's docs that name `WithIDSource` (its version, and otlp's re-tag, settled in
+this task's plan round), and re-tags every sub-module.
+'''
+
+[goals.api-maintenance.tasks.storage-cli]
+name = "Convert go-storage's fake and go-cli-sdk's StringsVar"
+repos = ["go-storage", "go-cli-sdk"]
+summary = '''
+`storagetest.NewFake` takes an options struct, and go-cli-sdk's `StringsVar` becomes a `flag.Value`
+constructor used through `fs.Var`. Moves both onto go-core v0.12.0 and re-tags every sub-module.
+'''
+
+[goals.api-maintenance.tasks.messaging]
+name = "Convert go-messaging's runtime and relay"
+repos = ["go-messaging"]
+summary = '''
+Brings go-messaging current, then makes its `New` an exported struct with a method and the
+outbox Relay take an options struct; postgres and nats re-tag.
+'''
+
+[goals.api-maintenance.tasks.blobfs]
+name = "Convert blobfs's protocols and option families"
+repos = ["blobfs"]
+summary = '''
+Brings blobfs current, then gives `WriteFile` and `EnsureFile` request structs, its option
+families options structs, and its long positional methods the rule's forms; postgres re-tags.
+'''
+
+[goals.api-maintenance.tasks.template]
+name = "Migrate the templates"
+repos = ["go-web-sdk-template", "go-cli-sdk-template"]
+summary = "Moves both templates onto the converted releases, each tagged."
+
+[goals.api-maintenance.tasks.service]
+name = "Migrate go-web-service and slab"
+repos = ["go-web-service"]
+summary = "Moves go-web-service and slab onto every converted release; untagged."
 
 # ── The capstone ───────────────────────────────────────────────────────────────────────────
 
