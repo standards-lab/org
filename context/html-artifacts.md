@@ -346,12 +346,15 @@ site in it, publishes.
 
 ## Experiment: spike-html-go-wasm
 
-Can a page run a workspace Go package live in the browser through `GOOS=js` WebAssembly, at an
-acceptable size? It starts with sqlate's base module, which imports only the standard library.
-A minimal Go WASM build is about 2 MB, around 500 KB with Brotli compression. A browser can't
-listen on a socket, so a service can't run there, though its handlers can be called in-process.
-The page links the baseline by its pinned URL. Decides whether v1.repository-docs and the
-Pages sites embed live demos.
+Can a page run workspace Go live in the browser through `GOOS=js` WebAssembly: library demos,
+service handlers called in-process, and a Go playground that compiles arbitrary Go in the page?
+It starts with four Go programs of its own beneath sqlate's base module, which imports only the
+standard library, go-core's graph, and go-web-sdk's handlers. Pages serves gzip, not brotli: a
+minimal build is about 2.4 MB, 0.7 MB gzip, and the sqlate demo 1.2 MB gzip. Sizes are measured,
+not gated. A browser can't listen on a socket, so a service can't run there, though its handlers
+can be called in-process. The playground runs Go's own compiler and linker in a worker, about
+19 MB gzip on demand. The site takes the baseline through spike-html-hosting-sdk's foundation tag.
+Decides whether v1.repository-docs and the Pages sites embed live demos.
 
 ## Experiment: spike-html-apps
 

@@ -1302,10 +1302,83 @@ repos = ["spike-html-go-wasm"]
 remote = "https://github.com/JaimeStill/spike-html-go-wasm.git"
 path = "~/experiments/spike-html-go-wasm"
 summary = '''
-Can a page run a workspace Go package live in the browser through GOOS=js WebAssembly at an
-acceptable size, starting with sqlate's standard-library-only base module? Decides whether
-v1.repository-docs and the Pages sites embed live demos (`html-artifacts.md`, "Experiment:
-spike-html-go-wasm").
+Can a page run workspace Go live in the browser through GOOS=js WebAssembly (library demos,
+service handlers called in-process, and a Go playground that compiles arbitrary Go in the page
+with Go's own compiler and linker) with acceptable capability and performance? Sizes are
+measured, not gated. Decides whether v1.repository-docs and the Pages sites embed live demos
+(`html-artifacts.md`, "Experiment: spike-html-go-wasm").
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.site]
+name = "The site and its layers"
+summary = '''
+The repository scaffolded from spike-html-hosting-sdk as a Pages project site, laid out in
+Elemental layers with both direction checks, workspace Go built for GOOS=js in the check and the
+Pages workflow, and `wasm_exec.js` with provenance. Evidence 1, 6.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.runtime]
+name = "The Go bridge and the web runtime"
+summary = '''
+The Go-to-JS bridge, the on-demand loader, one worker per page over the HTTP cache, the in-memory
+filesystem, and Stop by terminating the worker. Evidence 6, 11.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.components]
+name = "The demo components"
+summary = '''
+sl-code-editor (plaintext-only contenteditable with Shiki tokens as Custom Highlight ranges),
+sl-file-tabs, sl-console, sl-run-controls, sl-timings, and sl-go-demo composing them over a
+runner, with a specimen page. Evidence 11.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.playground]
+name = "The in-page Go playground"
+summary = '''
+Go's own compiler and linker built to wasm and run in the worker, per-package standard-library
+and workspace archives fetched per import through a manifest, and the playground page.
+Evidence 9.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.programs]
+name = "Four Go programs"
+summary = '''
+Basics, generics, concurrency, and standard-library programs of the spike's own, edited and run
+from source in the playground. Evidence 12.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.sqlate]
+name = "The sqlate demo"
+summary = '''
+sqlate's compile demo and an in-process run over sqltest's scripted driver, on a hand page and a
+rendered Markdown page. Evidence 2, 3, 11.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.scenarios]
+name = "The go-core and go-web-sdk demos"
+summary = '''
+go-core's graph and go-web-sdk handlers called in-process, live on the site. Evidence 10.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.measure]
+name = "Sizes and timings"
+summary = '''
+Each module's raw, gzip, and brotli sizes, the TinyGo comparison, and cold, cached, and in-place
+timings on the live site. Evidence 4, 5.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.review]
+name = "The screenshot review"
+summary = '''
+The review across every page and palette, the editor included, leaving no capture file; Firefox
+and Safari where available. Evidence 7.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.answer]
+name = "The answer"
+summary = '''
+The verdict for v1.repository-docs and the Pages sites, and the answer section for
+html-artifacts.md. Evidence 8.
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
