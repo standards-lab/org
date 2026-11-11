@@ -113,9 +113,12 @@ migration is later work outside the workspace. Facts from `~/s2va/athena` the ma
 (Cerebro, Athena, NATS, Postgres with pgvector, the gateway), and the acceptance run over ~/docs
 (592 files, 1.7 GB), measured against docinfer's baseline: 6.0 h, and a 3.1 s rerun.
 
-**Missing layers** beyond the roadmap: the capstone designs service-to-service credentials
-(Athena to Cerebro, the consumer keys, NATS credentials, ahead of v1.auth and `nats-credentials`)
-and the packaging of the tools into Cerebro's image (unravel's docker runner can't run in a
+**Auth stays out of Cerebro** for the capstone (the architect, 2026-11-11): Athena has already
+solved its auth strategy, and the capstone focuses on signal flow without that complexity. The
+gateway's per-consumer keys stay, since they carry the priority between bulk work and chat.
+
+**Missing layers** beyond the roadmap: the capstone designs the packaging of the tools into
+Cerebro's image (unravel's docker runner can't run in a
 container without the host's socket); `retrieval` (hybrid ANN with tsvector and rerank; set A has
 no reranker) and `cross-service-tracing` wait in the backlog.
 
@@ -139,7 +142,11 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   consumers, each with a key and a budget; 429 and queueing behave as go-ai's retry expects; chat
   stays responsive during a ~/docs-scale run (3,470 vision images, 20,395 s of vision in
   docinfer's run; vision latency on gb10-2 rose to 38.9 s an image under mixed load,
-  spike-model-layout's `docs/layout.md`).
+  spike-model-layout's `docs/layout.md`). The gateway routes to the self-hosted models first and
+  falls back to cloud-hosted models when they are at capacity; which workloads may leave the
+  self-hosted machines is open. The models are laid out across the two GB10s and the Framework
+  (AMD AI Max+ 395), with a vLLM instance per model as a target to weigh for concurrent inference
+  (the architect, 2026-11-11).
 - **go-messaging (the capstone's `messaging-append`, `messaging-work-queue`, and
   `messaging-object-store` tasks):** the expected-sequence append, the work-queue package, and an
   object-store API. The capstone holds go-messaging and builds them itself.
@@ -208,7 +215,6 @@ input; build tasks are written once they close.
 - **events**: Cerebro's stage and result-batch event protocol, and the browser's transport on
   Athena's stream (evidence 15).
 - **athena-mapping**: `~/s2va/athena`'s ingest contract onto Cerebro ("Cerebro and Athena").
-- **credentials**: service-to-service credentials ahead of v1.auth.
 - **tool-packaging**: the tools in Cerebro's image, run through unravel's exec runner.
 
 ## Carried notes
