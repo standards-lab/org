@@ -4,8 +4,10 @@ go-core's `graph` and `lifecycle` behaved correctly but read badly, and their ni
 repeated the same workarounds. Goal graph-ergonomics redesigns their API, not their behavior, in one
 breaking go-core release followed by one migration task per tier. experiment.graph's spike-graph
 proved the API on the full go-web-service and slab, and its intake settled it. go-core v0.11.0
-ships it, and the libraries' releases have moved onto it: go-database v0.11.0, go-web-sdk v0.16.0,
-go-observability v0.3.0, go-storage v0.7.0, and go-cli-sdk v0.3.0, with their providers. This note
+ships it, and every consumer has moved onto it: the libraries' releases, go-database v0.11.0,
+go-web-sdk v0.16.0, go-observability v0.3.0, go-storage v0.7.0, and go-cli-sdk v0.3.0, with their
+providers; the templates' releases, go-web-sdk-template template/v0.14.0 and go-cli-sdk-template
+template/v0.2.0; and go-web-service with its slab CLI, which stay untagged. This note
 holds the settled API. The detail behind it (the pain points, the behavior that must not change,
 the rejected alternatives, and the sketches) lives in go-core's working context,
 `go-core/context/graph-ergonomics.md`.
