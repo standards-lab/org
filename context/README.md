@@ -95,5 +95,5 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   consumers, where HTML is used, and the sequence from experiment.html to v1.client.
 - `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
   interfaces across the stack, the cobra question, and the SDK and template plan.
-- `graph-ergonomics.md` — the graph and lifecycle API go-core's breaking release ships, as
-  experiment.graph's intake settled it, and the open findings its release and migrations decide.
+- `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as
+  experiment.graph's intake settled it, and the runners the libraries' releases built on it.
