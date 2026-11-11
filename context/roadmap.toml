@@ -9,9 +9,10 @@
 # gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
 # experiment.html's spike-html-design, spike-html-conventions, spike-html-packages,
 # spike-html-apps, and spike-html-hosting have answered (html-artifacts.md, "Answers ·
-# experiment.html"), and spike-html-go-wasm is active. experiment.graph's intake has settled
-# graph-ergonomics' API (graph-ergonomics.md, "The settled API"); graph-ergonomics' release is
-# next.
+# experiment.html"), and spike-html-go-wasm is active. graph-ergonomics' release shipped its API
+# in go-core v0.11.0 (graph-ergonomics.md, "The settled API"), and migrate-libraries moved the
+# libraries and go-cli-sdk onto it; the templates are next. api-maintenance follows
+# graph-ergonomics in the exclusive group.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
 # Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
@@ -26,8 +27,8 @@
 #   experiment.html"), spike-ai-pipeline's `answer` (done), graph-ergonomics (go-core's graph
 #   and lifecycle, reviewed while the exclusive group is free, before go-ai and the client SDK
 #   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
-#   intake (done) and experiment.graph's (done), and graph-ergonomics' release and per-tier
-#   migrations, ahead of wave C.
+#   intake (done) and experiment.graph's (done), graph-ergonomics' release (done) and per-tier
+#   migrations (libraries done), and then api-maintenance, ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
 #   experiment.html's intakes.
 # - C: v1.ai's sub-goals beside v1.client, which holds the exclusive group. v1.ai.tools stages
@@ -51,6 +52,7 @@ active = [
 ]
 
 planned = [
+  "api-maintenance",
   "experiment.hosting.spike-model-gateway",
   "v1.ai.tools",
   "v1.ai.hosting",
@@ -700,14 +702,15 @@ repos = [
 ]
 summary = '''
 go-core's `graph` and `lifecycle` work, and nothing found so far says otherwise, but their API is
-verbose and hard to reason about: nodes are string-keyed, and the define functions make it hard
-to see how a node is constructed and which layer it lands in. This goal improves their ergonomics
-and developer experience, not their behavior, starting with a design review. It runs in wave A,
-while the exclusive group is free, and closes before v1.ai and v1.client build go-ai and the
-client SDK on that API (plan, 2026-11-09). The composition-root principle
-(`composition-terms.md`) keeps the breaks inside composition roots, their fixtures, and the SDKs
-that run a graph; its repos are the nine that import either package. The spike-ai-pipeline
-repositories import them too, and are read, never changed.
+verbose and hard to reason about: each node is a typed `*Node[T]` handle with a required string
+name, which v0.10.0's introspection exposed as the node's only identity, and the define functions
+make it hard to see how a node is constructed and which layer it lands in. This goal improves their
+ergonomics and developer experience, not their behavior, starting with a design review. It runs in
+wave A, while the exclusive group is free, and closes before v1.ai and v1.client build go-ai and the
+client SDK on that API (plan, 2026-11-09). The composition-root principle (`composition-terms.md`)
+keeps the breaks inside composition roots, their fixtures, and the SDKs that run a graph; its repos
+are the nine that import either package. The spike-ai-pipeline repositories import them too, and are
+read, never changed.
 '''
 context = ["standards-lab/context/graph-ergonomics.md"]
 
@@ -757,8 +760,10 @@ summary = '''
 Moves go-web-sdk-template's and go-cli-sdk-template's composition roots onto the release and the
 libraries' new versions, as spike-graph migrated go-web-service and slab: each node's layer at
 its Define line, constructors as `*Nodes` methods, `graphtest.CheckNames` in place of name
-comments, layer tests on handles with `Dropped()` empty, and the web template's Run one `web.Run`
-call.
+comments, and layer tests on handles with `Dropped()` empty, asserting with `Has` and
+`Dependencies` in place of scanning `Layers()`, and in the CLI template ranging over `Leaves()`.
+The web template's Run is one `web.Service` Run call, and the CLI template runs on `cli.Program`
+in place of `cli.Run` and `WithGraph`.
 '''
 
 [goals.graph-ergonomics.tasks.migrate-service]
@@ -767,8 +772,36 @@ repos = ["go-web-service"]
 summary = '''
 Opens with go-web-service's upgrades to latest: grpc, slab's nats.go, sqlate, x/sys, and x/term,
 golangci-lint 2.15, the CI actions, and the compose image pins. Then moves go-web-service and its
-slab CLI onto the release and the libraries' new versions, as spike-graph migrated its copies,
-with `App.Run` one `web.Run` call; slab stays its own module.
+slab CLI onto the release and the libraries' new versions, as spike-graph migrated its copies:
+`App.Run` is one `web.Service` Run call, slab runs on `cli.Program` in place of `cli.Run` and
+`WithGraph`, and the layer tests assert with `Has` and `Dependencies` in place of scanning
+`Layers()`, slab's ranging over `Leaves()`. slab stays its own module.
+'''
+
+[goals.api-maintenance]
+name = "API construction and execution maintenance"
+repos = [
+  "go-core",
+  "sqlate",
+  "go-database",
+  "go-web-sdk",
+  "go-observability",
+  "go-storage",
+  "go-messaging",
+  "blobfs",
+  "go-web-sdk-template",
+  "go-web-service",
+]
+summary = '''
+Converts the APIs that predate the construction-and-execution rule
+(`architecture/standards/go-elemental/principles/construction-and-execution.md`) to it:
+go-database's `sweep.New`, go-web-sdk's `middleware.RequestID`, go-storage's
+`storagetest.NewFake`, go-messaging's `New` (seven parameters) and its outbox Relay options,
+sqlate's `TxOption` (replaced by taking `*sql.TxOptions`), blobfs's `WriteFile` and `EnsureFile`
+(request structs) and its option families, and go-core's `reactor.New` and `event.NewRecorder`
+options. Its repos add the consumers each conversion breaks: go-observability, the web template,
+and go-web-service. Staged after graph-ergonomics completes, as the next goal in the exclusive
+group.
 '''
 
 # ── The capstone ───────────────────────────────────────────────────────────────────────────

@@ -196,10 +196,12 @@ is an available follow-on, not part of this decision.
 Authentication middleware mounts at the API module's group scope, never at router scope: router-scope
 middleware wraps the entire dispatch including the health and readiness probes, where a token must never
 be required, while group-scope middleware does not. No SDK change is needed; the seam already exists.
-`internal/app` gains `auth.go` as a layer file, parallel to `admin.go` and `domain.go`, whose define
-function defines the verifier, the resolver, and the evaluator as graph nodes built from the
-infrastructure nodes they use; `mountAPI` reads them from `Nodes` with `Use`, as it reads every other
-node. No API route is ever public: every route under the API module requires a valid, linked subject,
+`internal/app` gains `auth.go` as a layer file, parallel to `admin.go` and `domain.go`. Its define
+function defines the verifier, the resolver, and the evaluator as graph nodes. Each node's constructor
+is a method on `*Nodes`, passed to Define as a method value, that builds the node from the
+infrastructure nodes it uses, and the node's Define line declares any order or group with
+`graph.After` and `graph.In`. `mountAPI` reads the three from `Nodes` with `Use`, as it reads every
+other node. No API route is ever public: every route under the API module requires a valid, linked subject,
 unconditionally, so the middleware is unconditional on the group with no per-route opt-out.
 
 Every domain gains a `Deps` struct and an error-returning constructor: `type Deps struct { DB
