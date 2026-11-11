@@ -889,13 +889,6 @@ transcription, and what stays Athena's (summary through the extraction stage; re
 sparse rows, rerank). Read only; Athena's migration is later work outside the workspace.
 '''
 
-[goals.capstone.data-intelligence.tasks.credentials]
-name = "Service-to-service credentials"
-summary = '''
-Athena to Cerebro, each service's gateway consumer key, and NATS credentials, ahead of v1.auth and
-nats-credentials.
-'''
-
 [goals.capstone.data-intelligence.tasks.tool-packaging]
 name = "Tools in Cerebro's image"
 summary = '''
@@ -1178,6 +1171,8 @@ the spike's `context/README.md`.
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
 # - Its per-capability capacity targets set Cerebro's default concurrency per capability.
+# - A vLLM instance per model is a target to weigh for concurrent inference, against
+#   spike-model-engines' llama.cpp answer (the architect, 2026-11-11).
 
 [goals.experiment.hosting.spike-model-layout.tasks.hosts]
 name = "gb10-2 joins the experiment"
@@ -1269,7 +1264,9 @@ tool-reliability findings (bounded resample, parse-5xx fallback). Measures prior
 capacity per consumer key, so capstone.data-intelligence's interactive chat stays responsive
 during a ~/docs-scale processing run (3,470 vision images, 20,395 s of vision in docinfer's run;
 vision latency on gb10-2 rose to 38.9 s an image under mixed load), and confirms
-its 429 and queueing behave as go-ai's retry expects (plan, 2026-11-10).
+its 429 and queueing behave as go-ai's retry expects (plan, 2026-11-10). Routes to the
+self-hosted models first and falls back to cloud-hosted models when they are at capacity, and
+decides which workloads may leave the self-hosted machines (the architect, 2026-11-11).
 '''
 
 [goals.experiment.html]
