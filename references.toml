@@ -166,6 +166,9 @@ remote = "https://github.com/JaimeStill/spike-html-hosting-sdk.git"
 [repos.spike-html-hosting-icons]
 remote = "https://github.com/JaimeStill/spike-html-hosting-icons.git"
 
+[repos.spike-html-go-wasm]
+remote = "https://github.com/JaimeStill/spike-html-go-wasm.git"
+
 # Read by spike-html-hosting-icons at 9a274e2 (tag @primer/octicons@19.42.0), whose LICENSE it
 # copies; never written.
 [repos.octicons]
