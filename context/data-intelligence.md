@@ -137,7 +137,9 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   their contracts' releases.
 - **v1.ai.hosting and spike-model-gateway:** Cerebro (bulk) and Athena (chat) are separate
   consumers, each with a key and a budget; 429 and queueing behave as go-ai's retry expects; chat
-  stays responsive during a ~/docs-scale run (3,470 images at 38.9 s each on gb10-2).
+  stays responsive during a ~/docs-scale run (3,470 vision images, 20,395 s of vision in
+  docinfer's run; vision latency on gb10-2 rose to 38.9 s an image under mixed load,
+  spike-model-layout's `docs/layout.md`).
 - **go-messaging (the capstone's `messaging-append`, `messaging-work-queue`, and
   `messaging-object-store` tasks):** the expected-sequence append, the work-queue package, and an
   object-store API. The capstone holds go-messaging and builds them itself.
