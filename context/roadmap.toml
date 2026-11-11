@@ -1267,7 +1267,8 @@ as Gemma 4 26B-A4B) and reserving gpt-oss-120b for the tasks that need it. Decid
 gateway fronts the stack, which, and its access control. Reads spike-model-hosting's
 tool-reliability findings (bounded resample, parse-5xx fallback). Measures priority or reserved
 capacity per consumer key, so capstone.data-intelligence's interactive chat stays responsive
-during a ~/docs-scale processing run (3,470 vision images at 38.9 s each on gb10-2), and confirms
+during a ~/docs-scale processing run (3,470 vision images, 20,395 s of vision in docinfer's run;
+vision latency on gb10-2 rose to 38.9 s an image under mixed load), and confirms
 its 429 and queueing behave as go-ai's retry expects (plan, 2026-11-10).
 '''
 
