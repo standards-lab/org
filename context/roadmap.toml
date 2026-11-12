@@ -434,13 +434,13 @@ tasks build from it; the gateway stays transparent to go-ai.
 name = "Design review of docproc and its tools"
 summary = '''
 Opens with a Fable 5.2 evaluation of each promoted artifact (spike-ai-pipeline-processing, the
-root's docproc and docinfer, and the office, mail, and OneNote CLIs) for issues and
-simplifications, against the full architecture standards, `layers.md`, and Cerebro's
-requirements; then reviews them against the workspace and writes the review into docproc's notes.
-Settles each tool's contract additions field by field, each traced to a capstone design task and
-marked as the tool's, docproc's, or Cerebro's, and each tool's first tag and release targets. The
-root's STANDARDS.md applies cli-applications.md to docproc and domain-files.md to docproc's
-command packages only; the review says whether docinfer's packages follow both too.
+spike root's docproc, and the office, mail, and OneNote CLIs) for issues and simplifications,
+against the full architecture standards, `layers.md`, and Cerebro's requirements; then reviews
+them against the workspace and writes the review into docproc's notes. Settles each tool's
+contract additions field by field, each traced to a capstone design task and marked as the
+tool's, docproc's, or Cerebro's, and each tool's first tag and release targets. The root's
+STANDARDS.md applies cli-applications.md to docproc and domain-files.md to docproc's command
+packages only. docinfer's packages are v1.ai.inference's design review.
 '''
 
 [goals.v1.ai.processing.tasks.architecture]
@@ -511,16 +511,19 @@ into JSON Lines of its contract. typed-path moves only with onenote_parser.
 [goals.v1.ai.processing.tasks.library]
 name = "The processing library"
 summary = '''
-docproc's library module from spike-ai-pipeline-processing, without the client. A PDF whose form
+docproc's library module from spike-ai-pipeline-processing, without the client (`layers.md`,
+"docproc's packages"): inspection and routing, the tool runners and readers, the stages, and
+dispatch with its content store and index, each store an interface with filesystem and memory
+implementations; the providers `docproc/storage` (over go-storage) and `docproc/postgres` (over
+sqlate) as nested modules; and `rundir` and `rundir/schema` as public packages. It holds no
+inference orchestration, which is docinfer's (v1.ai.inference). A PDF whose form
 read fails (qpdf refuses a field whose value is an indirect reference, as in ~/docs'
 cfr-2024-title32-vol1.pdf) fails the whole document part after its pages render, so the index
 never records it and every docproc rerun renders its 1,823 pages again; a failed form read could
 be a warning beside the pages. The audio stage's windows each run an ffmpeg that decodes the
 source from its start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every
 other input finished in 332 s; seeking per window, or one decode streamed into windows, would
-bound it (docproc finding). For capstone.data-intelligence's Cerebro, the library also takes
-docinfer's orchestration behind inference interfaces it defines, with batched results and a
-pluggable index and cache (`data-intelligence.md`, "What it asks of the goals beneath it").
+bound it (docproc finding).
 '''
 # Backlog from spike-ai-pipeline-processing:
 # - ODF, WordPerfect, .xlsb, and ODG still report "no processor yet", and legacy OLE2 macros go
@@ -563,18 +566,19 @@ test's.
 [goals.v1.ai.processing.tasks.reports]
 name = "Holistic reports"
 summary = '''
-Makes docproc's and docinfer's reports holistic: an index page plus one page per input, with
-docproc's and docinfer's pages linked by the input's SHA-256. Each page holds the source link, the
-file and record metadata, the whole part tree with every output inline, and the full vision
-texts, transcripts, and chunks, with no 1,000-character cut.
+Makes `cmd/docproc`'s report holistic: an index page plus one page per input, keyed by the
+input's SHA-256, holding the source link, the file and record metadata, and the whole part tree
+with every output inline, with no 1,000-character cut. docinfer's report moves to
+v1.ai.inference.
 '''
 
 [goals.v1.ai.processing.tasks.acceptance]
 name = "Acceptance of docproc and its tools"
 summary = '''
-Reruns each tool's bench from its spike against its release, and docproc and docinfer over ~/docs,
-and fixes what it finds, never redesigning. Settles whether audio that fits in one request goes
-unsplit (`ai-strategy.md`, evidence 5).
+Reruns each tool's bench from its spike against its release, and `cmd/docproc` over ~/docs
+(corpus.docs), and fixes what it finds, never redesigning. Settles whether audio that fits in
+one request goes unsplit (`ai-strategy.md`, evidence 5). docinfer's reruns move to
+v1.ai.inference.
 '''
 
 [goals.v1.ai.inference]
