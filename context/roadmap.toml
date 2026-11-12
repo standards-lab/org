@@ -5,10 +5,10 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories; it is free since api-maintenance synced
 # (2026-11-12), until v1.client stages in wave C. Outside the group,
-# experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
-# answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active, with
-# gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped;
-# spike-model-gateway waits on top of `planned` for layout's sync to stage it (plan, 2026-11-12).
+# experiment.hosting's spike-model-hosting, spike-model-engines, spike-hosting-upgrades, and
+# spike-model-layout have answered (ai-hosting.md, "Answers · experiment.hosting"), and
+# spike-model-gateway is active, staged by layout's sync, with gb10-2 in experiment.hosting's host
+# set since spike-ai-pipeline's docinfer task shipped.
 # experiment.html's spike-html-design, spike-html-conventions, spike-html-packages,
 # spike-html-apps, and spike-html-hosting have answered (html-artifacts.md, "Answers ·
 # experiment.html"), and spike-html-go-wasm is active. graph-ergonomics shipped its API in
@@ -26,8 +26,8 @@
 # the full architecture standards and the workspace) and closed by an acceptance task that reruns
 # the real workloads; (c) design the capstone's protocols and practices, its first tasks; (d)
 # build the capstone; (e) continue the roadmap. The waves, each running its goals side by side:
-# - A: spike-model-layout, spike-html-hosting (answered: html-artifacts.md, "Answers ·
-#   experiment.html"), spike-ai-pipeline's `answer` (done), graph-ergonomics (go-core's graph
+# - A: spike-model-layout (answered: ai-hosting.md, "Answers · experiment.hosting"),
+#   spike-html-hosting (answered: html-artifacts.md, "Answers · experiment.html"), spike-ai-pipeline's `answer` (done), graph-ergonomics (go-core's graph
 #   and lifecycle, reviewed while the exclusive group is free, before go-ai and the client SDK
 #   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
 #   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
@@ -50,14 +50,13 @@
 #   lock libraries run where the exclusive group is free.
 
 active = [
-  "experiment.hosting.spike-model-layout",
+  "experiment.hosting.spike-model-gateway",
   "experiment.html.spike-html-go-wasm",
   "v1.ai.processing",
   "v1.ai.client",
 ]
 
 planned = [
-  "experiment.hosting.spike-model-gateway",
   "v1.ai.inference",
   "corpus.docs",
   "v1.ai.hosting",
@@ -1118,163 +1117,6 @@ reasoning off, transcription, and embeddings), and decides whether hosting stays
 becomes its own goal. It archives the five spikes. experiment.harness's spikes wait for it.
 '''
 
-[goals.experiment.hosting.spike-model-layout]
-name = "Model layout across the workstations"
-root = "spike-model-layout"
-repos = ["spike-model-layout", "spike-model-engines"]
-remote = "https://github.com/JaimeStill/spike-model-layout.git"
-path = "~/experiments/spike-model-layout"
-summary = '''
-How are models placed across the three workstations' memory pools to make the best use of memory,
-and what context and how many concurrent sessions does each placed model hold? Runs on gb10-1,
-gb10-2 and the Framework (`ai-hosting.md`, "Hosts and access"), with GuideLLM 0.8.1's multi-turn
-datasets in agreed, capped runs. Compares set A on one GB10 against the roles split across both
-GB10s: one serving the agent model alone (about 49 GiB of KV after weights and headroom, roughly
-10 concurrent 128K sessions by the architect's estimate of 2026-10-30), the other vision, audio and
-embedding, with requests directed to a host by capability; the Framework's role (overflow or
-capability host) follows from that comparison. Measures the agent alone on vLLM, in a container:
-on gb10-1, gpt-oss-120b on vLLM v0.32.0 gave 34.0 tok/s at 1 stream against llama.cpp's 50.0, and
-168.2 against 129.0 at 16 (spike-hosting-upgrades, gb10-1 report 2026-10-31), and a llama.cpp
-maintainer notes it "mostly optimizes upto 8 parallel sequences at the moment" (#31711). Measures
-the capability models (vision, audio and embedding) on vLLM in containers, each in its own
-process, on gb10-2 and the Framework, against llama.cpp. The layout is vLLM instances, one model
-each, placed across gb10-1 and gb10-2, with the Framework as backup compute; loading on demand and
-two-node serving over QSFP are not pursued (the architect, 2026-11-12). Routing stays on paper,
-handed to spike-model-gateway as requirements. Lists spike-model-engines in repos to change its
-`host/` presets by pull request. Decides the layout v1.ai.hosting specifies. Its evidence and path
-are in the spike's `context/README.md`.
-'''
-# Inputs to sizing set A's slots, from spike-ai-pipeline-processing's findings:
-# - Vision (documents finding, the architect): gemma-4-26B-A4B's image-token budget on gb10-2, the
-#   model's default --image-max-tokens, is about 477 tokens a page; image tokens follow an image's
-#   area at about 2,100 to 2,400 pixels a token. Those measurements were on ggml-org's Q4_0 weights
-#   with mmproj-gemma-4-26B-A4B-it-Q8_0, not Google's QAT Q4_0, which gb10-2 now serves.
-# - Audio (audio finding): on gb10-2's E4B Q8_0, a 10-minute 16 kHz mono WAV is 15,028 input
-#   tokens through `/v1/audio/transcriptions`, against its 32,768-token context.
-
-# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
-# beneath it"):
-# - Its per-capability capacity targets set Cerebro's default concurrency per capability.
-# - A vLLM instance per model is a target to weigh for concurrent inference, against
-#   spike-model-engines' llama.cpp answer (the architect, 2026-11-11). The architect chose that
-#   target: vllm-layout serves one model per vLLM instance (2026-11-12).
-
-[goals.experiment.hosting.spike-model-layout.tasks.hosts]
-name = "gb10-2 joins the experiment"
-summary = '''
-gb10-2 moved onto spike-model-engines' engines suite and shared preset, spike-ai-pipeline's two
-vision keys (ub 1120, image-min-tokens 560) carried into that preset by pull request; all three
-hosts brought current; anchors A and B on both GB10s in one session, so cells across them compare.
-Evidence 1.
-'''
-
-[goals.experiment.hosting.spike-model-layout.tasks.footprint]
-name = "Memory per model per host class"
-summary = '''
-Weights, KV per 1,000 tokens of context, and compute buffers, loaded idle and at the warmed peak,
-for set A on a GB10 and on the Framework; the capacity table each placement is computed from.
-Evidence 2.
-'''
-
-[goals.experiment.hosting.spike-model-layout.tasks.role-split]
-name = "Full set against role split"
-summary = '''
-Set A on one GB10, then the roles split across both GB10s (one serving the agent model alone, the
-other vision, audio and embedding), requests directed by capability, compared in one session: the
-sessions and requests each placed model holds at its context, speed per stream, and the memory
-each arrangement leaves. Evidence 3 and 4.
-'''
-
-[goals.experiment.hosting.spike-model-layout.tasks.framework]
-name = "The Framework's role"
-summary = '''
-The Framework measured in the role the role-split findings point to: overflow for the full set,
-overflow for the agent, or capability host (noting Gemma 4 26B-A4B's Vulkan abort with several
-slots), chosen in this task's plan round. Evidence 3 and 5.
-'''
-
-[goals.experiment.hosting.spike-model-layout.tasks.agent-vllm]
-name = "The agent on vLLM"
-summary = '''
-gpt-oss-120b on vLLM v0.33.0 in a container, in two rows (BF16 KV at gpu-memory-utilization 0.80;
-FP8 KV at fixed bytes sized for llama.cpp's 1,179,648 tokens, which held 1,733,910), against
-llama.cpp's agent-only section on gb10-1, in one session, at the agent's load target: speed, TTFT
-under multi-turn load, memory, and cold start. The vLLM pin moved in spike-model-engines' host/ by
-pull request first. Evidence 6.
-'''
-
-[goals.experiment.hosting.spike-model-layout.tasks.capability-vllm]
-name = "The capability models on vLLM"
-summary = '''
-Vision (Gemma 4 26B-A4B), audio (E4B) and embedding (granite) on vLLM v0.33.0 in containers, each
-in its own process, alone and together, on the capability GB10 (gb10-2) and on the Framework (vLLM
-ROCm), against llama.cpp's figures from role-split and framework. A pull request to
-spike-model-engines' host/ first gives each row its own container name, port and memory fraction
-under the floor. Measures the Framework's vLLM load time. Evidence 3 and 5, beside 6.
-'''
-# Why (spike-model-layout docs/findings): agent-vllm found vLLM the stronger agent engine on gb10-1,
-# meeting the ITL floor through 8 sessions (BF16 KV) and 12 (FP8 KV) against llama.cpp's 4, with
-# TTFT 0.57 s against 2.26 s at the load target (agent-vllm.md, F). role-split found llama.cpp
-# encodes images one slot at a time, and vision and audio missing their floors together on one GPU
-# (role-split.md, L.1, N; framework.md, F, J, L.1).
-# Notes it carries:
-# - The suite runs one `vllm` container on port 8000, at --gpu-memory-utilization 0.80, and
-#   refuses beside llama. Three processes per host need per-row container names, ports and memory
-#   fractions under the floor: a host/ change by pull request.
-# - The weights differ by host class. NVFP4 is CUDA-only, and Google publishes no 26B-A4B w4a16.
-#   The 26B-A4B options are nvidia/Gemma-4-26B-A4B-NVFP4, RedHatAI FP8-dynamic and BF16; E4B is
-#   BF16 or google qat-w4a16-ct; granite is BF16. The quantization floor and model-origin rules
-#   apply.
-# - At v0.32.0 the official ROCm image shipped no audio decoder, and the audio-extra probe image
-#   (host/vllm-rocm-audio, pinned to v0.32.0's digest) covered it (spike-model-engines
-#   context/README.md:287-288). v0.33.0's default ROCm image is ROCm 10.0, with `-rocm72` beside
-#   it, so audio needs a fresh check.
-# - On ROCm v0.32.0, vLLM trailed llama.cpp on every generative cell (22-88%) and led embeddings
-#   (215.3 against 40.5 req/s) (spike-model-engines vllm-strix.md).
-# - Loading: #58868, the GB10 weight-loading fix, is in v0.34.0rc0 and not v0.33.0, and doesn't
-#   reach ROCm, since only vLLM's CUDA platform implements is_integrated_gpu (agent-vllm.md, C, N).
-#   #49991, its ROCm counterpart (VLLM_ROCM_CLONE_MMAP_WEIGHTS), is open and stalled. No upstream
-#   issue targets vLLM startup on gfx1151. This spike hasn't measured the Framework's vLLM load
-#   time.
-# - The agent row's cold start is remeasured on v0.34.0 once it is final, in vllm-layout.
-# The architect's preferences, from agent-vllm: for the agent, a longer cold start is accepted for
-# better concurrency and overall performance, and vLLM is the more attractive engine, chiefly for
-# its concurrency. FP8 KV runs uncalibrated at scale 1.0; an accuracy check against BF16 would
-# settle the agent row. It is a new tool, and vllm-layout takes it as its one new tool.
-
-[goals.experiment.hosting.spike-model-layout.tasks.vllm-layout]
-name = "The vLLM layout, tuned, and the answer"
-summary = '''
-vLLM instances, one model each, placed across gb10-1 and gb10-2, with the Framework as backup
-compute. An accuracy check of FP8 KV against BF16, the task's one new tool, settles the agent
-row's KV dtype. The capability pool's concurrency is tuned across vision, audio and embedding
-together, with a strategy that keeps them from competing for compute. The task identifies a
-lighter Gemma 4 vision model for the Framework, one its vLLM ROCm engine serves within the
-quantization floor and the model-origin rule, and measures it against the BF16 26B-A4B row. It
-explores v0.34 for performance and measures the standing layout at the load targets. The hosts
-end on the vLLM layout, with llama.cpp removed from the workstations and kept in
-spike-model-engines. Then the answer: docs/layout.md finalized; the routing and model-management
-requirements for spike-model-gateway; the host descriptors' purposes and load targets for the
-intake; README "The answer"; and the answer section in ai-hosting.md, which lists on-demand
-loading and two-node serving as not pursued, with their reasons. Evidence 7 and 9. Up to five
-slices, the last a walkthrough.
-'''
-# v0.34, for the task's plan round, which decides its source:
-# - No v0.34 rc images or wheels exist.
-# - Nightly images are tagged by commit, on CUDA arm64 and on ROCm.
-# - v0.34 carries #58868, the GB10 weight-loading fix.
-# - Finals have come 5 to 6 days after rc0.
-# Open tuning items it reads, from the spike's docs/findings:
-# - capability-vllm.md, N.1 to N.7: vision and audio miss their floors beside each other, read as
-#   shared GPU compute and not isolated; the Framework's fractions left its system memory 0.76 GiB
-#   above its floor; the NVFP4 vision checkpoint's accuracy warning is unmeasured; the Framework's
-#   audio image lacks torchcodec and ffmpeg; the Framework's Gemma rows hold 13.31 and 12.79
-#   full-length sequences under their 16; every start contacts the hub; gb10-2's audio cache
-#   depends on which rows start beside it.
-# - agent-vllm.md, N: FP8 KV's output quality; neither agent row was tested over its cache; long
-#   prompts arriving together prefill serially; the BF16 row's cache depends on the compile cache;
-#   every start contacts the hub.
-
 [goals.experiment.hosting.spike-model-gateway]
 name = "Routing and access across the model pool"
 root = "spike-model-gateway"
@@ -1304,8 +1146,10 @@ decides which workloads may leave the self-hosted machines (the architect, 2026-
 '''
 # For this spike's plan round, which rewrites its summary, from spike-model-layout's plan (the
 # architect, 2026-11-12):
-# - vLLM is the preferred engine on every host in the layout, so the production-stack router's
-#   condition above is expected to hold; spike-model-layout's answer is to confirm it.
+# - Every workstation runs vLLM, so the production-stack router's condition above holds, as
+#   expected; spike-model-layout's answer confirms it.
+# - The layout's requirements for the gateway are in spike-model-layout's `docs/layout.md`,
+#   "Requirements for spike-model-gateway".
 # - Model management (loading, configuration, lifecycle) must not be reachable from user clients,
 #   such as Pi on a user device, through a serving API.
 # - The architect welcomes the gateway as the single secure point of model management for the
