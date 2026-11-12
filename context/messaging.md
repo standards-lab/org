@@ -68,15 +68,16 @@ grant and identity-link writes to emit events.
   relay reactor and `Runtime.Consume[T]` a consuming reactor. The `messaging` block carries
   `relay_poll` and `relay_timeout` (10s by default, `<PREFIX>_MESSAGING_RELAY_TIMEOUT`), which
   bounds the relay's publish of one event. The provider has a configuration block of its own
-  beside `messaging`. The `messaging.Gated` option gives the runtime a quiesce gate, such as
+  beside `messaging`. `messaging.Setup`'s `Gate` field gives the runtime a quiesce gate, such as
   go-core's `reactor.Gate`, that the relay holds shared for each outbox row and a consuming
   reactor holds for each delivery's handling.
-- **Failures the runtime survives reach one error hook.** `messaging.OnFailure` sets a `Hook`,
-  `func(ctx, Failure)`, which by default logs one warn line, "messaging failure", per Failure. A
-  Failure's kind is `relay` (a pass that a transient publish failure or a database error ends),
-  `quarantine`, `source` (an error a consumer's source survived), or `exhausted` (the handler's
-  non-permanent error on the attempt equal to `MaxDeliver`). An event whose last delivery overruns
-  AckWait is given up unreported. Deferred: a dead-letter stream, until a consumer needs replay.
+- **Failures the runtime survives reach one error hook.** `messaging.Setup`'s `OnFailure` field
+  sets a `Hook`, `func(ctx, Failure)`, which by default logs one warn line, "messaging failure",
+  per Failure. A Failure's kind is `relay` (a pass that a transient publish failure or a database
+  error ends), `quarantine`, `source` (an error a consumer's source survived), or `exhausted` (the
+  handler's non-permanent error on the attempt equal to `MaxDeliver`). An event whose last
+  delivery overruns AckWait is given up unreported. Deferred: a dead-letter stream, until a
+  consumer needs replay.
 - **A stream has one owner.** The nats block's `owner` switch (`<PREFIX>_NATS_OWNER`) marks the
   owner, whose Start creates the stream or updates it to its config: file storage, limits
   retention, subjects `<prefix>.>`, the deduplication window `duplicates`, and `max_age`. Every
@@ -107,7 +108,7 @@ publishing and then marking in separate steps, which the spike's
 `TestStopBetweenCommitAndPublishLosesNoEvent` fails when the mark comes first.
 
 The relay sits below every reactor that commits events, so the drain stops the producers first,
-and `outbox.Drain` gives it a last pass at a quarter of the drain timeout.
+and `outbox.RelayOptions.Drain` gives it a last pass at a quarter of the drain timeout.
 
 The rule: **an event is enqueued in the transaction that makes the state it reports true.** For a
 composite operation such as a blobfs upload, that is the complete step's transaction, never the

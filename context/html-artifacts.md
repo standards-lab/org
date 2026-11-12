@@ -406,7 +406,7 @@ What it builds from spike-html-conventions (Results 8):
     as a module script with its CSS.
   - A request under the build's asset directory answers the embedded file with
     `Cache-Control: public, max-age=31536000, immutable`, since its hashed name changes with its
-    content. A missing asset answers a 404 problem (go-web-sdk `WriteProblem`, `problem.go`),
+    content. A missing asset answers a 404 problem (go-web-sdk `Problem.WriteFor`, `problem.go`),
     never the shell.
   - The handler mounts as `router.Mount(web.NewHandlerModule("/app", client, mw...))` beside the
     API's module. go-web-sdk's `validatePrefix` (`group.go`) refuses a prefix that ends in `/`,
