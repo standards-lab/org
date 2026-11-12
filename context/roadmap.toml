@@ -58,6 +58,8 @@ active = [
 planned = [
   "experiment.hosting.spike-model-gateway",
   "v1.ai.client",
+  "v1.ai.inference",
+  "corpus.docs",
   "v1.ai.hosting",
   "v1.client",
   "status-reports",
@@ -382,19 +384,22 @@ repos = ["docproc", "architecture"]
 remote = "https://github.com/standards-lab/docproc.git"
 path = "~/architecture/docproc"
 summary = '''
-docproc from spike-ai-pipeline-processing and the spike root's docproc and docinfer: an enabling library,
-adjacent to the standard, beside sqlate. Its library module requires `golang.org/x/text` only and
-drops the client. Three nested modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and
-go-core; `cmd/docinfer` requires go-ai, the only module that does; and `cmd/internal` holds
-`schema` and `rundir`, which only `cmd/` can import. The system tools docproc runs live beside it
-under `tools/<format>`, each on its own toolchain and tagged `tools/<format>/v<version>`, the
+docproc, from spike-ai-pipeline-processing and spike-ai-pipeline's docproc command: an enabling
+library, adjacent to the standard, beside sqlate. Its library module requires `golang.org/x/text`
+only, drops the client, and depends on no model concept; inference is docinfer's. Its stores are
+interfaces with filesystem and memory implementations in the library module, and providers as
+nested modules: `docproc/storage` (the content store over go-storage) and `docproc/postgres` (the
+index in PostgreSQL over sqlate). The nested `cmd/docproc` requires go-cli-sdk, go-core, and
+golang.org/x/sys, and the run directory's `rundir` and `rundir/schema` are public packages of the
+library's module, which docinfer's `cmd/docinfer` reads. The system tools docproc runs live beside
+it under `tools/<format>`, each on its own toolchain and tagged `tools/<format>/v<version>`, the
 subtree kept out of the Go module zip, so a contract change lands with its decoder in one pull
 request (plan, 2026-11-12): docproc-ooxml from spike-ai-pipeline-office, docproc-mail from
 spike-ai-pipeline-mail, and docproc-onenote from spike-ai-pipeline-onenote. Each tool has one
 JSON (JSON Lines) contract with Markdown inside it as the text layer, no separate Markdown mode,
 proven by committed golden outputs; batch IDs, per-item digests, provenance, warnings, and typed
-metadata stay in docproc and Cerebro. Staged beside wave B's spikes, absorbing v1.ai.tools
-(plan, 2026-11-12). docproc joins `exclusive` after wave C.
+metadata stay in docproc, docinfer, and Cerebro. Staged beside wave B's spikes, absorbing
+v1.ai.tools (plan, 2026-11-12). docproc joins `exclusive` after wave C.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
@@ -404,11 +409,10 @@ context = [
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
-# - docinfer's orchestration (vision, transcription, chunking, embedding, the result cache)
-#   moves into the library behind inference interfaces docproc defines, free of go-ai; results
-#   come out in batches as made; the index and cache behind interfaces Cerebro backs with
-#   JetStream; input from a stream or spooled to scratch; stable exported event shapes;
-#   cancellation per job; the exec runner inside an image that bundles the tools.
+# - the index and the content store behind interfaces Cerebro backs with PostgreSQL and blob
+#   storage through `docproc/postgres` and `docproc/storage`; input from a stream or spooled to
+#   scratch; stable exported event shapes; the exec runner inside an image that bundles the
+#   tools.
 # - docproc-ooxml, docproc-mail, and docproc-onenote ship inside Cerebro's image, pinned by their
 #   tags.
 
@@ -556,15 +560,6 @@ composition root of its adapter convention, since every other wiring in the repo
 test's.
 '''
 
-[goals.v1.ai.processing.tasks.docinfer]
-name = "docinfer"
-summary = '''
-`cmd/docinfer`, from the spike root's docinfer, after go-ai's library release: a thin composition
-of the library's inference orchestration with go-ai adapters, sending a docproc run's outputs to
-vision, transcription, and embeddings and writing its own directory, schema "1". The
-model-calling tests move into its module.
-'''
-
 [goals.v1.ai.processing.tasks.reports]
 name = "Holistic reports"
 summary = '''
@@ -581,6 +576,37 @@ Reruns each tool's bench from its spike against its release, and docproc and doc
 and fixes what it finds, never redesigning. Settles whether audio that fits in one request goes
 unsplit (`ai-strategy.md`, evidence 5).
 '''
+
+[goals.v1.ai.inference]
+name = "docinfer, the inference library"
+root = "docinfer"
+repos = ["docinfer"]
+remote = "https://github.com/standards-lab/docinfer.git"
+path = "~/architecture/docinfer"
+summary = '''
+docinfer, from spike-ai-pipeline's docinfer (`internal/docinfer` and `cmd/docinfer`) and the
+inference parts of docproc's `context/layers.md` ("docinfer's API", "docinfer's go-ai use",
+"docinfer's packages"): an adjacent library above go-ai's tier. Its base module, `docinfer`,
+requires docproc and go-ai: the root package's pipeline over go-ai's client, with extraction, the
+cache with its filesystem and memory implementations, batches as made, and their shapes; `chunk`;
+and `job`. The nested `docinfer/postgres` module holds the cache in PostgreSQL over sqlate,
+requiring docinfer, sqlate, and sqlate/postgres; the nested `cmd/docinfer` module requires
+docinfer, docproc, go-ai, go-cli-sdk, and go-core. It holds until go-ai's library releases, taking
+the hold from v1.ai.processing's `docinfer` task: a session reaching it first stops and alerts the
+architect. docinfer joins `order` above docproc and go-ai at this sub-goal's first `plan`, as go-ai
+does; its tasks are set up then.
+'''
+context = [
+  "standards-lab/context/ai-strategy.md",
+  "standards-lab/context/data-intelligence.md",
+]
+
+# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
+# beneath it"):
+# - docinfer's orchestration (vision, transcription, extraction, chunking, embedding, the result
+#   cache) lives in docinfer, which calls go-ai directly; results come out in batches as made;
+#   the cache behind an interface Cerebro backs with PostgreSQL through `docinfer/postgres`;
+#   stable exported event shapes; cancellation per job.
 
 [goals.v1.client]
 name = "The web client"
@@ -696,6 +722,23 @@ format, the routing mechanism, and which kinds of task may run locally, from exp
 spike-local-models result. Waits on experiment.harness's intake.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
+
+# ── Corpora ────────────────────────────────────────────────────────────────────────────────
+
+[goals.corpus]
+name = "Corpora"
+summary = '''
+The real workloads' inputs, each a `corpus.<slug>`, reviewed in the coordinator's context.
+'''
+
+[goals.corpus.docs]
+name = "The ~/docs corpus"
+summary = '''
+Reviews `~/docs`: what it holds, guidelines for how it changes, and how it is shared as a resource
+outside git, since it is too large for a repository. Ordered ahead of v1.ai.processing's
+`acceptance` task, which reruns the real workloads over it. It has no repos, so it touches only
+the coordinator's context and has no record.
+'''
 
 # ── The capstone ───────────────────────────────────────────────────────────────────────────
 
