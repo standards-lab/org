@@ -766,9 +766,10 @@ remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
 Liberates data held in binary files on a file share, in three repositories (plan, 2026-11-10):
-capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and docproc that
-never knows its caller, with no SQL, its jobs stored as JetStream streams, a Query and Command API
-with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
+capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai, docproc, and
+docinfer that never knows its caller, its jobs stored as JetStream streams, with PostgreSQL and
+blob storage holding docproc's and docinfer's stores as facets of its internal state (docproc's
+`context/layers.md`, "State and subjects"), a Query and Command API with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
 capstone-athena, a prototype client-facing service that owns blob storage and PostgreSQL with
 pgvector, commits Cerebro's batches transactionally, chats through the model gateway, and shows
 each stage live on the promoted web client stack; and capstone-data-intelligence, the integration
@@ -790,14 +791,14 @@ name = "Metadata"
 summary = '''
 Compositional metadata structures that extend docproc's base file metadata per format (PDF,
 office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
-schema "1" metadata of docproc's `cmd/docproc`.
+schema "2" metadata of docproc's `cmd/docproc`.
 '''
 
 [goals.capstone.data-intelligence.tasks.chunks]
 name = "The chunk record and embedding spaces"
 summary = '''
-The chunk record and the registered embedding spaces the pgvector load reads, from the schema "1"
-run directories of docproc's `cmd/docproc` and `cmd/docinfer`.
+The chunk record and the registered embedding spaces the pgvector load reads, from the schema "2"
+run directories of docproc's `cmd/docproc` and docinfer's `cmd/docinfer`.
 '''
 
 [goals.capstone.data-intelligence.tasks.text-layer]
@@ -827,7 +828,8 @@ name = "The expected-sequence append"
 repos = ["go-messaging"]
 summary = '''
 go-messaging appends an Event to a root's subject with an expected last sequence, beside the
-outbox, for a service with no SQL (`messaging.md`, "A stream-backed root").
+outbox, for a job stream whose appends are its Commands' transactions (`messaging.md`, "A
+stream-backed root").
 '''
 
 [goals.capstone.data-intelligence.tasks.messaging-work-queue]
