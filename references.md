@@ -226,10 +226,10 @@ reports of ranked upgrades, and anchors A and B verify each on our host. Answere
 survey-and-measure convention and its cadence; experiment.hosting's intake archives it.
 
 ### spike-model-layout
-Asks how models are placed across the memory pools of gb10-1, gb10-2 and the Framework, and what
-context and how many concurrent sessions each placed model holds: a full set on one GB10 against
-the roles split across both, the Framework's role, vLLM for the agent, on-demand loading, and
-two-node serving over QSFP. Active.
+Asked how models are placed across the memory pools of gb10-1, gb10-2 and the Framework, and what
+context and how many concurrent sessions each placed model holds. Answered with one model to a
+vLLM instance and one heavy purpose to a GPU: gb10-1 serves the agent, gb10-2 vision, and the
+Framework audio beside embedding; experiment.hosting's intake archives it.
 
 ### spike-ai-pipeline
 Asked whether a Go model client and a message, document, and stream processing layer can carry a
