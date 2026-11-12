@@ -43,16 +43,21 @@ docproc-ooxml (docx, xlsx, and pptx), docproc-mail, and docproc-onenote (`ai-str
 "Repositories and placement"). Each tool's output contract follows these rules (plan,
 2026-11-12):
 
-- **One contract per tool.** Each tool writes one JSON or JSON Lines contract and has no separate
+- **One contract per tool.** Each tool writes one JSON Lines contract and has no separate
   Markdown output mode. The contract carries Markdown as the text layer, the text that is chunked,
-  embedded, and read by people. Structured fields carry only what Markdown can't.
+  embedded, and read by people. Every piece of text a file holds exists once: content in the
+  Markdown, labels the Markdown leaves out (a mail store's name, OneNote's ink alternatives) as
+  kept plain-text fields; a structured field is cut only when its text is already carried, or it
+  can't be plain text and has no processor, and content a tool reads but its Markdown lacks is
+  rendered into the Markdown.
 - **Additions.** docproc-ooxml adds optional document `properties` (core, app, and custom), writes
   embedded packages and OLE payloads as media, and promises byte-identical output under test.
-  docproc-mail adds `smtp_address` for Exchange addresses.
+  docproc-mail adds `smtp_address` for Exchange addresses, and docproc-onenote keeps its ink
+  recognizer's alternates as `ink_alternatives`.
 - **Golden outputs prove a contract.** Each tool commits golden outputs; no JSON Schema is
   written.
 - **The tools stay narrow.** Batch IDs, per-item digests, provenance, warnings, and typed
-  metadata belong to docproc and Cerebro, not the tools.
+  metadata belong to docproc, docinfer, and Cerebro, not the tools.
 
-v1.ai.processing's `layers` task settles whether the contracts stay schema "1", grown by
-addition, or move to "2".
+The contracts move to schema "2", since the cuts remove fields each spike reader of "1" declares,
+and grow by addition only from there (docproc's `context/layers.md`, "Versioning").
