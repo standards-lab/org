@@ -447,13 +447,12 @@ packages only. docinfer's packages are v1.ai.inference's design review.
 name = "A library and its system tools in the architecture"
 repos = ["architecture"]
 summary = '''
-Writes the go-elemental system-tools page from `system-tools.md`, and the command-module rule and
-the placement rule in `dependencies.md`, `repository-topology.md`, and `tool-beside-library.md`.
-The command-module rule: an adjacent library's repository may carry a command module that
-depends on a tier, while its library modules never do. The placement rule: a repository's place
-follows its base module; nested command modules don't move it (as blobfs's example module
-doesn't), nor do the system tools nested in the library that runs them, in another language
-(docproc's `tools/`); a cross-repository task orders its own exceptions in its brief.
+Writes the go-elemental system-tools page from `system-tools.md`, and the placement rule in
+`dependencies.md`, `repository-topology.md`, and `tool-beside-library.md`: a repository's place
+follows its base module; nested command and provider modules don't move it (as blobfs's example
+module doesn't), nor do the system tools nested in the library that runs them, in another
+language (docproc's `tools/`); a cross-repository task orders its own exceptions in its brief.
+The adjacent-library rule and where a package's events live are already on the pages.
 '''
 
 [goals.v1.ai.processing.tasks.ooxml]

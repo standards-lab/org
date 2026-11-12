@@ -172,9 +172,10 @@ v1.ai.inference builds docinfer, held until go-ai's library releases.
 - **`acceptance`** closes each sub-goal. It reruns the real workloads and fixes what it finds,
   never redesigning.
 - **`architecture`** writes the system tools into `repository-topology.md`, the go-elemental
-  system-tools page (`system-tools.md`), and the placement rules in `dependencies.md` and
-  `tool-beside-library.md`: the command-module rule, and beside it the rule for a library and its
-  system tools.
+  system-tools page (`system-tools.md`), and the placement rule in `dependencies.md` and
+  `tool-beside-library.md`: a repository's place follows its base module, and nested command and
+  provider modules and the system tools under `tools/` don't move it. The adjacent-library rule
+  and where a package's events live are already on the pages.
 
 Local models for application workloads have no sub-goal of their own. experiment.hosting's intake
 takes in set A's application-workload roles (vision with reasoning off, transcription, and
