@@ -45,8 +45,9 @@ The Go implementation of the Elemental Architecture, the organization's first st
 on the standard library. Defined at
 [standards/go-elemental](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md).
 Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk`,
-`go-web-sdk-template`, `go-cli-sdk`, `go-cli-sdk-template`, and `go-messaging` (released); and
-`go-web-service`, the reference web service (versionless until its 1.0).
+`go-web-sdk-template`, `go-cli-sdk`, `go-cli-sdk-template`, and `go-messaging` (released);
+`go-ai`, the model client (planned, v1.ai.client); and `go-web-service`, the reference web
+service (versionless until its 1.0).
 
 ## Effort repositories — Standards Lab
 
@@ -100,6 +101,13 @@ The object storage infrastructure library of the `go-elemental` standard: the st
 the provider key constraints, the error sentinels, and the `storagetest` conformance suite,
 with each provider a sub-module of its own. Its README lists the packages. Released; the base
 depends on the standard library and `go-core` alone.
+
+### go-ai
+The model client infrastructure library of the `go-elemental` standard: one client over the
+standard wire formats the model engines serve natively (Chat Completions, Anthropic Messages, and
+Open Responses), with generation, streaming, embedding, transcription, and the model listing, and
+its convenience CLI, `infer`, in the nested module `tools/infer`. The base depends on the standard
+library alone. Planned: built from spike-ai-pipeline-client through v1.ai.client.
 
 ### go-messaging
 The messaging infrastructure library of the `go-elemental` standard: the broker contract and
