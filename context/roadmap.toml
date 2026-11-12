@@ -35,8 +35,8 @@
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
 #   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
-#   v1.ai.hosting; v1.ai.client (go-ai) stages once docproc's `layers` task ships (plan,
-#   2026-11-12).
+#   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
+#   go-ai alone (plan, 2026-11-12).
 # - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
 #   docproc stay outside the group until C ends; then they join it. Then
 #   v1.data.extensions, the Postgres-extension strategy.
@@ -53,11 +53,11 @@ active = [
   "experiment.hosting.spike-model-layout",
   "experiment.html.spike-html-go-wasm",
   "v1.ai.processing",
+  "v1.ai.client",
 ]
 
 planned = [
   "experiment.hosting.spike-model-gateway",
-  "v1.ai.client",
   "v1.ai.inference",
   "corpus.docs",
   "v1.ai.hosting",
@@ -329,7 +329,10 @@ context = ["standards-lab/context/ai-hosting.md"]
 
 [goals.v1.ai.client]
 name = "go-ai, the model client"
+root = "go-ai"
 repos = ["go-ai"]
+remote = "https://github.com/standards-lab/go-ai.git"
+path = "~/architecture/go-ai"
 summary = '''
 go-ai from spike-ai-pipeline-client. Its base module uses the standard library only and holds one
 Open Responses `protocol` and three wire-format packages, Chat Completions, Anthropic Messages, and
@@ -360,7 +363,7 @@ name = "The client library"
 summary = '''
 go-ai's base module: the client, the `protocol`, and the three wire-format packages, with a
 `/models` listing. spike-ai-pipeline's docinfer reads /models itself on net/http, since client
-v0.4.0 has none (docinfer r5 q5). The spike's CI trailed jdx/mise-action (v5.2.4, against v5.2.7)
+v0.4.0 has none (docinfer r5 q5). The spike's CI trailed jdx/mise-action (v5.2.4, against v5.2.8)
 and taiki-e/create-gh-release-action (v1.11.0, against v1.12.0).
 '''
 
@@ -374,7 +377,9 @@ embed, transcribe, and models.
 [goals.v1.ai.client.tasks.acceptance]
 name = "Acceptance of the client"
 summary = '''
-Reruns infer against set A and fixes what it finds, never redesigning.
+Reruns infer against set A and fixes what it finds, never redesigning. Proves retry against the
+live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway; the library task's
+release doesn't (plan, 2026-11-12).
 '''
 
 [goals.v1.ai.processing]
