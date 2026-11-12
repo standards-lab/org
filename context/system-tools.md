@@ -33,5 +33,26 @@ processing layer runs it like the others. spike-ai-pipeline-processing's `tool` 
 contract: a binary, a script through its interpreter, and a digest-pinned image through the docker
 CLI each run as one Tool, which its constructor finds and version-checks (evidence 14, processing
 v0.1.0).
-v1.ai.tools' `architecture` task promotes the principle to a go-elemental page from that
+v1.ai.processing's `architecture` task promotes the principle to a go-elemental page from that
 evidence.
+
+## The quarry-* tools and their contracts
+
+The spike's three CLIs become quarry's system tools, nested in quarry under `tools/<format>`:
+quarry-ooxml (docx, xlsx, and pptx), quarry-mail, and quarry-onenote (`ai-strategy.md`,
+"Repositories and placement"). Each tool's output contract follows these rules (plan,
+2026-11-12):
+
+- **One contract per tool.** Each tool writes one JSON or JSON Lines contract and has no separate
+  Markdown output mode. The contract carries Markdown as the text layer, the text that is chunked,
+  embedded, and read by people. Structured fields carry only what Markdown can't.
+- **Additions.** quarry-ooxml adds optional document `properties` (core, app, and custom), writes
+  embedded packages and OLE payloads as media, and promises byte-identical output under test.
+  quarry-mail adds `smtp_address` for Exchange addresses.
+- **Golden outputs prove a contract.** Each tool commits golden outputs; no JSON Schema is
+  written.
+- **The tools stay narrow.** Batch IDs, per-item digests, provenance, warnings, and typed
+  metadata belong to quarry and Cerebro, not the tools.
+
+v1.ai.processing's `layers` task settles whether the contracts stay schema "1", grown by
+addition, or move to "2".

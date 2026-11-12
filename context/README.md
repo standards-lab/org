@@ -81,7 +81,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   ledger, and spike-messaging's evidence.
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
   processing, harness) and their homes, the pivot from tau to external harnesses, the decided
-  design of the client and processing layers (go-ai, unravel, and the tools layer), the
+  design of the client and processing layers (go-ai, and quarry with its system tools), the
   questions of experiment.ocr and experiment.harness, and
   experiment.hosting's and experiment.admin's questions and decomposition of personal-agents.
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
