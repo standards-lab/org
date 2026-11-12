@@ -447,13 +447,12 @@ packages only. docinfer's packages are v1.ai.inference's design review.
 name = "A library and its system tools in the architecture"
 repos = ["architecture"]
 summary = '''
-Writes the go-elemental system-tools page from `system-tools.md`, and the command-module rule and
-the placement rule in `dependencies.md`, `repository-topology.md`, and `tool-beside-library.md`.
-The command-module rule: an adjacent library's repository may carry a command module that
-depends on a tier, while its library modules never do. The placement rule: a repository's place
-follows its base module; nested command modules don't move it (as blobfs's example module
-doesn't), nor do the system tools nested in the library that runs them, in another language
-(docproc's `tools/`); a cross-repository task orders its own exceptions in its brief.
+Writes the go-elemental system-tools page from `system-tools.md`, and the placement rule in
+`dependencies.md`, `repository-topology.md`, and `tool-beside-library.md`: a repository's place
+follows its base module; nested command and provider modules don't move it (as blobfs's example
+module doesn't), nor do the system tools nested in the library that runs them, in another
+language (docproc's `tools/`); a cross-repository task orders its own exceptions in its brief.
+The adjacent-library rule and where a package's events live are already on the pages.
 '''
 
 [goals.v1.ai.processing.tasks.ooxml]
@@ -767,9 +766,10 @@ remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
 Liberates data held in binary files on a file share, in three repositories (plan, 2026-11-10):
-capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and docproc that
-never knows its caller, with no SQL, its jobs stored as JetStream streams, a Query and Command API
-with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
+capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai, docproc, and
+docinfer that never knows its caller, its jobs stored as JetStream streams, with PostgreSQL and
+blob storage holding docproc's and docinfer's stores as facets of its internal state (docproc's
+`context/layers.md`, "State and subjects"), a Query and Command API with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
 capstone-athena, a prototype client-facing service that owns blob storage and PostgreSQL with
 pgvector, commits Cerebro's batches transactionally, chats through the model gateway, and shows
 each stage live on the promoted web client stack; and capstone-data-intelligence, the integration
@@ -778,7 +778,7 @@ replace ~/s2va/athena's ingest layer without taking in its code (`data-intellige
 and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
 active goal apart from status-reports and training, after experiment.hosting's and
 experiment.html's intakes and the libraries v1.ai and v1.client promote. It holds go-messaging and
-builds Cerebro's stream-backed root, work queue, and object store there itself (the messaging
+builds Cerebro's stream-backed root and work queue there itself (the messaging
 tasks; plan, 2026-11-10); its repos gain the other libraries at staging, so a capstone task can update a library and use the change.
 Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
 roots are written against its release (`graph-ergonomics.md`). Design tasks come first; build
@@ -791,14 +791,14 @@ name = "Metadata"
 summary = '''
 Compositional metadata structures that extend docproc's base file metadata per format (PDF,
 office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
-schema "1" metadata of docproc's `cmd/docproc`.
+schema "2" metadata of docproc's `cmd/docproc`.
 '''
 
 [goals.capstone.data-intelligence.tasks.chunks]
 name = "The chunk record and embedding spaces"
 summary = '''
-The chunk record and the registered embedding spaces the pgvector load reads, from the schema "1"
-run directories of docproc's `cmd/docproc` and `cmd/docinfer`.
+The chunk record and the registered embedding spaces the pgvector load reads, from the schema "2"
+run directories of docproc's `cmd/docproc` and docinfer's `cmd/docinfer`.
 '''
 
 [goals.capstone.data-intelligence.tasks.text-layer]
@@ -828,7 +828,8 @@ name = "The expected-sequence append"
 repos = ["go-messaging"]
 summary = '''
 go-messaging appends an Event to a root's subject with an expected last sequence, beside the
-outbox, for a service with no SQL (`messaging.md`, "A stream-backed root").
+outbox, for a job stream whose appends are its Commands' transactions (`messaging.md`, "A
+stream-backed root").
 '''
 
 [goals.capstone.data-intelligence.tasks.messaging-work-queue]
@@ -839,16 +840,14 @@ go-messaging's durable jobs on JetStream work-queue retention: heartbeat, bounde
 backoff, and a dead-letter subject, a contract a Postgres SKIP LOCKED provider could also meet.
 '''
 
-[goals.capstone.data-intelligence.tasks.messaging-object-store]
-name = "The object-store API"
-repos = ["go-messaging"]
-summary = "go-messaging's standard object-store API with TTLs, over JetStream's object store."
-
 [goals.capstone.data-intelligence.tasks.state]
 name = "Cerebro's state"
 summary = '''
-The job as a stream-backed root folded from its events, the work queue, the object store and its
-TTLs, and the result cache keyed by content and stage identity, on the messaging tasks' release.
+Cerebro's stores as docproc's `context/layers.md` designs them ("State and subjects"): the job as
+a stream-backed root folded from its events and the work queue on JetStream (file storage);
+content, staged inputs, and uploads in blob storage through `docproc/storage`, retained by age;
+and the index (`docproc/postgres`) and the result cache (`docinfer/postgres`) in PostgreSQL. On
+the messaging tasks' release.
 '''
 
 [goals.capstone.data-intelligence.tasks.events]

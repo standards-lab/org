@@ -7,8 +7,8 @@ plan, 2026-11-09):
 
 - **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack, before the
   capstone.
-- **v1.ai** builds the client and processing layers before the capstone, in go-ai and docproc,
-  from spike-ai-pipeline's answer ("The client and processing layers").
+- **v1.ai** builds the client and processing layers before the capstone, in go-ai, docproc, and
+  docinfer, from spike-ai-pipeline's answer ("The client and processing layers").
 - **experiment.ocr**, after the capstone: spike-scanned-documents settles whether the document
   stage needs an OCR tier, on gb10-2.
 - **experiment.harness**, after the capstone: spike-go-harness and spike-local-models take the
@@ -25,7 +25,7 @@ reference.
 |---|---|---|
 | 1 Hosting | The machines that serve local models (the Framework desktop and the two GB10 workstations), covering four things: model selection and configuration, layout across the hardware, a convention for evaluating upgrades to the hardware, the engines, and the models, and a gateway that serves the pool as one service | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
 | 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai`, its model-client surface, through `v1.ai.client` (planned) |
-| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `docproc` and its system tools docproc-ooxml, docproc-mail, and docproc-onenote, through `v1.ai.processing`; experiment.hosting's intake takes in the model roles its application workloads use |
+| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `docproc` and its system tools docproc-ooxml, docproc-mail, and docproc-onenote, through `v1.ai.processing`, and `docinfer`, through `v1.ai.inference`; experiment.hosting's intake takes in the model roles its application workloads use |
 | 4 Harness | Agentic sessions driven from Go (go-ai's harness-session surface), and local models taking subagent work in Claude Code sessions; lowest priority | `go-ai`, and claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
 
 go-web-service's AI layer demonstrates the four layers (its capability map, "AI").
@@ -105,10 +105,11 @@ cancel.
 ## The client and processing layers
 
 v1.ai builds the client and processing layers from spike-ai-pipeline's answer. go-ai is the model
-client, and docproc is the processing library, with the three command-line tools it runs nested
-inside it. The spike proved both layers over a real share, ~/docs, through set A on
-gb10-2 ("The spike's answer"). The transactional pgvector pipeline and the browser that follows it
-moved, unproven, to capstone.data-intelligence (`data-intelligence.md`).
+client, and the processing layer is docproc plus docinfer: docproc extracts, with the three
+command-line tools it runs nested inside it, and docinfer infers over what docproc extracts. The
+spike proved both layers over a real share, ~/docs, through set A on gb10-2 ("The spike's answer").
+The transactional pgvector pipeline and the browser that follows it moved, unproven, to
+capstone.data-intelligence (`data-intelligence.md`).
 
 ### Repositories and placement
 
@@ -118,50 +119,63 @@ moved, unproven, to capstone.data-intelligence (`data-intelligence.md`).
   formats the model engines serve natively. The client gains a `/models` listing. Its convenience
   CLI, `infer`, lives in the nested module `tools/infer`, with the subcommands chat, embed,
   transcribe, and models.
-- **docproc** is the processing library, an enabling library adjacent to the standard, beside
-  sqlate. Its library module requires `golang.org/x/text` only and drops the client. Three nested
-  modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and go-core; `cmd/docinfer` requires
-  go-ai, the only module that does; and `cmd/internal` holds `schema` and `rundir`, which only
-  `cmd/` can import. The model-calling tests move into docinfer's module, and the run-directory
-  schema stays at "1".
+- **docproc** is the extraction library, an enabling library adjacent to the standard, beside
+  sqlate. Its library module requires `golang.org/x/text` only, drops the client, and depends on
+  no model concept. Its stores are interfaces with filesystem and memory implementations in the
+  library module; its providers are nested modules, `docproc/storage` (the content store over
+  go-storage) and `docproc/postgres` (the index in PostgreSQL over sqlate). The nested
+  `cmd/docproc` requires go-cli-sdk, go-core, and golang.org/x/sys; the run directory's `rundir`
+  and `rundir/schema` are public packages of the library's module, its schema moving to "2" with
+  dispatch's shapes.
+- **docinfer** is the inference library, adjacent and above go-ai's tier: it depends on docproc
+  and go-ai and calls go-ai directly. Its root package holds the pipeline, extraction among its
+  capabilities, the cache with its filesystem and memory implementations, and batches as made;
+  `chunk` and `job` sit beside it; its nested `docinfer/postgres` is the cache's provider in
+  PostgreSQL over sqlate, and its nested `cmd/docinfer` requires docinfer, docproc, go-ai,
+  go-cli-sdk, and go-core. The model-calling tests move into it.
 - **docproc's system tools** live in docproc under `tools/<format>`, each with its own toolchain:
   docproc-ooxml (Open XML only: docx, xlsx, and pptx), docproc-mail, and docproc-onenote. Each
-  builds a binary of the same name with one versioned JSON or JSON Lines contract
+  builds a binary of the same name with one versioned JSON Lines contract
   (`system-tools.md`, "The docproc-* tools and their contracts"), and is tagged
   `tools/<format>/v<version>`. The Go module zip leaves the `tools/` subtree out. The tools have
   no repositories of their own and move with docproc in `order` (plan, 2026-11-12).
 
-An adjacent library's repository may carry a command module that depends on a tier, while its
-library modules never do: docproc's `cmd/docinfer` requires go-ai. A library's repository may also
-carry its system tools, written in another language, nested in the library that runs them. A
-repository's place in `order` follows its base module. Nested command modules and tools don't
-move it, as blobfs's example module doesn't move blobfs. A cross-repository task orders its own
-exceptions in its brief. go-ai and docproc join `exclusive` after wave C. Each new repository
-joins `order`, `exclusive` where it belongs there, and the references catalog at its sub-goal's
-first `plan`.
+An adjacent library may depend on a stack library, which pins it above that library's tier, and
+whatever may not depend on that tier may not depend on it (`repository-topology.md`, "Adjacent
+libraries"): docinfer depends on go-ai, so only layers above go-ai's tier use it. A provider
+sub-module pins only its own level, so docproc's `docproc/storage` over go-storage leaves its base
+module's level as it is, and a provider over sqlate, an adjacent library, pins no tier. A library's
+repository may also carry its system tools, written in another language, nested in the library that
+runs them. A repository's place in `order` follows its base module. Nested command modules and
+tools don't move it, as blobfs's example module doesn't move blobfs. A cross-repository task orders
+its own exceptions in its brief. go-ai, docproc, and docinfer join `exclusive` after wave C. Each
+new repository joins `order`, `exclusive` where it belongs there, and the references catalog at its
+sub-goal's first `plan`.
 
 ### How v1.ai builds them
 
-v1.ai holds three sub-goals (`roadmap.toml`): v1.ai.processing (docproc, the processing library
-and its system tools), v1.ai.hosting, and v1.ai.client (go-ai). v1.ai.processing, rooted in
-docproc over the docproc and architecture repositories, stages first, ahead of wave C and beside
-wave B's spikes. Its tasks are `layers`, `design`, `architecture`, `ooxml`, `mail`, `onenote`,
-`library`, `docproc`, `docinfer` (after go-ai releases), `reports`, and `acceptance`. A later plan
-stages v1.ai.client once `layers` ships (plan, 2026-11-12).
+v1.ai holds four sub-goals (`roadmap.toml`): v1.ai.processing (docproc, the extraction library and
+its system tools), v1.ai.inference (docinfer, the inference library), v1.ai.hosting, and
+v1.ai.client (go-ai). v1.ai.processing, rooted in docproc over the docproc and architecture
+repositories, stages first, ahead of wave C and beside wave B's spikes. Its tasks are `layers`,
+`design`, `architecture`, `ooxml`, `mail`, `onenote`, `library`, `docproc`, `reports`, and
+`acceptance`. A later plan stages v1.ai.client once `layers` ships (plan, 2026-11-12).
+v1.ai.inference builds docinfer, held until go-ai's library releases.
 
 - **`layers`** writes `docproc/context/layers.md`: the signatures of each layer of Cerebro's stack,
-  namely the tool contracts, docproc's API, go-ai's surface as Cerebro uses it, and Cerebro's
-  Queries, Commands, result batches, manifest, and events. The client, processing, and capstone
-  design tasks build from it.
+  namely the tool contracts, docproc's API, docinfer's API, go-ai's surface as docinfer and Cerebro
+  use it, and Cerebro's Queries, Commands, result batches, manifest, and events. The client,
+  processing, and capstone design tasks build from it.
 - **`design`**, in each sub-goal, opens with a Fable 5.2 evaluation of each promoted artifact
   against the standards, the layers note, and Cerebro's requirements, and writes its review into
   the sub-goal's note.
 - **`acceptance`** closes each sub-goal. It reruns the real workloads and fixes what it finds,
   never redesigning.
 - **`architecture`** writes the system tools into `repository-topology.md`, the go-elemental
-  system-tools page (`system-tools.md`), and the placement rules in `dependencies.md` and
-  `tool-beside-library.md`: the command-module rule, and beside it the rule for a library and its
-  system tools.
+  system-tools page (`system-tools.md`), and the placement rule in `dependencies.md` and
+  `tool-beside-library.md`: a repository's place follows its base module, and nested command and
+  provider modules and the system tools under `tools/` don't move it. The adjacent-library rule
+  and where a package's events live are already on the pages.
 
 Local models for application workloads have no sub-goal of their own. experiment.hosting's intake
 takes in set A's application-workload roles (vision with reasoning off, transcription, and
@@ -280,11 +294,12 @@ The spike's six repositories are the references each sub-goal's design review re
   records each medium routed to its real stage and vision reading page ink at a character error
   rate of 0.028, against 0.68 for OneNote's stored recognition (evidence 17).
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts, the consumer check, and two
-  CLIs, the references for docproc's `cmd/docproc` and `cmd/docinfer`. `docproc` runs
+  CLIs, the references for docproc's `cmd/docproc` and docinfer's `cmd/docinfer`. `docproc` runs
   processing's whole suite over an input set into a versioned run directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
   any configured workstation: every image to vision with reasoning off, every audio window to
   transcription, joined per part by `audio.Join`, and every text and each input's metadata,
-  chunked, to embeddings. It writes a directory of its own, schema "1", the capstone's input. Its
+  chunked, to embeddings. It writes a directory of its own, schema "1"; the capstone's input is
+  `cmd/docinfer`'s directory at schema "2" (docproc's `context/layers.md`, "The nested modules"). Its
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
