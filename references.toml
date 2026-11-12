@@ -86,6 +86,12 @@ remote = "https://github.com/standards-lab/sqlate.git"
 [repos.blobfs]
 remote = "https://github.com/standards-lab/blobfs.git"
 
+# quarry is adjacent to the standard, as sqlate is: the processing library that
+# prepares content for models, with its system tools nested under tools/, so its
+# entry declares no standard.
+[repos.quarry]
+remote = "https://github.com/standards-lab/quarry.git"
+
 # Experiments — archived spikes. A running spike is a sub-goal of its experiment in
 # context/roadmap.toml, with its remote and path there; the experiment's intake records it here.
 # A spike whose sync has landed while its experiment awaits intake is listed without archived.

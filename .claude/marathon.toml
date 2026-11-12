@@ -37,6 +37,7 @@ order = [
   [
     "go-core", # core SDK
     "sqlate",  # SQL templating library, adjacent to the standard
+    "quarry",  # processing library and its system tools, adjacent to the standard
   ],
   [
     "go-database",      # infrastructure service SDK
