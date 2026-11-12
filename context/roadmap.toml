@@ -558,7 +558,7 @@ bound it (docproc finding).
 name = "docproc"
 summary = '''
 `cmd/docproc`, from the spike root's docproc: runs the library's whole suite over an input set into
-a versioned run directory, schema "1", with no inference. docproc's README names it as the shipped
+a versioned run directory, schema "2", with no inference. docproc's README names it as the shipped
 composition root of its adapter convention, since every other wiring in the repository is a
 test's.
 '''
