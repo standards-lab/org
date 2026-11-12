@@ -184,6 +184,17 @@ repository now, which the intake would only move again (architect, 2026-11-02).
 once MagicDNS serves AAAA records for dual-stack nodes (tailscale#1152, open). Until then the hosts
 keep their bare names tailnet-only by sending no hostname in DHCP (architect, 2026-11-02).
 
+**vLLM is the preferred engine on the workstations,** chosen for concurrency first; its open
+issues are addressed as the stack is used. The architect's preference (2026-11-12):
+
+- Each vLLM instance serves one model, the instances spread across gb10-1 and gb10-2, with the
+  Framework as backup compute.
+- Models aren't loaded on demand. GPU compute, not memory, is the bottleneck, and loading and
+  unloading add compute on top of inference.
+- Model management stays off the serving API. A client on a user device, such as Pi, that can
+  change a workstation's model configuration through the serving API is a vulnerability.
+- llama.cpp is removed from the workstations' layouts and kept in spike-model-engines.
+
 ### spike-model-hosting
 
 spike-model-hosting (`~/experiments/spike-model-hosting`, remote
@@ -229,7 +240,7 @@ uninstall, and whether it loads models on demand. The GB10s go first, containers
 metal; the Framework follows with llama.cpp's ROCm and Vulkan builds and vLLM's official ROCm
 image (vllm/vllm-openai-rocm; AMD's rocm/vllm images are deprecated). Load runs use GuideLLM, and
 llama-bench measures llama.cpp's backends. The QSFP link was measured during the GB10s' setup
-(dotfiles), and two-node serving stays with spike-model-layout. IL6 is out of its scope
+(dotfiles), and two-node serving is not pursued (spike-model-layout). IL6 is out of its scope
 (architect, 2026-10-23). The spike has answered: "Answer ·
 experiment.hosting.spike-model-engines", under "Answers · experiment.hosting" below.
 
@@ -253,10 +264,13 @@ sessions does each placed model hold? It runs on gb10-1, gb10-2 and the Framewor
 capped GuideLLM runs: host parity across the two GB10s; memory per model per host class; context ×
 sessions per placed model; set A on one GB10 against the roles split across both GB10s (one serving
 the agent model alone, the other vision, audio and embedding, with requests directed by
-capability); the Framework in the role that comparison points to; the agent on vLLM, in a
-container, against llama.cpp; on-demand loading through llama.cpp's router against resident
-models; and gpt-oss-120b across both GB10s over QSFP with vLLM and Ray. Routing stays on paper,
-handed to spike-model-gateway as requirements. Decides the layout v1.ai.hosting specifies. Its
+capability); the Framework in the role that comparison points to; and the agent and the
+capability models on vLLM, in containers, against llama.cpp. Its last task, `vllm-layout`, tunes
+the layout the architect chose: vLLM instances, one model each, across gb10-1 and gb10-2, with the
+Framework as backup compute. On-demand loading and two-node serving over QSFP are not pursued:
+GPU compute, not memory, is the bottleneck, and one model per instance across the GB10s replaces
+pooling them (architect, 2026-11-12). Routing stays on paper, handed to spike-model-gateway as
+requirements. Decides the layout v1.ai.hosting specifies. Its
 evidence and path are in the spike's `context/README.md`.
 
 ### spike-model-gateway
