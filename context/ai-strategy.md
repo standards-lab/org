@@ -7,7 +7,7 @@ plan, 2026-11-09):
 
 - **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack, before the
   capstone.
-- **v1.ai** builds the client and processing layers before the capstone, in go-ai and quarry,
+- **v1.ai** builds the client and processing layers before the capstone, in go-ai and docproc,
   from spike-ai-pipeline's answer ("The client and processing layers").
 - **experiment.ocr**, after the capstone: spike-scanned-documents settles whether the document
   stage needs an OCR tier, on gb10-2.
@@ -25,7 +25,7 @@ reference.
 |---|---|---|
 | 1 Hosting | The machines that serve local models (the Framework desktop and the two GB10 workstations), covering four things: model selection and configuration, layout across the hardware, a convention for evaluating upgrades to the hardware, the engines, and the models, and a gateway that serves the pool as one service | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
 | 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai`, its model-client surface, through `v1.ai.client` (planned) |
-| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `quarry` and its system tools quarry-ooxml, quarry-mail, and quarry-onenote, through `v1.ai.processing`; experiment.hosting's intake takes in the model roles its application workloads use |
+| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `docproc` and its system tools docproc-ooxml, docproc-mail, and docproc-onenote, through `v1.ai.processing`; experiment.hosting's intake takes in the model roles its application workloads use |
 | 4 Harness | Agentic sessions driven from Go (go-ai's harness-session surface), and local models taking subagent work in Claude Code sessions; lowest priority | `go-ai`, and claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
 
 go-web-service's AI layer demonstrates the four layers (its capability map, "AI").
@@ -105,7 +105,7 @@ cancel.
 ## The client and processing layers
 
 v1.ai builds the client and processing layers from spike-ai-pipeline's answer. go-ai is the model
-client, and quarry is the processing library, with the three command-line tools it runs nested
+client, and docproc is the processing library, with the three command-line tools it runs nested
 inside it. The spike proved both layers over a real share, ~/docs, through set A on
 gb10-2 ("The spike's answer"). The transactional pgvector pipeline and the browser that follows it
 moved, unproven, to capstone.data-intelligence (`data-intelligence.md`).
@@ -118,39 +118,39 @@ moved, unproven, to capstone.data-intelligence (`data-intelligence.md`).
   formats the model engines serve natively. The client gains a `/models` listing. Its convenience
   CLI, `infer`, lives in the nested module `tools/infer`, with the subcommands chat, embed,
   transcribe, and models.
-- **quarry** is the processing library, an enabling library adjacent to the standard, beside
+- **docproc** is the processing library, an enabling library adjacent to the standard, beside
   sqlate. Its library module requires `golang.org/x/text` only and drops the client. Three nested
   modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and go-core; `cmd/docinfer` requires
   go-ai, the only module that does; and `cmd/internal` holds `schema` and `rundir`, which only
   `cmd/` can import. The model-calling tests move into docinfer's module, and the run-directory
   schema stays at "1".
-- **quarry's system tools** live in quarry under `tools/<format>`, each with its own toolchain:
-  quarry-ooxml (Open XML only: docx, xlsx, and pptx), quarry-mail, and quarry-onenote. Each
+- **docproc's system tools** live in docproc under `tools/<format>`, each with its own toolchain:
+  docproc-ooxml (Open XML only: docx, xlsx, and pptx), docproc-mail, and docproc-onenote. Each
   builds a binary of the same name with one versioned JSON or JSON Lines contract
-  (`system-tools.md`, "The quarry-* tools and their contracts"), and is tagged
+  (`system-tools.md`, "The docproc-* tools and their contracts"), and is tagged
   `tools/<format>/v<version>`. The Go module zip leaves the `tools/` subtree out. The tools have
-  no repositories of their own and move with quarry in `order` (plan, 2026-11-12).
+  no repositories of their own and move with docproc in `order` (plan, 2026-11-12).
 
 An adjacent library's repository may carry a command module that depends on a tier, while its
-library modules never do: quarry's `cmd/docinfer` requires go-ai. A library's repository may also
+library modules never do: docproc's `cmd/docinfer` requires go-ai. A library's repository may also
 carry its system tools, written in another language, nested in the library that runs them. A
 repository's place in `order` follows its base module. Nested command modules and tools don't
 move it, as blobfs's example module doesn't move blobfs. A cross-repository task orders its own
-exceptions in its brief. go-ai and quarry join `exclusive` after wave C. Each new repository
+exceptions in its brief. go-ai and docproc join `exclusive` after wave C. Each new repository
 joins `order`, `exclusive` where it belongs there, and the references catalog at its sub-goal's
 first `plan`.
 
 ### How v1.ai builds them
 
-v1.ai holds three sub-goals (`roadmap.toml`): v1.ai.processing (quarry, the processing library
+v1.ai holds three sub-goals (`roadmap.toml`): v1.ai.processing (docproc, the processing library
 and its system tools), v1.ai.hosting, and v1.ai.client (go-ai). v1.ai.processing, rooted in
-quarry over the quarry and architecture repositories, stages first, ahead of wave C and beside
+docproc over the docproc and architecture repositories, stages first, ahead of wave C and beside
 wave B's spikes. Its tasks are `layers`, `design`, `architecture`, `ooxml`, `mail`, `onenote`,
 `library`, `docproc`, `docinfer` (after go-ai releases), `reports`, and `acceptance`. A later plan
 stages v1.ai.client once `layers` ships (plan, 2026-11-12).
 
-- **`layers`** writes `quarry/context/layers.md`: the signatures of each layer of Cerebro's stack,
-  namely the tool contracts, quarry's API, go-ai's surface as Cerebro uses it, and Cerebro's
+- **`layers`** writes `docproc/context/layers.md`: the signatures of each layer of Cerebro's stack,
+  namely the tool contracts, docproc's API, go-ai's surface as Cerebro uses it, and Cerebro's
   Queries, Commands, result batches, manifest, and events. The client, processing, and capstone
   design tasks build from it.
 - **`design`**, in each sub-goal, opens with a Fable 5.2 evaluation of each promoted artifact
@@ -167,7 +167,7 @@ Local models for application workloads have no sub-goal of their own. experiment
 takes in set A's application-workload roles (vision with reasoning off, transcription, and
 embeddings) and decides whether hosting stays under v1.ai or becomes its own goal.
 
-Evidence 5 bears on the layering. quarry prepares long audio, cutting windows at silences and
+Evidence 5 bears on the layering. docproc prepares long audio, cutting windows at silences and
 releasing the join, and the layer above transcribes it and owns the inference guards: Gemma 4 E4B
 answered a short window with its own instruction, and the join can't tell that from speech. No
 LLM pass smooths the seams, since a gpt-oss pass over the seam words made every run worse.
@@ -189,7 +189,7 @@ The spike's six repositories are the references each sub-goal's design review re
   `completions` (Chat Completions), `messages` (Anthropic Messages), and `responses` (Open
   Responses). GenerateStream yields Open Responses' streaming events, which a
   `protocol.Accumulator` folds into the Response Generate returns. Retry is opt-in.
-- **`spike-ai-pipeline-processing`**, quarry's library reference, prepares messages, documents, and streams for native
+- **`spike-ai-pipeline-processing`**, docproc's library reference, prepares messages, documents, and streams for native
   model capabilities before inference; a layer above defines and orchestrates the inference
   and embeddings, and processing runs none. It runs mature system tools through adapters it
   owns (`system-tools.md`), with herald's `internal/format` as its prior art. Its `tool`
@@ -239,7 +239,7 @@ The spike's six repositories are the references each sub-goal's design review re
   window came once the stream passed its 30 s limit and was transcribed 0.8 to 4.6 s later,
   each frame was described within 4 s, and the live transcript matched audio's file path
   under the same detector (evidence 13).
-- **`spike-ai-pipeline-office`**, quarry-ooxml's reference, is a command-line tool on Microsoft's Open XML SDK, published as
+- **`spike-ai-pipeline-office`**, docproc-ooxml's reference, is a command-line tool on Microsoft's Open XML SDK, published as
   NativeAOT binaries, that turns docx, xlsx, and pptx into a JSON document model and Markdown,
   with chart data and embedded pictures in place of page images. Its JSON model is a versioned
   output contract (schema `1` at v0.1.0). Its Markdown is the document's text, complete without
@@ -248,7 +248,7 @@ The spike's six repositories are the references each sub-goal's design review re
   converts them to OOXML through LibreOffice in a container before running it. No Go OOXML
   library is both well supported and freely licensed across the three formats, and the .NET
   converters for the legacy formats are unmaintained or paid.
-- **`spike-ai-pipeline-mail`**, quarry-mail's reference, is a command-line tool in Rust, published as static musl binaries,
+- **`spike-ai-pipeline-mail`**, docproc-mail's reference, is a command-line tool in Rust, published as static musl binaries,
   that reads Outlook .pst stores through Microsoft's outlook-pst, .msg messages through its own
   MS-OXMSG reader over cfb, and .eml messages and mbox files through Stalwart's mail-parser into
   JSON Lines of one schema: folders, messages with their threading fields as stored, their bodies
@@ -261,7 +261,7 @@ The spike's six repositories are the references each sub-goal's design review re
   Content-Length is ignored and an mboxo body line that was ">From " loses its ">". Its
   [mail-cli finding](https://github.com/JaimeStill/spike-ai-pipeline-mail/blob/main/docs/findings/mail-cli.md)
   records the fields it recovers per kind and its time and memory per store (evidence 16).
-- **`spike-ai-pipeline-onenote`**, quarry-onenote's reference, is a command-line tool in Rust, published as static musl
+- **`spike-ai-pipeline-onenote`**, docproc-onenote's reference, is a command-line tool in Rust, published as static musl
   binaries, that reads OneNote .one sections, from desktop OneNote 2016 and later or from
   OneDrive, .onepkg exports, and notebook directories through onenote_parser (MPL-2.0, used
   unmodified) into JSON Lines of one schema: the notebook, its sections, and each page at its
@@ -280,7 +280,7 @@ The spike's six repositories are the references each sub-goal's design review re
   records each medium routed to its real stage and vision reading page ink at a character error
   rate of 0.028, against 0.68 for OneNote's stored recognition (evidence 17).
 - **`spike-ai-pipeline`**, the root, holds gb10-2's host scripts, the consumer check, and two
-  CLIs, the references for quarry's `cmd/docproc` and `cmd/docinfer`. `docproc` runs
+  CLIs, the references for docproc's `cmd/docproc` and `cmd/docinfer`. `docproc` runs
   processing's whole suite over an input set into a versioned run directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
   any configured workstation: every image to vision with reasoning off, every audio window to
   transcription, joined per part by `audio.Join`, and every text and each input's metadata,
@@ -418,7 +418,7 @@ spike-model-hosting's harness-fit profiles as its design input.
 **Decision it changes.** Whether go-ai carries its own agent loop, and what replacing the
 process-backed drivers costs.
 
-**Open for its setup.** An MCP runner for quarry's `tool` contract: whether a
+**Open for its setup.** An MCP runner for docproc's `tool` contract: whether a
 long-running service reached over MCP joins the processing layer's exec and container runners,
 or stays a client of its own (architect, 2026-10-26).
 
