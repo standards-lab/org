@@ -33,12 +33,12 @@
 #   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
 #   migrations (done), and then api-maintenance (done), ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
-#   experiment.html's intakes. v1.ai.processing (quarry and its system tools, absorbing
+#   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
-#   v1.ai.hosting; v1.ai.client (go-ai) stages once quarry's `layers` task ships (plan,
+#   v1.ai.hosting; v1.ai.client (go-ai) stages once docproc's `layers` task ships (plan,
 #   2026-11-12).
 # - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
-#   quarry stay outside the group until C ends; then they join it. Then
+#   docproc stay outside the group until C ends; then they join it. Then
 #   v1.data.extensions, the Postgres-extension strategy.
 #   status-reports and training.foundation start here; status-reports' first backfill report
 #   covers ~/architecture as it stands at the capstone's start.
@@ -275,9 +275,9 @@ name = "AI"
 summary = '''
 The capability builds in four layers, each on the one below: hosting (`ai-hosting`, through
 v1.ai.hosting), the Go model client (go-ai, through v1.ai.client), message, document, and stream
-processing (quarry, through v1.ai.processing, with the system tools it runs nested in it), and
+processing (docproc, through v1.ai.processing, with the system tools it runs nested in it), and
 the harness (v1.harness.local-models), lowest priority. go-web-service's AI layer demonstrates
-them. quarry's `layers` task settles the signatures of every layer of Cerebro's stack first. Each
+them. docproc's `layers` task settles the signatures of every layer of Cerebro's stack first. Each
 sub-goal opens with a `design` review of its spike code, led by a Fable 5.2 evaluation of each
 promoted artifact, against the full standards and the
 workspace, written into its note, and closes with an `acceptance` task that reruns the real
@@ -335,7 +335,7 @@ Open Responses, the standard formats the model engines serve natively. Its conve
 `infer`, lives in the nested module `tools/infer`. An infrastructure library: go-ai joins `order`
 beside go-storage and the catalog at this sub-goal's first `plan`, and `exclusive` after wave C.
 '''
-context = ["standards-lab/context/ai-strategy.md", "quarry/context/layers.md"]
+context = ["standards-lab/context/ai-strategy.md", "docproc/context/layers.md"]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -348,9 +348,9 @@ context = ["standards-lab/context/ai-strategy.md", "quarry/context/layers.md"]
 name = "Design review of the client"
 summary = '''
 Opens with a Fable 5.2 evaluation of spike-ai-pipeline-client for issues and simplifications,
-against the full architecture standards, quarry's `layers.md`, and Cerebro's requirements; then
+against the full architecture standards, docproc's `layers.md`, and Cerebro's requirements; then
 reviews it against the workspace and writes the review into the sub-goal's note; the later tasks
-build from it. Staged by a `plan` once quarry's `layers` task ships (plan, 2026-11-12).
+build from it. Staged by a `plan` once docproc's `layers` task ships (plan, 2026-11-12).
 '''
 
 [goals.v1.ai.client.tasks.library]
@@ -376,25 +376,25 @@ Reruns infer against set A and fixes what it finds, never redesigning.
 '''
 
 [goals.v1.ai.processing]
-name = "quarry, the processing library and its system tools"
-root = "quarry"
-repos = ["quarry", "architecture"]
-remote = "https://github.com/standards-lab/quarry.git"
-path = "~/architecture/quarry"
+name = "docproc, the processing library and its system tools"
+root = "docproc"
+repos = ["docproc", "architecture"]
+remote = "https://github.com/standards-lab/docproc.git"
+path = "~/architecture/docproc"
 summary = '''
-quarry from spike-ai-pipeline-processing and the root's docproc and docinfer: an enabling library,
+docproc from spike-ai-pipeline-processing and the spike root's docproc and docinfer: an enabling library,
 adjacent to the standard, beside sqlate. Its library module requires `golang.org/x/text` only and
 drops the client. Three nested modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and
 go-core; `cmd/docinfer` requires go-ai, the only module that does; and `cmd/internal` holds
-`schema` and `rundir`, which only `cmd/` can import. The system tools quarry runs live beside it
+`schema` and `rundir`, which only `cmd/` can import. The system tools docproc runs live beside it
 under `tools/<format>`, each on its own toolchain and tagged `tools/<format>/v<version>`, the
 subtree kept out of the Go module zip, so a contract change lands with its decoder in one pull
-request (plan, 2026-11-12): quarry-ooxml from spike-ai-pipeline-office, quarry-mail from
-spike-ai-pipeline-mail, and quarry-onenote from spike-ai-pipeline-onenote. Each tool has one
+request (plan, 2026-11-12): docproc-ooxml from spike-ai-pipeline-office, docproc-mail from
+spike-ai-pipeline-mail, and docproc-onenote from spike-ai-pipeline-onenote. Each tool has one
 JSON (JSON Lines) contract with Markdown inside it as the text layer, no separate Markdown mode,
 proven by committed golden outputs; batch IDs, per-item digests, provenance, warnings, and typed
-metadata stay in quarry and Cerebro. Staged beside wave B's spikes, absorbing v1.ai.tools
-(plan, 2026-11-12). quarry joins `exclusive` after wave C.
+metadata stay in docproc and Cerebro. Staged beside wave B's spikes, absorbing v1.ai.tools
+(plan, 2026-11-12). docproc joins `exclusive` after wave C.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
@@ -405,19 +405,19 @@ context = [
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
 # - docinfer's orchestration (vision, transcription, chunking, embedding, the result cache)
-#   moves into the library behind inference interfaces quarry defines, free of go-ai; results
+#   moves into the library behind inference interfaces docproc defines, free of go-ai; results
 #   come out in batches as made; the index and cache behind interfaces Cerebro backs with
 #   JetStream; input from a stream or spooled to scratch; stable exported event shapes;
 #   cancellation per job; the exec runner inside an image that bundles the tools.
-# - quarry-ooxml, quarry-mail, and quarry-onenote ship inside Cerebro's image, pinned by their
+# - docproc-ooxml, docproc-mail, and docproc-onenote ship inside Cerebro's image, pinned by their
 #   tags.
 
 [goals.v1.ai.processing.tasks.layers]
 name = "The layers of Cerebro's stack"
 summary = '''
-Writes quarry's `context/layers.md`: each boundary of Cerebro's stack as signatures or schemas,
+Writes docproc's `context/layers.md`: each boundary of Cerebro's stack as signatures or schemas,
 traced to a capstone task or spike evidence: the tool contracts (records, the Markdown text layer,
-metadata, media); quarry's API (inspection and routing, inference interfaces free of go-ai,
+metadata, media); docproc's API (inspection and routing, inference interfaces free of go-ai,
 batches as made, index and cache interfaces, event shapes, per-job cancellation); go-ai's surface
 as Cerebro uses it; and Cerebro's Queries, Commands, result batches, manifest, and events. Settles
 whether the tool contracts stay schema "1", grown by addition, or move to "2"; measures each
@@ -427,14 +427,14 @@ tasks build from it; the gateway stays transparent to go-ai.
 '''
 
 [goals.v1.ai.processing.tasks.design]
-name = "Design review of quarry and its tools"
+name = "Design review of docproc and its tools"
 summary = '''
 Opens with a Fable 5.2 evaluation of each promoted artifact (spike-ai-pipeline-processing, the
 root's docproc and docinfer, and the office, mail, and OneNote CLIs) for issues and
 simplifications, against the full architecture standards, `layers.md`, and Cerebro's
-requirements; then reviews them against the workspace and writes the review into quarry's notes.
+requirements; then reviews them against the workspace and writes the review into docproc's notes.
 Settles each tool's contract additions field by field, each traced to a capstone design task and
-marked as the tool's, quarry's, or Cerebro's, and each tool's first tag and release targets. The
+marked as the tool's, docproc's, or Cerebro's, and each tool's first tag and release targets. The
 root's STANDARDS.md applies cli-applications.md to docproc and domain-files.md to docproc's
 command packages only; the review says whether docinfer's packages follow both too.
 '''
@@ -449,13 +449,13 @@ The command-module rule: an adjacent library's repository may carry a command mo
 depends on a tier, while its library modules never do. The placement rule: a repository's place
 follows its base module; nested command modules don't move it (as blobfs's example module
 doesn't), nor do the system tools nested in the library that runs them, in another language
-(quarry's `tools/`); a cross-repository task orders its own exceptions in its brief.
+(docproc's `tools/`); a cross-repository task orders its own exceptions in its brief.
 '''
 
 [goals.v1.ai.processing.tasks.ooxml]
-name = "quarry-ooxml"
+name = "docproc-ooxml"
 summary = '''
-quarry-ooxml from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
+docproc-ooxml from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
 as NativeAOT binaries, turning docx, xlsx, and pptx into its JSON contract with Markdown inside it,
 in one run. Moves to .NET 11 and System.CommandLine 3.0.0 first (plan, 2026-11-12). Adds optional
 document `properties` (core, app, custom), writes embedded packages and OLE payloads as stored
@@ -471,9 +471,9 @@ cropped-away picture is still a media block.
 #   into its model before writing it.
 
 [goals.v1.ai.processing.tasks.mail]
-name = "quarry-mail"
+name = "docproc-mail"
 summary = '''
-quarry-mail from spike-ai-pipeline-mail: the Rust CLI, published as static musl binaries, that
+docproc-mail from spike-ai-pipeline-mail: the Rust CLI, published as static musl binaries, that
 reads .pst stores, .msg and .eml messages, and mbox files into JSON Lines of its contract. Adds
 `smtp_address` for Exchange (EX) addresses, so a sender has one identity across .pst and .eml.
 Its fixture generator moves to MimeKit 5.0.0, its fixture truth unchanged. CI checks gate the
@@ -491,9 +491,9 @@ merge, as office's and onenote's did; the spike merged without waiting on checks
 #   deeper.
 
 [goals.v1.ai.processing.tasks.onenote]
-name = "quarry-onenote"
+name = "docproc-onenote"
 summary = '''
-quarry-onenote from spike-ai-pipeline-onenote: the Rust CLI, published as static musl binaries,
+docproc-onenote from spike-ai-pipeline-onenote: the Rust CLI, published as static musl binaries,
 that reads OneNote sections, .onepkg exports, and notebook directories through onenote_parser
 into JSON Lines of its contract. typed-path moves only with onenote_parser.
 '''
@@ -507,7 +507,7 @@ into JSON Lines of its contract. typed-path moves only with onenote_parser.
 [goals.v1.ai.processing.tasks.library]
 name = "The processing library"
 summary = '''
-quarry's library module from spike-ai-pipeline-processing, without the client. A PDF whose form
+docproc's library module from spike-ai-pipeline-processing, without the client. A PDF whose form
 read fails (qpdf refuses a field whose value is an indirect reference, as in ~/docs'
 cfr-2024-title32-vol1.pdf) fails the whole document part after its pages render, so the index
 never records it and every docproc rerun renders its 1,823 pages again; a failed form read could
@@ -541,7 +541,7 @@ pluggable index and cache (`data-intelligence.md`, "What it asks of the goals be
 # - A bare RFC 822 file with no extension is unrouted, since the nested route needs an .eml name
 #   or a message type.
 # - `Encryption.one`, a password-protected section, is reported failed rather than encrypted,
-#   since the OneNote CLI gives no encryption signal; a signal from quarry-onenote, or an inspect
+#   since the OneNote CLI gives no encryption signal; a signal from docproc-onenote, or an inspect
 #   check for OneNote encryption, would make it Encrypted.
 # - inspect exports no options check, so dispatch's bombRule validates its options through
 #   `inspect.CheckListing(route.Zstd, 0, nil, opts)`. An exported check would replace the
@@ -551,7 +551,7 @@ pluggable index and cache (`data-intelligence.md`, "What it asks of the goals be
 name = "docproc"
 summary = '''
 `cmd/docproc`, from the spike root's docproc: runs the library's whole suite over an input set into
-a versioned run directory, schema "1", with no inference. quarry's README names it as the shipped
+a versioned run directory, schema "1", with no inference. docproc's README names it as the shipped
 composition root of its adapter convention, since every other wiring in the repository is a
 test's.
 '''
@@ -575,7 +575,7 @@ texts, transcripts, and chunks, with no 1,000-character cut.
 '''
 
 [goals.v1.ai.processing.tasks.acceptance]
-name = "Acceptance of quarry and its tools"
+name = "Acceptance of docproc and its tools"
 summary = '''
 Reruns each tool's bench from its spike against its release, and docproc and docinfer over ~/docs,
 and fixes what it finds, never redesigning. Settles whether audio that fits in one request goes
@@ -714,13 +714,13 @@ repos = [
   "capstone-cerebro",
   "capstone-athena",
   "go-messaging",
-  "quarry",
+  "docproc",
 ]
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
 Liberates data held in binary files on a file share, in three repositories (plan, 2026-11-10):
-capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and quarry that
+capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and docproc that
 never knows its caller, with no SQL, its jobs stored as JetStream streams, a Query and Command API
 with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
 capstone-athena, a prototype client-facing service that owns blob storage and PostgreSQL with
@@ -744,14 +744,14 @@ name = "Metadata"
 summary = '''
 Compositional metadata structures that extend docproc's base file metadata per format (PDF,
 office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
-schema "1" metadata of quarry's `cmd/docproc`.
+schema "1" metadata of docproc's `cmd/docproc`.
 '''
 
 [goals.capstone.data-intelligence.tasks.chunks]
 name = "The chunk record and embedding spaces"
 summary = '''
 The chunk record and the registered embedding spaces the pgvector load reads, from the schema "1"
-run directories of quarry's `cmd/docproc` and `cmd/docinfer`.
+run directories of docproc's `cmd/docproc` and `cmd/docinfer`.
 '''
 
 [goals.capstone.data-intelligence.tasks.text-layer]
@@ -824,8 +824,8 @@ sparse rows, rerank). Read only; Athena's migration is later work outside the wo
 [goals.capstone.data-intelligence.tasks.tool-packaging]
 name = "Tools in Cerebro's image"
 summary = '''
-Cerebro's container image with quarry's external tools and quarry-ooxml, quarry-mail, and
-quarry-onenote, run through the
+Cerebro's container image with docproc's external tools and docproc-ooxml, docproc-mail, and
+docproc-onenote, run through the
 exec runner, since the docker runner needs the host's socket.
 '''
 
@@ -968,7 +968,7 @@ context = ["standards-lab/context/ai-strategy.md"]
 name = "The scanned-document intake"
 summary = '''
 Run by `marathon intake experiment.ocr` once spike-scanned-documents has its answer in
-`ai-strategy.md`. Decides whether quarry's document stage carries an OCR tier and which vision
+`ai-strategy.md`. Decides whether docproc's document stage carries an OCR tier and which vision
 model, image-token budget, and quantization the vision tier runs, as v1.ai tasks. It archives
 spike-scanned-documents.
 '''

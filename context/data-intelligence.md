@@ -11,7 +11,7 @@ note holds what the capstone carries until they exist; the root's `init` takes t
 ## What it is
 
 Two services and the model gateway beneath them ("Cerebro and Athena"): Cerebro, a processing
-service on go-ai's model client and quarry's processing library, and Athena, a prototype
+service on go-ai's model client and docproc's processing library, and Athena, a prototype
 client-facing service with a web UI on the web client stack experiment.html's intake promotes. It takes in messages, uploads, and streams; captures their
 metadata, extracts data by inference, and stores embeddings in PostgreSQL with pgvector for
 semantic search; and shows each stage as it runs. It came out of spike-ai-pipeline, which proved
@@ -33,7 +33,7 @@ and only an extractor change reruns inference. Translation between spaces is lim
 truncation and quantization within one model; a learned mapping only bridges a migration. The
 `chunks` design task settles this.
 
-Its input is docinfer's directory over docproc's run directory, both schema "1", from quarry's
+Its input is docinfer's directory over docproc's run directory, both schema "1", from docproc's
 `cmd/docinfer` and `cmd/docproc`. v1.ai.processing's `reports` task makes their reports holistic:
 an index page plus one page per input, docproc's and docinfer's pages linked by the input's
 SHA-256, each holding the source link, the file and record metadata, the whole part tree with
@@ -75,10 +75,10 @@ serve any consumer, a harness among them.
   evidence 7's transactional stages are the consumer's.
 - **Distribution.** Jobs go through go-messaging's work-queue package, which the capstone builds. One job per input
   is the unit of retry; inference fans out inside it, bounded per capability (spike-model-layout's
-  capacity targets set the defaults); a crash recovers through the result cache and quarry's
+  capacity targets set the defaults); a crash recovers through the result cache and docproc's
   checkpoint. Spreading one input's parts across replicas waits until the ~/docs acceptance run
   shows a replica is the bottleneck.
-- **Caching.** Results are keyed by content SHA-256 and stage identity (quarry's dispatch index)
+- **Caching.** Results are keyed by content SHA-256 and stage identity (docproc's dispatch index)
   and by capability, profile, and content (docinfer's held results), behind a cache interface
   Cerebro backs with the object store; content seen before is replayed, not recomputed.
 - **Models and stages.** A request names a versioned processing profile in Cerebro's
@@ -117,8 +117,8 @@ migration is later work outside the workspace. Facts from `~/s2va/athena` the ma
 solved its auth strategy, and the capstone focuses on signal flow without that complexity. The
 gateway's per-consumer keys stay, since they carry the priority between bulk work and chat.
 
-**Missing layers** beyond the roadmap: the capstone designs the packaging of the quarry-* tools into
-Cerebro's image (quarry's docker runner can't run in a
+**Missing layers** beyond the roadmap: the capstone designs the packaging of the docproc-* tools into
+Cerebro's image (docproc's docker runner can't run in a
 container without the host's socket); `retrieval` (hybrid ANN with tsvector and rerank; set A has
 no reranker) and `cross-service-tracing` wait in the backlog.
 
@@ -130,13 +130,13 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   against the live gateway's 429, 503, and Retry-After; per-call timeouts and cancellation by
   context; a per-consumer key header; Embed batching; streaming Generate whose events Cerebro can
   relay. Concurrency bounds stay the caller's.
-- **v1.ai.processing (quarry):** docinfer's orchestration (vision, transcription, chunking,
-  embedding, the result cache) moves into the library behind inference interfaces quarry
+- **v1.ai.processing (docproc):** docinfer's orchestration (vision, transcription, chunking,
+  embedding, the result cache) moves into the library behind inference interfaces docproc
   defines, free of go-ai, with `cmd/docinfer` a thin go-ai composition; results come out in
   batches as made; the index and cache behind interfaces; input from a stream or spooled to
   scratch; stable exported event shapes; cancellation per job; the exec runner inside an image
   that bundles the tools.
-- **v1.ai.processing's tools:** quarry-ooxml, quarry-mail, and quarry-onenote ship inside
+- **v1.ai.processing's tools:** docproc-ooxml, docproc-mail, and docproc-onenote ship inside
   Cerebro's image, each pinned by its `tools/<format>/v<version>` tag.
 - **v1.ai.hosting and spike-model-gateway:** Cerebro (bulk) and Athena (chat) are separate
   consumers, each with a key and a budget; 429 and queueing behave as go-ai's retry expects; chat
@@ -164,7 +164,7 @@ apart from status-reports and training. Before it:
 
 - experiment.hosting's spike-model-layout and spike-model-gateway answer, and experiment.hosting's
   intake runs; v1.ai.hosting builds ai-hosting from it.
-- v1.ai.processing builds quarry and its system tools, and v1.ai.client builds go-ai, each
+- v1.ai.processing builds docproc and its system tools, and v1.ai.client builds go-ai, each
   closed by an acceptance task that reruns the real workloads: v1.ai.client's reruns infer
   against set A, and v1.ai.processing's reruns docproc and docinfer over ~/docs.
 - experiment.html's intake runs, and v1.client promotes the web client stack the UI builds on.
@@ -172,7 +172,7 @@ apart from status-reports and training. Before it:
   Postgres-extension strategy.
 
 The capstone needs no harness: its model calls go through go-ai's client, whose Open Responses
-protocol and wire-format packages reach every engine. Its repos gain quarry at staging, and the
+protocol and wire-format packages reach every engine. Its repos gain docproc at staging, and the
 libraries the intakes promote, so a capstone task can fix a tool or a library and use the fix
 (plan, 2026-11-12).
 
@@ -201,7 +201,7 @@ input; build tasks are written once they close.
   web layer, the processing layer, or elsewhere (the architect, docproc r4 q6). docproc's schema
   "1" metadata and docinfer's chunk records are the input the pgvector load reads.
 - **chunks**: the chunk record and the embedding spaces the pgvector load reads, from the schema
-  "1" output of quarry's `cmd/docproc` and `cmd/docinfer`.
+  "1" output of docproc's `cmd/docproc` and `cmd/docinfer`.
 - **text-layer**: whether to skip vision on a page with a text layer. The docinfer finding's
   text-layer comparison is the evidence for a skip rule: where a layer holds the page, vision
   repeats it (median word recall 0.91 to 1.00); vision rescued 49 pages with a thin layer and 61
@@ -216,7 +216,7 @@ input; build tasks are written once they close.
 - **events**: Cerebro's stage and result-batch event protocol, and the browser's transport on
   Athena's stream (evidence 15).
 - **athena-mapping**: `~/s2va/athena`'s ingest contract onto Cerebro ("Cerebro and Athena").
-- **tool-packaging**: the quarry-* tools in Cerebro's image, run through quarry's exec runner.
+- **tool-packaging**: the docproc-* tools in Cerebro's image, run through docproc's exec runner.
 
 ## Carried notes
 

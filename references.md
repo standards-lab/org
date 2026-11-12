@@ -155,10 +155,10 @@ object store, for any Go project on an engine it ships DDL for, with the Postgre
 spike-blobfs. Its `docs/` guide describes the library; the base and each sub-module are tagged
 independently.
 
-### quarry
+### docproc
 The processing library, planned (v1.ai.processing): it prepares messages, documents, and streams
 for native model capabilities, running mature system tools through adapters it owns. Its own
-system tools, quarry-ooxml, quarry-mail, and quarry-onenote, are nested under `tools/<format>`,
+system tools, docproc-ooxml, docproc-mail, and docproc-onenote, are nested under `tools/<format>`,
 each with its own toolchain and tagged `tools/<format>/v<version>`. Adjacent to the `go-elemental`
 standard, as `sqlate` is. Its references are spike-ai-pipeline-processing and the spike's three
 CLIs.
@@ -226,14 +226,14 @@ two-node serving over QSFP. Active.
 ### spike-ai-pipeline
 Asked whether a Go model client and a message, document, and stream processing layer can carry a
 transactional, evented pipeline that a browser follows live. Answered yes for the client and
-processing layers, which v1.ai builds as go-ai and quarry; the pipeline and
+processing layers, which v1.ai builds as go-ai and docproc; the pipeline and
 browser moved to capstone.data-intelligence. It served set A on gb10-2 from its own preset, which
 spike-model-layout reads, never writes, while moving gb10-2 onto spike-model-engines' preset.
 
 ### spike-ai-pipeline-client, spike-ai-pipeline-processing, spike-ai-pipeline-office, spike-ai-pipeline-mail, spike-ai-pipeline-onenote
 spike-ai-pipeline's layer repositories: the model client, the processing layer, and the Open XML,
-mail, and OneNote CLIs. They are the references for go-ai, quarry, and quarry's system tools
-quarry-ooxml, quarry-mail, and quarry-onenote.
+mail, and OneNote CLIs. They are the references for go-ai, docproc, and docproc's system tools
+docproc-ooxml, docproc-mail, and docproc-onenote.
 
 ### spike-graph
 Asked whether go-core's candidate `graph` and `lifecycle` API makes go-web-service's composition
