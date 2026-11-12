@@ -242,9 +242,9 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   self-hosted machines is open. The models are laid out across the two GB10s and the Framework
   (AMD AI Max+ 395), with a vLLM instance per model as a target to weigh for concurrent inference
   (the architect, 2026-11-11).
-- **go-messaging (the capstone's `messaging-append`, `messaging-work-queue`, and
-  `messaging-object-store` tasks):** the expected-sequence append, the work-queue package, and an
-  object-store API. The capstone holds go-messaging and builds them itself.
+- **go-messaging (the capstone's `messaging-append` and `messaging-work-queue` tasks):** the
+  expected-sequence append and the work-queue package. The capstone holds go-messaging and builds
+  them itself.
 - **go-web-sdk:** the chunked upload primitive after graduation, and an SSE helper for Athena's
   chat.
 - **v1.data.extensions:** pgvector lives in capstone-athena only.

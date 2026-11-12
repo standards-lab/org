@@ -231,11 +231,10 @@ memory.
   change true (`architecture/architecture.md`, "The elements", asks for that atomicity, not for
   SQL). Its other events go through the outbox in PostgreSQL (docproc's `context/layers.md`, "State
   and subjects"). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
-  `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, a
-  work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
-  dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet, and a
-  standard object-store API over what is native through `Conn()` today (`data-intelligence.md`,
-  "Cerebro and Athena").
+  `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, and
+  a work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
+  dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet
+  (`data-intelligence.md`, "Cerebro and Athena").
 
 ## Assumptions
 

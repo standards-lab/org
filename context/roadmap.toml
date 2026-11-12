@@ -777,7 +777,7 @@ replace ~/s2va/athena's ingest layer without taking in its code (`data-intellige
 and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
 active goal apart from status-reports and training, after experiment.hosting's and
 experiment.html's intakes and the libraries v1.ai and v1.client promote. It holds go-messaging and
-builds Cerebro's stream-backed root, work queue, and object store there itself (the messaging
+builds Cerebro's stream-backed root and work queue there itself (the messaging
 tasks; plan, 2026-11-10); its repos gain the other libraries at staging, so a capstone task can update a library and use the change.
 Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
 roots are written against its release (`graph-ergonomics.md`). Design tasks come first; build
@@ -838,16 +838,14 @@ go-messaging's durable jobs on JetStream work-queue retention: heartbeat, bounde
 backoff, and a dead-letter subject, a contract a Postgres SKIP LOCKED provider could also meet.
 '''
 
-[goals.capstone.data-intelligence.tasks.messaging-object-store]
-name = "The object-store API"
-repos = ["go-messaging"]
-summary = "go-messaging's standard object-store API with TTLs, over JetStream's object store."
-
 [goals.capstone.data-intelligence.tasks.state]
 name = "Cerebro's state"
 summary = '''
-The job as a stream-backed root folded from its events, the work queue, the object store and its
-TTLs, and the result cache keyed by content and stage identity, on the messaging tasks' release.
+Cerebro's stores as docproc's `context/layers.md` designs them ("State and subjects"): the job as
+a stream-backed root folded from its events and the work queue on JetStream (file storage);
+content, staged inputs, and uploads in blob storage through `docproc/storage`, retained by age;
+and the index (`docproc/postgres`) and the result cache (`docinfer/postgres`) in PostgreSQL. On
+the messaging tasks' release.
 '''
 
 [goals.capstone.data-intelligence.tasks.events]
