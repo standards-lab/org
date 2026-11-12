@@ -298,7 +298,8 @@ The spike's six repositories are the references each sub-goal's design review re
   processing's whole suite over an input set into a versioned run directory, with no inference. `docinfer` sends a docproc run's outputs through the client to
   any configured workstation: every image to vision with reasoning off, every audio window to
   transcription, joined per part by `audio.Join`, and every text and each input's metadata,
-  chunked, to embeddings. It writes a directory of its own, schema "1", the capstone's input. Its
+  chunked, to embeddings. It writes a directory of its own, schema "1"; the capstone's input is
+  `cmd/docinfer`'s directory at schema "2" (docproc's `context/layers.md`, "The nested modules"). Its
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
