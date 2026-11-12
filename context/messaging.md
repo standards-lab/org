@@ -86,7 +86,11 @@ grant and identity-link writes to emit events.
   `max_age`. The spike's last-writer-wins `CreateOrUpdateStream` on every broker is the case this
   removes.
 - **An event's NATS subject is its type, unchanged.** The nats block's prefix is the namespace
-  every type must start with, rather than a token the broker prepends to the type.
+  every type must start with, rather than a token the broker prepends to the type. This and the
+  stream's one owner capturing `<prefix>.>` govern a web service's events for committed mutations
+  of executed commands. A job's progress and result stream, such as Cerebro's
+  (`cerebro.job.<job>`, one subject per job for the job's gap-free sequence), is a different use
+  case these conventions don't govern.
 - **The scope is the standard tier plus one native use**: request and reply through the `nats`
   provider's `Conn()`, in the composition root alone. The rest of the ledger below is recorded and
   not built.
@@ -221,22 +225,23 @@ memory.
 - Whether go-messaging names the change-only event pattern: an event that carries its producer's
   whole state and a monotonic sequence, so a consumer that skips stale input loses nothing.
 - A dead-letter stream, deferred until a consumer needs replay.
-- **A stream-backed root** (plan, 2026-11-10). capstone.data-intelligence's Cerebro has no SQL:
-  each job is a root Entity whose state is folded from the events on its own subject, so
-  appending an Event, guarded by an expected-last-sequence check, is the transaction that makes
-  the Command's change true (`architecture/architecture.md`, "The elements", asks for that
-  atomicity, not for SQL). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
+- **A stream-backed root** (plan, 2026-11-10). In capstone.data-intelligence's Cerebro, each job is
+  a root Entity whose state is folded from the events on its own subject, so appending an Event,
+  guarded by an expected-last-subject-sequence check, is the transaction that makes the Command's
+  change true (`architecture/architecture.md`, "The elements", asks for that atomicity, not for
+  SQL). Its other events go through the outbox in PostgreSQL (docproc's `context/layers.md`, "State
+  and subjects"). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
   `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, a
   work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
   dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet, and a
-  standard object-store API over what is native through `Conn()` today
-  (`data-intelligence.md`, "Cerebro and Athena").
+  standard object-store API over what is native through `Conn()` today (`data-intelligence.md`,
+  "Cerebro and Athena").
 
 ## Assumptions
 
 - Assumes JetStream's deduplication window covers the relay's retry interval.
 - Assumes every event a service emits reports a mutation in its own database, so an outbox table
-  in that database suffices. capstone.data-intelligence's Cerebro breaks it on purpose: a service
-  with no SQL whose root Entity is stored as a JetStream stream ("A stream-backed root", under
-  Open).
+  in that database suffices. capstone.data-intelligence's Cerebro breaks it on purpose: a job's
+  events are its root Entity, stored as a JetStream subject and appended there directly, outside
+  any outbox ("A stream-backed root", under Open).
 - Assumes the service stays on `database/sql`-shaped sessions (sqlate's `Session`).
