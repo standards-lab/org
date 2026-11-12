@@ -11,7 +11,8 @@ note holds what the capstone carries until they exist; the root's `init` takes t
 ## What it is
 
 Two services and the model gateway beneath them ("Cerebro and Athena"): Cerebro, a processing
-service on go-ai's model client and docproc's processing library, and Athena, a prototype
+service on go-ai's model client, docproc's extraction library, and docinfer's inference library,
+and Athena, a prototype
 client-facing service with a web UI on the web client stack experiment.html's intake promotes. It takes in messages, uploads, and streams; captures their
 metadata, extracts data by inference, and stores embeddings in PostgreSQL with pgvector for
 semantic search; and shows each stage as it runs. It came out of spike-ai-pipeline, which proved
@@ -20,7 +21,8 @@ the client and processing layers and planned the capstone as its last step (`ai-
 outside the experiment (docinfer r6; plan, 2026-11-09).
 
 Athena's events go through go-messaging, an outbox in each batch's transaction relayed to
-JetStream; Cerebro's are appended to its job streams ("Cerebro and Athena"). pgvector is a
+JetStream; Cerebro's job events are appended to its job stream, and its other events go through
+go-messaging's outbox ("Cerebro and Athena"). pgvector is a
 declared native-tier extension in capstone-athena, and v1.data.extensions writes the workspace's
 extension strategy from this case. Source blobs stay in Athena's blob storage; its database holds what the
 stages derive from them, each stage's output a versioned artifact (source blob hash → extraction → chunk → embedding)
@@ -33,13 +35,15 @@ and only an extractor change reruns inference. Translation between spaces is lim
 truncation and quantization within one model; a learned mapping only bridges a migration. The
 `chunks` design task settles this.
 
-Its input is docinfer's directory over docproc's run directory, both schema "1", from docproc's
-`cmd/docinfer` and `cmd/docproc`. v1.ai.processing's `reports` task makes their reports holistic:
-an index page plus one page per input, docproc's and docinfer's pages linked by the input's
-SHA-256, each holding the source link, the file and record metadata, the whole part tree with
-every output inline, and the full vision texts, transcripts, and chunks, uncut. spike-ai-pipeline's
+Its input is docinfer's `cmd/docinfer` directory over docproc's `cmd/docproc` run directory, both
+schema "2" (docproc's `context/layers.md`, "The nested modules"). v1.ai.processing's `reports`
+task makes `cmd/docproc`'s report holistic: an index page plus one page per input, keyed by the
+input's SHA-256, each holding the source link, the file and record metadata, and the whole part
+tree with every output inline, uncut. docinfer's report, its pages linked to docproc's by the
+input's SHA-256 and holding the full vision texts, transcripts, and chunks, is v1.ai.inference's.
+spike-ai-pipeline's
 [docinfer finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
-ran them over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 audio windows, and 28,937
+ran the spike's commands over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 audio windows, and 28,937
 chunk lines in 6.0 h, with 0 failures.
 
 ## Cerebro and Athena
@@ -54,15 +58,17 @@ never knows its caller. It queues and orchestrates processing, sends inference t
 gateway with go-ai, and emits its progress, inference messages, and results as events. It could
 serve any consumer, a harness among them.
 
-- **State.** No SQL and no data it owns. Its operational state is in JetStream and disposable: a
-  work-queue stream of jobs, one event stream per job, and an object store with a TTL for staged
-  uploads and cached results. A job is a root Entity whose state is folded from the events on its
-  subject; appending an Event with an expected-last-sequence check is the transaction that makes
-  the Command's change true, which is all Elemental's Event asks (`architecture/architecture.md`,
-  "The elements"). One store, so no outbox and no relay (`messaging.md`, "A stream-backed root").
+- **State.** Cerebro owns its jobs, its uploads, and each job's event stream. PostgreSQL holds
+  docproc's index and docinfer's cache, blob storage holds large content (outputs, staged inputs,
+  uploads), and JetStream the work queue and the job stream: one shared CEREBRO_JOBS stream
+  holding a subject per job. A job is a root Entity whose state is folded from the events on its
+  subject. A job's events append directly to its subject under the expected-last-subject-sequence
+  check, the transaction that makes the Command's change true, which is all Elemental's Event asks
+  (`architecture/architecture.md`, "The elements"), and go-messaging's outbox serves Cerebro's
+  other events (`messaging.md`, "A stream-backed root").
 - **API.** Go Elemental Queries and Commands, with Events published. A small document arrives in
   one Command; a large one through a chunked upload protocol: open a session, append chunks with
-  offsets and digests, complete, and resume after a drop. Chunks wait in the object store, so any
+  offsets and digests, complete, and resume after a drop. Chunks wait in blob storage, so any
   replica takes any chunk. Cerebro proves the protocol shaped to graduate: once capstone-athena
   reuses it for browser uploads, it moves to go-web-sdk, its browser half to v1.client's sdk
   (`chunked-upload-graduation`). A nested `client` module, tagged `client/vX`, holds the protocol
@@ -73,14 +79,15 @@ serve any consumer, a harness among them.
   counts, a digest, and the sequence range. The consumer commits each batch in one transaction,
   de-duplicated through go-messaging's inbox, and checks completeness against the manifest, so
   evidence 7's transactional stages are the consumer's.
-- **Distribution.** Jobs go through go-messaging's work-queue package, which the capstone builds. One job per input
-  is the unit of retry; inference fans out inside it, bounded per capability (spike-model-layout's
-  capacity targets set the defaults); a crash recovers through the result cache and docproc's
-  checkpoint. Spreading one input's parts across replicas waits until the ~/docs acceptance run
-  shows a replica is the bottleneck.
+- **Distribution.** Jobs go through go-messaging's work-queue package, which the capstone builds.
+  One job per input is the unit of retry; inference fans out inside it, bounded per capability
+  (spike-model-layout's capacity targets set the defaults); a crash recovers through the result
+  cache and the job's checkpoint (docinfer's `job`). Spreading one input's parts across replicas
+  waits until the ~/docs acceptance run shows a replica is the bottleneck.
 - **Caching.** Results are keyed by content SHA-256 and stage identity (docproc's dispatch index)
-  and by capability, profile, and content (docinfer's held results), behind a cache interface
-  Cerebro backs with the object store; content seen before is replayed, not recomputed.
+  and by capability, model, settings, and content (docinfer's cache), behind interfaces Cerebro
+  backs with PostgreSQL, the content they name held in blob storage by its SHA-256 (docproc's
+  `context/layers.md`, "The cache"); content seen before is replayed, not recomputed.
 - **Models and stages.** A request names a versioned processing profile in Cerebro's
   configuration, never models; each result records the profile's resolved identity (models,
   dimensions, chunker version), so the consumer registers the matching embedding space. Cerebro
@@ -122,20 +129,108 @@ Cerebro's image (docproc's docker runner can't run in a
 container without the host's socket); `retrieval` (hybrid ANN with tsvector and rerank; set A has
 no reranker) and `cross-service-tracing` wait in the backlog.
 
+### The layers
+
+docproc's `context/layers.md` states each boundary of Cerebro's stack as signatures and schemas,
+each traced to this note's design tasks or to spike evidence. The stack has five layers: system
+tools → docproc → docinfer ← go-ai, and Cerebro over docproc, docinfer, and go-ai.
+
+- **The tool contracts** are schema "2": JSON Lines with Markdown inside as the text layer, grown
+  by addition only from there. Every piece of text a file holds exists once: content in the
+  Markdown text layer, labels (a mail store's name, OneNote's ink alternatives) as kept plain-text
+  fields. A structured field is cut only when its text is already carried, in the Markdown or in a
+  kept field, or it can't be plain text and has no processor, as measured over ~/docs; content a
+  tool reads but leaves out of its Markdown is rendered into it, never kept beside it as a
+  duplicate field.
+- **docproc** (`github.com/standards-lab/docproc`) extracts: inspection, routing, the tool runners
+  and readers, dispatch with its content store and its index, the stages, and `cmd/docproc`. Its
+  library module requires `golang.org/x/text` alone and depends on no model concept. Each store is
+  an interface the library declares, with filesystem and memory implementations in the base module
+  and providers as nested sub-modules named for their target systems (`docproc/storage` over
+  go-storage, `docproc/postgres` over sqlate), each pinning only its own level. The dispatcher
+  stores each output's content by its SHA-256 before its index records it, and a seen part
+  replays its recorded log in the order it was prepared.
+- **docinfer** (`github.com/standards-lab/docinfer`), an adjacent library above go-ai's tier,
+  infers. Its root package holds the pipeline: vision, transcription, extraction, and embedding
+  over go-ai's client, called directly, a cache, and inference texts, extraction progress,
+  batches, and counts yielded as made. `chunk` is the chunker, and `job` runs one job's dispatch
+  and inference, cancelled by its own context, putting each inference text into docproc's content
+  store and yielding its updates. `docinfer/postgres` is its cache's provider, and `cmd/docinfer`
+  its command. It holds the go-ai failure mapping (`layers.md`, "docinfer's go-ai use"): a
+  refusal, recorded and held, only for a verdict on the content, and a permanent error failing the
+  job at once.
+- **Shapes.** Neither library has an events package, emits CloudEvents itself, or declares event
+  kinds, so neither has a `messaging.go`. Each package that produces a change holds its JSON
+  shapes in its ordinary files, beside its other types: dispatch's events, parts, outputs, and
+  warnings, versioned by `dispatch.Version`; docinfer's inference texts, progress, batches,
+  chunks, counts, held values, and profile, and job's checkpoint and done, versioned by
+  `docinfer.Version`.
+- **Cerebro's API** starts from Go Elemental Commands (Submit, OpenUpload, AppendChunk,
+  CompleteUpload, AbortUpload, CancelJob) and Queries (GetJob, GetUpload, GetOutput,
+  ListProfiles).
+- **Cerebro's state.** Cerebro holds only its jobs, its uploads, and each job's event stream;
+  docproc's and docinfer's stores are facets of its internal state, behind the libraries'
+  interfaces and wired to providers at its composition root, and it holds no state for an
+  external service. It runs blob storage (staged inputs, upload chunks, content by SHA-256),
+  PostgreSQL (the index, the cache, and go-messaging's outbox and inbox through
+  `go-messaging/postgres` for its events other than a job's), and NATS JetStream on file storage
+  (the streams CEREBRO_WORK, CEREBRO_JOBS, and CEREBRO_UPLOADS if the upload keeps one). Each
+  job's events go on one subject of its own in CEREBRO_JOBS, `cerebro.job.<job>`, for the job's
+  gap-free sequence, appended directly under the expected-last-subject-sequence check.
+  `messaging.md`'s subject and stream conventions govern a web service's events for committed
+  command mutations, not a job's progress and result stream.
+- **Cerebro's events** are CloudEvents 1.0 in binary mode on NATS headers. Cerebro defines their
+  `cerebro.job.*` types in its own `messaging.go`, each with `event.Define` over its own payload:
+  part, output, and warning over docproc's `dispatch.Event`; inference (vision, transcription, and
+  extraction) over docinfer's `Inference`; progress over its `Progress`; batch over its `Batch`,
+  carrying the batch's digest and chunk count as extension attributes for a headers-only fold;
+  checkpoint over `job.Checkpoint`; and the rest over Cerebro's own data types beside its other
+  types. The type and subject carry the kind and the job, so no payload repeats them, and
+  `dataschema` carries the payload's version. A batch is identified by its job and its event's
+  sequence, never renumbered across attempts. Each attempt's `started` carries the resolved
+  profile. A `completed` event carries the manifest: its range is every sequence from 1 through the
+  `completed` event's own, with the batch and chunk counts and a digest over every attempt's
+  batches, and each attempt's counts as docinfer reported them. A replica whose append fails its
+  expected-sequence check reads the subject's tail and stops on a `cancel_requested` or a newer
+  `started`.
+- **What it asks of go-ai**, from docinfer and Cerebro: a transcription request that can reopen
+  its clip, so `Transcribe` is retried and honors Retry-After; the retry of 408, 429, and 503
+  proven against the live gateway; and the surface docinfer calls kept (`Generate`,
+  `GenerateStream` with its accumulator, `Embed`, `Transcribe`, the API error's status and
+  message, the usage fields, and the three formats and query parameters `cmd/docinfer` uses).
+- **What it asks of go-messaging**, sized by `state` and `events`: its NATS provider publishes on
+  the event's type and filters a durable consumer by types, so Cerebro's job stream needs a
+  publish on a subject the caller names, a consumer filtered by subject, the CloudEvents
+  `sequence` extension carried, and events delivered in order within a delivery group; and a
+  work-queue delivery lasts its `AckWait`, so a long job needs a delivery its handler extends
+  while it runs.
+- **Open items** pass to `protocol` (live sources, the small-document size), `events` (the batch
+  cap, the `dataschema` form), `state` (the stores', streams', and keys' names and retentions, and
+  how a job whose last delivery died is found and failed), `chunks` (storing chunks by identity),
+  `metadata` (typed metadata shapes, a message's threading keys on its output event),
+  `athena-mapping` (typed cells for `sparse_rows`), `text-layer` (OCR text read from the
+  Markdown's image text), and v1.ai.client (transcription retry).
+
 ### What it asks of the goals beneath it
 
 Each is recorded on its roadmap entry, so the goal designs around Cerebro:
 
 - **v1.ai.client (go-ai):** Cerebro is its first long-running service consumer. Retry proven
   against the live gateway's 429, 503, and Retry-After; per-call timeouts and cancellation by
-  context; a per-consumer key header; Embed batching; streaming Generate whose events Cerebro can
-  relay. Concurrency bounds stay the caller's.
-- **v1.ai.processing (docproc):** docinfer's orchestration (vision, transcription, chunking,
-  embedding, the result cache) moves into the library behind inference interfaces docproc
-  defines, free of go-ai, with `cmd/docinfer` a thin go-ai composition; results come out in
-  batches as made; the index and cache behind interfaces; input from a stream or spooled to
-  scratch; stable exported event shapes; cancellation per job; the exec runner inside an image
-  that bundles the tools.
+  context; a per-consumer key, the bearer token, in a header of its own only if the gateway asks
+  for one (docproc's `context/layers.md`, "Requests to go-ai"); Embed batching; streaming Generate
+  whose events Cerebro can relay. Concurrency bounds stay the caller's.
+- **v1.ai.processing (docproc):** the index and the content store behind interfaces docproc
+  declares, with filesystem and memory implementations and the providers `docproc/postgres`
+  (PostgreSQL through sqlate) and `docproc/storage` (object storage through go-storage); input
+  from a stream or spooled to scratch, its SHA-256 checked once; stable exported event shapes; the
+  exec runner inside an image that bundles the tools.
+- **v1.ai.inference (docinfer):** docinfer's orchestration (vision, transcription, extraction by a
+  caller's prompt and schema, chunking, embedding, the result cache) in an adjacent library above
+  go-ai that calls go-ai directly, with `cmd/docinfer` its command; results in batches as made;
+  the cache behind an interface, with the provider `docinfer/postgres` (PostgreSQL through
+  sqlate); cancellation per job; a go-ai failure mapping that refuses only a verdict on the
+  content and fails the job at once on a permanent error.
 - **v1.ai.processing's tools:** docproc-ooxml, docproc-mail, and docproc-onenote ship inside
   Cerebro's image, each pinned by its `tools/<format>/v<version>` tag.
 - **v1.ai.hosting and spike-model-gateway:** Cerebro (bulk) and Athena (chat) are separate
@@ -164,9 +259,10 @@ apart from status-reports and training. Before it:
 
 - experiment.hosting's spike-model-layout and spike-model-gateway answer, and experiment.hosting's
   intake runs; v1.ai.hosting builds ai-hosting from it.
-- v1.ai.processing builds docproc and its system tools, and v1.ai.client builds go-ai, each
-  closed by an acceptance task that reruns the real workloads: v1.ai.client's reruns infer
-  against set A, and v1.ai.processing's reruns docproc and docinfer over ~/docs.
+- v1.ai.processing builds docproc and its system tools, v1.ai.client builds go-ai, and
+  v1.ai.inference builds docinfer once go-ai's library releases, each closed by acceptance that
+  reruns the real workloads: v1.ai.client's reruns infer against set A, v1.ai.processing's reruns
+  `cmd/docproc` over ~/docs, as corpus.docs settles it, and v1.ai.inference reruns docinfer.
 - experiment.html's intake runs, and v1.client promotes the web client stack the UI builds on.
 - graph-ergonomics settles go-core's `graph` and `lifecycle`, and v1.data.extensions lands the
   Postgres-extension strategy.
@@ -199,9 +295,9 @@ input; build tasks are written once they close.
 - **metadata**: compositional metadata structures that extend docproc's base file metadata per
   format (PDF, office, mail, OneNote, media), and where authoritative metadata capture lives: the
   web layer, the processing layer, or elsewhere (the architect, docproc r4 q6). docproc's schema
-  "1" metadata and docinfer's chunk records are the input the pgvector load reads.
+  "2" metadata and docinfer's chunk records are the input the pgvector load reads.
 - **chunks**: the chunk record and the embedding spaces the pgvector load reads, from the schema
-  "1" output of docproc's `cmd/docproc` and `cmd/docinfer`.
+  "2" output of docproc's `cmd/docproc` and docinfer's `cmd/docinfer`.
 - **text-layer**: whether to skip vision on a page with a text layer. The docinfer finding's
   text-layer comparison is the evidence for a skip rule: where a layer holds the page, vision
   repeats it (median word recall 0.91 to 1.00); vision rescued 49 pages with a thin layer and 61
@@ -212,7 +308,7 @@ input; build tasks are written once they close.
   describe text…") and a lower temperature against described pages.
 - **protocol**: Cerebro's Queries and Commands, the small-document Command, and the chunked
   upload protocol.
-- **state**: the job stream, the work queue, and the object store, and the job's fold.
+- **state**: the stores, the streams, and the job's fold.
 - **events**: Cerebro's stage and result-batch event protocol, and the browser's transport on
   Athena's stream (evidence 15).
 - **athena-mapping**: `~/s2va/athena`'s ingest contract onto Cerebro ("Cerebro and Athena").
