@@ -21,7 +21,8 @@ delete steps, on a context that outlives the request's cancellation; a completio
 sweep reached the row first deletes the object just stored (the writer rule). A consumer's
 reference to the file, such as the logo's join row, is written after completion, in the
 transaction that holds the file. The service runs blobfs's own `WriteFile`, `EnsureFile`, and
-`RemoveFile`, passing `OnComplete` and `OnDelete`, and stages none of them.
+`RemoveFile`, setting `WriteFileRequest.OnComplete`, `EnsureFileRequest.OnComplete`, and
+`RemoveOptions.OnDelete`, and stages none of them.
 
 **The delete.** In one transaction: hold the file (the reference-then-delete rule) if any of the
 consumer's own rows are about to reference it, or check the consumer's own referencing rows and
