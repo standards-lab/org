@@ -178,7 +178,10 @@ join table driving a blobfs listing under the scope predicate. v1.client lands f
 open API, so this goal adds a client sweep task: the reference client behind authentication,
 and whether an image is fetched as an `<img>` with a cookie or with a bearer token.
 '''
-context = ["standards-lab/context/auth-strategy.md", "standards-lab/context/web-client.md"]
+context = [
+  "standards-lab/context/auth-strategy.md",
+  "standards-lab/context/web-client.md",
+]
 
 [goals.v1.admin-listener]
 name = "The management listener"
@@ -311,7 +314,10 @@ architecture tiers, not within them: its repositories join claude-plugins' layer
 the catalog at this sub-goal's first `plan`, and never join `exclusive`. Stages first among
 v1.ai's sub-goals, since it holds the architecture lock ahead of v1.ai.hosting.
 '''
-context = ["standards-lab/context/system-tools.md", "standards-lab/context/ai-strategy.md"]
+context = [
+  "standards-lab/context/system-tools.md",
+  "standards-lab/context/ai-strategy.md",
+]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -475,7 +481,10 @@ go-core; `cmd/docinfer` requires go-ai, the only module that does; and `cmd/inte
 unravel joins `order` and the catalog at this sub-goal's first `plan`, and `exclusive` after
 wave C.
 '''
-context = ["standards-lab/context/ai-strategy.md", "standards-lab/context/system-tools.md"]
+context = [
+  "standards-lab/context/ai-strategy.md",
+  "standards-lab/context/system-tools.md",
+]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -596,7 +605,10 @@ redirects (301) to prefix/. A path under the manifest's directories, a dotfile p
 segment with an extension, with no file behind it, is a 404 problem, never the shell. It moves
 to go-web-service's `sdk/`, then go-web-sdk.
 '''
-context = ["standards-lab/context/web-client.md", "standards-lab/context/html-artifacts.md"]
+context = [
+  "standards-lab/context/web-client.md",
+  "standards-lab/context/html-artifacts.md",
+]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -696,7 +708,12 @@ in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones"
 [goals.capstone.data-intelligence]
 name = "data-intelligence"
 root = "capstone-data-intelligence"
-repos = ["capstone-data-intelligence", "capstone-cerebro", "capstone-athena", "go-messaging"]
+repos = [
+  "capstone-data-intelligence",
+  "capstone-cerebro",
+  "capstone-athena",
+  "go-messaging",
+]
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
@@ -1249,7 +1266,10 @@ application, the repositories' Pages sites and persistent artifacts, and live Go
 intake. HTML is for persistent
 artifacts; workflow outputs and the context/ notes stay Markdown.
 '''
-context = ["standards-lab/context/html-artifacts.md", "standards-lab/context/web-client.md"]
+context = [
+  "standards-lab/context/html-artifacts.md",
+  "standards-lab/context/web-client.md",
+]
 
 [goals.experiment.html.tasks.intake]
 name = "The web client intake"
