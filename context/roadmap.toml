@@ -6,8 +6,9 @@
 # the reference-architecture code repositories; it is free since api-maintenance synced
 # (2026-11-12), until v1.client stages in wave C. Outside the group,
 # experiment.hosting's spike-model-hosting, spike-model-engines, and spike-hosting-upgrades have
-# answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout and
-# spike-model-gateway are active, with gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
+# answered (ai-hosting.md, "Answers · experiment.hosting"), and spike-model-layout is active, with
+# gb10-2 in experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped;
+# spike-model-gateway waits on top of `planned` for layout's sync to stage it (plan, 2026-11-12).
 # experiment.html's spike-html-design, spike-html-conventions, spike-html-packages,
 # spike-html-apps, and spike-html-hosting have answered (html-artifacts.md, "Answers ·
 # experiment.html"), and spike-html-go-wasm is active. graph-ergonomics shipped its API in
@@ -32,11 +33,12 @@
 #   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
 #   migrations (done), and then api-maintenance (done), ahead of wave C.
 # - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
-#   experiment.html's intakes.
-# - C: v1.ai's sub-goals beside v1.client, which holds the exclusive group. v1.ai.tools stages
-#   first, since it holds the architecture lock ahead of v1.ai.hosting (ai-hosting);
-#   v1.ai.client (go-ai) and v1.ai.processing (unravel) follow it. go-ai, unravel, and the tool
-#   repositories stay outside the group until C ends; then go-ai and unravel join it. Then
+#   experiment.html's intakes. v1.ai.processing (quarry and its system tools, absorbing
+#   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
+#   v1.ai.hosting; v1.ai.client (go-ai) stages once quarry's `layers` task ships (plan,
+#   2026-11-12).
+# - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
+#   quarry stay outside the group until C ends; then they join it. Then
 #   v1.data.extensions, the Postgres-extension strategy.
 #   status-reports and training.foundation start here; status-reports' first backfill report
 #   covers ~/architecture as it stands at the capstone's start.
@@ -49,15 +51,14 @@
 
 active = [
   "experiment.hosting.spike-model-layout",
-  "experiment.hosting.spike-model-gateway",
   "experiment.html.spike-html-go-wasm",
+  "v1.ai.processing",
 ]
 
 planned = [
-  "v1.ai.tools",
-  "v1.ai.hosting",
+  "experiment.hosting.spike-model-gateway",
   "v1.ai.client",
-  "v1.ai.processing",
+  "v1.ai.hosting",
   "v1.client",
   "status-reports",
   "training.foundation",
@@ -178,7 +179,10 @@ join table driving a blobfs listing under the scope predicate. v1.client lands f
 open API, so this goal adds a client sweep task: the reference client behind authentication,
 and whether an image is fetched as an `<img>` with a cookie or with a bearer token.
 '''
-context = ["standards-lab/context/auth-strategy.md", "standards-lab/context/web-client.md"]
+context = [
+  "standards-lab/context/auth-strategy.md",
+  "standards-lab/context/web-client.md",
+]
 
 [goals.v1.admin-listener]
 name = "The management listener"
@@ -271,10 +275,11 @@ name = "AI"
 summary = '''
 The capability builds in four layers, each on the one below: hosting (`ai-hosting`, through
 v1.ai.hosting), the Go model client (go-ai, through v1.ai.client), message, document, and stream
-processing (unravel, through v1.ai.processing), and the harness (v1.harness.local-models), lowest
-priority. A tools layer, beside the architecture tiers, holds the office-read, mail-read, and
-onenote-read tools unravel runs (v1.ai.tools). go-web-service's AI layer demonstrates them. Each
-sub-goal opens with a `design` review of its spike code against the full standards and the
+processing (quarry, through v1.ai.processing, with the system tools it runs nested in it), and
+the harness (v1.harness.local-models), lowest priority. go-web-service's AI layer demonstrates
+them. quarry's `layers` task settles the signatures of every layer of Cerebro's stack first. Each
+sub-goal opens with a `design` review of its spike code, led by a Fable 5.2 evaluation of each
+promoted artifact, against the full standards and the
 workspace, written into its note, and closes with an `acceptance` task that reruns the real
 workloads and fixes what it finds, never redesigning. spike-ai-pipeline's design is go-ai's
 reference, and the team adopts go-ai once it is a mature, standard set of packages. herald is
@@ -299,101 +304,6 @@ context = [
 # - Agent shells resolve Arch's /usr/bin/rustc and /usr/bin/dotnet ahead of mise's tools, which
 #   broke mail's check and fixtures task in formats; a scratch PATH of rustup proxies worked
 #   around it.
-
-[goals.v1.ai.tools]
-name = "The tools layer"
-repos = ["office-read", "mail-read", "onenote-read", "architecture"]
-summary = '''
-Three command-line tools unravel runs as system tools (`system-tools.md`), built from
-spike-ai-pipeline-office, -mail, and -onenote. Each tool's repository and binary share its name,
-and each has a versioned JSON contract that unravel pins by release. The layer sits beside the
-architecture tiers, not within them: its repositories join claude-plugins' layer of `order` and
-the catalog at this sub-goal's first `plan`, and never join `exclusive`. Stages first among
-v1.ai's sub-goals, since it holds the architecture lock ahead of v1.ai.hosting.
-'''
-context = ["standards-lab/context/system-tools.md", "standards-lab/context/ai-strategy.md"]
-
-# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
-# beneath it"):
-# - office-read, mail-read, and onenote-read ship inside Cerebro's image, pinned by their
-#   contracts' releases.
-
-[goals.v1.ai.tools.tasks.design]
-name = "Design review of the tools"
-summary = '''
-Reviews spike-ai-pipeline-office, -mail, and -onenote against the full architecture standards and
-the workspace, and writes the review into the sub-goal's note; the later tasks build from it.
-'''
-
-[goals.v1.ai.tools.tasks.architecture]
-name = "The tools layer in the architecture"
-repos = ["architecture"]
-summary = '''
-Writes the tools-layer section of `repository-topology.md`, the go-elemental system-tools page
-from `system-tools.md`, and the command-module rule and the placement rule in `dependencies.md`
-and `tool-beside-library.md`. The command-module rule: an adjacent library's repository may carry
-a command module that depends on a tier, while its library modules never do. The placement rule: a repository's place follows its base module,
-nested command modules don't move it (as blobfs's example module doesn't), and a
-cross-repository task orders its own exceptions in its brief.
-'''
-
-[goals.v1.ai.tools.tasks.office-read]
-name = "office-read"
-repos = ["office-read"]
-summary = '''
-office-read from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
-as NativeAOT binaries, turning docx, xlsx, and pptx into its JSON contract and Markdown. Its README
-states the limit processing records: pictures are listed with no layout, so a covered, off-slide,
-or cropped-away picture is still a media block.
-'''
-# Inputs from spike-ai-pipeline-office:
-# - fixtures/README.md calls slide-objects' pictures "beside another", but generate.py places both
-#   of slide 3's at one default position, so the blue square covers the red; say so, or place
-#   them apart.
-# - Backlog: office could write a huge workbook sheet by sheet, since it reads a whole document
-#   into its model before writing it.
-
-[goals.v1.ai.tools.tasks.mail-read]
-name = "mail-read"
-repos = ["mail-read"]
-summary = '''
-mail-read from spike-ai-pipeline-mail: the Rust CLI, published as static musl binaries, that reads
-.pst stores, .msg and .eml messages, and mbox files into JSON Lines of its contract. Its
-.claude/marathon.toml chains `gh pr checks --watch` before the merge, as office and onenote did;
-the spike's still said "No CI runs yet" and merged without waiting on checks.
-'''
-# Inputs from spike-ai-pipeline-mail:
-# - The static musl release binary takes 2.0 to 2.3 times a glibc build's time on large stores
-#   (13.27 s against 6.51 s on the 2.1 GB scale store at v0.1.0, 14.82 s against 6.88 s at
-#   v0.2.0) and 1.7 times on the 2.7 GB scale mboxrd (6.86 s against 4.09 s). Its system time
-#   (3.2 s against 0.7 s on the store at v0.1.0, 2.6 to 2.8 s against 1.0 s on the mboxrd) points
-#   at musl's allocator (docs/findings/mail-cli.md, "The release binary against a glibc build"
-#   and ".eml and mbox"); measure a replacement allocator if processing's email runs find the
-#   time matters.
-# - Backlog: mail caps a .msg's nesting at 16 levels; raise or lift the cap if real stores nest
-#   deeper.
-
-[goals.v1.ai.tools.tasks.onenote-read]
-name = "onenote-read"
-repos = ["onenote-read"]
-summary = '''
-onenote-read from spike-ai-pipeline-onenote: the Rust CLI, published as static musl binaries, that
-reads OneNote sections, .onepkg exports, and notebook directories through onenote_parser into
-JSON Lines of its contract.
-'''
-# Inputs from spike-ai-pipeline-onenote (backlog):
-# - Section decryption waits for a specification or an open implementation, since [MS-ONESTORE]
-#   2.5.19 leaves the scheme undocumented (onenote-cli, round 2 q7).
-# - An authored OneNote notebook, committed with hand truth from onenote-cli's round 2 authoring
-#   spec, needs desktop OneNote on Windows or a Mac, since OneNote for the web can neither
-#   download nor export a notebook (onenote r6 q1).
-
-[goals.v1.ai.tools.tasks.acceptance]
-name = "Acceptance of the tools"
-summary = '''
-Reruns each tool's bench from the spike (office's, mail's, and onenote's) against its promoted
-release, and fixes what it finds, never redesigning.
-'''
 
 [goals.v1.ai.hosting]
 name = "The ai-hosting specification repository"
@@ -425,7 +335,7 @@ Open Responses, the standard formats the model engines serve natively. Its conve
 `infer`, lives in the nested module `tools/infer`. An infrastructure library: go-ai joins `order`
 beside go-storage and the catalog at this sub-goal's first `plan`, and `exclusive` after wave C.
 '''
-context = ["standards-lab/context/ai-strategy.md"]
+context = ["standards-lab/context/ai-strategy.md", "quarry/context/layers.md"]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -437,8 +347,10 @@ context = ["standards-lab/context/ai-strategy.md"]
 [goals.v1.ai.client.tasks.design]
 name = "Design review of the client"
 summary = '''
-Reviews spike-ai-pipeline-client against the full architecture standards and the workspace, and
-writes the review into the sub-goal's note; the later tasks build from it.
+Opens with a Fable 5.2 evaluation of spike-ai-pipeline-client for issues and simplifications,
+against the full architecture standards, quarry's `layers.md`, and Cerebro's requirements; then
+reviews it against the workspace and writes the review into the sub-goal's note; the later tasks
+build from it. Staged by a `plan` once quarry's `layers` task ships (plan, 2026-11-12).
 '''
 
 [goals.v1.ai.client.tasks.library]
@@ -464,41 +376,138 @@ Reruns infer against set A and fixes what it finds, never redesigning.
 '''
 
 [goals.v1.ai.processing]
-name = "unravel, the processing library"
-repos = ["unravel"]
+name = "quarry, the processing library and its system tools"
+root = "quarry"
+repos = ["quarry", "architecture"]
+remote = "https://github.com/standards-lab/quarry.git"
+path = "~/architecture/quarry"
 summary = '''
-unravel from spike-ai-pipeline-processing and the root's docproc and docinfer: an enabling library,
+quarry from spike-ai-pipeline-processing and the root's docproc and docinfer: an enabling library,
 adjacent to the standard, beside sqlate. Its library module requires `golang.org/x/text` only and
 drops the client. Three nested modules sit under `cmd/`: `cmd/docproc` requires go-cli-sdk and
 go-core; `cmd/docinfer` requires go-ai, the only module that does; and `cmd/internal` holds
-`schema` and `rundir`, which only `cmd/` can import. The run-directory schema stays at "1".
-unravel joins `order` and the catalog at this sub-goal's first `plan`, and `exclusive` after
-wave C.
+`schema` and `rundir`, which only `cmd/` can import. The system tools quarry runs live beside it
+under `tools/<format>`, each on its own toolchain and tagged `tools/<format>/v<version>`, the
+subtree kept out of the Go module zip, so a contract change lands with its decoder in one pull
+request (plan, 2026-11-12): quarry-ooxml from spike-ai-pipeline-office, quarry-mail from
+spike-ai-pipeline-mail, and quarry-onenote from spike-ai-pipeline-onenote. Each tool has one
+JSON (JSON Lines) contract with Markdown inside it as the text layer, no separate Markdown mode,
+proven by committed golden outputs; batch IDs, per-item digests, provenance, warnings, and typed
+metadata stay in quarry and Cerebro. Staged beside wave B's spikes, absorbing v1.ai.tools
+(plan, 2026-11-12). quarry joins `exclusive` after wave C.
 '''
-context = ["standards-lab/context/ai-strategy.md", "standards-lab/context/system-tools.md"]
+context = [
+  "standards-lab/context/ai-strategy.md",
+  "standards-lab/context/system-tools.md",
+  "standards-lab/context/data-intelligence.md",
+]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
 # - docinfer's orchestration (vision, transcription, chunking, embedding, the result cache)
-#   moves into the library behind inference interfaces unravel defines, free of go-ai; results
+#   moves into the library behind inference interfaces quarry defines, free of go-ai; results
 #   come out in batches as made; the index and cache behind interfaces Cerebro backs with
 #   JetStream; input from a stream or spooled to scratch; stable exported event shapes;
 #   cancellation per job; the exec runner inside an image that bundles the tools.
+# - quarry-ooxml, quarry-mail, and quarry-onenote ship inside Cerebro's image, pinned by their
+#   tags.
+
+[goals.v1.ai.processing.tasks.layers]
+name = "The layers of Cerebro's stack"
+summary = '''
+Writes quarry's `context/layers.md`: each boundary of Cerebro's stack as signatures or schemas,
+traced to a capstone task or spike evidence: the tool contracts (records, the Markdown text layer,
+metadata, media); quarry's API (inspection and routing, inference interfaces free of go-ai,
+batches as made, index and cache interfaces, event shapes, per-job cancellation); go-ai's surface
+as Cerebro uses it; and Cerebro's Queries, Commands, result batches, manifest, and events. Settles
+whether the tool contracts stay schema "1", grown by addition, or move to "2"; measures each
+tool's duplicated text over ~/docs and cuts structured text with no consumer; and lists what
+changes per tool and per package from the spikes. The client, processing, and capstone design
+tasks build from it; the gateway stays transparent to go-ai.
+'''
 
 [goals.v1.ai.processing.tasks.design]
-name = "Design review of processing"
+name = "Design review of quarry and its tools"
 summary = '''
-Reviews spike-ai-pipeline-processing and the root's docproc and docinfer against the full
-architecture standards and the workspace, and writes the review into the sub-goal's note; the
-later tasks build from it. The root's STANDARDS.md applies cli-applications.md to docproc and
-domain-files.md to docproc's command packages only; the review says whether docinfer's packages
-follow both too.
+Opens with a Fable 5.2 evaluation of each promoted artifact (spike-ai-pipeline-processing, the
+root's docproc and docinfer, and the office, mail, and OneNote CLIs) for issues and
+simplifications, against the full architecture standards, `layers.md`, and Cerebro's
+requirements; then reviews them against the workspace and writes the review into quarry's notes.
+Settles each tool's contract additions field by field, each traced to a capstone design task and
+marked as the tool's, quarry's, or Cerebro's, and each tool's first tag and release targets. The
+root's STANDARDS.md applies cli-applications.md to docproc and domain-files.md to docproc's
+command packages only; the review says whether docinfer's packages follow both too.
 '''
+
+[goals.v1.ai.processing.tasks.architecture]
+name = "A library and its system tools in the architecture"
+repos = ["architecture"]
+summary = '''
+Writes the go-elemental system-tools page from `system-tools.md`, and the command-module rule and
+the placement rule in `dependencies.md`, `repository-topology.md`, and `tool-beside-library.md`.
+The command-module rule: an adjacent library's repository may carry a command module that
+depends on a tier, while its library modules never do. The placement rule: a repository's place
+follows its base module; nested command modules don't move it (as blobfs's example module
+doesn't), nor do the system tools nested in the library that runs them, in another language
+(quarry's `tools/`); a cross-repository task orders its own exceptions in its brief.
+'''
+
+[goals.v1.ai.processing.tasks.ooxml]
+name = "quarry-ooxml"
+summary = '''
+quarry-ooxml from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
+as NativeAOT binaries, turning docx, xlsx, and pptx into its JSON contract with Markdown inside it,
+in one run. Moves to .NET 11 and System.CommandLine 3.0.0 first (plan, 2026-11-12). Adds optional
+document `properties` (core, app, custom), writes embedded packages and OLE payloads as stored
+into its media, and promises byte-identical output for the same input, tested. Its README states
+the limit processing records: pictures are listed with no layout, so a covered, off-slide, or
+cropped-away picture is still a media block.
+'''
+# Inputs from spike-ai-pipeline-office:
+# - fixtures/README.md calls slide-objects' pictures "beside another", but generate.py places both
+#   of slide 3's at one default position, so the blue square covers the red; say so, or place
+#   them apart.
+# - Backlog: office could write a huge workbook sheet by sheet, since it reads a whole document
+#   into its model before writing it.
+
+[goals.v1.ai.processing.tasks.mail]
+name = "quarry-mail"
+summary = '''
+quarry-mail from spike-ai-pipeline-mail: the Rust CLI, published as static musl binaries, that
+reads .pst stores, .msg and .eml messages, and mbox files into JSON Lines of its contract. Adds
+`smtp_address` for Exchange (EX) addresses, so a sender has one identity across .pst and .eml.
+Its fixture generator moves to MimeKit 5.0.0, its fixture truth unchanged. CI checks gate the
+merge, as office's and onenote's did; the spike merged without waiting on checks.
+'''
+# Inputs from spike-ai-pipeline-mail:
+# - The static musl release binary takes 2.0 to 2.3 times a glibc build's time on large stores
+#   (13.27 s against 6.51 s on the 2.1 GB scale store at v0.1.0, 14.82 s against 6.88 s at
+#   v0.2.0) and 1.7 times on the 2.7 GB scale mboxrd (6.86 s against 4.09 s). Its system time
+#   (3.2 s against 0.7 s on the store at v0.1.0, 2.6 to 2.8 s against 1.0 s on the mboxrd) points
+#   at musl's allocator (docs/findings/mail-cli.md, "The release binary against a glibc build"
+#   and ".eml and mbox"); measure a replacement allocator if processing's email runs find the
+#   time matters.
+# - Backlog: mail caps a .msg's nesting at 16 levels; raise or lift the cap if real stores nest
+#   deeper.
+
+[goals.v1.ai.processing.tasks.onenote]
+name = "quarry-onenote"
+summary = '''
+quarry-onenote from spike-ai-pipeline-onenote: the Rust CLI, published as static musl binaries,
+that reads OneNote sections, .onepkg exports, and notebook directories through onenote_parser
+into JSON Lines of its contract. typed-path moves only with onenote_parser.
+'''
+# Inputs from spike-ai-pipeline-onenote (backlog):
+# - Section decryption waits for a specification or an open implementation, since [MS-ONESTORE]
+#   2.5.19 leaves the scheme undocumented (onenote-cli, round 2 q7).
+# - An authored OneNote notebook, committed with hand truth from onenote-cli's round 2 authoring
+#   spec, needs desktop OneNote on Windows or a Mac, since OneNote for the web can neither
+#   download nor export a notebook (onenote r6 q1).
 
 [goals.v1.ai.processing.tasks.library]
 name = "The processing library"
 summary = '''
-unravel's library module from spike-ai-pipeline-processing, without the client. A PDF whose form
+quarry's library module from spike-ai-pipeline-processing, without the client. A PDF whose form
 read fails (qpdf refuses a field whose value is an indirect reference, as in ~/docs'
 cfr-2024-title32-vol1.pdf) fails the whole document part after its pages render, so the index
 never records it and every docproc rerun renders its 1,823 pages again; a failed form read could
@@ -532,7 +541,7 @@ pluggable index and cache (`data-intelligence.md`, "What it asks of the goals be
 # - A bare RFC 822 file with no extension is unrouted, since the nested route needs an .eml name
 #   or a message type.
 # - `Encryption.one`, a password-protected section, is reported failed rather than encrypted,
-#   since the OneNote CLI gives no encryption signal; a signal from onenote-read, or an inspect
+#   since the OneNote CLI gives no encryption signal; a signal from quarry-onenote, or an inspect
 #   check for OneNote encryption, would make it Encrypted.
 # - inspect exports no options check, so dispatch's bombRule validates its options through
 #   `inspect.CheckListing(route.Zstd, 0, nil, opts)`. An exported check would replace the
@@ -542,7 +551,7 @@ pluggable index and cache (`data-intelligence.md`, "What it asks of the goals be
 name = "docproc"
 summary = '''
 `cmd/docproc`, from the spike root's docproc: runs the library's whole suite over an input set into
-a versioned run directory, schema "1", with no inference. unravel's README names it as the shipped
+a versioned run directory, schema "1", with no inference. quarry's README names it as the shipped
 composition root of its adapter convention, since every other wiring in the repository is a
 test's.
 '''
@@ -566,10 +575,11 @@ texts, transcripts, and chunks, with no 1,000-character cut.
 '''
 
 [goals.v1.ai.processing.tasks.acceptance]
-name = "Acceptance of processing"
+name = "Acceptance of quarry and its tools"
 summary = '''
-Reruns docproc and docinfer over ~/docs and fixes what it finds, never redesigning. Settles whether
-audio that fits in one request goes unsplit (`ai-strategy.md`, evidence 5).
+Reruns each tool's bench from its spike against its release, and docproc and docinfer over ~/docs,
+and fixes what it finds, never redesigning. Settles whether audio that fits in one request goes
+unsplit (`ai-strategy.md`, evidence 5).
 '''
 
 [goals.v1.client]
@@ -596,7 +606,10 @@ redirects (301) to prefix/. A path under the manifest's directories, a dotfile p
 segment with an extension, with no file behind it, is a 404 problem, never the shell. It moves
 to go-web-service's `sdk/`, then go-web-sdk.
 '''
-context = ["standards-lab/context/web-client.md", "standards-lab/context/html-artifacts.md"]
+context = [
+  "standards-lab/context/web-client.md",
+  "standards-lab/context/html-artifacts.md",
+]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
@@ -696,12 +709,18 @@ in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones"
 [goals.capstone.data-intelligence]
 name = "data-intelligence"
 root = "capstone-data-intelligence"
-repos = ["capstone-data-intelligence", "capstone-cerebro", "capstone-athena", "go-messaging"]
+repos = [
+  "capstone-data-intelligence",
+  "capstone-cerebro",
+  "capstone-athena",
+  "go-messaging",
+  "quarry",
+]
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
 summary = '''
 Liberates data held in binary files on a file share, in three repositories (plan, 2026-11-10):
-capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and unravel that
+capstone-cerebro, a document-processing service from go-web-sdk-template on go-ai and quarry that
 never knows its caller, with no SQL, its jobs stored as JetStream streams, a Query and Command API
 with a chunked upload protocol, and results emitted as ordered batch events closed by a manifest;
 capstone-athena, a prototype client-facing service that owns blob storage and PostgreSQL with
@@ -725,14 +744,14 @@ name = "Metadata"
 summary = '''
 Compositional metadata structures that extend docproc's base file metadata per format (PDF,
 office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
-schema "1" metadata of unravel's `cmd/docproc`.
+schema "1" metadata of quarry's `cmd/docproc`.
 '''
 
 [goals.capstone.data-intelligence.tasks.chunks]
 name = "The chunk record and embedding spaces"
 summary = '''
 The chunk record and the registered embedding spaces the pgvector load reads, from the schema "1"
-run directories of unravel's `cmd/docproc` and `cmd/docinfer`.
+run directories of quarry's `cmd/docproc` and `cmd/docinfer`.
 '''
 
 [goals.capstone.data-intelligence.tasks.text-layer]
@@ -805,7 +824,8 @@ sparse rows, rerank). Read only; Athena's migration is later work outside the wo
 [goals.capstone.data-intelligence.tasks.tool-packaging]
 name = "Tools in Cerebro's image"
 summary = '''
-Cerebro's container image with unravel's tools and the three tools-layer CLIs, run through the
+Cerebro's container image with quarry's external tools and quarry-ooxml, quarry-mail, and
+quarry-onenote, run through the
 exec runner, since the docker runner needs the host's socket.
 '''
 
@@ -948,7 +968,7 @@ context = ["standards-lab/context/ai-strategy.md"]
 name = "The scanned-document intake"
 summary = '''
 Run by `marathon intake experiment.ocr` once spike-scanned-documents has its answer in
-`ai-strategy.md`. Decides whether unravel's document stage carries an OCR tier and which vision
+`ai-strategy.md`. Decides whether quarry's document stage carries an OCR tier and which vision
 model, image-token budget, and quantization the vision tier runs, as v1.ai tasks. It archives
 spike-scanned-documents.
 '''
@@ -1249,7 +1269,10 @@ application, the repositories' Pages sites and persistent artifacts, and live Go
 intake. HTML is for persistent
 artifacts; workflow outputs and the context/ notes stay Markdown.
 '''
-context = ["standards-lab/context/html-artifacts.md", "standards-lab/context/web-client.md"]
+context = [
+  "standards-lab/context/html-artifacts.md",
+  "standards-lab/context/web-client.md",
+]
 
 [goals.experiment.html.tasks.intake]
 name = "The web client intake"
