@@ -378,11 +378,11 @@ embed, transcribe, and models.
 name = "Acceptance of the client"
 summary = '''
 Reruns infer against set A and fixes what it finds, never redesigning. Proves retry against the
-live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway's agentgateway task,
-shipped: it runs against agentgateway on gb10-2 and its on-demand 429 and 503 probes
+live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway's `priority` task,
+which settles the gateway's final form and leaves the models stable before the client uses them
+again; it then runs against agentgateway on gb10-2 and its on-demand 429 and 503 probes
 (spike-model-gateway `docs/findings/agentgateway.md`). The library task's release doesn't wait
-(plan, 2026-11-12). Later spike tasks change keys and policies; routing may change the base URLs,
-and its plan round flags that (plan, 2026-11-13).
+(plan, 2026-11-12; 2026-11-13).
 '''
 
 [goals.v1.ai.processing]
