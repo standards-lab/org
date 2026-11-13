@@ -1253,7 +1253,8 @@ go-core's graph and go-web-sdk handlers called in-process, live on the site. Evi
 name = "Sizes and timings"
 summary = '''
 Each module's raw, gzip, and brotli sizes, the TinyGo comparison, and cold, cached, and in-place
-timings on the live site. Evidence 4, 5.
+timings on the live site, a playground build's Go compile and link among them, on desktop and on
+an iPhone over Wi-Fi. Evidence 4, 5.
 '''
 
 [goals.experiment.html.spike-html-go-wasm.tasks.review]
@@ -1261,6 +1262,14 @@ name = "The screenshot review"
 summary = '''
 The review across every page and palette, the editor included, leaving no capture file; Firefox
 and Safari where available. Evidence 7.
+'''
+
+[goals.experiment.html.spike-html-go-wasm.tasks.final-review]
+name = "The final review"
+summary = '''
+Performance, optimization, and ergonomics reviews of the whole spike, for readers and authors,
+landing the optimizations within reach and recording anything larger or one-way for the answer.
+Evidence 13.
 '''
 
 [goals.experiment.html.spike-html-go-wasm.tasks.answer]
