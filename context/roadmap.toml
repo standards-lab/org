@@ -464,7 +464,8 @@ name = "docproc-ooxml"
 summary = '''
 docproc-ooxml from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
 as NativeAOT binaries, turning docx, xlsx, and pptx into its JSON contract with Markdown inside it,
-in one run. Moves to .NET 11 first (plan, 2026-11-12). Adds optional document `properties` (core,
+in one run. Moves to .NET 11 first (plan, 2026-11-12), parsing its arguments by hand so the Open
+XML SDK is its only package (design, 2026-11-13). Adds optional document `properties` (core,
 app, custom), streams xlsx in two passes, writes embedded packages and OLE payloads as stored into
 its media as `ole`, the chart workbook excluded, and adds hyperlinks and a warning for each kind
 it doesn't read; it promises byte-identical output for the same input, tested. Takes the envelope
