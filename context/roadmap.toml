@@ -464,27 +464,36 @@ name = "docproc-ooxml"
 summary = '''
 docproc-ooxml from spike-ai-pipeline-office: the Open XML CLI on Microsoft's Open XML SDK, published
 as NativeAOT binaries, turning docx, xlsx, and pptx into its JSON contract with Markdown inside it,
-in one run. Moves to .NET 11 and System.CommandLine 3.0.0 first (plan, 2026-11-12). Adds optional
-document `properties` (core, app, custom), writes embedded packages and OLE payloads as stored
-into its media, and promises byte-identical output for the same input, tested. Its README states
-the limit processing records: pictures are listed with no layout, so a covered, off-slide, or
-cropped-away picture is still a media block.
+in one run. Moves to .NET 11 first (plan, 2026-11-12). Adds optional document `properties` (core,
+app, custom), streams xlsx in two passes, writes embedded packages and OLE payloads as stored into
+its media as `ole`, the chart workbook excluded, and adds hyperlinks and a warning for each kind
+it doesn't read; it promises byte-identical output for the same input, tested. Takes the envelope
+additions: `schema <n>` on `--version`, the warning escape, and error reasons free of paths. It
+refuses an `EncryptedPackage` with a reason beginning `encrypted`, distinct from a legacy OLE
+file's. Builds docproc's CI with its always-running `ci` gate and ruleset, the root workflow
+releasing `tools/*/v*` tags, the root check's `TOOLS` wiring, and the envelope's shared cases
+table under `tools/` (design, 2026-11-13). Its README states the limit processing records:
+pictures are listed with no layout, so a covered, off-slide, or cropped-away picture is still a
+media block.
 '''
 # Inputs from spike-ai-pipeline-office:
 # - fixtures/README.md calls slide-objects' pictures "beside another", but generate.py places both
 #   of slide 3's at one default position, so the blue square covers the red; say so, or place
 #   them apart.
-# - Backlog: office could write a huge workbook sheet by sheet, since it reads a whole document
-#   into its model before writing it.
+# - Backlog: reading comments, SmartArt, text boxes, equations, and cell notes (design,
+#   2026-11-13).
 
 [goals.v1.ai.processing.tasks.mail]
 name = "docproc-mail"
 summary = '''
 docproc-mail from spike-ai-pipeline-mail: the Rust CLI, published as static musl binaries, that
 reads .pst stores, .msg and .eml messages, and mbox files into JSON Lines of its contract. Adds
-`smtp_address` for Exchange (EX) addresses, so a sender has one identity across .pst and .eml.
-Its fixture generator moves to MimeKit 5.0.0, its fixture truth unchanged. CI checks gate the
-merge, as office's and onenote's did; the spike merged without waiting on checks.
+`smtp_address` for Exchange (EX) addresses, from 0x39FE for recipients and 0x5D01 for senders, so
+a sender has one identity across .pst and .eml. Writes the shared Rust envelope crate under
+`tools/`, and takes the envelope additions: `schema <n>` on `--version`, the warning escape, error
+reasons free of paths, and the message line's optional `media` (design, 2026-11-13). Its fixture
+generator holds MimeKit at 4.x on .NET 11, its fixture truth unchanged. CI checks gate the merge,
+as office's and onenote's did; the spike merged without waiting on checks.
 '''
 # Inputs from spike-ai-pipeline-mail:
 # - The static musl release binary takes 2.0 to 2.3 times a glibc build's time on large stores
@@ -496,13 +505,23 @@ merge, as office's and onenote's did; the spike merged without waiting on checks
 #   time matters.
 # - Backlog: mail caps a .msg's nesting at 16 levels; raise or lift the cap if real stores nest
 #   deeper.
+# Backlog from the design review (design, 2026-11-13):
+# - A .pst's embedded-message content, waiting on outlook-pst's unmerged fix.
+# - Class-specific fields: contacts, appointments, and tasks.
+# - TNEF and opaque S/MIME.
+# - An ANSI .pst fixture.
 
 [goals.v1.ai.processing.tasks.onenote]
 name = "docproc-onenote"
 summary = '''
 docproc-onenote from spike-ai-pipeline-onenote: the Rust CLI, published as static musl binaries,
 that reads OneNote sections, .onepkg exports, and notebook directories through onenote_parser
-into JSON Lines of its contract. typed-path moves only with onenote_parser.
+into JSON Lines of its contract. Adds the file-only option, under which it refuses a table of
+contents, an encryption signal, and each drawing's ink alt text. Pins onenote_parser exactly,
+with workarounds it owns and no upstream asks; typed-path moves only with onenote_parser. Adopts
+the shared Rust envelope crate, with overflow checks in release, third-party notices, and MPL-2.0
+allowed by name, and takes the envelope additions: `schema <n>` on `--version`, the warning
+escape, and error reasons free of paths (design, 2026-11-13).
 '''
 # Inputs from spike-ai-pipeline-onenote (backlog):
 # - Section decryption waits for a specification or an open implementation, since [MS-ONESTORE]
@@ -519,69 +538,76 @@ docproc's library module from spike-ai-pipeline-processing, without the client (
 dispatch with its content store and index, each store an interface with filesystem and memory
 implementations; the providers `docproc/storage` (over go-storage) and `docproc/postgres` (over
 sqlate) as nested modules; and `rundir` and `rundir/schema` as public packages. It holds no
-inference orchestration, which is docinfer's (v1.ai.inference). A PDF whose form
-read fails (qpdf refuses a field whose value is an indirect reference, as in ~/docs'
-cfr-2024-title32-vol1.pdf) fails the whole document part after its pages render, so the index
-never records it and every docproc rerun renders its 1,823 pages again; a failed form read could
-be a warning beside the pages. The audio stage's windows each run an ffmpeg that decodes the
-source from its start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every
-other input finished in 332 s; seeking per window, or one decode streamed into windows, would
-bound it (docproc finding).
+inference orchestration, which is docinfer's (v1.ai.inference). The Go CI job and the Go module
+releases join docproc's CI, which ooxml builds. `internal/cli` loses office's `Labels` and holds
+the one refusal-reason mapping: a reason beginning `encrypted` maps to encrypted, and onenote's
+table-of-contents refusal to the outcome `read elsewhere`, not a failure. Failures are recorded
+by the classification table, and a tool's death by signal is recorded failed, naming the signal.
+`stages.Build` takes `Options`; `tool`'s `Spec.MemoryLimit` bounds every run's memory; and the
+bomb rule sums across entries (design, 2026-11-13). A signed PDF's form read fails, since
+processing's own form reader, not qpdf, refuses a signature field's reference value (as in
+~/docs' cfr-2024-title32-vol1.pdf), and so fails the whole document part after its pages render:
+the index never records it and every docproc rerun renders its 1,823 pages again. A field's value
+never fails the form. The audio stage's windows each run an ffmpeg that decodes the source from
+its start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every other input
+finished in 332 s; the stage windows from one decode with the silence tracker alone (docproc
+finding; design, 2026-11-13).
 '''
 # Backlog from spike-ai-pipeline-processing:
 # - ODF, WordPerfect, .xlsb, and ODG still report "no processor yet", and legacy OLE2 macros go
 #   unflagged; the architect judged them unlikely on the deployment's share drives (formats r1).
 #   Text encoding detection (uchardet named 10 of 11 sample encodings) is revisited if the
 #   windows-1252 fallback misreads many files (formats r3).
-# - rtsp sources in `media` need an rtsp server, such as MediaMTX in a container, as the
-#   integration tier's loopback sender, since ffmpeg 9.0.2's rtsp listener fails (streams r2 q1).
-# - Capture devices in `media`: v4l2loopback, a kernel module the architect loads as root, is the
-#   camera test seam. On Wayland, as on the architect's Omarchy laptop, which has no X11, ffmpeg
-#   has no screen input: a portal capture tool such as gpu-screen-recorder streams the screen to
-#   a URL or the reader, and pw-record feeds audio; x11grab applies only to X11 hosts. The
-#   container runner would need device passthrough, the device's group, and socket mounts
-#   (streams r2 q2).
-# - ClamAV could become an `inspect` check; processing v0.6.0 excludes it (onenote r6 q4).
-# - The `tool` package could bound every run's memory. The OneNote CLI's memory is unbounded:
-#   onenote_parser issue #48 (a 375 MB OneDrive-format section needs over 9 GB) didn't show on
-#   the 161 MB Large OneDrive.one, which peaks at 135 MiB, but bounds what a large, long-edited
-#   section can need (onenote-cli finding; processing's onenote finding, "Known limits").
-# - The email `Threader` holds about 60 bytes a message for the whole read, about 60 MB past a
-#   million messages; spilling its keys to disk would bound it.
+# - media's live sources stay in the spike until the capstone's `protocol` task names their owner
+#   (design, 2026-11-13). When they move:
+#   - rtsp sources in `media` need an rtsp server, such as MediaMTX in a container, as the
+#     integration tier's loopback sender, since ffmpeg 9.0.2's rtsp listener fails (streams r2
+#     q1).
+#   - Capture devices in `media`: v4l2loopback, a kernel module the architect loads as root, is
+#     the camera test seam. On Wayland, as on the architect's Omarchy laptop, which has no X11,
+#     ffmpeg has no screen input: a portal capture tool such as gpu-screen-recorder streams the
+#     screen to a URL or the reader, and pw-record feeds audio; x11grab applies only to X11
+#     hosts. The container runner would need device passthrough, the device's group, and socket
+#     mounts (streams r2 q2).
+# - ClamAV stays out of `inspect`, since it doesn't fit Inspect's contract; processing v0.6.0
+#   excludes it (onenote r6 q4; design, 2026-11-13).
+# - The email `Threader` holds 362 bytes a message for the whole read (measured), about 362 MB
+#   past a million messages; spilling its keys to disk would bound it.
 # - A bare RFC 822 file with no extension is unrouted, since the nested route needs an .eml name
 #   or a message type.
-# - `Encryption.one`, a password-protected section, is reported failed rather than encrypted,
-#   since the OneNote CLI gives no encryption signal; a signal from docproc-onenote, or an inspect
-#   check for OneNote encryption, would make it Encrypted.
-# - inspect exports no options check, so dispatch's bombRule validates its options through
-#   `inspect.CheckListing(route.Zstd, 0, nil, opts)`. An exported check would replace the
-#   indirect call.
+# - RAR, ISO, xz, bzip2, and the other formats the spike left unrouted (design, 2026-11-13).
+# - HTML routing: no task carries saved web pages or HTML `.xls` (design, 2026-11-13).
 
 [goals.v1.ai.processing.tasks.docproc]
 name = "docproc"
 summary = '''
 `cmd/docproc`, from the spike root's docproc: runs the library's whole suite over an input set into
-a versioned run directory, schema "2", with no inference. docproc's README names it as the shipped
-composition root of its adapter convention, since every other wiring in the repository is a
-test's.
+a versioned run directory, schema "2", with no inference, its record flushed per line. `rundir` is
+one handle, from `Open` or `Create`, with `rundir.json` at the run's root; main.go sits at the
+nested module's root, and a committed `go.work` spans the base module and `cmd/docproc` between
+tags. docproc's README names `stages` as the shipped wiring and `cmd/docproc` its first caller.
+Tags docproc v0.2.0 when `rundir` lands (design, 2026-11-13).
 '''
 
 [goals.v1.ai.processing.tasks.reports]
 name = "Holistic reports"
 summary = '''
-Makes `cmd/docproc`'s report holistic: an index page plus one page per input, keyed by the
-input's SHA-256, holding the source link, the file and record metadata, and the whole part tree
-with every output inline, with no 1,000-character cut. docinfer's report moves to
-v1.ai.inference.
+Makes `cmd/docproc`'s report holistic: an index page plus one page per input content, keyed by
+its SHA-256, not per input, holding the source link, the file and record metadata, and the whole
+part tree with every output inline, with no 1,000-character cut. Tags `cmd/docproc/v0.1.0`,
+re-tagging the base module first only if `rundir` changed (design, 2026-11-13). docinfer's report
+moves to v1.ai.inference.
 '''
 
 [goals.v1.ai.processing.tasks.acceptance]
 name = "Acceptance of docproc and its tools"
 summary = '''
 Reruns each tool's bench from its spike against its release, and `cmd/docproc` over ~/docs
-(corpus.docs), and fixes what it finds, never redesigning. Settles whether audio that fits in
-one request goes unsplit (`ai-strategy.md`, evidence 5). docinfer's reruns move to
-v1.ai.inference.
+(corpus.docs), and fixes what it finds, never redesigning. Measures each tool's peak memory over
+~/docs, dispatches the inspection evaluation's bombs through `cmd/docproc`'s starting bounds, and
+measures the word error rate on ~/docs' audio before the tag (design, 2026-11-13). Settles
+whether audio that fits in one request goes unsplit (`ai-strategy.md`, evidence 5). docinfer's
+reruns move to v1.ai.inference.
 '''
 
 [goals.v1.ai.inference]
@@ -596,12 +622,18 @@ inference parts of docproc's `context/layers.md` ("docinfer's API", "docinfer's 
 "docinfer's packages"): an adjacent library above go-ai's tier. Its base module, `docinfer`,
 requires docproc and go-ai: the root package's pipeline over go-ai's client, with extraction, the
 cache with its filesystem and memory implementations, batches as made, and their shapes; `chunk`;
-and `job`. The nested `docinfer/postgres` module holds the cache in PostgreSQL over sqlate,
-requiring docinfer, sqlate, and sqlate/postgres; the nested `cmd/docinfer` module requires
-docinfer, docproc, go-ai, go-cli-sdk, and go-core. It holds until go-ai's library releases, taking
-the hold from v1.ai.processing's `docinfer` task: a session reaching it first stops and alerts the
-architect. docinfer joins `order` above docproc and go-ai at this sub-goal's first `plan`, as go-ai
-does; its tasks are set up then.
+`join`, holding docproc's `audio.Join`, `JoinRequest`, `Seam`, and `Transcript`, moved, with its
+own seam-word setting; `job`, which counts outputs by part ID, not by output events
+(`job.Done.Outputs`), since events are at-least-once after a replay miss; and `outdir`, which owns
+its atomic write, since `rundir` drops WriteFile and WriteRunFile. docinfer reads `dispatch`'s
+Meta keys, and one metadata-text function over `dispatch.Part` serves it, `cmd/docinfer` adding
+its file lines (`ContentType.Detected` leaves `dispatch`); docinfer's "1" states that it includes
+`dispatch`'s "1" (design, 2026-11-13). The nested `docinfer/postgres` module holds the cache in
+PostgreSQL over sqlate, requiring docinfer, sqlate, and sqlate/postgres; the nested
+`cmd/docinfer` module requires docinfer, docproc, go-ai, go-cli-sdk, and go-core. It holds until
+go-ai's library releases, taking the hold from v1.ai.processing's `docinfer` task: a session
+reaching it first stops and alerts the architect. docinfer joins `order` above docproc and go-ai
+at this sub-goal's first `plan`, as go-ai does; its tasks are set up then.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
