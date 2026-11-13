@@ -1120,40 +1120,71 @@ becomes its own goal. It archives the five spikes. experiment.harness's spikes w
 [goals.experiment.hosting.spike-model-gateway]
 name = "Routing and access across the model pool"
 root = "spike-model-gateway"
-repos = ["spike-model-gateway"]
+repos = ["spike-model-gateway", "spike-model-engines"]
 remote = "https://github.com/JaimeStill/spike-model-gateway.git"
 path = "~/experiments/spike-model-gateway"
 summary = '''
-Which gateway spreads requests across the model pool and queues them when capacity is full, and
-how is access to the model APIs restricted without the tailnet? agentgateway, LiteLLM, and Agent
-Router (the renamed Envoy AI Gateway) live, each on its native handling of throughput under load,
-recording which queue and which return 429 (llama.cpp and vLLM queue beyond their slots); vLLM's
-production-stack router only if spike-model-engines picks vLLM on every host. Access: per-consumer
-keys issued by the gateway, with JWT/OIDC compared on paper. Measures per-consumer budgets and
-rate limits, each gateway's OpenTelemetry traces and memory and latency overhead, and one gateway
-configuration on both host classes. On paper too: production's Azure
-Container Apps service routing between Azure AI Foundry and the self-hosted stack, and IL6.
-Claude-model workloads stay off the gateway. Weighs routing chat requests to a cheaper tier (such
-as Gemma 4 26B-A4B) and reserving gpt-oss-120b for the tasks that need it. Decides whether a
-gateway fronts the stack, which, and its access control. Reads spike-model-hosting's
-tool-reliability findings (bounded resample, parse-5xx fallback). Measures priority or reserved
-capacity per consumer key, so capstone.data-intelligence's interactive chat stays responsive
-during a ~/docs-scale processing run (3,470 vision images, 20,395 s of vision in docinfer's run;
-vision latency on gb10-2 rose to 38.9 s an image under mixed load), and confirms
-its 429 and queueing behave as go-ai's retry expects (plan, 2026-11-10). Routes to the
-self-hosted models first and falls back to cloud-hosted models when they are at capacity, and
-decides which workloads may leave the self-hosted machines (the architect, 2026-11-11).
+Which gateway fronts the self-hosted vLLM layout (gb10-1 the agent, gb10-2 vision, the Framework
+audio and embedding; one row per purpose, no failover), and its access control. The gateway admits
+on each row's live `/metrics` per purpose floor and queues past each cap; holds embedding to 34
+requests a second; issues per-consumer keys with budgets, rate limits, and priority, so
+capstone.data-intelligence's chat stays responsive during a ~/docs-scale processing run; names
+purposes by alias (agent, vision, audio, embedding), each on its own base URL `/<alias>/v1` whose
+`/models` lists only that alias, so go-ai's integration tier and the `infer` CLI pick their model
+unchanged; overflows to Azure AI Foundry under the same alias when a purpose is full or its host is
+down; and is the only network path to the rows, so no serving API manages models (row lifecycle
+stays with spike-model-engines' host/ and experiment.admin). agentgateway and LiteLLM are tried
+live from gb10-2, their 429, 503, and Retry-After checked against go-ai's retry set through go-ai's
+own integration tier. On paper: Agent Router (Kubernetes-first), vLLM's production-stack router
+(it balances replicas of one model), Kubernetes portability, JWT/OIDC, production's Azure Container
+Apps routing, IL6, and a cheaper chat tier. Claude-model workloads stay off the gateway. Reads
+spike-model-layout's "Requirements for spike-model-gateway" and spike-model-hosting's
+tool-reliability findings; changes spike-model-engines' host/ through pull requests (plan,
+2026-11-13).
 '''
-# For this spike's plan round, which rewrites its summary, from spike-model-layout's plan (the
-# architect, 2026-11-12):
-# - Every workstation runs vLLM, so the production-stack router's condition above holds, as
-#   expected; spike-model-layout's answer confirms it.
-# - The layout's requirements for the gateway are in spike-model-layout's `docs/layout.md`,
-#   "Requirements for spike-model-gateway".
-# - Model management (loading, configuration, lifecycle) must not be reachable from user clients,
-#   such as Pi on a user device, through a serving API.
-# - The architect welcomes the gateway as the single secure point of model management for the
-#   vLLM instances.
+
+[goals.experiment.hosting.spike-model-gateway.tasks.agentgateway]
+name = "agentgateway in front of the rows"
+summary = '''
+agentgateway v1.7.0 on gb10-2 with purpose aliases on per-purpose base URLs and gateway-issued keys;
+the rows rebound behind it by a spike-model-engines host/ pull request. Covers the fence, each
+cap's queueing and 429/503 with Retry-After, `/metrics` admission against static caps, and the
+overhead against the same GuideLLM cells sent direct in one session.
+'''
+proof = '''
+Chat, streaming, embeddings, and audio pass through on `/<alias>/v1`, each listing only its alias;
+a keyless or revoked key is refused; a direct tailnet request to a row fails; go-ai's integration
+tier passes through the gateway.
+'''
+
+[goals.experiment.hosting.spike-model-gateway.tasks.litellm]
+name = "LiteLLM on the same cells"
+summary = '''
+LiteLLM with Postgres virtual keys on gb10-2, per-purpose base URLs by path routes or per-purpose
+keys, run on agentgateway's cells with an agentgateway anchor cell rerun in the same session.
+'''
+proof = "The pass-through, fence, and cap evidence for LiteLLM beside agentgateway's anchor."
+
+[goals.experiment.hosting.spike-model-gateway.tasks.priority]
+name = "Priority and cloud overflow"
+summary = '''
+Azure AI Foundry overflow with a capped request count, on both gateways in one session: embedding's
+34 requests a second beside audio, per-key priority and budgets with chat beside a bulk vision run,
+overflow under the same alias, no failover, the Framework down until `/health`, and which workloads
+may leave the self-hosted machines.
+'''
+proof = '''
+Chat holds its floor while a bulk key saturates vision, and an overflowed request is answered by
+Foundry under its alias.
+'''
+
+[goals.experiment.hosting.spike-model-gateway.tasks.answer]
+name = "The answer"
+summary = '''
+Each gateway's OpenTelemetry traces through a Collector, the paper sections, the gateway document,
+the README's answer, and the answer section for `ai-hosting.md`.
+'''
+proof = "The README's \"The answer\", and the answer section in the goal record's pending edits."
 
 [goals.experiment.html]
 name = "The web client experiments"

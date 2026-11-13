@@ -198,6 +198,9 @@ remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 [repos.spike-model-layout]
 remote = "https://github.com/JaimeStill/spike-model-layout.git"
 
+[repos.spike-model-gateway]
+remote = "https://github.com/JaimeStill/spike-model-gateway.git"
+
 # Read by spike-model-layout for gb10-2's former preset and llama.env; never written.
 [repos.spike-ai-pipeline]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
