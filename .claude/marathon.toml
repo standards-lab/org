@@ -75,7 +75,8 @@ capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
 capstone-cerebro = "~/capstones/capstone-cerebro"
 capstone-athena = "~/capstones/capstone-athena"
 
-# The hosting convention `marathon experiment` proposes for a new spike.
+# The hosting convention `marathon experiment` proposes for a new spike. Each spike repository
+# also carries go-core's LICENSE and a `main` ruleset (context/README.md, "Experiments").
 [workspace.experiments]
 path = "~/experiments/spike-<slug>"
 remote = "https://github.com/JaimeStill/spike-<slug>.git"

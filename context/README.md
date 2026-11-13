@@ -62,7 +62,12 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   states the mechanics.
 - **Experiments** — running spikes are tasks of the `experiment` goals in `roadmap.toml`;
   archived spikes are in the references catalog, and the hosting convention is
-  `[workspace.experiments]` in `.claude/marathon.toml`. Capstones are `capstone.<slug>` goals,
+  `[workspace.experiments]` in `.claude/marathon.toml`. Every spike repository matches the
+  reference-architecture repositories: go-core's Apache-2.0 `LICENSE` (`Copyright 2026 Standards
+  Lab`) in its initial commit, and a `main` ruleset on its default branch that blocks deletion and
+  force pushes and requires a pull request with no approvals, bypassed always by the repository
+  admin role so goal-record bookkeeping still commits directly. `plan`'s spike setup applies both
+  when it creates the repository. Capstones are `capstone.<slug>` goals,
   checked out at `~/capstones/<slug>` and listed in `[workspace.paths]` (`naming.md`).
 - **Cross-repo coordination** — the references catalog is the repository list, and the
   workspace order in `.claude/marathon.toml` is its dependency graph in machine-readable form.
