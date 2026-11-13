@@ -231,6 +231,11 @@ context and how many concurrent sessions each placed model holds. Answered with 
 vLLM instance and one heavy purpose to a GPU: gb10-1 serves the agent, gb10-2 vision, and the
 Framework audio beside embedding; experiment.hosting's intake archives it.
 
+### spike-model-gateway
+Asks which gateway fronts the vLLM layout and how access to the model APIs is restricted without
+the tailnet: agentgateway and LiteLLM live on gb10-2, with purpose aliases on per-purpose base
+URLs, per-consumer keys with priority, and overflow to Azure AI Foundry. Active.
+
 ### spike-ai-pipeline
 Asked whether a Go model client and a message, document, and stream processing layer can carry a
 transactional, evented pipeline that a browser follows live. Answered yes for the client and
