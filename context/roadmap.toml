@@ -32,7 +32,8 @@
 #   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
 #   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
 #   migrations (done), and then api-maintenance (done), ahead of wave C.
-# - B: spike-model-gateway beside spike-html-go-wasm; then experiment.hosting's and
+# - B: spike-model-gateway beside spike-html-go-wasm (agentgateway done; then routing, priority,
+#   answer: plan, 2026-11-13); then experiment.hosting's and
 #   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
@@ -377,8 +378,11 @@ embed, transcribe, and models.
 name = "Acceptance of the client"
 summary = '''
 Reruns infer against set A and fixes what it finds, never redesigning. Proves retry against the
-live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway; the library task's
-release doesn't (plan, 2026-11-12).
+live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway's agentgateway task,
+shipped: it runs against agentgateway on gb10-2 and its on-demand 429 and 503 probes
+(spike-model-gateway `docs/findings/agentgateway.md`). The library task's release doesn't wait
+(plan, 2026-11-12). Later spike tasks change keys and policies; routing may change the base URLs,
+and its plan round flags that (plan, 2026-11-13).
 '''
 
 [goals.v1.ai.processing]
@@ -1165,15 +1169,20 @@ capstone.data-intelligence's chat stays responsive during a ~/docs-scale process
 purposes by alias (agent, vision, audio, embedding), each on its own base URL `/<alias>/v1` whose
 `/models` lists only that alias, so go-ai's integration tier and the `infer` CLI pick their model
 unchanged; overflows to Azure AI Foundry under the same alias when a purpose is full or its host is
-down; and is the only network path to the rows, so no serving API manages models (row lifecycle
-stays with spike-model-engines' host/ and experiment.admin). agentgateway and LiteLLM are tried
-live from gb10-2, their 429, 503, and Retry-After checked against go-ai's retry set through go-ai's
-own integration tier. On paper: Agent Router (Kubernetes-first), vLLM's production-stack router
+down; and reaches only serving routes with a consumer key, so no serving API manages models (row
+lifecycle stays with spike-model-engines' host/ and experiment.admin). Making the gateway the only
+network path to the rows is production's, for the networking and platform teams; in dev the rows
+stay reachable on the tailnet. agentgateway, an Agentic AI Foundation project, is tried live from
+gb10-2, its 429, 503, and Retry-After checked against go-ai's retry set through go-ai's own
+integration tier. On paper: a gateway comparison with LiteLLM as the feature reference (not tried
+live: its supply-chain compromise and 2026 advisories, a Python runtime whose Rust port isn't
+production-ready, single-vendor governance), Bifrost, Agent Router (AAIF, Kubernetes-first), Kong,
+Portkey, Helicone, and TensorZero (archived); vLLM's production-stack router
 (it balances replicas of one model), Kubernetes portability, JWT/OIDC, production's Azure Container
 Apps routing, IL6, and a cheaper chat tier. Claude-model workloads stay off the gateway. Reads
 spike-model-layout's "Requirements for spike-model-gateway" and spike-model-hosting's
 tool-reliability findings; changes spike-model-engines' host/ through pull requests (plan,
-2026-11-13).
+2026-11-13; LiteLLM dropped and routing added after agentgateway, plan, 2026-11-13).
 '''
 
 [goals.experiment.hosting.spike-model-gateway.tasks.agentgateway]
@@ -1186,36 +1195,44 @@ overhead against the same GuideLLM cells sent direct in one session.
 '''
 proof = '''
 Chat, streaming, embeddings, and audio pass through on `/<alias>/v1`, each listing only its alias;
-a keyless or revoked key is refused; a direct tailnet request to a row fails; go-ai's integration
-tier passes through the gateway.
+a keyless or revoked key is refused; go-ai's integration tier passes through the gateway.
 '''
 
-[goals.experiment.hosting.spike-model-gateway.tasks.litellm]
-name = "LiteLLM on the same cells"
+[goals.experiment.hosting.spike-model-gateway.tasks.routing]
+name = "agentgateway's config off the legacy route form"
 summary = '''
-LiteLLM with Postgres virtual keys on gb10-2, per-purpose base URLs by path routes or per-purpose
-keys, run on agentgateway's cells with an agentgateway anchor cell rerun in the same session.
+agentgateway's UI labels the inline `ai` route backends agentgateway's task used "legacy"; its
+providers, models, and virtual models (failover, weighted, conditional, callout) live in the `llm`
+section, which takes one path prefix. Weighs moving to the `llm` section or another non-legacy
+form, whether per-alias base URLs `/<alias>/v1` survive it or one shared `/v1` routed by model name
+replaces them, and other config optimizations, so priority builds on the settled form.
 '''
-proof = "The pass-through, fence, and cap evidence for LiteLLM beside agentgateway's anchor."
+proof = '''
+The four aliases served in the chosen form; go-ai's and infer's integration tiers pass through it;
+the base-URL choice recorded.
+'''
 
 [goals.experiment.hosting.spike-model-gateway.tasks.priority]
 name = "Priority and cloud overflow"
 summary = '''
-Azure AI Foundry overflow with a capped request count, on both gateways in one session: embedding's
-34 requests a second beside audio, per-key priority and budgets with chat beside a bulk vision run,
-overflow under the same alias, no failover, the Framework down until `/health`, and which workloads
-may leave the self-hosted machines.
+On agentgateway alone, in the form routing settles: Azure AI Foundry overflow with a capped request
+count, embedding's 34 requests a second beside audio, per-key priority and budgets with chat beside
+a bulk vision run, budgets counting streamed requests' usage (agentgateway reads none from a stream
+without `include_usage`), overflow under the same alias, no failover between hosts, the Framework
+down until `/health`, and which workloads may leave the self-hosted machines.
 '''
 proof = '''
-Chat holds its floor while a bulk key saturates vision, and an overflowed request is answered by
-Foundry under its alias.
+Chat holds its floor while a bulk key saturates vision; a streamed request counts against its key's
+budget; and an overflowed request is answered by Foundry under its alias.
 '''
 
 [goals.experiment.hosting.spike-model-gateway.tasks.answer]
 name = "The answer"
 summary = '''
-Each gateway's OpenTelemetry traces through a Collector, the paper sections, the gateway document,
-the README's answer, and the answer section for `ai-hosting.md`.
+agentgateway's OpenTelemetry traces through a Collector; the paper sections, among them the gateway
+comparison (LiteLLM as the feature reference, Bifrost, Agent Router, Kong, Portkey, Helicone,
+TensorZero archived); the gateway document, which carries the hardening of dot-segment paths as a
+requirement; the README's answer; and the answer section for `ai-hosting.md`.
 '''
 proof = "The README's \"The answer\", and the answer section in the goal record's pending edits."
 
