@@ -37,7 +37,9 @@
 #   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
-#   go-ai alone (plan, 2026-11-12).
+#   go-ai alone (plan, 2026-11-12). v1.ai.processing's `providers` task also holds sqlate,
+#   go-messaging, and blobfs, all three in the exclusive group, until its SHIP, to promote the
+#   scratch-database helper into sqlate/postgres (plan, 2026-11-17).
 # - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
 #   docproc stay outside the group until C ends; then they join it. Then
 #   v1.data.extensions, the Postgres-extension strategy.
@@ -414,7 +416,7 @@ library task's release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17).
 [goals.v1.ai.processing]
 name = "docproc, the processing library and its system tools"
 root = "docproc"
-repos = ["docproc", "architecture"]
+repos = ["docproc", "architecture", "sqlate", "go-messaging", "blobfs"]
 remote = "https://github.com/standards-lab/docproc.git"
 path = "~/architecture/docproc"
 summary = '''
@@ -567,8 +569,7 @@ summary = '''
 docproc's library module from spike-ai-pipeline-processing, without the client (`layers.md`,
 "docproc's packages"): inspection and routing, the tool runners and readers, the stages, and
 dispatch with its content store and index, each store an interface with filesystem and memory
-implementations; the providers `docproc/storage` (over go-storage) and `docproc/postgres` (over
-sqlate) as nested modules; and `rundir` and `rundir/schema` as public packages. It holds no
+implementations. It holds no
 inference orchestration, which is docinfer's (v1.ai.inference). The Go CI job and the Go module
 releases join docproc's CI, which ooxml builds. `internal/cli` loses office's `Labels` and holds
 the one refusal-reason mapping: a reason beginning `encrypted` maps to encrypted, and onenote's
@@ -608,6 +609,27 @@ finding; design, 2026-11-13).
 #   or a message type.
 # - RAR, ISO, xz, bzip2, and the other formats the spike left unrouted (design, 2026-11-13).
 # - HTML routing: no task carries saved web pages or HTML `.xls` (design, 2026-11-13).
+
+[goals.v1.ai.processing.tasks.providers]
+name = "The providers"
+repos = ["docproc", "sqlate", "go-messaging", "blobfs"]
+summary = '''
+The providers as nested modules of docproc: `docproc/storage`, `dispatch.Content` in object
+storage over go-storage's `Client` (go-storage's `ErrTooLarge` mapped to `dispatch.ErrTooLarge`,
+a content's age from `Stat`'s `ModifiedAt`, keys in the content layout under the host's prefix,
+no sweeper: the host's lifecycle rule), its live tier over go-storage/s3 against a compose
+SeaweedFS; and `docproc/postgres`, `dispatch.Index` in PostgreSQL over sqlate and
+sqlate/postgres taking a `*sqlate.DB` on pgx (an entry's row with its claim and its Entry as
+jsonb, its log items' rows in multi-row inserts, each claim, renewal, flush, and record one
+conditional statement on the entry's token on the database's clock, Wait by LISTEN/NOTIFY, a
+budgeted Retention, and its migrations, which the host applies), each passing `dispatchtest`'s
+suites. The scratch-database helper moves to `sqlate/postgres/pgtest`, and go-messaging's
+`postgres` suite and blobfs's `postgres` suite move onto it first, go-messaging's own `pgtest`
+removed. A root go.work, compose PostgreSQL and SeaweedFS, and a CI integration job on push to
+main. Tags `sqlate/postgres/v0.8.0`, `go-messaging/postgres/v0.4.0`, `storage/v0.1.0`, and
+`postgres/v0.1.0` after requiring docproc v0.1.0; sqlate, go-messaging, and blobfs leave the
+goal's repos at its SHIP (layers, 2026-11-12; design, 2026-11-13; plan, 2026-11-16, 2026-11-17).
+'''
 
 [goals.v1.ai.processing.tasks.docproc]
 name = "docproc"
