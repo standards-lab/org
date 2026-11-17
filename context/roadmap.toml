@@ -1345,14 +1345,6 @@ The review across every page and palette, the editor included, leaving no captur
 and Safari where available. Evidence 7.
 '''
 
-[goals.experiment.html.spike-html-go-wasm.tasks.final-review]
-name = "The final review"
-summary = '''
-Performance, optimization, and ergonomics reviews of the whole spike, for readers and authors,
-landing the optimizations within reach and recording anything larger or one-way for the answer.
-Evidence 13.
-'''
-
 [goals.experiment.html.spike-html-go-wasm.tasks.answer]
 name = "The answer"
 summary = '''
