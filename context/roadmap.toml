@@ -374,15 +374,41 @@ summary = '''
 embed, transcribe, and models.
 '''
 
+[goals.v1.ai.client.tasks.azure-streams]
+name = "go-ai reads Azure AI Foundry's streams"
+summary = '''
+Fixes go-ai, from `tools/infer/v0.1.0`, wherever it is at fault in reading Azure AI Foundry's
+streams, at the root and never by a gateway transformation or a client-side workaround
+(architect, 2026-11-16). It first records raw streams straight from Foundry, chat and Responses,
+with the spike's `az_curl`, and confirms each cause against them and the OpenAI and Open Responses
+specs before changing go-ai: the Chat Completions decoder takes the reply id from the first chunk,
+which Azure sends with an empty id (`format/completions/decode.go`); the Responses decoder and the
+`protocol` accumulator refuse an output item added with content, as Azure adds gpt-5-mini's
+reasoning item (`format/responses/stream.go`, `protocol/accumulator.go`); and a Messages stream
+through the gateway to gpt-oss-120b at `--max-tokens 16` did not exit within 15 s, recorded from
+the gateway's translation and fixed in go-ai only if go-ai is at fault. The gateway's gaps
+(`incomplete_details.reason` of `max_tokens`, 0 input tokens on a translated Messages stream,
+audio in a Responses request on overflow) and the model differences (gpt-oss-120b's
+`tool_choice`, gpt-5-mini's `max_tokens` and effort `none`, gpt-audio-mini's text-only chat) stay
+as they are, the provider's error passed through (spike-model-gateway `docs/findings/priority.md`,
+"The tiers on Azure" and "Per alias"). acceptance waits on it; its brief is planned when it
+starts (plan, 2026-11-17).
+'''
+proof = '''
+The recorded Foundry streams decode as fixtures in go-ai's check, and go-ai's and infer's failing
+stream tests pass rerun straight against Foundry, not through the rows-down overlay, within the
+spike's Azure cap.
+'''
+
 [goals.v1.ai.client.tasks.acceptance]
 name = "Acceptance of the client"
 summary = '''
 Reruns infer against set A and fixes what it finds, never redesigning. Proves retry against the
 live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway's `priority` task,
 which settles the gateway's final form and leaves the models stable before the client uses them
-again; it then runs against agentgateway on gb10-2 and its on-demand 429 and 503 probes
-(spike-model-gateway `docs/findings/agentgateway.md`). The library task's release doesn't wait
-(plan, 2026-11-12; 2026-11-13).
+again; it also waits on the `azure-streams` task; it then runs against agentgateway on gb10-2 and
+its on-demand 429 and 503 probes (spike-model-gateway `docs/findings/agentgateway.md`). The
+library task's release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17).
 '''
 
 [goals.v1.ai.processing]
