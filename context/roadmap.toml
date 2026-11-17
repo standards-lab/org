@@ -37,9 +37,7 @@
 #   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
-#   go-ai alone (plan, 2026-11-12). v1.ai.processing's `providers` task also holds sqlate,
-#   go-messaging, and blobfs, all three in the exclusive group, until its SHIP, to promote the
-#   scratch-database helper into sqlate/postgres (plan, 2026-11-17).
+#   go-ai alone (plan, 2026-11-12).
 # - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
 #   docproc stay outside the group until C ends; then they join it. Then
 #   v1.data.extensions, the Postgres-extension strategy.
@@ -415,7 +413,7 @@ library task's release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17).
 [goals.v1.ai.processing]
 name = "docproc, the processing library and its system tools"
 root = "docproc"
-repos = ["docproc", "architecture", "sqlate", "go-messaging", "blobfs"]
+repos = ["docproc", "architecture"]
 remote = "https://github.com/standards-lab/docproc.git"
 path = "~/architecture/docproc"
 summary = '''
