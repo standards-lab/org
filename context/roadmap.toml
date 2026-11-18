@@ -1053,6 +1053,11 @@ summary = "One artifact per Behavior in the session brief's Evidence, produced b
 name = "The comment near-ban in the architecture layer"
 summary = "Only package documentation and the reasons lint suppressions and pin holds require, with its enforcement. Needs architecture free of v1.ai.processing; a plan adds it to the goal's repos then."
 
+[goals.harness.optimization.tasks.harness-standards]
+name = "Harness programming standards in claude-plugins"
+summary = "A STANDARDS.md in claude-plugins holds the judgement calls of harness programming, pointing to the checks and architecture pages that enforce the rest. It evaluates what this goal settled, the practices marathon held before it (including the deleted architecture harness pages), and the Pocock practices marathon 0.16 adopted."
+proof = "The check passes, and the standards-reviewer applies claude-plugins' STANDARDS.md."
+
 [goals.harness.optimization.tasks.release]
 name = "Release marathon and marathon-architecture"
 summary = "marathon 0.19.0 and marathon-architecture 0.4.0 with migration notes; the sync splits the coordinator's roadmap into per-goal files with a one-off script, then cleans it and the notes under lint-context."
