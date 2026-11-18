@@ -118,27 +118,36 @@ template and the web standard adopt them. The choices underneath:
   and `files`. The same pack is the release asset. A release is a version bump and a Keep a
   Changelog section, cut by hand on a green check.
 - **Consumers install by tag** under npm, pnpm, and bun; npm needs `allow-git=root`. A page may
-  also load the release from jsDelivr `/gh/` through an import map. GitHub Packages is the
+  also load the release from jsDelivr `/gh/` through an import map: the foundation's sheets and
+  the SDK work that way in every browser, but the components and the theme menu only in Chromium
+  and Firefox, since they import CSS module scripts ("Browser support"). GitHub Packages is the
   measured alternative: it resolves the peer range, at the price of a registry setting and a
   token for every install.
 
 ## Browser support
 
-The browser floor is Safari 26.2, Firefox 147, and Chromium, set by the Navigation API. Two gaps
-are open for v1.client.stack to decide:
+The browser floor is Safari 26.2, Firefox 147, and Chromium, set by the Navigation API.
+v1.client.stack's plan (2026-11-18) settled its two gaps:
 
-- Firefox 147 has no `blocking="render"`, which `NewClient`'s shell writes, so the stored theme
-  can flash before first paint.
-- No Safari release loads CSS module scripts, so a page that loads the layers unbundled fails in
-  Safari. Vite builds work everywhere.
+- **Firefox has no `blocking="render"`** outside its preview builds (bug 1751383), and
+  `NewClient`'s shell and the sites put it on the preferences module. Accepted: on Firefox, a
+  reader whose stored theme isn't the default can see the default for one frame before first
+  paint. No inline script works around it, since one would copy the preference logic outside its
+  module and need a CSP hash on every page. Revisit when Firefox ships `blocking="render"`.
+- **No Safari release loads CSS module scripts**, which the components and the theme menu import.
+  A page that uses them requires a build: Vite with vite-plugin-standard-css-modules works in
+  every browser, and every consumer the roadmap names already builds with Vite. The released
+  packages keep the standard syntax, with no pack-time rewrite. Revisit when Safari ships CSS
+  module scripts.
 
 The browser tier runs Chromium alone; Firefox and WebKit are untested.
 
 ## The color profiles
 
 web-foundation ships four color profiles, each light and dark: Flexoki (the default), Primer,
-Catppuccin, and Everforest. v1.client.stack's `palettes` task refines them from
-terminalcolors.com's palettes, checking each upstream license. A profile ships when it passes the
+Catppuccin, and Everforest. v1.client.stack's `palettes` task refines them from the palettes at
+[terminalcolors.com](https://terminalcolors.com/). The site states no license, so each palette's
+upstream license is checked before it is used. A profile ships when it passes the
 conformance check, a new rule of 4.5:1 WCAG contrast, and the architect's review of its specimen
 pages.
 
