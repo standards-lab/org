@@ -1032,6 +1032,11 @@ proof = "The check passes, and the contract and marathon-architecture's declarat
 name = "The skill's always-loaded set, explicit and budgeted"
 summary = "Explicit loading, Releasing and resume on demand, no repeated rules, a word budget in the check, and the profiles' comment rules."
 
+[goals.harness.optimization.tasks.roadmap-layout]
+name = "The roadmap as one file per goal"
+summary = "context/roadmap.toml keeps only the three arrays; each goal is context/roadmap/<goal>.toml with its own root and repos, an order array of its tasks, and its task tables; status <goal> prints a goal's tasks in order."
+proof = "The check passes, and the manifest reference, LOCATE, plan, sync, and status describe the per-goal layout."
+
 [goals.harness.optimization.tasks.content-budgets]
 name = "Produced content held to budgets by a check"
 summary = "A lint-context script for goal records, the manifest, and READMEs; Decisions pruned at SHIP; spike evidence in docs/; the capability map as a feature map."
@@ -1050,7 +1055,7 @@ summary = "Only package documentation and the reasons lint suppressions and pin 
 
 [goals.harness.optimization.tasks.release]
 name = "Release marathon and marathon-architecture"
-summary = "marathon 0.19.0 and marathon-architecture 0.4.0 with migration notes; the sync cleans the coordinator's roadmap and notes under lint-context."
+summary = "marathon 0.19.0 and marathon-architecture 0.4.0 with migration notes; the sync splits the coordinator's roadmap into per-goal files with a one-off script, then cleans it and the notes under lint-context."
 
 # ── Corpora ────────────────────────────────────────────────────────────────────────────────
 
