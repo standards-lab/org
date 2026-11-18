@@ -1,93 +1,189 @@
 # Web client
 
-How the reference architecture reaches the browser: the layers a web client is built from, what
-each layer owns, who consumes them, and the order in which they're settled. It is the strategy
-for v1.client, the goal that shows the stack beyond the terminal, and for the experiment.html
-spikes that come before it. Everything below is direction set in planning (2026-10-13). The
-spikes test it, and the experiment.html intake records what they proved in `html-artifacts.md`.
+How the reference architecture reaches the browser: the client stack's repositories and what each
+owns, the conventions they are written in, how they are released, and the reference client built
+on them. v1.client.stack builds the stack before the capstone, and v1.client.reference builds the
+reference client after it. The Pages sites are in `sites.md`.
+
+experiment.html's six spikes settled what follows. Each spike's README holds its answer and the
+evidence behind it:
+[spike-html-design](https://github.com/JaimeStill/spike-html-design/blob/main/context/README.md#the-answer),
+[spike-html-conventions](https://github.com/JaimeStill/spike-html-conventions/blob/main/context/README.md#the-answer),
+[spike-html-packages](https://github.com/JaimeStill/spike-html-packages/blob/main/context/README.md#the-answer),
+[spike-html-apps](https://github.com/JaimeStill/spike-html-apps/blob/main/context/README.md#the-answer),
+[spike-html-hosting](https://github.com/JaimeStill/spike-html-hosting/blob/main/context/README.md#the-answer),
+and [spike-html-go-wasm](https://github.com/JaimeStill/spike-html-go-wasm/blob/main/context/README.md#the-answer).
 
 ## The stack
 
-The stack has three layers, a hypothesis that spike-html-conventions tests. A layer imports only
-from the layers below it, and each works on its own.
+The stack is five planned standards-lab repositories, each a package under the `@standards-lab`
+scope, and a handler in go-web-sdk. Each repository starts fresh at v0.1.0, seeded by copy from
+its spike with a provenance line.
 
-1. **Foundation.** Native-only infrastructure, with no framework: the style baseline
-   (experiment.html.spike-html-design) and JS/TS modules. The baseline's design facets (color,
-   space, type) take swappable profiles over native elements, and it is released by git tag. Its
-   tools split into three lateral concerns:
-   - utilities, such as scroll;
-   - structure, the grid and flex containers that pages lay out with, which replace a separate
-     layouts layer;
-   - meta components and variants, such as badges and hued button variants.
-2. **Components.** The element tier, built with Lit. A component takes properties and attributes,
-   emits events, and may hold its own UI state. It holds no services, fetches no data, and holds
-   no application state. An application's internal element becomes a component once a second
-   application needs it.
-3. **Apps.** Two branches:
-   - static content, such as the Pages sites, on the foundation, with its own elements in Lit
-     with a shadow root, and its pages built through Vite with the local CSS plugin;
-   - applications, with Lit, hosted standalone or embedded in a web service as its client, as
-     herald's app is. An application keeps its own modules and views, and builds on an
-     application SDK: the router, an API client, an auth hook, and the domain-service pattern.
-     spike-html-conventions specifies the SDK and spike-html-apps builds it. The Intl formatters
-     are a foundation spec, shared by components and apps, because components format too and a
-     component may not import the SDK.
+- **web-tooling**: the browser-test and screenshot tooling the other repositories take by tag,
+  from spike-html-apps-tooling. It adds a helper that runs a browser suite in a pinned font set.
+- **web-foundation**: native CSS and ES modules with no dependencies, from
+  spike-html-apps-foundation v0.3.1: the baseline sheets (tokens, reset, and elements), the color,
+  space, and type profiles, the tool sheets, the DOM helpers, the registry and keys family, the
+  theme preferences and menu, the profile conformance check, and the Intl formatters.
+  [Its README](https://github.com/JaimeStill/spike-html-apps-foundation/blob/v0.3.1/README.md)
+  documents the interface. spike-html-design v0.7.0 stays a frozen reference.
+- **web-components**: Lit elements with a shadow root, from spike-html-apps-components: the chat
+  thread, composer, upload dropzone, stage timeline, event log, search results, artifact viewer,
+  document list, status badge, entry, pagination, and `sl-drawer`. A component takes properties
+  and attributes, sends events, and may hold its own UI state. It holds no services, fetches no
+  data, and holds no application state. An application's internal element becomes a component
+  once a second application needs it.
+- **web-app-sdk**: the application SDK, from spike-html-apps-sdk. Its router rests on URLPattern
+  and the Navigation API. Its API client reports upload progress, streams responses, and returns
+  a `Result` whose failure is go-web-sdk's RFC 9457 problem. It also holds the token provider, the
+  domain-service pattern, and an event sequence of CloudEvents resumable by an opaque cursor, with
+  a NATS-over-WebSocket adapter whose `@nats-io` packages are optional peers.
+- **web-app-sdk-template**: one client template that builds both ways: embedded, where Vite
+  builds and then Go embeds the output (`//go:embed all:dist`) and serves it through `NewClient`,
+  and external, from `index.html`. It follows go-web-sdk-template's layout: a `template/`
+  subtree, `template/vX.Y.Z` tags, and a project generated by curl and tar from the tag's tarball,
+  as its README shows. Its check reports the shipped bundle's size and enforces no budget. A
+  command that generates the project is the backlog goal `client-create`.
+- **`NewClient` in go-web-sdk** ("NewClient", below).
 
-## Consumers
+A layer imports only from the layers below it. The foundation is at the bottom; the components
+and the SDK are siblings on it; an app may import all three. No app imports another, and a
+component never imports the SDK, which is why the formatters are the foundation's. An app is one
+of two kinds:
 
-- **The reference client.** v1.client's application, embedded in go-web-service and served by
-  its binary, just as slab is the service's command-line client. Its first demonstrations are
-  the organizations, the document hierarchy, and a live view of go-web-service's reactors over
-  the WebSocket bridge (`messaging.md`). It is served from the same origin as the service.
-- **External clients.** Clients hosted apart from any one service that call several services.
-  They are post-1.0. spike-html-apps settles their strategy beside the embedded case, and the
-  intake decides whether a goal follows.
-- **Pages sites.** Native web, with no Jekyll and no site generator. The hypothesis that
-  spike-html-hosting tests:
-  - architecture is served as its own project site;
-  - org, the coordinator, holds the organization's charter and its hosted artifacts, and links
-    to every project site;
-  - each code repository serves its own docs/ guide, which v1.repository-docs writes.
-- **Persistent artifacts.** Reports, stats updates, and other artifacts kept over time, written
-  as HTML and hosted in the coordinator.
-- **Live Go demos.** Workspace Go packages running in a page through WebAssembly, if
-  spike-html-go-wasm shows the size is acceptable.
+- a static app: an entry and its own Lit elements;
+- an application: an entry and a route table over four tiers, views, modules, app-internal
+  elements, and domains.
 
-## Where HTML is used
+## NewClient
 
-HTML is for persistent artifacts only. Workflow outputs, meaning task briefs, plan rounds,
-and session briefs, stay Markdown, and so do the `context/` notes.
+`NewClient(dist fs.FS, ClientOptions{Base, Title, Entry, RenderBlocking, Config})` returns the
+`http.Handler` that serves an app's embedded Vite build. spike-html-apps' `sdk` package proves
+it.
 
-## Sequence
+- It reads Vite's `.vite/manifest.json` from `dist` once, and fails if the entry isn't there.
+- Every path that isn't an asset is a client route and answers the shell, so a deep link or a
+  reload reaches the router. The shell writes `<base href>`, the title, the config value as JSON
+  in a `<script type="application/json">`, and the entry as a module script with its CSS.
+  `RenderBlocking` lists the manifest keys whose modules the shell loads with
+  `blocking="render"` ahead of the entry.
+- An asset answers its embedded file with `Cache-Control: public, max-age=31536000, immutable`.
+  A path under the manifest's directories, a dotfile path, or a last segment with an extension,
+  with no file behind it, answers a 404 problem, never the shell.
+- At the root it is the router's not-found handler, so it answers only what no module or native
+  route claims. Under a prefix it is a handler module, and the bare prefix redirects (301) to
+  prefix/. Vite's `base`, the shell's `<base href>`, and the router's base agree.
 
-experiment.html runs its spikes one at a time, because each answer can change the spikes after
-it. The spikes lock only their own repositories, so they run beside the exclusive group's goal:
+## Conventions
 
-1. spike-html-design: the foundation's style baseline.
-2. spike-html-conventions: the toolchain, TypeScript form, code structure, testing, lint, and
-   component convention the stack builds on, and the application SDK's specification.
-3. spike-html-packages: how the foundation and components are packaged and released by tag.
-4. spike-html-apps: herald's embedded app (`~/code/herald/app`: a Go package embedding a
-   bun-built Lit client) compared with other app configurations and with external clients over
-   several services. It builds the application SDK, and its answer is v1.client's most direct
-   input.
-5. spike-html-hosting: repository docs and artifact hosting. It covers the Pages topology,
-   native-web publishing, the coordinator's persistent artifacts, and the line between HTML and
-   Markdown.
-6. spike-html-go-wasm: live Go demos.
+[spike-html-apps' conventions](https://github.com/JaimeStill/spike-html-apps/blob/main/context/conventions.md)
+hold the development, design, and process conventions the stack's repositories follow; the
+template and the web standard adopt them. The choices underneath:
 
-The intake then decides what v1.client builds, and v1.client's own planning writes its tasks.
-v1.client starts once the intake has closed. It is the next goal in the workspace's exclusive
-group, ahead of v1.ai, v1.data, v1.auth, and v1.admin-listener. Until the intake closes, planning
-decides what holds the exclusive group.
+- **Toolchain.** Node 26 and pnpm. tsc's emit builds the libraries and Vite builds the apps.
+  pnpm installs a consumer's git tag with no setting, refuses phantom imports, and applies a
+  minimum release age by default. A registry release would reopen npm against pnpm.
+- **TypeScript.** Every module is `.ts` with `.ts` relative specifiers, which tsc rewrites to
+  `.js` (`rewriteRelativeImportExtensions`). The emitted `.d.ts` keep `.ts` specifiers.
+- **Lint and format.** ESLint with Prettier. eslint-plugin-boundaries judges each import by the
+  file it resolves to, and the check fails on any import against the layer direction. Biome is
+  the measured alternative and comes back if ESLint's or Prettier's stewardship changes.
+- **Components and CSS.** A shadow root can't see the page's styles; only tokens cross. So a
+  component adopts the foundation's reset and elements sheets by reference, then a layout-only
+  sheet of its own, and no component styles a control's look. Each foundation sheet wraps its
+  rules in its own `@layer` block and imports nothing, because neither a constructed sheet nor a
+  CSS module script loads `@import`. A component's CSS lives in a `.css` file imported as a CSS
+  module script (`with { type: "css" }`), never written in `.ts`. Vite builds rewrite those
+  imports through vite-plugin-standard-css-modules. Lit's runtime is 5,031 B brotli, shared by
+  every element on a page.
+- **Testing.** The unit tier runs DOM-free code under `node --test` with no DOM shim, so logic
+  that needs no DOM lives in DOM-free modules. The browser tier drives Chrome for Testing's
+  chrome-headless-shell, pinned in `mise.toml` through mise's `http:` backend with a hand-taken
+  sha256, over the raw DevTools pipe with no package. It launches with `--no-sandbox`, since
+  Ubuntu 23.10+ AppArmor refuses a downloaded Chrome's sandbox, and loads only the repository's
+  own pages on loopback. Playwright took 1.25 times as long and is not used.
+- **In-session review.** web-tooling's screenshot command captures pages in headless chromium
+  into a `mktemp -d` directory, removed on exit, and shows them inline with
+  `kitten icat --transfer-mode=stream`; tmux passes the image through with
+  `allow-passthrough on`. Inside a Neovim `:terminal` no image shows, so `--output browser` opens
+  a gallery. Captures are never committed.
 
-## What lands later
+## Packaging and release
 
-- **Auth.** The reference client runs against the service's open API. v1.auth adds a client
-  sweep task, which also decides whether an image is fetched as an `<img>` with a cookie or with
-  a bearer token.
-- **CORS.** A same-origin client sends no cross-origin requests. CORS's trigger in
-  v1.middleware is the first client served cross-origin, such as an external client or a
-  Pages-hosted page that calls a service.
-- **The architecture repository's pointer.** `architecture/context/README.md` names docs-site as
-  the owner of site hosting. v1.client's sites work repoints it to this layout.
+- **One repository per layer**, each one package with its own check, CI, and release workflow,
+  built on the layer below by its tag. The components take the foundation as a peer.
+- **A plain `vX.Y.Z` tag** marks a pack commit, parented on the merge commit, whose tree is the
+  package: tsc's `.js` and `.d.ts` with every `.css` copied beside them, all named by `exports`
+  and `files`. The same pack is the release asset. A release is a version bump and a Keep a
+  Changelog section, cut by hand on a green check.
+- **Consumers install by tag** under npm, pnpm, and bun; npm needs `allow-git=root`. A page may
+  also load the release from jsDelivr `/gh/` through an import map. GitHub Packages is the
+  measured alternative: it resolves the peer range, at the price of a registry setting and a
+  token for every install.
+
+## Browser support
+
+The browser floor is Safari 26.2, Firefox 147, and Chromium, set by the Navigation API. Two gaps
+are open for v1.client.stack to decide:
+
+- Firefox 147 has no `blocking="render"`, which `NewClient`'s shell writes, so the stored theme
+  can flash before first paint.
+- No Safari release loads CSS module scripts, so a page that loads the layers unbundled fails in
+  Safari. Vite builds work everywhere.
+
+The browser tier runs Chromium alone; Firefox and WebKit are untested.
+
+## The color profiles
+
+web-foundation ships four color profiles, each light and dark: Flexoki (the default), Primer,
+Catppuccin, and Everforest. v1.client.stack's `palettes` task refines them from
+terminalcolors.com's palettes, checking each upstream license. A profile ships when it passes the
+conformance check, a new rule of 4.5:1 WCAG contrast, and the architect's review of its specimen
+pages.
+
+## Toward Web Elemental
+
+v1.client.stack's `standard` task founds Web Elemental (`web-elemental`), a draft web standard
+beside Go Elemental in the architecture layer, with Lit as its one runtime dependency. A candidate
+principle for it, from spike-html-go-wasm: a component holds no authoritative state. A DOM-free
+model below it, written by one owner (the composing element or the page), holds the state, its
+rules, and its validation.
+
+## Foundation candidates
+
+The backlog goal `foundation-extension` is a web-foundation minor that takes these:
+
+- From the sites: Settings and Help as foundation changes (the theme menu's fixed heading and
+  T to save, the keys help's built-in settings), so the components stop rebuilding them as
+  `sl-settings` and `sl-shortcuts`; a pattern page for the keyboard-shortcut dialog, with Settings
+  and Help its instances; `glyph-button` as a control; `sl-drawer` with its Close glyph passed
+  through a slot and a modal-only mode; a page-layout sheet (gutter, section spacing, and named
+  content and full lines); and an `outline-offset` token. `preferences.js` and `keys.js` import
+  `theme-menu.js` and `keys-help.js` dynamically, so every site builds both chunks without
+  requesting them.
+- From the components,
+  [spike-html-apps-components' foundation candidates](https://github.com/JaimeStill/spike-html-apps-components/blob/main/context/foundation-candidates.md),
+  each found in two or more components: tokens for a control's block size, the focus outline's
+  reach, status roles, and a hook's tint; elements-sheet rules for a disabled text field and a
+  dark-scheme `<progress>` track; utility classes for a bare list, keep-whole values, breaking
+  only when longer than the line, one-line truncation, the scrolling frame, a slot as wide as its
+  widest content, the head row, quiet label type, the status line, motion behind reduced motion,
+  and visually hidden text; and `formatJson` with `formatBytes` below a kilobyte, which reads
+  "0 byte".
+
+## The reference client
+
+v1.client.reference builds go-web-service's client on spike-html-apps' app shape, served by
+`NewClient` from the service's binary, as slab is the service's command-line client. It first
+shows the organizations, the document hierarchy, and a live view of go-web-service's reactors
+over the WebSocket bridge (`messaging.md`), against the open API. It applies Web Elemental.
+
+- **Embedded or external.** It evaluates the embedded client against an external client hosted
+  apart from any one service. spike-html-apps' external client called two services cross-origin.
+- **Inputs.** The organization logo's fallback, and NATS-native chat as a candidate transport
+  (`messaging.md`).
+- **Auth.** v1.auth's client sweep puts the client behind authentication, and decides whether an
+  image is fetched as an `<img>` with a cookie or with a bearer token.
+- **CORS.** An embedded client is same-origin and sends no cross-origin requests. An external
+  client or a Pages page that calls a service needs v1.middleware's CORS.

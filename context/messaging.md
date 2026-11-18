@@ -189,7 +189,7 @@ some turn out to strengthen a different architecture layer:
 | Subject wildcards and hierarchy | Native in filter syntax. The standard tier filters on event `type` only | Topic syntax differs by broker |
 | Key-value store with watch and compare-and-set | A candidate provider for another service: caching (`backlog.response-caching`) | Enhances another layer, not messaging |
 | Object store | A candidate go-storage provider, judged against go-storage's standard tier | Enhances another layer |
-| WebSocket bridge, NATS-native chat | Belongs to `v1.client` | Client transport, not events between services |
+| WebSocket bridge, NATS-native chat | Belongs to `v1.client.reference` | Client transport, not events between services |
 
 ## The evidence
 

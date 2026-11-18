@@ -4,21 +4,22 @@
 #
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories; it is free since api-maintenance synced
-# (2026-11-12), until v1.client stages in wave C. Outside the group,
-# experiment.hosting's spike-model-hosting, spike-model-engines, spike-hosting-upgrades, and
-# spike-model-layout have answered (ai-hosting.md, "Answers · experiment.hosting"), and
-# spike-model-gateway is active, staged by layout's sync, with gb10-2 in experiment.hosting's host
-# set since spike-ai-pipeline's docinfer task shipped.
-# experiment.html's spike-html-design, spike-html-conventions, spike-html-packages,
-# spike-html-apps, spike-html-hosting, and spike-html-go-wasm have answered (html-artifacts.md,
-# "Answers · experiment.html"); its intake is next. graph-ergonomics shipped its API in
-# go-core v0.11.0 (graph-ergonomics.md, "The settled API") and moved every consumer onto it: the
-# libraries, go-cli-sdk, both templates, and go-web-service with slab. api-maintenance then
-# converted every exported library API to construction-and-execution (go-core v0.12.0 and every
-# tier above it) and moved the templates, go-web-service, and slab onto the converted releases.
+# (2026-11-12). v1.client.stack holds it only for its `newclient` task, the one that locks
+# go-web-sdk. Outside the group, experiment.hosting's spike-model-hosting, spike-model-engines,
+# spike-hosting-upgrades, and spike-model-layout have answered (ai-hosting.md, "Answers ·
+# experiment.hosting"), and spike-model-gateway is active, staged by layout's sync, with gb10-2 in
+# experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
+# experiment.html's intake (2026-11-18) split v1.client into v1.client.stack, before the
+# capstone, and v1.client.reference, after it (web-client.md), and moved status-reports and
+# training under sites (sites.md). graph-ergonomics shipped its API in go-core v0.11.0
+# (graph-ergonomics.md, "The settled API") and moved every consumer onto it: the libraries,
+# go-cli-sdk, both templates, and go-web-service with slab. api-maintenance then converted every
+# exported library API to construction-and-execution (go-core v0.12.0 and every tier above it)
+# and moved the templates, go-web-service, and slab onto the converted releases.
 # The infrastructure libraries come before the data layer, and the data layer before auth by
 # design: the architect wants to see how the domain layer scales before auth constrains it.
-# Middleware is last; CORS's trigger, a client served cross-origin, fired in spike-html-apps.
+# Middleware is the last v1 goal; CORS's trigger, a client served cross-origin, fired in
+# spike-html-apps. sites is planned last of all.
 #
 # The path to the capstone, capstone.data-intelligence (plan, 2026-11-09): (a) finish the
 # pre-capstone experiments; (b) take them in and build out the libraries and infrastructure the
@@ -26,29 +27,34 @@
 # the full architecture standards and the workspace) and closed by an acceptance task that reruns
 # the real workloads; (c) design the capstone's protocols and practices, its first tasks; (d)
 # build the capstone; (e) continue the roadmap. The waves, each running its goals side by side:
-# - A: spike-model-layout (answered: ai-hosting.md, "Answers · experiment.hosting"),
-#   spike-html-hosting (answered: html-artifacts.md, "Answers · experiment.html"), spike-ai-pipeline's `answer` (done), graph-ergonomics (go-core's graph
-#   and lifecycle, reviewed while the exclusive group is free, before go-ai and the client SDK
-#   build on them), and spike-graph, which proved its candidate API (done); then experiment.ai's
-#   intake (done) and experiment.graph's (done), graph-ergonomics' release and per-tier
-#   migrations (done), and then api-maintenance (done), ahead of wave C.
-# - B: spike-model-gateway beside spike-html-go-wasm (agentgateway done; then routing, priority,
-#   answer: plan, 2026-11-13); then experiment.hosting's and
-#   experiment.html's intakes. v1.ai.processing (docproc and its system tools, absorbing
+# - A (done): spike-model-layout and spike-html-hosting answered; spike-ai-pipeline's `answer`,
+#   graph-ergonomics with spike-graph, experiment.ai's and experiment.graph's intakes,
+#   graph-ergonomics' release and per-tier migrations, and api-maintenance shipped.
+# - B: spike-model-gateway (agentgateway done; then routing, priority, answer: plan, 2026-11-13);
+#   then experiment.hosting's intake. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
 #   go-ai alone (plan, 2026-11-12).
-# - C: v1.ai's remaining sub-goals beside v1.client, which holds the exclusive group. go-ai and
-#   docproc stay outside the group until C ends; then they join it. Then
-#   v1.data.extensions, the Postgres-extension strategy.
-#   status-reports and training.foundation start here; status-reports' first backfill report
-#   covers ~/architecture as it stands at the capstone's start.
-# - D: capstone.data-intelligence, the sole active goal apart from status-reports and training;
-#   it holds the libraries it may change, so a capstone task can fix a library and use the fix.
-#   status-reports' second backfill report orients readers to the capstone.
-# - E: experiment.ocr, experiment.admin, and experiment.harness, then v1.data, v1.auth,
-#   v1.admin-listener, v1.deployment, v1.repository-docs, and v1.middleware; training units that
-#   lock libraries run where the exclusive group is free.
+#   v1.client.stack starts here; sites.status-reports and sites.training.foundation start after
+#   its `foundation` task.
+# - C: v1.ai's remaining sub-goals beside the rest of v1.client.stack. go-ai and docproc stay
+#   outside the exclusive group until C ends; then they join it. Then v1.data.extensions, the
+#   Postgres-extension strategy.
+# - D: capstone.data-intelligence, the sole active goal apart from sites.status-reports and
+#   sites.training; it holds the libraries it may change, so a capstone task can fix a library and
+#   use the fix.
+# - E: v1.client.reference first; experiment.ocr, experiment.admin, and experiment.harness; then
+#   v1.data, v1.auth, v1.admin-listener, v1.deployment, v1.repository-docs, and v1.middleware; and
+#   sites last. sites.training units that lock libraries run where the exclusive group is free.
+#
+# The line at the capstone:
+# - Before it: all of v1.client.stack, the web standard included; sites.status-reports' layout
+#   and first report, a backfill of ~/architecture as it stands at the capstone's start; and
+#   sites.training.foundation's setup and syllabus.
+# - During it (wave D): sites.status-reports' second report, an orientation to the capstone, and
+#   sites.training.foundation's writing tasks.
+# - After it: v1.client.reference, v1.repository-docs, foundation-extension, client-create, and
+#   the rest of sites, last.
 
 active = [
   "experiment.hosting.spike-model-gateway",
@@ -57,14 +63,15 @@ active = [
 ]
 
 planned = [
+  "v1.client.stack",
+  "sites.status-reports",
+  "sites.training.foundation",
   "v1.ai.inference",
   "corpus.docs",
   "v1.ai.hosting",
-  "v1.client",
-  "status-reports",
-  "training.foundation",
   "v1.data.extensions",
   "capstone.data-intelligence",
+  "v1.client.reference",
   "experiment.ocr.spike-scanned-documents",
   "experiment.admin.spike-host-admin",
   "experiment.harness.spike-go-harness",
@@ -75,6 +82,7 @@ planned = [
   "v1.deployment",
   "v1.repository-docs",
   "v1.middleware",
+  "sites",
 ]
 
 backlog = [
@@ -98,6 +106,7 @@ backlog = [
   "model-evaluation",
   "nats-credentials",
   "foundation-extension",
+  "client-create",
   "screenshots-in-neovim",
   "retrieval",
   "cross-service-tracing",
@@ -148,8 +157,8 @@ dependency, in its own capability sub-module when it carries a third-party depen
 concrete adoption for the remaining three is not: versions, real-IP's trusted-proxy
 configuration, and each library's own entry in go-web-sdk's dependency-line statement.
 CORS's trigger is the first client served cross-origin, such as an external client or a
-Pages-hosted page that calls a service; v1.client's embedded client is same-origin and sends no
-cross-origin requests (standards-lab/context/web-client.md). That trigger has fired:
+Pages-hosted page that calls a service; v1.client.reference's embedded client is same-origin and
+sends no cross-origin requests (standards-lab/context/web-client.md). That trigger has fired:
 spike-html-apps' external client calls two services. It needed one allowed-origins list shared
 by the CORS middleware and the NATS WebSocket listener, Authorization and Content-Type allowed, a
 preflight on every upload sent with a progress listener, and the caller naming the methods.
@@ -176,8 +185,8 @@ record. The admin listener (v1.admin-listener) is a consumer of the authenticati
 settles. What remains is the build: go-auth itself, the schema it introduces as a migration
 source of its own, and the composition-root reshape in go-web-service. The storage domain's auth
 sweep proves the composed authorized listing that the blobfs experiment cannot: the consumer's
-join table driving a blobfs listing under the scope predicate. v1.client lands first, on the
-open API, so this goal adds a client sweep task: the reference client behind authentication,
+join table driving a blobfs listing under the scope predicate. v1.client.reference lands first,
+on the open API, so this goal adds a client sweep task: the reference client behind authentication,
 and whether an image is fetched as an `<img>` with a cookie or with a bearer token.
 '''
 context = [
@@ -700,36 +709,120 @@ context = [
 [goals.v1.client]
 name = "The web client"
 summary = '''
-The stack beyond the terminal, by the strategy in `standards-lab/context/web-client.md`: the
-foundation, components, and apps layers (consumer order: foundation, components, app), the
-repositories' Pages sites and the coordinator's persistent artifacts, and
-a reference client embedded in go-web-service and served by its binary, in parity with the
-service as slab is on the command line. The reference client first demonstrates the
-organizations, the document hierarchy, and a live view of go-web-service's reactors over the
-WebSocket bridge, against the open API; v1.auth's client sweep puts it behind authentication.
-Starts once the experiment.html intake closes, as the next goal in the exclusive group; the
-intake decides what it builds from the six spikes' answers, and its
-own planning writes its tasks. Its sites work repoints `architecture/context/README.md`, which
-names docs-site as the owner of site hosting. Recorded inputs: the organization logo's fallback
-(v1.storage); NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`);
-and `NewClient`, proven in spike-html-apps' `sdk` package. `NewClient(dist fs.FS,
-ClientOptions{Base, Title, Entry, RenderBlocking, Config})` reads Vite's manifest once;
-RenderBlocking lists the manifest keys whose modules the shell loads with `blocking="render"`
-ahead of the entry. At the root it is the router's not-found handler, so it answers only what no
-module or native route claims; under a prefix it is a handler module, and the bare prefix
-redirects (301) to prefix/. A path under the manifest's directories, a dotfile path, or a last
-segment with an extension, with no file behind it, is a 404 problem, never the shell. It moves
-to go-web-service's `sdk/`, then go-web-sdk.
+The stack beyond the terminal, by the strategy in `standards-lab/context/web-client.md`, in two
+parts: v1.client.stack builds the client stack before the capstone, whose UI builds on it, and
+v1.client.reference builds go-web-service's reference client on it after the capstone.
 '''
-context = [
-  "standards-lab/context/web-client.md",
-  "standards-lab/context/html-artifacts.md",
+context = ["standards-lab/context/web-client.md"]
+
+[goals.v1.client.stack]
+name = "The client stack"
+repos = [
+  "web-tooling",
+  "web-foundation",
+  "web-components",
+  "web-app-sdk",
+  "web-app-sdk-template",
 ]
+summary = '''
+Five standards-lab repositories, each a package under the @standards-lab scope: web-tooling,
+web-foundation, web-components, web-app-sdk, and web-app-sdk-template. Each starts fresh at
+v0.1.0, seeded by copy from its spike with provenance, and releases by a plain vX.Y.Z tag on a
+pack commit, cut by hand. go-web-sdk gains `NewClient`, and the architecture layer gains the
+draft web-elemental standard. The whole goal runs before the capstone, starting in wave B. Its
+repositories don't exist yet, so it is staged without them: its first `plan` creates them, adds
+them to `order` and the catalog, and sets its `root`. It holds go-web-sdk and the exclusive group
+only for its `newclient` task.
+'''
+context = ["standards-lab/context/web-client.md"]
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
 # - The upload component gains resumable chunked upload on Cerebro's protocol; the stage
 #   timeline is driven by the event protocol, not hard-coded; the chat thread renders citations.
+
+[goals.v1.client.stack.tasks.tooling]
+name = "web-tooling"
+repos = ["web-tooling"]
+summary = '''
+The browser-test and screenshot tooling the other repositories take by tag, from
+spike-html-apps-tooling, with a helper that runs a browser suite in a pinned font set.
+'''
+
+[goals.v1.client.stack.tasks.foundation]
+name = "web-foundation"
+repos = ["web-foundation"]
+summary = '''
+The native foundation from spike-html-apps-foundation v0.3.1: the baseline sheets, profiles, tool
+sheets, keys, theme preferences, conformance check, and Intl formatters. spike-html-design v0.7.0
+stays a frozen reference. sites.status-reports and sites.training.foundation start once it
+releases.
+'''
+
+[goals.v1.client.stack.tasks.palettes]
+name = "The built-in color profiles"
+repos = ["web-foundation"]
+summary = '''
+Refines web-foundation's built-in color profiles from terminalcolors.com's palettes, checking
+each upstream license. A profile ships when it passes the conformance check, a new rule of 4.5:1
+WCAG contrast, and the architect's review of its specimen pages.
+'''
+
+[goals.v1.client.stack.tasks.components]
+name = "web-components"
+repos = ["web-components"]
+summary = "The Lit shadow components on web-foundation, from spike-html-apps-components."
+
+[goals.v1.client.stack.tasks.sdk]
+name = "web-app-sdk"
+repos = ["web-app-sdk"]
+summary = '''
+The application SDK from spike-html-apps-sdk: the router, the API client, the token provider, the
+domain-service pattern, and the resumable event sequence with its NATS-over-WebSocket adapter.
+'''
+
+[goals.v1.client.stack.tasks.newclient]
+name = "NewClient in go-web-sdk"
+repos = ["go-web-sdk"]
+summary = '''
+go-web-sdk's handler that serves an app's embedded Vite build, from spike-html-apps' `sdk`
+package (`web-client.md`, "NewClient"). It is the goal's only task that locks go-web-sdk and the
+exclusive group: the goal's repos gain go-web-sdk for it and drop it at its SHIP.
+'''
+
+[goals.v1.client.stack.tasks.template]
+name = "web-app-sdk-template"
+repos = ["web-app-sdk-template"]
+summary = '''
+One client template that builds embedded (Vite, then Go: `//go:embed all:dist` served by
+`NewClient`) and external (`index.html`), in go-web-sdk-template's layout: a `template/` subtree,
+`template/vX.Y.Z` tags, and a project generated by curl and tar from the tag's tarball. Its check
+reports the shipped bundle's size and enforces no budget.
+'''
+
+[goals.v1.client.stack.tasks.standard]
+name = "The Web Elemental standard"
+repos = ["architecture"]
+summary = '''
+Founds web-elemental ("Web Elemental"), a draft web standard beside Go Elemental in the
+architecture layer, with Lit as its one runtime dependency (`web-client.md`, "Toward Web
+Elemental"). The goal's repos gain architecture for it.
+'''
+
+[goals.v1.client.reference]
+name = "The reference client"
+summary = '''
+go-web-service's client on spike-html-apps' app shape, embedded in the service and served by
+`NewClient`, in parity with the service as slab is on the command line, and applying
+web-elemental. It first demonstrates the organizations, the document hierarchy, and a live view
+of go-web-service's reactors over the WebSocket bridge, against the open API; v1.auth's client
+sweep puts it behind authentication. It evaluates the embedded strategy against an external
+client hosted apart from any one service. Recorded inputs: the organization logo's fallback
+(v1.storage), and NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
+Runs after the capstone, first in wave E, ahead of v1.data and v1.auth; its own planning writes
+its tasks.
+'''
+context = ["standards-lab/context/web-client.md"]
 
 [goals.v1.deployment]
 name = "Deployment"
@@ -750,14 +843,19 @@ repos = [
   "go-web-service",
 ]
 summary = '''
-Each Go repository's docs/ guide, indexed by its README, written once the layers stop
-churning: the accessibility layer over the README, the package documentation, and the source,
-in the shape sqlate's guide established (concepts by example, a quick start, the features by
-package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
-changes it; sqlate's guide exists and is verified rather than written. Each guide publishes
-through the Pages topology experiment.html.spike-html-hosting settled and v1.client builds.
+Each Go repository's docs/ guide, in Markdown and indexed by its README, written once the layers
+stop churning: the accessibility layer over the README, the package documentation, and the
+source, in the shape sqlate's guide established (concepts by example, a quick start, the features
+by package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
+changes it; sqlate's guide exists and is verified rather than written, taking the quick-start
+revision spike-html-hosting made. A guide's front matter is its page's head meta, and a CLI's
+output is shown as text, not as a recorded demo (`standards-lab/context/sites.md`, "The docs/
+guides").
 '''
-context = ["architecture/principles/context-architecture.md"]
+context = [
+  "architecture/principles/context-architecture.md",
+  "standards-lab/context/sites.md",
+]
 
 [goals.v1.harness]
 name = "The harness at v1"
@@ -862,8 +960,8 @@ each stage live on the promoted web client stack; and capstone-data-intelligence
 root with the compose stack and the ~/docs acceptance run. It shows how Cerebro and the gateway
 replace ~/s2va/athena's ingest layer without taking in its code (`data-intelligence.md`, "Cerebro
 and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
-active goal apart from status-reports and training, after experiment.hosting's and
-experiment.html's intakes and the libraries v1.ai and v1.client promote. It holds go-messaging and
+active goal apart from sites.status-reports and sites.training, after experiment.hosting's
+intake and the libraries v1.ai and v1.client.stack promote. It holds go-messaging and
 builds Cerebro's stream-backed root and work queue there itself (the messaging
 tasks; plan, 2026-11-10); its repos gain the other libraries at staging, so a capstone task can update a library and use the change.
 Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
@@ -941,7 +1039,9 @@ name = "The stage and result event protocol"
 summary = '''
 Cerebro's stage, inference, and result-batch events and the final manifest, and the browser's
 transport on Athena's stream, NATS over WebSocket against a backend relay, compared on latency,
-ordering, auth, ports, and native-tier use (evidence 15).
+ordering, auth, ports, and native-tier use (evidence 15). The NATS side as built is
+spike-html-apps' record, "NATS over WebSocket, for spike-ai-pipeline"
+(https://github.com/JaimeStill/spike-html-apps/blob/main/context/README.md#nats-over-websocket-for-spike-ai-pipeline).
 '''
 
 [goals.capstone.data-intelligence.tasks.athena-mapping]
@@ -961,74 +1061,135 @@ docproc-onenote, run through the
 exec runner, since the docker runner needs the host's socket.
 '''
 
-# ── Reports and training ───────────────────────────────────────────────────────────────────
+# ── Sites ──────────────────────────────────────────────────────────────────────────────────
 
-[goals.status-reports]
+[goals.sites]
+name = "The Pages sites"
+summary = '''
+The workspace's GitHub Pages sites, native web built by Vite from Markdown
+(`standards-lab/context/sites.md`): the org site, standards-lab.github.io, at the origin root,
+holding the charter, the index of sites, and the site list every nav fetches; architecture and
+each code repository's docs/ guide as project sites under `/<repo>/`; and the icons layer, the
+documentation components layer, and the site SDK they build on, each released by tag. Planned
+last, after v1.middleware. Its sub-goals, sites.status-reports and sites.training, are early work
+the architect needs for leadership: they publish as standalone project sites under `/<repo>/`
+and wait on no `sites` task.
+'''
+context = ["standards-lab/context/sites.md"]
+
+[goals.sites.tasks.icons]
+name = "The icons layer"
+summary = "The layer beneath the components and the site SDK that ships Octicons, from spike-html-hosting-icons."
+
+[goals.sites.tasks.components]
+name = "The documentation components layer"
+summary = '''
+The sites' components on web-foundation, from spike-html-hosting-components, taking in the
+overlap sites.status-reports and sites.training prove between their own components.
+'''
+
+[goals.sites.tasks.sdk]
+name = "The site SDK"
+summary = '''
+The site SDK, released by tag with a template inside its release, from spike-html-hosting-sdk. It
+closes the gaps spike-html-go-wasm found and adds a nav menu at narrow widths with sub-navs
+(`sites.md`, "The shared layers").
+'''
+
+[goals.sites.tasks.org-site]
+name = "The org site"
+repos = ["standards-lab.github.io"]
+summary = '''
+standards-lab.github.io at the origin root: the charter, the index of sites, and the site list
+every nav fetches, from spike-html-hosting's org stand-in.
+'''
+
+[goals.sites.tasks.architecture-site]
+name = "The architecture site"
+repos = ["architecture"]
+summary = '''
+architecture as a project site, from spike-html-hosting-architecture. It repoints
+`architecture/context/README.md`, which names backlog.docs-site as the owner of site hosting, to
+this layout.
+'''
+
+[goals.sites.tasks.repository-sites]
+name = "The repository sites"
+summary = '''
+Each code repository's docs/ guide, written by v1.repository-docs, published as its project site
+in the shape of spike-html-hosting-sqlate, with the live Go demos each site chooses. Demo sites
+warm the worker on intent, share one deployed toolchain across the project sites, and build with
+`-buildvcs=false` (`sites.md`, "Live Go demos").
+'''
+
+[goals.sites.status-reports]
 name = "Status reports"
 root = "status-reports"
 repos = ["status-reports", "standards-lab"]
 remote = "https://github.com/standards-lab/status-reports.git"
 path = "~/architecture/status-reports"
 summary = '''
-The repository of status reports on the effort, a project site in the org's Pages topology.
-marathon sets it up and then steps back: the repository defines its own report layout,
-components, and conventions and a documented report workflow, and every report follows that
-workflow, not marathon tasks. The prose is the architect's: agents suggest revisions, through the
-editor, and make the supplements (diagrams, screenshots, demonstrations) and the components.
-Each report ends with "Explore it yourself", a guide prompt scoped to the report and built from
-a shared base guide, so a reader can dig deeper with an agent, as the coordinator's
-briefs/orientation.md does with interview.md. Starts in wave C. The first reports are backfills:
-~/architecture as it stands at the capstone's start (end of wave C) and an orientation to the
-capstone (start of wave D).
+The repository of status reports on the effort, a standalone project site under
+`/status-reports/`. marathon sets it up and then steps back: the repository defines its own
+report layout, components, and conventions and a documented report workflow, and every report
+follows that workflow, not marathon tasks. The prose is the architect's: agents suggest
+revisions, through the editor, and make the supplements (diagrams, screenshots, demonstrations)
+and the components. Each report ends with "Explore it yourself", a guide prompt scoped to the
+report and built from a shared base guide, so a reader can dig deeper with an agent, as the
+coordinator's briefs/orientation.md does with interview.md. Starts after v1.client.stack's
+`foundation` task, ahead of wave C. The first reports are backfills: ~/architecture as it stands
+at the capstone's start (end of wave C) and an orientation to the capstone (start of wave D).
 '''
 
-[goals.status-reports.tasks.layout]
+[goals.sites.status-reports.tasks.layout]
 name = "The report layout"
 summary = '''
-`init`, the standard report layout, its components on the foundation experiment.html's intake
-promotes, its conventions, the base exploration guide and per-report template, and the report
-workflow, with agent help planning reports. Takes in the coordinator's briefs/ and interview.md,
-which the org repository then drops; joins `order` and the catalog outside the exclusive group.
+`init`, the standard report layout, its components on web-foundation, its conventions, the base
+exploration guide and per-report template, and the report workflow, with agent help planning
+reports. Takes in the coordinator's briefs/ and interview.md, which the org repository then
+drops; joins `order` and the catalog outside the exclusive group.
 '''
 
-[goals.training]
+[goals.sites.training]
 name = "Training"
 summary = '''
 The standards-lab/training repository of training materials, which can host several curricula,
-at ~/architecture/training, published as a Pages site. Its first curriculum lays a short
-foundation, an orientation to what working through the Standards Lab architecture needs, then a
-guided path through the architecture that validates each layer the organization adopts. Each unit
-is a short sub-goal that lists the library repositories it builds against, so it holds them only
-while active, fixes what it finds, and runs their currency maintenance; a unit that locks
-exclusive-group libraries is staged only when the group is free. The prose is the architect's:
-agents suggest revisions, through the editor, and make the supplements and the components.
+at ~/architecture/training, published as a standalone project site under `/training/`. Its first
+curriculum lays a short foundation, an orientation to what working through the Standards Lab
+architecture needs, then a guided path through the architecture that validates each layer the
+organization adopts. Each unit is a short sub-goal, `sites.training.<layer>`, that lists the
+library repositories it builds against, so it holds them only while active, fixes what it finds,
+and runs their currency maintenance; a unit that locks exclusive-group libraries is staged only
+when the group is free. The prose is the architect's: agents suggest revisions, through the
+editor, and make the supplements and the components.
 '''
 
-[goals.training.foundation]
+[goals.sites.training.foundation]
 name = "The foundation"
 root = "training"
 repos = ["training", "standards-lab"]
 remote = "https://github.com/standards-lab/training.git"
 path = "~/architecture/training"
 summary = '''
-The training repository and the first curriculum's foundation. Starts in wave C and continues
-beside the capstone in wave D; it locks no library.
+The training repository and the first curriculum's foundation. Starts after v1.client.stack's
+`foundation` task, ahead of wave C: its setup and syllabus finish before the capstone, and its
+writing tasks run beside it in wave D. It locks no library.
 '''
 
-[goals.training.foundation.tasks.setup]
+[goals.sites.training.foundation.tasks.setup]
 name = "Setup"
 summary = '''
-`init`, the components on the foundation experiment.html's intake promotes, and the conventions;
-joins `order` and the catalog outside the exclusive group.
+`init`, the components on web-foundation, and the conventions; joins `order` and the catalog
+outside the exclusive group.
 '''
 
-[goals.training.foundation.tasks.syllabus]
+[goals.sites.training.foundation.tasks.syllabus]
 name = "The syllabus"
 summary = '''
 With agent help, the plan of the foundation and the architecture path, on four axes: dependency
 footprint, scope of capability, layer of reusability, and automation of testing and validation.
 Names each unit and the library repositories it builds against; the foundation's writing tasks
-and the `training.<layer>` sub-goals are written from it.
+and the `sites.training.<layer>` sub-goals are written from it.
 '''
 
 # ── experiment ─────────────────────────────────────────────────────────────────────────────
@@ -1281,35 +1442,6 @@ requirement; the README's answer; and the answer section for `ai-hosting.md`.
 '''
 proof = "The README's \"The answer\", and the answer section in the goal record's pending edits."
 
-[goals.experiment.html]
-name = "The web client experiments"
-summary = '''
-Six spikes, run one at a time, that settle the web client stack v1.client builds: the native
-baseline, the conventions the stack is written in, packaging and release by tag, the client
-application, the repositories' Pages sites and persistent artifacts, and live Go demos; then one
-intake. HTML is for persistent
-artifacts; workflow outputs and the context/ notes stay Markdown.
-'''
-context = [
-  "standards-lab/context/html-artifacts.md",
-  "standards-lab/context/web-client.md",
-]
-
-[goals.experiment.html.tasks.intake]
-name = "The web client intake"
-summary = '''
-Run by `marathon intake experiment.html` once all six spikes have their answers in
-`html-artifacts.md`. Decides whether the baseline graduates and where (the architecture layer or
-its own standards-lab repository); whether a web standard is founded, and with which pages; how
-v1.client packages its foundation and components and builds its client application; the Pages topology v1.client, v1.repository-docs, status-reports, and training build;
-whether the Pages sites embed live Go demos; and whether an external-client goal follows 1.0. It weighs spike-html-conventions'
-finding that spike-html-design ships each layer as a self-layered, `@import`-free, exported
-sheet (`html-artifacts.md`, "Experiment: spike-html-design"). status-reports and training each
-build components of their own on the foundation it promotes, and only overlap they prove moves
-into a shared documentation components layer (plan, 2026-11-09). It then archives the six spikes
-and runs before capstone.data-intelligence, whose UI builds on the stack it promotes.
-'''
-
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 
 [goals.retrieval]
@@ -1331,7 +1463,7 @@ v1.observability. From capstone.data-intelligence (plan, 2026-11-10).
 name = "The chunked upload protocol in the SDKs"
 summary = '''
 Moves the chunked upload protocol capstone-cerebro proves and capstone-athena reuses into
-go-web-sdk, its browser half into v1.client's sdk. After capstone.data-intelligence (plan,
+go-web-sdk, its browser half into web-app-sdk. After capstone.data-intelligence (plan,
 2026-11-10).
 '''
 
@@ -1409,8 +1541,9 @@ name = "Elemental layers beyond the app class"
 summary = '''
 The architect's raw direction: an app's binary runs on bare metal or is wrapped in a container,
 the runtime layer, and application-layer hierarchies sit beyond it, differentiated by the
-external services they connect to. Revisit when v1.deployment makes the container layer
-concrete.
+external services they connect to. A browser running a Go wasm build is another runtime layer
+(`standards-lab/context/sites.md`, "Live Go demos"). Revisit when v1.deployment makes the
+container layer concrete.
 '''
 
 [goals.graduation]
@@ -1489,17 +1622,28 @@ token in its URL.
 [goals.foundation-extension]
 name = "A foundation minor for the components' local patterns"
 summary = '''
-The architect's request during spike-html-apps' primitives task: a later foundation minor takes
-the patterns the components keep locally, staged from the "Foundation candidates" note in
-spike-html-apps-components' context. Among them are a control block-size token, status colour
-tokens, a disabled text-field look, a dark-aware `<progress>` track, a "keep whole" rule,
-ellipsis truncation, the scrolling-frame recipe, `formatJson`, and `formatBytes(0)`'s wording.
+A web-foundation minor that takes the patterns the components keep locally, the architect's
+request during spike-html-apps' primitives task, and the gaps the sites found: Settings and Help,
+glyph-button, sl-drawer, a page-layout sheet, an outline-offset token, and the help and menu
+chunks every site builds without requesting them (`standards-lab/context/web-client.md`,
+"Foundation candidates").
 '''
+context = ["standards-lab/context/web-client.md"]
+
+[goals.client-create]
+name = "A command that creates a client project"
+summary = '''
+A command that generates a project from web-app-sdk-template. Until it exists, the curl and tar
+command in the template's README serves Athena, the only consumer before the capstone. Its own
+planning decides whether it lives in web-tooling, run by `pnpm dlx` from a git spec, or is a Go
+CLI on go-cli-sdk.
+'''
+context = ["standards-lab/context/web-client.md"]
 
 [goals.screenshots-in-neovim]
 name = "Inline screenshots in a Neovim terminal"
 summary = '''
-An idea for a later spike-html-apps-tooling release: its screenshot command shows captures
-inline in a Neovim `:terminal` by sending kitty graphics through `nvim_ui_send` over `$NVIM` and
-printing icat's unicode placeholders (tooling, escalation 1).
+An idea for a later web-tooling release: its screenshot command shows captures inline in a
+Neovim `:terminal` by sending kitty graphics through `nvim_ui_send` over `$NVIM` and printing
+icat's unicode placeholders (spike-html-apps' tooling task, escalation 1).
 '''
