@@ -357,6 +357,36 @@ context = ["standards-lab/context/ai-strategy.md", "docproc/context/layers.md"]
 #   header; Embed batching; streaming Generate whose events Cerebro can relay. Concurrency bounds
 #   stay the caller's.
 
+# Candidates for a later go-ai minor release, from the infer task:
+# - a helper that gathers a Response's output text, which infer implements itself today;
+# - errors from `ai.New` that name the refused field. infer calls `ai.New` again with each
+#   setting on its own to find which one was refused;
+# - the retry policy's refusal, `base delay is above its most delay`, should say `max delay`;
+# - the idle-timeout error, `unexpected EOF: no bytes within the stream idle timeout (…): i/o
+#   timeout`, reads as a closed connection rather than a timeout;
+# - `StreamIdleTimeout` also bounds the wait for a stream's first bytes, so a reasoning model
+#   needs a bound longer than its time to first token. Document it, or bound the two waits
+#   separately;
+# - a `Native` clash is checked only on the exact wire name, so `{"max_tokens":64}` passes
+#   beside completions' `max_completion_tokens`.
+# From the format-profile plan (plan, 2026-11-18):
+# - `messages.Options.Version`, the `anthropic-version` a deployment needs (Bedrock's examples
+#   send 2023-06-01; pre-4.7 Claude keeps an older version), once a deployment here needs it;
+# - layout: one assistant-run grouping across the three encoders, one internal envelope
+#   seal/open, the duplicated helpers (`withStatus`, `itemID`, `emit`), the stream folds that
+#   mirror `protocol.Accumulator`, and the Responses stream letting the terminal response win
+#   over its done-item equality checks;
+# - Bedrock Converse: a binary event-stream reader (`application/vnd.amazon.eventstream`) on
+#   the standard library alone (`encoding/binary`, `hash/crc32`), after tau's adapter, behind
+#   format-conformance's `format.EventStream`; and a route derived from the request, since
+#   Converse puts the model in the path;
+# - unmodelled spec features: Message.phase, file input, a tool result's is_error and richer
+#   tool results, refusal stop_details, reasoning-summary stream events, annotations, logprobs,
+#   stop sequences, image detail `original`, and an error body's request_id;
+# - risks seen in the specs, not here: Messages effort none sends thinking disabled, which Opus
+#   5.5 refuses; the newest Claude models refuse a forced tool_choice; Foundry Model Inference's
+#   flat error body decodes to an empty message; Mistral takes `max_tokens`.
+
 [goals.v1.ai.client.tasks.design]
 name = "Design review of the client"
 summary = '''
@@ -388,19 +418,18 @@ summary = '''
 Fixes go-ai, from `tools/infer/v0.1.0`, wherever it is at fault in reading Azure AI Foundry's
 streams, at the root and never by a gateway transformation or a client-side workaround
 (architect, 2026-11-16). It first records raw streams straight from Foundry, chat and Responses,
-with the spike's `az_curl`, and confirms each cause against them and the OpenAI and Open Responses
-specs before changing go-ai: the Chat Completions decoder takes the reply id from the first chunk,
-which Azure sends with an empty id (`format/completions/decode.go`); the Responses decoder and the
-`protocol` accumulator refuse an output item added with content, as Azure adds gpt-5-mini's
-reasoning item (`format/responses/stream.go`, `protocol/accumulator.go`); and a Messages stream
-through the gateway to gpt-oss-120b at `--max-tokens 16` did not exit within 15 s, recorded from
-the gateway's translation and fixed in go-ai only if go-ai is at fault. The gateway's gaps
-(`incomplete_details.reason` of `max_tokens`, 0 input tokens on a translated Messages stream,
-audio in a Responses request on overflow) and the model differences (gpt-oss-120b's
-`tool_choice`, gpt-5-mini's `max_tokens` and effort `none`, gpt-audio-mini's text-only chat) stay
-as they are, the provider's error passed through (spike-model-gateway `docs/findings/priority.md`,
-"The tiers on Azure" and "Per alias"). acceptance waits on it; its brief is planned when it
-starts (plan, 2026-11-17).
+with go-ai's own record script over `AI_<ROLE>_BASE_URL` and `AI_<ROLE>_HEADER`, and confirms
+each cause against them and the OpenAI and Open Responses specs before changing go-ai: the Chat
+Completions decoder takes the reply id from the first chunk, which Azure sends with an empty id;
+the Responses decoder refuses a reasoning item added with its encrypted content, as Azure adds
+gpt-5-mini's; and completions also reads a top-level `usage.reasoning_tokens`. A Messages stream
+through the gateway to gpt-oss-120b at `--max-tokens 16` that didn't exit within 15 s was not
+go-ai's: the gateway's translated stream ended in message_stop, and go-ai ended on it. Both
+integration tiers read an optional `AI_<ROLE>_MODEL`, for an endpoint whose `/models` lists more
+than one model. The gateway's gaps and the model differences stay as they are, the provider's
+error passed through (spike-model-gateway `docs/findings/priority.md`). The task releases go-ai
+`v0.1.1` alone; the request side moves to the format-profile tasks (azure-streams r1q2, r1q4,
+r1q5; replan r1q1, r2q1, r2q2; plan, 2026-11-17).
 '''
 proof = '''
 The recorded Foundry streams decode as fixtures in go-ai's check, and go-ai's and infer's failing
@@ -408,15 +437,57 @@ stream tests pass rerun straight against Foundry, not through the rows-down over
 spike's Azure cap.
 '''
 
+[goals.v1.ai.client.tasks.format-conformance]
+name = "go-ai conforms to its formats' specs"
+summary = '''
+Fixes go-ai's departures from Chat Completions, Messages, and Open Responses: Messages' system
+placement, repeated message_delta, summary display, thinking tokens, and context-window reason;
+Open Responses' unknown items; and per-format token minimums. Adds the efforts minimal and max,
+parallel tool calls, the reply's ID and Model, and cached input tokens. Types every pre-send
+refusal as `format.UnsupportedError`, and decouples streaming from SSE through a declared
+`format.EventStream`, so a binary event stream can follow. No Azure requests and no release
+(plan, 2026-11-18).
+'''
+
+[goals.v1.ai.client.tasks.format-profiles]
+name = "go-ai's per-format profiles"
+summary = '''
+completions and messages take `Options` as responses does, each zero value the spec, with
+snake_case JSON names decoded strictly: refused efforts, no tool_choice required, and no
+allowed_tools on completions; resend reasoning text, refused efforts, and no allowed_tools on
+responses; refused efforts on messages. A declared gap is refused before sending as a declared
+`format.UnsupportedError`, except allowed_tools, which narrows to the allowed tools. Each declared
+gap is backed by one recorded 400 from the deployment it was seen on (Foundry, or the vLLM
+v0.34.0 rows); a gap that doesn't reproduce declares no field. One client per deployment,
+documented. Releases go-ai v0.2.0 within 15 Azure requests (plan, 2026-11-18).
+'''
+
+[goals.v1.ai.client.tasks.infer-profiles]
+name = "infer aligned with go-ai's format profiles"
+summary = '''
+Once all of go-ai's changes are in, moves infer to go-ai v0.2.0 and takes a deployment's profile
+as one JSON setting: `--profile` / `INFER_PROFILE`, and `AI_<ROLE>_PROFILE` in both tiers.
+infer's type switches on format types go: its formats table keeps only names, and its refusals
+read `format.UnsupportedError`. Reruns the Foundry selection deferred from azure-streams within 45
+Azure requests, and releases tools/infer; acceptance waits on it (plan, 2026-11-18).
+'''
+
 [goals.v1.ai.client.tasks.acceptance]
 name = "Acceptance of the client"
 summary = '''
-Reruns infer against set A and fixes what it finds, never redesigning. Proves retry against the
-live gateway's 429, 503, and Retry-After, so it waits on spike-model-gateway's `priority` task,
-which settles the gateway's final form and leaves the models stable before the client uses them
-again; it also waits on the `azure-streams` task; it then runs against agentgateway on gb10-2 and
-its on-demand 429 and 503 probes (spike-model-gateway `docs/findings/agentgateway.md`). The
-library task's release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17).
+Reruns infer against the workstations' vLLM endpoints (agent gb10-1:8000, vision gb10-2:8000,
+audio framework:8001 over chat, embedding framework:8002), directly and through the gateway on
+gb10-2, in the formats docinfer's endpoints use, and fixes what it finds, never redesigning. `mise
+run integration` runs go-ai's integration tier and then infer's against the endpoints each role's
+`AI_<ROLE>_BASE_URL` names, reaching the gateway with the credentials in `AI_<ROLE>_TOKEN` and
+`AI_<ROLE>_HEADER`; a run by hand sets the `INFER_` variables. Proves retry against the live
+gateway's 429, 503, and Retry-After (go-ai's `context/design.md`, finding 17; `ai-strategy.md`,
+"go-ai's name map and requests"), failing unless the gateway gave each reply and the client
+retried it, so it waits on spike-model-gateway's `priority` task, which settles the gateway's
+final form. It reruns infer at the release that aligns it with go-ai's format profiles, and
+spike-model-gateway's helpers, which pin `tools/infer/v0.1.0`, move to that release before
+acceptance's runs through the gateway; it waits on the `infer-profiles` task. The library task's
+release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17; 2026-11-18).
 '''
 
 [goals.v1.ai.processing]
