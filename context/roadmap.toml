@@ -35,8 +35,8 @@
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
 #   go-ai alone (plan, 2026-11-12).
-#   v1.client.stack starts here; sites.status-reports and sites.training.foundation start after
-#   its `foundation` task.
+#   v1.client.stack is active (plan, 2026-11-18, rooted in web-foundation); sites.status-reports
+#   and sites.training.foundation start after its `foundation` task.
 # - C: v1.ai's remaining sub-goals beside the rest of v1.client.stack. go-ai and docproc stay
 #   outside the exclusive group until C ends; then they join it. Then v1.data.extensions, the
 #   Postgres-extension strategy.
@@ -60,10 +60,10 @@ active = [
   "experiment.hosting.spike-model-gateway",
   "v1.ai.processing",
   "v1.ai.client",
+  "v1.client.stack",
 ]
 
 planned = [
-  "v1.client.stack",
   "sites.status-reports",
   "sites.training.foundation",
   "v1.ai.inference",
@@ -788,6 +788,7 @@ context = ["standards-lab/context/web-client.md"]
 
 [goals.v1.client.stack]
 name = "The client stack"
+root = "web-foundation"
 repos = [
   "web-tooling",
   "web-foundation",
@@ -801,9 +802,9 @@ web-foundation, web-components, web-app-sdk, and web-app-sdk-template. Each star
 v0.1.0, seeded by copy from its spike with provenance, and releases by a plain vX.Y.Z tag on a
 pack commit, cut by hand. go-web-sdk gains `NewClient`, and the architecture layer gains the
 draft web-elemental standard. The whole goal runs before the capstone, starting in wave B. Its
-repositories don't exist yet, so it is staged without them: its first `plan` creates them, adds
-them to `order` and the catalog, and sets its `root`. It holds go-web-sdk and the exclusive group
-only for its `newclient` task.
+first `plan` (2026-11-18) created the five repositories, added them to `order` and the catalog,
+and set its root, web-foundation. It holds go-web-sdk and the exclusive group only for its
+`newclient` task, and architecture only for its `standard` task.
 '''
 context = ["standards-lab/context/web-client.md"]
 
@@ -817,7 +818,10 @@ name = "web-tooling"
 repos = ["web-tooling"]
 summary = '''
 The browser-test and screenshot tooling the other repositories take by tag, from
-spike-html-apps-tooling, with a helper that runs a browser suite in a pinned font set.
+spike-html-apps-tooling at d77877b: the browser driver, the test server, the process helper, and
+the `web-screenshots` bin, with a helper, from spike-html-go-wasm, that runs a browser suite in a
+pinned DejaVu font set. Released as v0.1.0; kept lean, since web-foundation's browser tier needs it
+first.
 '''
 
 [goals.v1.client.stack.tasks.foundation]
@@ -834,8 +838,9 @@ releases.
 name = "The built-in color profiles"
 repos = ["web-foundation"]
 summary = '''
-Refines web-foundation's built-in color profiles from terminalcolors.com's palettes, checking
-each upstream license. A profile ships when it passes the conformance check, a new rule of 4.5:1
+Refines web-foundation's built-in color profiles from the palettes at
+https://terminalcolors.com/. The site states no license, so each palette's upstream license is
+checked before it is used. A profile ships when it passes the conformance check, a new rule of 4.5:1
 WCAG contrast, and the architect's review of its specimen pages.
 '''
 
