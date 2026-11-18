@@ -34,7 +34,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - A baseline catalog and a conformance suite.
 - The full source-control topology.
 - Documentation, diagram, and voice standards, and the Pages sites that serve the architecture
-  repository's and each repository's documentation (`goals.v1.client`, `web-client.md`).
+  repository's and each repository's documentation (`goals.sites`, `sites.md`).
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — worker and others — as a consumer earns them.
@@ -55,7 +55,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   citable by slug path, with every goal listed as `active`, `planned`, or `backlog`.
 - **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership.
   `../briefs/orientation.md` is the first, and the agent-interview prompt `../interview.md`
-  accompanies it. Both move to status-reports at its `layout` task.
+  accompanies it. Both move to sites.status-reports at its `layout` task.
 - **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
   — portable identity for every repository in the effort, with a per-machine local-directory
   map, the standards declarations, and a private annex in `../private/`. `../references.md`
@@ -94,10 +94,12 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
-- `html-artifacts.md` — HTML for human-facing artifacts: serving through Pages, the in-session
-  review loop, the native style baseline, and experiment.html's spikes and answers.
-- `web-client.md` — the web client strategy: the stack's layers and what each owns, its
-  consumers, where HTML is used, and the sequence from experiment.html to v1.client.
+- `web-client.md` — the web client stack: its repositories and what each owns, its conventions,
+  packaging and release, `NewClient`, the foundation's candidate additions, and the reference
+  client, for v1.client.
+- `sites.md` — the Pages sites: where HTML is used, the topology, serving and build, the layers
+  the sites share, the docs/ guides' conventions, and live Go demos, for `sites` and
+  v1.repository-docs.
 - `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
   interfaces across the stack, the cobra question, and the SDK and template plan.
 - `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as

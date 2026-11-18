@@ -207,6 +207,54 @@ infrastructure for agentic work. Answered yes, with a harness-session and a mode
 surface; experiment.harness's intake archives it. Its `model` client stands in for go-ai in
 spike-model-hosting.
 
+### spike-html-design
+Asked whether one tagged, native baseline of design facets (color, space, and type, each with
+swappable profiles) can be consumed by version, by git tag and by pinned CDN URL, and extended by
+other packages. Answered yes. Its v0.7.0 is the frozen reference for web-foundation's style
+baseline.
+
+### spike-html-conventions
+Asked which conventions the native web stack builds on. Answered with Node and pnpm, `.ts`
+released through a build, layer direction enforced by resolved file, Lit shadow components, a
+DOM-free unit tier and a browser tier on the raw DevTools pipe, and ESLint with Prettier. They are
+v1.client.stack's conventions (`context/web-client.md`).
+
+### spike-html-packages
+Asked how the stack's layers are packaged and released by tag. Answered with one repository per
+layer, each released by a plain `vX.Y.Z` tag on a pack commit, cut by hand. v1.client.stack's
+repositories release this way.
+
+### spike-html-packages-foundation, spike-html-packages-sdk, spike-html-packages-components
+spike-html-packages' layer repositories: the foundation, the application SDK, and the
+components, released by tag. spike-html-apps' layer repositories were copied from their tags.
+
+### spike-html-apps
+Asked what a client application on the stack looks like, and whether its layers hold when they
+compose the capstone's UI primitives live over a backend. Answered yes, in a pipeline app over a
+Go emulator and an external client over two services, served by a Go `NewClient`. Its layers seed
+v1.client.stack, and its app shape is v1.client.reference's.
+
+### spike-html-apps-foundation, spike-html-apps-components, spike-html-apps-sdk, spike-html-apps-noctis, spike-html-apps-tooling
+spike-html-apps' layer repositories: the foundation, the components, the application SDK, an
+extension color profile, and the browser-test and screenshot tooling. They are the references
+for web-foundation (from foundation v0.3.1), web-components, web-app-sdk, and web-tooling.
+
+### spike-html-hosting
+Asked what the repositories' Pages sites and the hosting of persistent artifacts look like as
+native web. Answered with an org site at the origin root and project sites under `/<repo>/`,
+built by Vite from Markdown through one site SDK and one documentation components layer. It is
+the reference for the `sites` goal (`context/sites.md`).
+
+### spike-html-hosting-components, spike-html-hosting-architecture, spike-html-hosting-sqlate, spike-html-hosting-sdk, spike-html-hosting-icons
+spike-html-hosting's layer and site repositories: the documentation components, the architecture
+and sqlate stand-in sites, the site SDK, and the icons layer. They are the references for the
+`sites` goal's tasks.
+
+### spike-html-go-wasm
+Asked whether a page can run workspace Go live in the browser through `GOOS=js` WebAssembly:
+library demos, handlers called in-process, and a Go playground. Answered yes, as prebuilt modules
+or as source compiled in the page; each site chooses its demos (`context/sites.md`).
+
 ### spike-model-hosting
 Asked what llama.cpp's Vulkan router on the Framework establishes for the self-hosted stack.
 Answered with a host-class profile, three consumers at once, tool-call reliability, a memory

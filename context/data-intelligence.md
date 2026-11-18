@@ -13,7 +13,7 @@ note holds what the capstone carries until they exist; the root's `init` takes t
 Two services and the model gateway beneath them ("Cerebro and Athena"): Cerebro, a processing
 service on go-ai's model client, docproc's extraction library, and docinfer's inference library,
 and Athena, a prototype
-client-facing service with a web UI on the web client stack experiment.html's intake promotes. It takes in messages, uploads, and streams; captures their
+client-facing service with a web UI on the web client stack v1.client.stack builds. It takes in messages, uploads, and streams; captures their
 metadata, extracts data by inference, and stores embeddings in PostgreSQL with pgvector for
 semantic search; and shows each stage as it runs. It came out of spike-ai-pipeline, which proved
 the client and processing layers and planned the capstone as its last step (`ai-strategy.md`,
@@ -70,7 +70,7 @@ serve any consumer, a harness among them.
   one Command; a large one through a chunked upload protocol: open a session, append chunks with
   offsets and digests, complete, and resume after a drop. Chunks wait in blob storage, so any
   replica takes any chunk. Cerebro proves the protocol shaped to graduate: once capstone-athena
-  reuses it for browser uploads, it moves to go-web-sdk, its browser half to v1.client's sdk
+  reuses it for browser uploads, it moves to go-web-sdk, its browser half to web-app-sdk
   (`chunked-upload-graduation`). A nested `client` module, tagged `client/vX`, holds the protocol
   types and the Go client; consumers import it, and Cerebro imports none of them.
 - **Results.** A document's results don't fit one event: NATS's default `max_payload` is 1 MB,
@@ -248,14 +248,14 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
 - **go-web-sdk:** the chunked upload primitive after graduation, and an SSE helper for Athena's
   chat.
 - **v1.data.extensions:** pgvector lives in capstone-athena only.
-- **v1.client:** resumable chunked upload, a stage timeline driven by the event protocol rather
+- **v1.client.stack:** resumable chunked upload, a stage timeline driven by the event protocol rather
   than hard-coded, and citations in the chat thread.
 - **graph-ergonomics:** both composition roots are written against its release.
 
 ## Gates
 
 The capstone runs in wave D of the roadmap (`roadmap.toml`, header), as the sole active goal
-apart from status-reports and training. Before it:
+apart from sites.status-reports and sites.training. Before it:
 
 - experiment.hosting's spike-model-layout and spike-model-gateway answer, and experiment.hosting's
   intake runs; v1.ai.hosting builds ai-hosting from it.
@@ -263,7 +263,7 @@ apart from status-reports and training. Before it:
   v1.ai.inference builds docinfer once go-ai's library releases, each closed by acceptance that
   reruns the real workloads: v1.ai.client's reruns infer against set A, v1.ai.processing's reruns
   `cmd/docproc` over ~/docs, as corpus.docs settles it, and v1.ai.inference reruns docinfer.
-- experiment.html's intake runs, and v1.client promotes the web client stack the UI builds on.
+- v1.client.stack builds the web client stack the UI builds on.
 - graph-ergonomics settles go-core's `graph` and `lifecycle`, and v1.data.extensions lands the
   Postgres-extension strategy.
 

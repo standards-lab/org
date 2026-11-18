@@ -59,16 +59,6 @@ order = [
 # The locations of repositories a goal names that aren't order keys: a spike's layer
 # repositories, beside the spike.
 [workspace.paths]
-spike-html-apps-foundation = "~/experiments/spike-html-apps-foundation"
-spike-html-apps-components = "~/experiments/spike-html-apps-components"
-spike-html-apps-sdk = "~/experiments/spike-html-apps-sdk"
-spike-html-apps-noctis = "~/experiments/spike-html-apps-noctis"
-spike-html-apps-tooling = "~/experiments/spike-html-apps-tooling"
-spike-html-hosting-components = "~/experiments/spike-html-hosting-components"
-spike-html-hosting-architecture = "~/experiments/spike-html-hosting-architecture"
-spike-html-hosting-sqlate = "~/experiments/spike-html-hosting-sqlate"
-spike-html-hosting-sdk = "~/experiments/spike-html-hosting-sdk"
-spike-html-hosting-icons = "~/experiments/spike-html-hosting-icons"
 spike-model-engines = "~/experiments/spike-model-engines"
 # The capstones (naming.md, "Capstones").
 capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
