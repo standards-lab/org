@@ -49,6 +49,16 @@ Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk
 `go-ai`, the model client (planned, v1.ai.client); and `go-web-service`, the reference web
 service (versionless until its 1.0).
 
+### web-elemental (preliminary)
+
+The draft web standard beside Go Elemental, with Lit as its one runtime dependency. It has no
+definition yet: v1.client.stack's `standard` task founds it in the architecture repository, adds
+its `[standards.web-elemental]` entry, and declares its members. Until then its direction is in
+[`context/web-client.md`, "Toward Web Elemental"](context/web-client.md#toward-web-elemental).
+Intended members, all planned (v1.client.stack): `web-tooling`, `web-foundation`,
+`web-components`, `web-app-sdk`, and `web-app-sdk-template`; the `standard` task settles which
+join.
+
 ## Effort repositories — Standards Lab
 
 ### claude-plugins
@@ -170,6 +180,36 @@ system tools, docproc-ooxml, docproc-mail, and docproc-onenote, are nested under
 each with its own toolchain and tagged `tools/<format>/v<version>`. Adjacent to the `go-elemental`
 standard, as `sqlate` is. Its references are spike-ai-pipeline-processing and the spike's three
 CLIs.
+
+### web-tooling
+The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
+test server, the process helper, the `web-screenshots` bin, and a pinned-font-set helper. Planned
+(v1.client.stack), copied from spike-html-apps-tooling. An intended member of the preliminary
+`web-elemental` standard (above).
+
+### web-foundation
+The native foundation: CSS and ES modules with no dependencies, holding the baseline sheets, the
+color, space, and type profiles, the tool sheets, the DOM helpers, the keys family, the theme
+preferences and menu, the profile conformance check, and the Intl formatters. Planned
+(v1.client.stack), copied from spike-html-apps-foundation v0.3.1; v1.client.stack's root. An
+intended member of the preliminary `web-elemental` standard (above).
+
+### web-components
+The Lit components with a shadow root, on web-foundation as a peer: the chat thread, composer,
+upload dropzone, stage timeline, and the rest of the application set. Planned (v1.client.stack),
+copied from spike-html-apps-components. An intended member of the preliminary `web-elemental`
+standard (above).
+
+### web-app-sdk
+The web application SDK: the router on URLPattern and the Navigation API, the API client, the
+token provider, the domain-service pattern, and the resumable event sequence with its
+NATS-over-WebSocket adapter. Planned (v1.client.stack), copied from spike-html-apps-sdk. An
+intended member of the preliminary `web-elemental` standard (above).
+
+### web-app-sdk-template
+The web client template, built embedded (served by go-web-sdk's `NewClient`) or external, in
+go-web-sdk-template's layout. Planned (v1.client.stack), copied from spike-html-apps' app. An
+intended member of the preliminary `web-elemental` standard (above).
 
 ## Experiments — archived spikes
 

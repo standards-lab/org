@@ -15,7 +15,8 @@ role = "coordinator"
 # .claude/marathon-architecture.toml beside this file.
 extensions = ["marathon-architecture"]
 # Workspace policy: at most one active goal touches the reference-architecture code
-# repositories at a time. Spikes and the harness run beside it.
+# repositories at a time. Spikes and the harness run beside it, and so do the web client
+# repositories (web-tooling through web-app-sdk-template), which stay outside the group.
 exclusive = [
   [
     "go-core",
@@ -53,6 +54,13 @@ order = [
     "go-web-sdk-template", # web service application template
     "go-cli-sdk-template", # CLI application template
   ],
+  "web-tooling",    # browser-test and screenshot tooling
+  "web-foundation", # native CSS and ES module foundation
+  [
+    "web-components", # Lit components on the foundation
+    "web-app-sdk",    # web application SDK on the foundation
+  ],
+  "web-app-sdk-template", # web client template, embedded through go-web-sdk's NewClient
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
