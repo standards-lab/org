@@ -61,6 +61,7 @@ active = [
   "v1.ai.processing",
   "v1.ai.client",
   "v1.client.stack",
+  "harness.optimization",
 ]
 
 planned = [
@@ -985,6 +986,71 @@ format, the routing mechanism, and which kinds of task may run locally, from exp
 spike-local-models result. Waits on experiment.harness's intake.
 '''
 context = ["standards-lab/context/ai-strategy.md"]
+
+[goals.v1.harness.tasks.door-scaled-review]
+name = "Touch 2 scaled by reversibility"
+repos = ["claude-plugins"]
+summary = '''
+Whether a two-way-door task whose blast radius stays inside a spike ships on a green check and
+the reviews, its session brief posted rather than accepted, while one-way doors keep touch 2
+(Brandon Thomas, "Let's Open Source the World"). It changes a pipeline invariant, so it waits
+for evidence from harness.optimization's verification artifacts.
+'''
+context = ["claude-plugins/context/harness-optimization.md"]
+
+# ── The harness ────────────────────────────────────────────────────────────────────────────
+
+[goals.harness]
+name = "The harness"
+summary = '''
+The workflow every session runs: marathon and its extensions, kept lean and checked.
+'''
+
+[goals.harness.optimization]
+name = "marathon optimized for context and effectiveness"
+root = "claude-plugins"
+repos = ["claude-plugins"]
+summary = '''
+marathon and the content it produces made smaller and checked rather than described, from Lauren
+Tan's "All Code Is Slop (Except Mine)" and Brandon Thomas's "Let's Open Source the World", on top
+of the Pocock practices marathon already adopted. Extensions declare a minimum marathon version.
+Nothing releases until the last task, which releases marathon and marathon-architecture together.
+'''
+context = ["claude-plugins/context/harness-optimization.md"]
+
+[goals.harness.optimization.tasks.version-floor]
+name = "Extensions declare a minimum marathon version"
+summary = '''
+The extension contract replaces "the version it targets" with the minimum version it requires: a
+later marathon is compatible unless its CHANGELOG marks an extension-contract change, and a
+release that makes one updates the affected extensions and bumps their floor in the same goal.
+marathon-architecture declares marathon >= 0.19.0. No release.
+'''
+proof = "The check passes, and the contract and marathon-architecture's declaration agree."
+
+[goals.harness.optimization.tasks.skill-footprint]
+name = "The skill's always-loaded set, explicit and budgeted"
+summary = "Explicit loading, Releasing and resume on demand, no repeated rules, a word budget in the check, and the profiles' comment rules."
+
+[goals.harness.optimization.tasks.content-budgets]
+name = "Produced content held to budgets by a check"
+summary = "A lint-context script for goal records, the manifest, and READMEs; Decisions pruned at SHIP; spike evidence in docs/; the capability map as a feature map."
+
+[goals.harness.optimization.tasks.retro-routes]
+name = "retro eliminates by design first"
+summary = "Elimination by design ahead of a check, check messages that name the fix, and tool-economy and instruction-trim routes."
+
+[goals.harness.optimization.tasks.evidence-artifacts]
+name = "Verification artifacts in the session brief"
+summary = "One artifact per Behavior in the session brief's Evidence, produced by the spec-reviewer."
+
+[goals.harness.optimization.tasks.comment-standard]
+name = "The comment near-ban in the architecture layer"
+summary = "Only package documentation and the reasons lint suppressions and pin holds require, with its enforcement. Needs architecture free of v1.ai.processing; a plan adds it to the goal's repos then."
+
+[goals.harness.optimization.tasks.release]
+name = "Release marathon and marathon-architecture"
+summary = "marathon 0.19.0 and marathon-architecture 0.4.0 with migration notes; the sync cleans the coordinator's roadmap and notes under lint-context."
 
 # ── Corpora ────────────────────────────────────────────────────────────────────────────────
 
