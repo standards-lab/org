@@ -596,7 +596,7 @@ now that go-ai has released at v0.3.0 (from v1.ai.client's sync).
 [goals.v1.ai.inference]
 name = "docinfer, the inference library"
 root = "docinfer"
-repos = ["docinfer"]
+repos = ["go-ai", "docinfer"]
 remote = "https://github.com/standards-lab/docinfer.git"
 path = "~/architecture/docinfer"
 summary = '''
@@ -619,7 +619,11 @@ docinfer, public under Apache-2.0 from a fresh `init`, placed it in the template
 `order`, and set up its tasks. Each module, the base, `postgres`, and `cmd/docinfer`, starts at
 v0.1.0 on its own tags, the base tagged before the modules that require it. docinfer's design note
 takes over the docinfer sections of docproc's `context/layers.md`, which retire at this goal's
-sync.
+sync. design (2026-11-19) wrote that note, docinfer's `context/design.md`, now the one home of its
+API: `outdir` is `cmd/docinfer`'s `internal/outdir`, not the base module's; the base module
+requires go-ai v0.4.0, which the go-ai task releases, and holds `docinfertest`, the suite every
+cache passes; `join`'s setting is `Request.WordsPerSecond`, with no default, as no library bound
+has one.
 '''
 context = [
   "standards-lab/context/ai-strategy.md",
@@ -639,23 +643,41 @@ sections, restated in go-ai v0.3.0's names. Settles the join of work in flight
 STANDARDS.md, and the task that releases each tag. No code (plan, 2026-11-19).
 '''
 
+[goals.v1.ai.inference.tasks.go-ai]
+name = "go-ai fixes at their root"
+repos = ["go-ai"]
+summary = '''
+What docinfer's design found missing in go-ai, fixed there rather than worked around (design,
+2026-11-19): exports v0.3.0's `internal/aitest` as `aitest`, the fake OpenAI-compatible endpoint
+docinfer's library, `cmd/docinfer`, `tools/infer`, and Cerebro's tests share, scriptable per
+request and holding requests until released; adds `(*protocol.Response).OutputText`, replacing
+go-ai's three private copies (`transcribe.go`, `tools/infer`'s `domain.go`, `docs/quick-start.md`);
+and adds `(*Client).TranscriptionMode()`, so a cache key reads the mode from the client. Tags
+v0.4.0, before docinfer's v0.1.0.
+'''
+
 [goals.v1.ai.inference.tasks.library]
 name = "The inference library"
 summary = '''
 docinfer's base module, its first slice copying the spike at 6a631f1 in one commit that the
-CHANGELOG cites: the root package's pipeline over go-ai's client with extraction, `Bounds`, the
-cache with its filesystem and memory implementations, batches as made, and docinfer's shapes at
-Version "1"; `chunk`; `join`, from spike-ai-pipeline-processing v0.9.0's audio join; and
-`internal/endpointtest`. Builds docinfer's CI with its Go module releases. Tags v0.1.0.
+CHANGELOG cites, then built to the design note on go-ai v0.4.0 (`OutputText`,
+`TranscriptionMode()`, `aitest`): the root package's pipeline with extraction, `Bounds`, the cache
+with its filesystem and memory implementations and `docinfertest`'s suite, golden keys and a golden
+chunk corpus, batches as made, and docinfer's shapes; its own claim table for work in flight, not
+golang.org/x/sync; no defaults, a value below 1 refused with `ErrRequest`; a window group ended by
+its audio plan record, its last window, or the end of the inputs; extraction tested against
+`aitest`; `chunk`; and `join`, from spike-ai-pipeline-processing v0.9.0's audio join. Builds
+docinfer's CI with its Go module releases. Tags v0.1.0, after go-ai v0.4.0.
 '''
 
 [goals.v1.ai.inference.tasks.job]
 name = "One job"
 summary = '''
 docinfer's `job` package: one job's dispatch, then inference, under the job's own context, over
-docproc's dispatcher and the pipeline. It checkpoints at the low watermark, `Done` counts outputs
-by part ID, and a content the store misses drops its part's index entry and stops the attempt as
-transient. Tags v0.2.0.
+docproc's dispatcher and the pipeline. `job.New` takes a `Config` and refuses a `CheckpointEvery`
+below 1. It checkpoints at the low watermark, `Done` counts outputs by part ID, a content the store
+misses drops its part's index entry and stops the attempt as transient, and it holds no output back
+until its part's event, the root's doc stating the consumer's contract. Tags v0.2.0.
 '''
 
 [goals.v1.ai.inference.tasks.postgres]
@@ -663,30 +685,34 @@ name = "The cache in PostgreSQL"
 summary = '''
 The nested `docinfer/postgres` module: `docinfer.Cache` in PostgreSQL over sqlate and
 sqlate/postgres, one row per key, a batch's `Get` in one query, and its migrations, which the host
-applies. It passes the suite the base module's caches pass, on scratch databases from
-sqlate/postgres/pgtest, with a compose PostgreSQL, a root go.work, and a CI integration job. Tags
-postgres/v0.1.0.
+applies. It passes `docinfertest`'s suite, the one the base module's caches pass, on scratch
+databases from sqlate/postgres/pgtest, with a compose PostgreSQL, the root go.work, and a CI
+integration job. Its first CHANGELOG entry says "new". Tags postgres/v0.1.0.
 '''
 
 [goals.v1.ai.inference.tasks.docinfer]
 name = "docinfer"
 summary = '''
-The nested `cmd/docinfer` module, from the spike's `cmd/docinfer`: it reads a `cmd/docproc` run
-directory at schema "2" through docproc's `rundir`, feeds `Pipeline.Run`, and writes its own
-directory at schema "2" in docinfer's shapes, with a `FileCache` under `results/` and `outdir`
-owning its atomic write. It builds its clients per endpoint over go-ai's `Client.Models`,
-transcribing over chat where an endpoint has no transcription route, and renders its report in
-the shape design settled (moved from v1.ai.processing's `reports`). Tags cmd/docinfer/v0.1.0.
+The nested `cmd/docinfer` module, from the spike's `cmd/docinfer`, started from go-cli-sdk-template
+`template/v0.3.0` on go-cli-sdk v0.4.0 and go-core v0.12.0, building the design note's C1–C24 and
+L4: it reads a `cmd/docproc` run directory at schema "2" through docproc's `rundir`, feeds
+`Pipeline.Run`, and writes its own directory at schema "2" (`outdir.json`, a `FileCache` under
+`results/`, `inferences.jsonl` and the chunk record appended per batch, the manifest's inputs and
+the relative docproc directory). Its configuration and clients are graph nodes over go-ai's
+`Client.Models`, each endpoint's transport shipping a `ResponseHeaderTimeout` and its client a
+`StreamIdleTimeout`, transcribing over chat where an endpoint has no transcription route. Its
+report is per run, one page per input content, every text whole (moved from v1.ai.processing's
+`reports`). Tags cmd/docinfer/v0.1.0.
 '''
 
 [goals.v1.ai.inference.tasks.acceptance]
 name = "Acceptance of docinfer"
 summary = '''
 Reruns `cmd/docinfer` over v1.ai.processing's accepted ~/docs run, and docinfer's model tiers, and
-fixes what it finds, never redesigning (moved from v1.ai.processing's `acceptance`). The spike's
-run is the baseline: 3,470 images, 1,254 windows, and 28,937 chunk lines in 6.0 h, with 0
-failures. Whether it runs through the gateway or straight against the workstations' rows is its
-own plan's.
+fixes what it finds, never redesigning (moved from v1.ai.processing's `acceptance`); it also
+exercises extraction against the live gateway. The spike's run is the baseline: 3,470 images,
+1,254 windows, and 28,937 chunk lines in 6.0 h, with 0 failures. Whether it runs through the
+gateway or straight against the workstations' rows is its own plan's.
 '''
 
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
@@ -1025,6 +1051,9 @@ Applications that bring the workspace's libraries together end to end, each a `c
 in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones").
 '''
 
+# For capstone.data-intelligence, the next goal to hold go-ai (v1.ai.inference's design,
+# 2026-11-19): `aitest` is go-ai's public API, which docinfer, go-ai's `tools/infer`, and Cerebro's
+# tests depend on, so a change to it is a breaking change to them.
 [goals.capstone.data-intelligence]
 name = "data-intelligence"
 root = "capstone-data-intelligence"
