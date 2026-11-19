@@ -56,7 +56,7 @@ definition yet: v1.client.stack's `standard` task founds it in the architecture 
 its `[standards.web-elemental]` entry, and declares its members. Until then its direction is in
 [`context/web-client.md`, "Toward Web Elemental"](context/web-client.md#toward-web-elemental).
 Intended members, all planned (v1.client.stack): `web-tooling`, `web-foundation`,
-`web-components`, `web-app-sdk`, and `web-app-sdk-template`; the `standard` task settles which
+`web-components`, `web-app-sdk`, and `webappgen`; the `standard` task settles which
 join.
 
 ## Effort repositories — Standards Lab
@@ -213,10 +213,12 @@ token provider, the domain-service pattern, and the resumable event sequence wit
 NATS-over-WebSocket adapter. Planned (v1.client.stack), copied from spike-html-apps-sdk. An
 intended member of the preliminary `web-elemental` standard (above).
 
-### web-app-sdk-template
-The web client template, built embedded (served by go-web-sdk's `NewClient`) or external, in
-go-web-sdk-template's layout. Planned (v1.client.stack), copied from spike-html-apps' app. An
-intended member of the preliminary `web-elemental` standard (above).
+### webappgen
+The web client CLI: `webappgen new <kind>` writes a project for each kind of app on the stack,
+from files embedded in its Go binary, released for Linux and macOS. Planned (v1.client.stack):
+the standalone kind first, then a new Go web service and an existing one, embedded and served by
+go-web-sdk's `NewClient`; its starter app is copied from spike-html-apps' app. Renamed from
+web-app-sdk-template. An intended member of the preliminary `web-elemental` standard (above).
 
 ## Experiments — archived spikes
 

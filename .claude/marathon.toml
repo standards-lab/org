@@ -16,7 +16,7 @@ role = "coordinator"
 extensions = ["marathon-architecture"]
 # Workspace policy: at most one active goal touches the reference-architecture code
 # repositories at a time. Spikes and the harness run beside it, and so do the web client
-# repositories (web-tooling through web-app-sdk-template), which stay outside the group.
+# repositories (web-tooling through webappgen), which stay outside the group.
 exclusive = [
   [
     "go-core",
@@ -61,7 +61,7 @@ order = [
     "web-components", # Lit components on the foundation
     "web-app-sdk",    # web application SDK on the foundation
   ],
-  "web-app-sdk-template", # web client template, embedded through go-web-sdk's NewClient
+  "webappgen",            # web client CLI: writes a project for each kind of app on the stack
   "go-web-service", # reference web service
   "architecture", # the architecture repository
 ]
