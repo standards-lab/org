@@ -122,7 +122,8 @@ remote = "https://github.com/standards-lab/web-app-sdk-template.git"
 
 # Experiments — archived spikes. A running spike is a sub-goal of its experiment in
 # context/roadmap.toml, with its remote and path there; the experiment's intake records it here.
-# A spike whose sync has landed while its experiment awaits intake is listed without archived.
+# A spike whose sync has landed while its experiment awaits intake, or whose archive a goal's sync
+# owns, is listed without archived.
 [repos.spike-sql-dsl]
 remote = "https://github.com/JaimeStill/spike-sql-dsl.git"
 archived = true
@@ -229,18 +230,22 @@ remote = "https://github.com/primer/octicons.git"
 
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
+archived = true
 
-# Owned by experiment.hosting until its intake: its spikes may change host/ through pull
-# requests, each citing its finding (context/ai-hosting.md, "Experiment: experiment.hosting").
+# vLLM superseded its llama.cpp answer; v1.ai.hosting's design reviews its host/, and the goal's
+# sync archives it.
 [repos.spike-model-engines]
 remote = "https://github.com/JaimeStill/spike-model-engines.git"
 
+# v1.ai.hosting's `upgrades` task rebuilds its convention on vLLM; the goal's sync archives it.
 [repos.spike-hosting-upgrades]
 remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 
 [repos.spike-model-layout]
 remote = "https://github.com/JaimeStill/spike-model-layout.git"
+archived = true
 
+# v1.ai.hosting's design reviews its gateway stack; the goal's sync archives it.
 [repos.spike-model-gateway]
 remote = "https://github.com/JaimeStill/spike-model-gateway.git"
 

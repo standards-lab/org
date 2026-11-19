@@ -224,7 +224,7 @@ A running spike is a sub-goal of its experiment, `experiment.<topic>.<spike>`, i
 `context/roadmap.toml`, which records its remote and local path; the experiment's intake records
 each spike here and archives its remote. A new spike follows the hosting convention in
 `.claude/marathon.toml`'s `[workspace.experiments]`. A spike whose sync has landed while its
-experiment awaits intake is listed here unarchived.
+experiment awaits intake, or whose archive a goal's sync owns, is listed here unarchived.
 
 ### spike-sql-dsl
 Asked whether the whole SQL-to-Go layer can run on authored SQL files instead of a Go statement
@@ -305,32 +305,33 @@ or as source compiled in the page; each site chooses its demos (`context/sites.m
 ### spike-model-hosting
 Asked what llama.cpp's Vulkan router on the Framework establishes for the self-hosted stack.
 Answered with a host-class profile, three consumers at once, tool-call reliability, a memory
-budget on unified memory, and a measurement method; experiment.hosting's intake archives it.
+budget on unified memory, and a measurement method.
 
 ### spike-model-engines
 Asked which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
 Answered llama.cpp in a container on both host classes, in ggml's CUDA image on the GB10s and its
-Vulkan image on the Framework.
-Its engine guides and `engines` suite are the source spike-ai-pipeline copied gb10-2's llama.cpp
-scripts from; experiment.hosting's intake archives it.
+Vulkan image on the Framework; vLLM superseded that answer on every workstation. Its `host/`
+suite, the hosts' vLLM rows and scripts, is the source v1.ai.hosting's design reviews, and
+v1.ai.hosting's sync archives it.
 
 ### spike-hosting-upgrades
-Asks what convention evaluates an upgrade to the hosting stack (hardware configuration, model
+Asked what convention evaluates an upgrade to the hosting stack (hardware configuration, model
 host, or models) from what others publish: a project-local Claude Code skill writes dated, cited
 reports of ranked upgrades, and anchors A and B verify each on our host. Answered with the
-survey-and-measure convention and its cadence; experiment.hosting's intake archives it.
+survey-and-measure convention and its cadence, which v1.ai.hosting rebuilds on vLLM;
+v1.ai.hosting's sync archives it.
 
 ### spike-model-layout
 Asked how models are placed across the memory pools of gb10-1, gb10-2 and the Framework, and what
 context and how many concurrent sessions each placed model holds. Answered with one model to a
 vLLM instance and one heavy purpose to a GPU: gb10-1 serves the agent, gb10-2 vision, and the
-Framework audio beside embedding; experiment.hosting's intake archives it.
+Framework audio beside embedding.
 
 ### spike-model-gateway
 Asked which gateway fronts the vLLM layout and how access to the model APIs is restricted without
 the tailnet. Answered with agentgateway v1.7.0 on gb10-2: purpose aliases on per-purpose base
 URLs, gateway-issued keys with priority, buckets, and budgets, and overflow to Azure AI Foundry for
-agent and vision only; experiment.hosting's intake archives it.
+agent and vision; v1.ai.hosting builds its gateway, and its sync archives it.
 
 ### spike-ai-pipeline
 Asked whether a Go model client and a message, document, and stream processing layer can carry a
@@ -418,8 +419,8 @@ lifecycle adapted from Herald. (Deferred to the later events/NATS layer.)
 ### personal-agents
 The architect's self-hosted model setup: a llama.cpp router on the Framework desktop (Strix Halo,
 Vulkan) driven by Pi over Tailscale, the `outpost` admin dispatcher, and a measured reference on
-model tiers, context sizing, and memory footprint. Read-only for experiment.hosting; archived once
-`ai-hosting` lands.
+model tiers, context sizing, and memory footprint. Read-only; v1.ai.hosting's sync archives it,
+with a forward link to `ai-hosting`.
 Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
 context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
 outpost's verb set.
@@ -427,5 +428,5 @@ outpost's verb set.
 ### dotfiles
 The architect's workstation configuration, including the two GB10s' setup: DGX OS host
 preparation as named, idempotent steps (`platforms/dgx/system-setup.sh`) and the QSFP link between
-them, with its measured bandwidth. Read-only for experiment.hosting.
+them, with its measured bandwidth. Read-only.
 Draw from: the scripted-step pattern; the QSFP link record.

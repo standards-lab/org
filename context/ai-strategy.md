@@ -5,8 +5,8 @@ The planned AI capability builds in four layers, each on the one below (architec
 experiments are ordered around the capstone, capstone.data-intelligence (`data-intelligence.md`;
 plan, 2026-11-09):
 
-- **experiment.hosting** (`ai-hosting.md`) settles layer 1, the self-hosted stack, before the
-  capstone.
+- **v1.ai.hosting** (`ai-hosting.md`) builds layer 1, the self-hosted stack that
+  experiment.hosting settled, before the capstone.
 - **v1.ai** builds the client and processing layers before the capstone, in go-ai, docproc, and
   docinfer, from spike-ai-pipeline's answer ("The client and processing layers").
 - **experiment.ocr**, after the capstone: spike-scanned-documents settles whether the document
@@ -25,7 +25,7 @@ reference.
 |---|---|---|
 | 1 Hosting | The machines that serve local models (the Framework desktop and the two GB10 workstations), covering four things: model selection and configuration, layout across the hardware, a convention for evaluating upgrades to the hardware, the engines, and the models, and a gateway that serves the pool as one service | `ai-hosting` (planned member repository), plus promoted architecture pages (`ai-hosting.md`) |
 | 2 Client | Go primitives over the engines' native APIs: chat with tools and reasoning, vision, embeddings, and transcription, with the wire format as a pluggable layer | `go-ai`, its model-client surface, through `v1.ai.client` (planned) |
-| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `docproc` and its system tools docproc-ooxml, docproc-mail, and docproc-onenote, through `v1.ai.processing`, and `docinfer`, through `v1.ai.inference`; experiment.hosting's intake takes in the model roles its application workloads use |
+| 3 Processing | Preparing messages, documents, and streams for native model capabilities, such as a PDF's pages through vision, whether the payload is a whole blob or a stream | `docproc` and its system tools docproc-ooxml, docproc-mail, and docproc-onenote, through `v1.ai.processing`, and `docinfer`, through `v1.ai.inference`; v1.ai.hosting serves the model roles its application workloads use |
 | 4 Harness | Agentic sessions driven from Go (go-ai's harness-session surface), and local models taking subagent work in Claude Code sessions; lowest priority | `go-ai`, and claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
 
 go-web-service's AI layer demonstrates the four layers (its capability map, "AI").
@@ -177,9 +177,10 @@ v1.ai.inference builds docinfer, held until go-ai's library releases.
   provider modules and the system tools under `tools/` don't move it. The adjacent-library rule
   and where a package's events live are already on the pages.
 
-Local models for application workloads have no sub-goal of their own. experiment.hosting's intake
-takes in set A's application-workload roles (vision with reasoning off, transcription, and
-embeddings) and decides whether hosting stays under v1.ai or becomes its own goal.
+Local models for application workloads have no sub-goal of their own. v1.ai.hosting serves set
+A's application-workload roles (vision with reasoning off, transcription, and embeddings), and
+set A's embedding model is under replacement by its `embedding` task (`ai-hosting.md`, "Set A's
+embedding model").
 
 Evidence 5 bears on the layering. docproc prepares long audio, cutting windows at silences and
 releasing the join, and the layer above transcribes it and owns the inference guards: Gemma 4 E4B
@@ -617,7 +618,7 @@ or stays a client of its own (architect, 2026-10-26).
 
 ## Experiment: spike-local-models
 
-**Question.** On the stack experiment.hosting settles (`ai-hosting.md`), how does a Claude Code
+**Question.** On the stack v1.ai.hosting builds (`ai-hosting.md`), how does a Claude Code
 session that stays on Anthropic models route subagent tasks to locally hosted models, and for
 which kinds of task is the output acceptable? It is harness-layer work at a later priority,
 run after spike-go-harness. Application workloads on local models are spike-ai-pipeline's
@@ -625,28 +626,24 @@ run after spike-go-harness. Application workloads on local models are spike-ai-p
 
 There are two candidates:
 
-- a gateway that routes a subagent profile's model name either to the local router or to
+- a gateway that routes a subagent profile's model name either to the self-hosted stack or to
   Anthropic
-- a tool, MCP server, or skill that offloads the work to `pi --print` or directly to llama.cpp
+- a tool, MCP server, or skill that offloads the work to `pi --print` or directly to a vLLM row
 
-The gateway candidate is the gateway spike-model-gateway settles, from agentgateway, LiteLLM, and
-Agent Router (`ai-hosting.md`, "spike-model-gateway").
-agentgateway's documented Claude Code integration points `ANTHROPIC_BASE_URL` at the gateway and
-maps request model names to providers, so it can stand in for a purpose-built router.
-agentgateway's documentation shows only a wildcard model sent to one backend,
-so the spike first proves the split this candidate depends on: in one configuration, a subagent
-profile's model name reaches the local router and the session's own model reaches Anthropic, with
-tool use, streaming, and thinking blocks intact on both paths. If experiment.hosting settles on
-no gateway, this candidate needs its own gateway in front of the session, which counts against it
-when it is compared with the tool candidate.
+The gateway candidate is agentgateway, the gateway that fronts the self-hosted stack
+(`ai-hosting.md`, "The gateway"). Its documented Claude Code integration points
+`ANTHROPIC_BASE_URL` at the gateway and maps request model names to providers, so it can stand in
+for a purpose-built router. Its documentation shows only a wildcard model sent to one backend, so
+the spike first proves the split this candidate depends on: in one configuration, a subagent
+profile's model name reaches the self-hosted stack and the session's own model reaches Anthropic, with
+tool use, streaming, and thinking blocks intact on both paths.
 
 `claude-plugins/context/tool-based-skills.md` holds the question the spike tests as open:
 whether structured, repetitive generation moves to a local model behind a schema-validated
 tool, and what would justify it.
 
 **Decision it changes.** `v1.harness.local-models`: the profile format, the routing
-mechanism, and which kinds of task may run locally. Whether `ai-hosting` includes a
-gateway is spike-model-gateway's decision; this spike routes through what it settles.
+mechanism, and which kinds of task may run locally.
 
 **Home.** `~/experiments/spike-local-models`, remote
 [JaimeStill/spike-local-models](https://github.com/JaimeStill/spike-local-models), set up by
@@ -655,8 +652,8 @@ gateway is spike-model-gateway's decision; this spike routes through what it set
 ## Constraint: model origin
 
 Models of Chinese origin are avoided where an alternative serves, because of the risk of
-censorship and of hidden behavior in their weights. The constraint binds experiment.hosting,
-experiment.ocr, experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
+censorship and of hidden behavior in their weights. The constraint binds experiment.ocr,
+experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative serves, and
 the choice records why. A model fine-tuned from a Chinese-origin base takes its base's origin,
 whoever publishes the fine-tune.
 
