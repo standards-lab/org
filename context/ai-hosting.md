@@ -3,7 +3,7 @@
 The hosting layer of the AI capability (`ai-strategy.md`) runs the machines that serve local
 models to the organization's consumers: Pi sessions, Claude Code subagents, go-ai, and the
 capstone's services. The hosts are the Framework desktop and the two GB10 workstations. The
-layer's planned home is a new workspace member repository, working name `ai-hosting`, which
+layer's home is the workspace member repository `ai-hosting`, which
 v1.ai.hosting builds from experiment.hosting's five spikes; its tasks are in `roadmap.toml`. This
 note holds the stack those spikes settled and what `ai-hosting` must specify.
 
@@ -157,6 +157,12 @@ host of the same class follows it:
 - the upgrade-evaluation convention and its skill, rebuilt on vLLM;
 - the admin tooling, after experiment.admin's intake.
 
+It runs as one command suite, `hosting <group> <verb>`, symlinked into `~/.local/bin` on each
+host. A command that differs by host class detects the class once and calls its own private
+function for that class. v1.ai.hosting builds the read-only operator commands (a row's status,
+its served model, its metrics, and GPU memory), and ai-hosting is the only hosting repository on
+the workstations (v1.ai.hosting's plan, 2026-11-19).
+
 The state of a particular host belongs nowhere in the workspace: once set up, a host needs little
 attention, and there is no instance repository, so the specification and instance split of
 `claude-plugins/context/tool-based-skills.md` has no instance half here.
@@ -255,21 +261,12 @@ install, update, service status and restart, models, metrics, and GPU and memory
 personal-agents' `outpost` is its baseline. It runs after capstone.data-intelligence and decides
 `ai-hosting`'s admin tooling ("Open for experiment.admin").
 
-## Open for v1.ai.hosting's design
-
-**The repository's name.** `ai-hosting` is the working name, and the `design` task settles it. The
-name:
-
-- names a facet the architecture standardizes, not one person's setup;
-- stands outside the five tiers, beside the harness repositories (`repository-topology.md`);
-- leaves room for adjacent concerns, such as a gateway, a retrieval store, or a chat UI, only if
-  the facet includes them.
-
 ## Open for experiment.admin
 
 **The admin tooling:**
 
-- **Name.** `outpost` names where the admin sits, not what the tool does.
+- **Name.** The suite's root command is `hosting` (v1.ai.hosting's plan, 2026-11-19); `outpost`
+  named where the admin sits, not what the tool does.
 - **Form.** Either keep the bash dispatcher, or write a Go CLI on go-cli-sdk, layered as
   specification, tooling, and skill (`claude-plugins/context/tool-based-skills.md`), with the
   profile schema as its contract. spike-host-admin builds the Go CLI, with outpost as its
