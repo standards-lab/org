@@ -34,8 +34,9 @@
 #   then experiment.hosting's intake. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) has finished, releasing go-ai v0.3.0.
-#   v1.client.stack is active (plan, 2026-11-18, rooted in web-foundation); its `foundation` task
-#   has shipped, so sites.status-reports is active and sites.training.foundation can start.
+#   v1.ai.inference (docinfer) is active after it (plan, 2026-11-18). v1.client.stack is active
+#   (plan, 2026-11-18, rooted in web-foundation); its `foundation` task has shipped, so
+#   sites.status-reports and sites.training.foundation can start.
 # - C: v1.ai's remaining sub-goals beside the rest of v1.client.stack. go-ai and docproc stay
 #   outside the exclusive group until C ends; then they join it. Then v1.data.extensions, the
 #   Postgres-extension strategy.
@@ -60,13 +61,13 @@ active = [
   "v1.ai.processing",
   "v1.client.stack",
   "harness.optimization",
-  "sites.status-reports",
+  "v1.ai.inference",
 ]
 
 planned = [
   "harness.adoption",
+  "sites.status-reports",
   "sites.training.foundation",
-  "v1.ai.inference",
   "corpus.docs",
   "v1.ai.hosting",
   "v1.data.extensions",
@@ -612,9 +613,8 @@ Meta keys, and one metadata-text function over `dispatch.Part` serves it, `cmd/d
 its file lines (`ContentType.Detected` leaves `dispatch`); docinfer's "1" states that it includes
 `dispatch`'s "1" (design, 2026-11-13). The nested `docinfer/postgres` module holds the cache in
 PostgreSQL over sqlate, requiring docinfer, sqlate, and sqlate/postgres; the nested
-`cmd/docinfer` module requires docinfer, docproc, go-ai, go-cli-sdk, and go-core. It holds until
-go-ai's library releases, taking the hold from v1.ai.processing's `docinfer` task: a session
-reaching it first stops and alerts the architect. docinfer joins `order` above docproc and go-ai
+`cmd/docinfer` module requires docinfer, docproc, go-ai, go-cli-sdk, and go-core. go-ai's
+library has released (v0.3.0, v1.ai.client's sync). docinfer joins `order` above docproc and go-ai
 at this sub-goal's first `plan`, as go-ai does; its tasks are set up then.
 '''
 context = [
