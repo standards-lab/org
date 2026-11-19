@@ -60,6 +60,7 @@ order = [
   ],
   "web-tooling",    # browser-test and screenshot tooling
   "web-foundation", # native CSS and ES module foundation
+  "web-icons",      # icons layer: Octicons as per-icon string modules and the marker fill
   [
     "web-components", # Lit components on the foundation
     "web-app-sdk",    # web application SDK on the foundation
