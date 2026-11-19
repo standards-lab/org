@@ -33,10 +33,9 @@
 # - B: spike-model-gateway (agentgateway done; then routing, priority, answer: plan, 2026-11-13);
 #   then experiment.hosting's intake. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
-#   v1.ai.hosting; v1.ai.client (go-ai) is active since docproc's `layers` task shipped, locking
-#   go-ai alone (plan, 2026-11-12).
-#   v1.client.stack is active (plan, 2026-11-18, rooted in web-foundation); sites.status-reports
-#   and sites.training.foundation start after its `foundation` task.
+#   v1.ai.hosting; v1.ai.client (go-ai) has finished, releasing go-ai v0.3.0.
+#   v1.client.stack is active (plan, 2026-11-18, rooted in web-foundation); its `foundation` task
+#   has shipped, so sites.status-reports is active and sites.training.foundation can start.
 # - C: v1.ai's remaining sub-goals beside the rest of v1.client.stack. go-ai and docproc stay
 #   outside the exclusive group until C ends; then they join it. Then v1.data.extensions, the
 #   Postgres-extension strategy.
@@ -59,14 +58,13 @@
 active = [
   "experiment.hosting.spike-model-gateway",
   "v1.ai.processing",
-  "v1.ai.client",
   "v1.client.stack",
   "harness.optimization",
+  "sites.status-reports",
 ]
 
 planned = [
   "harness.adoption",
-  "sites.status-reports",
   "sites.training.foundation",
   "v1.ai.inference",
   "corpus.docs",
@@ -286,7 +284,7 @@ evidence 10 (`data-intelligence.md`, "Evidence"), since no spike ran pgvector.
 name = "AI"
 summary = '''
 The capability builds in four layers, each on the one below: hosting (`ai-hosting`, through
-v1.ai.hosting), the Go model client (go-ai, through v1.ai.client), message, document, and stream
+v1.ai.hosting), the Go model client (go-ai), message, document, and stream
 processing (docproc, through v1.ai.processing, with the system tools it runs nested in it), and
 the harness (v1.harness.local-models), lowest priority. go-web-service's AI layer demonstrates
 them. docproc's `layers` task settles the signatures of every layer of Cerebro's stack first. Each
@@ -336,161 +334,6 @@ context = ["standards-lab/context/ai-hosting.md"]
 # beneath it"):
 # - Cerebro (bulk processing) and Athena (chat) are separate gateway consumers, each with a key
 #   and a budget; the gateway's 429 and queueing behave as go-ai's retry expects.
-
-[goals.v1.ai.client]
-name = "go-ai, the model client"
-root = "go-ai"
-repos = ["go-ai"]
-remote = "https://github.com/standards-lab/go-ai.git"
-path = "~/architecture/go-ai"
-summary = '''
-go-ai from spike-ai-pipeline-client. Its base module uses the standard library only and holds one
-Open Responses `protocol` and three wire-format packages, Chat Completions, Anthropic Messages, and
-Open Responses, the standard formats the model engines serve natively. Its convenience CLI,
-`infer`, lives in the nested module `tools/infer`. An infrastructure library: go-ai joins `order`
-beside go-storage and the catalog at this sub-goal's first `plan`, and `exclusive` after wave C.
-'''
-context = ["standards-lab/context/ai-strategy.md", "docproc/context/layers.md"]
-
-# For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
-# beneath it"):
-# - go-ai's first long-running service consumer: retry proven against the live gateway's 429,
-#   503, and Retry-After; per-call timeouts and cancellation by context; a per-consumer key
-#   header; Embed batching; streaming Generate whose events Cerebro can relay. Concurrency bounds
-#   stay the caller's.
-
-# Candidates for a later go-ai minor release, from the infer task:
-# - a helper that gathers a Response's output text, which infer implements itself today;
-# - errors from `ai.New` that name the refused field. infer calls `ai.New` again with each
-#   setting on its own to find which one was refused;
-# - the retry policy's refusal, `base delay is above its most delay`, should say `max delay`;
-# - the idle-timeout error, `unexpected EOF: no bytes within the stream idle timeout (…): i/o
-#   timeout`, reads as a closed connection rather than a timeout;
-# - `StreamIdleTimeout` also bounds the wait for a stream's first bytes, so a reasoning model
-#   needs a bound longer than its time to first token. Document it, or bound the two waits
-#   separately;
-# - a `Native` clash is checked only on the exact wire name, so `{"max_tokens":64}` passes
-#   beside completions' `max_completion_tokens`.
-# From the format-profile plan (plan, 2026-11-18):
-# - `messages.Options.Version`, the `anthropic-version` a deployment needs (Bedrock's examples
-#   send 2023-06-01; pre-4.7 Claude keeps an older version), once a deployment here needs it;
-# - layout: one assistant-run grouping across the three encoders, one internal envelope
-#   seal/open, the duplicated helpers (`withStatus`, `itemID`, `emit`), the stream folds that
-#   mirror `protocol.Accumulator`, and the Responses stream letting the terminal response win
-#   over its done-item equality checks;
-# - Bedrock Converse: a binary event-stream reader (`application/vnd.amazon.eventstream`) on
-#   the standard library alone (`encoding/binary`, `hash/crc32`), after tau's adapter, behind
-#   format-conformance's `format.EventStream`; and a route derived from the request, since
-#   Converse puts the model in the path;
-# - unmodelled spec features: Message.phase, file input, a tool result's is_error and richer
-#   tool results, refusal stop_details, reasoning-summary stream events, annotations, logprobs,
-#   stop sequences, image detail `original`, and an error body's request_id;
-# - risks seen in the specs, not here: Messages effort none sends thinking disabled, which Opus
-#   5.5 refuses; the newest Claude models refuse a forced tool_choice; Foundry Model Inference's
-#   flat error body decodes to an empty message; Mistral takes `max_tokens`.
-
-[goals.v1.ai.client.tasks.design]
-name = "Design review of the client"
-summary = '''
-Opens with a Fable 5.2 evaluation of spike-ai-pipeline-client for issues and simplifications,
-against the full architecture standards, docproc's `layers.md`, and Cerebro's requirements; then
-reviews it against the workspace and writes the review into the sub-goal's note; the later tasks
-build from it. Staged by a `plan` once docproc's `layers` task ships (plan, 2026-11-12).
-'''
-
-[goals.v1.ai.client.tasks.library]
-name = "The client library"
-summary = '''
-go-ai's base module: the client, the `protocol`, and the three wire-format packages, with a
-`/models` listing. spike-ai-pipeline's docinfer reads /models itself on net/http, since client
-v0.4.0 has none (docinfer r5 q5). The spike's CI trailed jdx/mise-action (v5.2.4, against v5.2.8)
-and taiki-e/create-gh-release-action (v1.11.0, against v1.12.0).
-'''
-
-[goals.v1.ai.client.tasks.infer]
-name = "The infer CLI"
-summary = '''
-`infer`, go-ai's convenience CLI in the nested module `tools/infer`, with the subcommands chat,
-embed, transcribe, and models.
-'''
-
-[goals.v1.ai.client.tasks.azure-streams]
-name = "go-ai reads Azure AI Foundry's streams"
-summary = '''
-Fixes go-ai, from `tools/infer/v0.1.0`, wherever it is at fault in reading Azure AI Foundry's
-streams, at the root and never by a gateway transformation or a client-side workaround
-(architect, 2026-11-16). It first records raw streams straight from Foundry, chat and Responses,
-with go-ai's own record script over `AI_<ROLE>_BASE_URL` and `AI_<ROLE>_HEADER`, and confirms
-each cause against them and the OpenAI and Open Responses specs before changing go-ai: the Chat
-Completions decoder takes the reply id from the first chunk, which Azure sends with an empty id;
-the Responses decoder refuses a reasoning item added with its encrypted content, as Azure adds
-gpt-5-mini's; and completions also reads a top-level `usage.reasoning_tokens`. A Messages stream
-through the gateway to gpt-oss-120b at `--max-tokens 16` that didn't exit within 15 s was not
-go-ai's: the gateway's translated stream ended in message_stop, and go-ai ended on it. Both
-integration tiers read an optional `AI_<ROLE>_MODEL`, for an endpoint whose `/models` lists more
-than one model. The gateway's gaps and the model differences stay as they are, the provider's
-error passed through (spike-model-gateway `docs/findings/priority.md`). The task releases go-ai
-`v0.1.1` alone; the request side moves to the format-profile tasks (azure-streams r1q2, r1q4,
-r1q5; replan r1q1, r2q1, r2q2; plan, 2026-11-17).
-'''
-proof = '''
-The recorded Foundry streams decode as fixtures in go-ai's check, and go-ai's and infer's failing
-stream tests pass rerun straight against Foundry, not through the rows-down overlay, within the
-spike's Azure cap.
-'''
-
-[goals.v1.ai.client.tasks.format-conformance]
-name = "go-ai conforms to its formats' specs"
-summary = '''
-Fixes go-ai's departures from Chat Completions, Messages, and Open Responses: Messages' system
-placement, repeated message_delta, summary display, thinking tokens, and context-window reason;
-Open Responses' unknown items; and per-format token minimums. Adds the efforts minimal and max,
-parallel tool calls, the reply's ID and Model, and cached input tokens. Types every pre-send
-refusal as `format.UnsupportedError`, and decouples streaming from SSE through a declared
-`format.EventStream`, so a binary event stream can follow. No Azure requests and no release
-(plan, 2026-11-18).
-'''
-
-[goals.v1.ai.client.tasks.format-profiles]
-name = "go-ai's per-format profiles"
-summary = '''
-completions and messages take `Options` as responses does, each zero value the spec, with
-snake_case JSON names decoded strictly: refused efforts, no tool_choice required, and no
-allowed_tools on completions; resend reasoning text, refused efforts, and no allowed_tools on
-responses; refused efforts on messages. A declared gap is refused before sending as a declared
-`format.UnsupportedError`, except allowed_tools, which narrows to the allowed tools. Each declared
-gap is backed by one recorded 400 from the deployment it was seen on (Foundry, or the vLLM
-v0.34.0 rows); a gap that doesn't reproduce declares no field. One client per deployment,
-documented. Releases go-ai v0.2.0 within 15 Azure requests (plan, 2026-11-18).
-'''
-
-[goals.v1.ai.client.tasks.infer-profiles]
-name = "infer aligned with go-ai's format profiles"
-summary = '''
-Once all of go-ai's changes are in, moves infer to go-ai v0.2.0 and takes a deployment's profile
-as one JSON setting: `--profile` / `INFER_PROFILE`, and `AI_<ROLE>_PROFILE` in both tiers.
-infer's type switches on format types go: its formats table keeps only names, and its refusals
-read `format.UnsupportedError`. Reruns the Foundry selection deferred from azure-streams within 45
-Azure requests, and releases tools/infer; acceptance waits on it (plan, 2026-11-18).
-'''
-
-[goals.v1.ai.client.tasks.acceptance]
-name = "Acceptance of the client"
-summary = '''
-Reruns infer against the workstations' vLLM endpoints (agent gb10-1:8000, vision gb10-2:8000,
-audio framework:8001 over chat, embedding framework:8002), directly and through the gateway on
-gb10-2, in the formats docinfer's endpoints use, and fixes what it finds, never redesigning. `mise
-run integration` runs go-ai's integration tier and then infer's against the endpoints each role's
-`AI_<ROLE>_BASE_URL` names, reaching the gateway with the credentials in `AI_<ROLE>_TOKEN` and
-`AI_<ROLE>_HEADER`; a run by hand sets the `INFER_` variables. Proves retry against the live
-gateway's 429, 503, and Retry-After (go-ai's `context/design.md`, finding 17; `ai-strategy.md`,
-"go-ai's name map and requests"), failing unless the gateway gave each reply and the client
-retried it, so it waits on spike-model-gateway's `priority` task, which settles the gateway's
-final form. It reruns infer at the release that aligns it with go-ai's format profiles, and
-spike-model-gateway's helpers, which pin `tools/infer/v0.1.0`, move to that release before
-acceptance's runs through the gateway; it waits on the `infer-profiles` task. The library task's
-release doesn't wait (plan, 2026-11-12; 2026-11-13; 2026-11-17; 2026-11-18).
-'''
 
 [goals.v1.ai.processing]
 name = "docproc, the processing library and its system tools"
@@ -742,6 +585,13 @@ whether audio that fits in one request goes unsplit (`ai-strategy.md`, evidence 
 reruns move to v1.ai.inference.
 '''
 
+[goals.v1.ai.processing.tasks.go-ai-row]
+name = "go-ai in the Go Elemental infrastructure table"
+summary = '''
+Adds a go-ai row to the infrastructure table of architecture's `standards/go-elemental/README.md`,
+now that go-ai has released at v0.3.0 (from v1.ai.client's sync).
+'''
+
 [goals.v1.ai.inference]
 name = "docinfer, the inference library"
 root = "docinfer"
@@ -778,6 +628,13 @@ context = [
 #   cache) lives in docinfer, which calls go-ai directly; results come out in batches as made;
 #   the cache behind an interface Cerebro backs with PostgreSQL through `docinfer/postgres`;
 #   stable exported event shapes; cancellation per job.
+
+# From v1.ai.client's library task: docinfer transcribes through the transcription route,
+# go-ai's default `TranscribeRoute`, which the workstations' audio endpoint (vLLM 0.34.0
+# serving google/gemma-4-E4B-it as `audio` at framework:8001) doesn't serve. Against the workstations,
+# docinfer needs go-ai's `Options.TranscriptionMode` set to `TranscribeChat`, through Chat
+# Completions; a chat-mode reply that isn't completed returns `*ai.IncompleteTranscriptError`
+# (`ai-hosting.md`, "The audio role keeps Gemma 4 E4B and transcribes over chat").
 
 [goals.v1.client]
 name = "The web client"
@@ -1606,6 +1463,18 @@ TensorZero archived); the gateway document, which carries the hardening of dot-s
 requirement; the README's answer; and the answer section for `ai-hosting.md`.
 '''
 proof = "The README's \"The answer\", and the answer section in the goal record's pending edits."
+
+[goals.experiment.hosting.spike-model-gateway.tasks.max-tokens-note]
+name = "The `--max-tokens 16` hang in the priority findings"
+summary = '''
+Adds to the note in `docs/findings/priority.md` on the hang at `--max-tokens 16` (from
+v1.ai.client's sync): rerun through rows-down on 2026-11-17, the translated Messages stream ended
+in message_stop within 1.3 s and go-ai ended on it, so the 15 s stall wasn't go-ai's. Azure's
+reply carried `azureai-fe-is-streaming: False`, which suggests the gateway sends Azure an
+unstreamed Chat Completions request and builds the Messages stream from the whole reply, so a
+longer reply stalls until Azure finishes. The translated stream's message_start reports 0 input
+tokens, and its message_delta reports the real count (go-ai v1.ai.client, azure-streams).
+'''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
 

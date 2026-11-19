@@ -24,10 +24,14 @@ Framework desktop:
   It binds only to the tailnet, and Tailscale's device authentication is the access boundary on
   the dev workstations; production has no tailnet ("Experiment: experiment.hosting",
   "Production"). spike-model-hosting's systemd router, `llama-router`, was retired on 2026-10-29.
-- **Models**: set A, on the 112 GiB pool: gpt-oss-120b MXFP4, on four slots sharing a unified KV
-  cache at 131072 context; Google's Gemma 4 26B-A4B QAT Q4_0, with vision; gemma-4-E4B Q8_0, with
-  audio; and granite-embedding-english-r2 BF16, for embeddings. Loaded, the four hold 92.1 GiB of
-  GTT.
+- **Models**: set A, each model in its own vLLM v0.34.0 instance, served under its role's alias:
+  the agent, `openai/gpt-oss-120b` as `agent`, at gb10-1:8000; vision,
+  `nvidia/Gemma-4-26B-A4B-NVFP4` as `vision`, at gb10-2:8000; audio, `google/gemma-4-E4B-it` as
+  `audio`, at framework:8001; and embedding, `ibm-granite/granite-embedding-english-r2` as
+  `embedding`, at framework:8002 ("Answer · experiment.hosting.spike-model-layout"; v1.ai.client's
+  format-profiles task). The answers below that measure set A on llama.cpp measured its earlier
+  form, the same roles as GGUFs: gpt-oss-120b MXFP4, Google's Gemma 4 26B-A4B QAT Q4_0,
+  gemma-4-E4B Q8_0, and granite-embedding-english-r2 BF16.
 - **Client**: Pi reaches the router directly through `LLAMA_BASE_URL`.
 
 Its `reference/` directory holds the measured method:
@@ -134,16 +138,39 @@ preset; spike-ai-pipeline's repository stays untouched. After spike-model-gatewa
 capstone.data-intelligence's design measurements and build, and then to experiment.ocr (plan,
 2026-11-09).
 
-**gb10-2 serves vision alone** on vLLM v0.33.0 (`gemma-4-26B-A4B-NVFP4-vision-gb10`) from
+**gb10-2 serves vision alone** on vLLM v0.34.0, as `vision` (`gemma-4-26B-A4B-NVFP4-vision-gb10`) from
 spike-model-engines' engines suite, and no workstation runs llama.cpp (spike-model-layout
 `docs/layout.md`). spike-ai-pipeline's `llama.env` and `host-update` are stale. spike-model-engines'
 shared preset keeps two keys, for every host, in its section for Google's Gemma 4 26B-A4B QAT Q4_0
-(google/gemma-4-26B-A4B-it-qat-q4_0-gguf, with its own projector), which set A names in place of
-ggml-org's post-training Q4_0, since that fails the quantization floor:
+(google/gemma-4-26B-A4B-it-qat-q4_0-gguf, with its own projector), which set A served on
+llama.cpp in place of ggml-org's post-training Q4_0, since that fails the quantization floor:
 
 - `ub = 1120`, since llama.cpp caps a non-causal image's tokens at n_ubatch (default 512) where
   the model allows 1120, at a cost of 800 MiB.
 - `image-min-tokens = 560`, so a small image of dense text gets enough tokens to be read.
+
+**The audio role keeps Gemma 4 E4B and transcribes over chat** (architect, 2026-11-12).
+google/gemma-4-E4B-it serves more than speech to text, so it stays the audio model. vLLM serves
+`/v1/audio/transcriptions` only for a model that implements its transcription interface,
+`SupportsTranscription`, and `Gemma4ForConditionalGeneration` doesn't, at v0.33.0 or on main. The
+workstations therefore transcribe over chat: go-ai's `TranscribeChat` sends the clip as input
+audio in a Chat Completions request to framework:8001. vLLM 0.33.0 also refuses Chat
+Completions' `allowed_tools` tool choice with a 400, and answers Open Responses' as `auto`
+(go-ai's `context/design.md`, finding 42).
+
+**On vLLM 0.33.0, gpt-oss-120b refuses reasoning effort `none`, and Gemma 4 26B-A4B honors
+it** (v1.ai.client's infer task, 2026-11-13). gpt-oss-120b answers effort `none` with a 400 in
+Chat Completions ("Harmony does not support reasoning_effort='none'") and in Open Responses.
+Through Messages, vLLM ignores `thinking: {"type":"disabled"}`, and gpt-oss-120b still reasons.
+`nvidia/Gemma-4-26B-A4B-NVFP4` honors `none` in all three formats, so infer's integration tier
+tests effort `none` on vision.
+
+**On vLLM 0.34.0, gpt-oss-120b refuses more reasoning efforts** (v1.ai.client's
+format-profiles task, 2026-11-18). It answers with a 400 for `none`, `minimal`, `xhigh`, and
+`max` in Chat Completions, and for `none` and `xhigh` in Open Responses, where 0.33.0 refused
+`none` alone. Through Messages it refuses `xhigh` and `max` with a 400, and still reasons under
+`thinking: {"type":"disabled"}`. It takes `low`, `medium`, and `high` in all three. go-ai
+declares these gaps in each format's profile (go-ai's `docs/concepts.md`, "Profiles").
 
 **Every host lets a container bind its Tailscale address before Tailscale is up.** A container
 that publishes a port on the host's Tailscale address races Tailscale at boot: docker's start
@@ -356,8 +383,8 @@ memory than SM121 has, and vLLM issue #60847 reports FLASH_ATTN's head size unsu
 and FLASHINFER without encoder-only attention; the fixes #60631, #60848, and #60942 are open and
 unmerged. llama.cpp serves it. granite-embedding-english-r2 (IBM, Apache-2.0, BF16) serves on both
 engines (spike-model-engines, `docs/findings/bench-gb10-container.md`, "Embeddings" and "Engine
-limits"). v1.ai.hosting and the goals that serve set A make the change. gb10-2 serves
-granite-embedding-english-r2 BF16 from llama.cpp (spike-ai-pipeline, client-core).
+limits"). Set A's embedding model is `ibm-granite/granite-embedding-english-r2`, served by vLLM
+v0.34.0 as `embedding` at framework:8002 ("Answer · experiment.hosting.spike-model-layout").
 
 ## Answers · experiment.hosting
 
@@ -723,7 +750,8 @@ Gaps in the answer:
   console, and can't be rebooted remotely.
 - The FP8 row's compiling start dipped under gb10-1's floor (11.39 GiB for 21 s); a start with the
   compile cache warm stayed above it.
-- vLLM v0.34.0 was unreleased, so every host stays on v0.33.0, unmeasured on v0.34.
+- vLLM v0.34.0 was unreleased during the spike, so the layout was measured on v0.33.0; the hosts
+  now run v0.34.0, on which the layout is unmeasured.
 - Vision's load from streamed video is unmeasured: every vision cell sent image questions.
 - Sessions of 131,072 tokens are computed from the KV cache, not run; the deepest measured were 8
   concurrent 65,603-token requests, held on both agent rows.
@@ -781,11 +809,12 @@ The hosts and the coordinator's notes:
   the GB10s' and the Framework's extras with `hf cache rm`, and vllm-layout removed set A's GGUFs
   and the BF16 26B-A4B (spike-model-layout `docs/findings/framework.md`, A;
   `docs/findings/vllm-layout.md`, G.4 and H).
-- **vLLM v0.34.** v0.34.0 was not released when vllm-layout's BUILD started (GitHub's latest was
-  v0.33.0, with tags v0.34.0rc0 to rc2 only), so every host stays on v0.33.0. v0.34 carries the
-  GB10 weight-loading fix (#58868), which bears on gb10-1's 437 s and gb10-2's 128 s weight reads
-  after a reboot, and the extensible KV cache (spike-model-layout `docs/findings/vllm-layout.md`,
-  A.2 and N.6).
+- **vLLM v0.34.** Every vLLM row runs v0.34.0 (`GET /version`, 2026-11-18), serving its model
+  under its role's alias, `agent`, `vision`, `audio`, or `embedding`; a request naming the model,
+  such as `openai/gpt-oss-120b`, gets a 404. v0.34 carries the GB10 weight-loading fix (#58868),
+  which bears on gb10-1's 437 s and gb10-2's 128 s weight reads after a reboot, and the
+  extensible KV cache (spike-model-layout `docs/findings/vllm-layout.md`, A.2 and N.6). The
+  layout's measurements are v0.33.0's (v1.ai.client's format-profiles task).
 - **The agent's FP8 KV.** The agent's FP8 KV runs uncalibrated at scale 1.0. The accuracy check
   found no significant loss against BF16, but GPQA diamond's 198 questions put the paired
   difference's 95% interval at −10.7 to +1.6 points, so a loss of up to about 10 points isn't
