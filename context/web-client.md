@@ -163,12 +163,13 @@ rules, and its validation.
 
 The backlog goal `foundation-extension` is a web-foundation minor that takes these:
 
-- From the sites: Settings and Help as foundation changes (the theme menu's fixed heading and
-  T to save, the keys help's built-in settings), so the components stop rebuilding them as
-  `sl-settings` and `sl-shortcuts`; a pattern page for the keyboard-shortcut dialog, with Settings
-  and Help its instances; `glyph-button` as a control; `sl-drawer` with its Close glyph passed
-  through a slot and a modal-only mode; a page-layout sheet (gutter, section spacing, and named
-  content and full lines); and an `outline-offset` token. `preferences.js` and `keys.js` import
+- From the sites: `sl-drawer` with its Close glyph passed through a slot and a modal-only mode;
+  and an `outline-offset` token. Settings and Help as foundation changes (the theme menu's fixed
+  heading and T to save, the keys help's built-in settings, so the components stop rebuilding them
+  as `sl-settings` and `sl-shortcuts`), with a pattern page for the keyboard-shortcut dialog,
+  `glyph-button` as a control, and a page-layout sheet (gutter, section spacing, and named content
+  and full lines) moved to v1.client.stack's `foundation-settings` task, ahead of `template`
+  (architect, 2026-11-19), so webappgen's starter builds on them. `preferences.js` and `keys.js` import
   `theme-menu.js` and `keys-help.js` dynamically, so every site builds both chunks without
   requesting them.
 - From the components,
