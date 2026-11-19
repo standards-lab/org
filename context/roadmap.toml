@@ -1521,17 +1521,14 @@ summary = '''
 The workspace's GitHub Pages sites, native web built by Vite from Markdown
 (`standards-lab/context/sites.md`): the org site, standards-lab.github.io, at the origin root,
 holding the charter, the index of sites, and the site list every nav fetches; architecture and
-each code repository's docs/ guide as project sites under `/<repo>/`; and the icons layer, the
-documentation components layer, and the site SDK they build on, each released by tag. Planned
+each code repository's docs/ guide as project sites under `/<repo>/`; and the documentation
+components layer and the site SDK they build on, each released by tag, on the client stack's
+layers, web-icons among them. Planned
 last, after v1.middleware. Its sub-goals, sites.status-reports and sites.training, are early work
 the architect needs for leadership: they publish as standalone project sites under `/<repo>/`
 and wait on no `sites` task.
 '''
 context = ["standards-lab/context/sites.md"]
-
-[goals.sites.tasks.icons]
-name = "The icons layer"
-summary = "The layer beneath the components and the site SDK that ships Octicons, from spike-html-hosting-icons."
 
 [goals.sites.tasks.components]
 name = "The documentation components layer"
