@@ -96,6 +96,12 @@ remote = "https://github.com/standards-lab/blobfs.git"
 [repos.docproc]
 remote = "https://github.com/standards-lab/docproc.git"
 
+# docinfer is adjacent to the standard, as sqlate is: the inference library above
+# go-ai's tier, with its PostgreSQL cache and its command nested as modules, so its
+# entry declares no standard.
+[repos.docinfer]
+remote = "https://github.com/standards-lab/docinfer.git"
+
 # The web client stack (v1.client.stack). Each is an intended member of the draft
 # web-elemental standard (references.md, "web-elemental (preliminary)"); its entry
 # declares standard = "web-elemental" once v1.client.stack's `standard` task founds it.

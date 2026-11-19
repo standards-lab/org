@@ -53,6 +53,7 @@ order = [
   [
     "go-web-sdk-template", # web service application template
     "go-cli-sdk-template", # CLI application template
+    "docinfer",            # inference library above go-ai's tier, adjacent to the standard; joins `exclusive` after wave C
   ],
   "web-tooling",    # browser-test and screenshot tooling
   "web-foundation", # native CSS and ES module foundation

@@ -181,6 +181,13 @@ each with its own toolchain and tagged `tools/<format>/v<version>`. Adjacent to 
 standard, as `sqlate` is. Its references are spike-ai-pipeline-processing and the spike's three
 CLIs.
 
+### docinfer
+The inference library, planned (v1.ai.inference): above go-ai's tier, it runs vision,
+transcription, extraction, chunking, and embedding over docproc's dispatched parts through go-ai,
+with a result cache behind an interface. Its PostgreSQL cache, `docinfer/postgres`, and its
+command, `cmd/docinfer`, are nested modules, each tagged on its own. Adjacent to the `go-elemental`
+standard, as `sqlate` is. Its reference is spike-ai-pipeline's docinfer.
+
 ### web-tooling
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
 test server, the process helper, the `web-screenshots` bin, and a pinned-font-set helper. Planned
