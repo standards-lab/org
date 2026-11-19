@@ -5,9 +5,9 @@
 # The workspace's exclusive group (.claude/marathon.toml) lets one active goal at a time touch
 # the reference-architecture code repositories; it is free since api-maintenance synced
 # (2026-11-12). v1.client.stack holds it only for its `newclient` task, the one that locks
-# go-web-sdk. Outside the group, experiment.hosting's spike-model-hosting, spike-model-engines,
-# spike-hosting-upgrades, spike-model-layout, and spike-model-gateway have answered
-# (ai-hosting.md, "Answers · experiment.hosting"); `marathon intake experiment.hosting` is next.
+# go-web-sdk. Outside the group, experiment.hosting's intake (2026-11-19) settled the self-hosted
+# stack on vLLM and agentgateway (ai-hosting.md) and made v1.ai.hosting active; its next session
+# is `marathon plan v1.ai.hosting`, which creates ai-hosting.
 # experiment.html's intake (2026-11-18) split v1.client into v1.client.stack, before the
 # capstone, and v1.client.reference, after it (web-client.md), and moved status-reports and
 # training under sites (sites.md). graph-ergonomics shipped its API in go-core v0.11.0
@@ -29,10 +29,11 @@
 # - A (done): spike-model-layout and spike-html-hosting answered; spike-ai-pipeline's `answer`,
 #   graph-ergonomics with spike-graph, experiment.ai's and experiment.graph's intakes,
 #   graph-ergonomics' release and per-tier migrations, and api-maintenance shipped.
-# - B: spike-model-gateway (answered: ai-hosting.md, "Answers · experiment.hosting"); then
-#   experiment.hosting's intake, next. v1.ai.processing (docproc and its system tools, absorbing
-#   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
-#   v1.ai.hosting; v1.ai.client (go-ai) has finished, releasing go-ai v0.3.0.
+# - B: spike-model-gateway and experiment.hosting's intake are done; v1.ai.hosting is active,
+#   building ai-hosting before the capstone. v1.ai.processing (docproc and its system tools,
+#   absorbing v1.ai.tools) runs beside it, ahead of wave C; v1.ai.hosting shares the architecture
+#   lock with it and harness.optimization, and the architect frees the lock before v1.ai.hosting's
+#   `architecture` task merges. v1.ai.client (go-ai) has finished, releasing go-ai v0.3.0.
 #   v1.ai.inference (docinfer) is active after it (plan, 2026-11-18). v1.client.stack is active
 #   (plan, 2026-11-18, rooted in web-foundation); its `foundation` task has shipped, so
 #   sites.status-reports and sites.training.foundation can start.
@@ -60,6 +61,7 @@ active = [
   "v1.client.stack",
   "harness.optimization",
   "v1.ai.inference",
+  "v1.ai.hosting",
 ]
 
 planned = [
@@ -67,7 +69,6 @@ planned = [
   "sites.status-reports",
   "sites.training.foundation",
   "corpus.docs",
-  "v1.ai.hosting",
   "v1.data.extensions",
   "capstone.data-intelligence",
   "v1.client.reference",
@@ -316,26 +317,132 @@ context = [
 
 [goals.v1.ai.hosting]
 name = "The ai-hosting specification repository"
-repos = ["ai-hosting", "architecture", "standards-lab"]
+repos = ["ai-hosting", "architecture"]
 summary = '''
-Build `ai-hosting` fresh from experiment.hosting's spikes' answers, add it to the
-workspace's `order` and the references catalog, land the portable-method pages as notes in
-architecture, and archive personal-agents with a forward link. Waits on experiment.hosting's
-intake and runs before the capstone, which runs on the hosts and gateway it specifies; the admin
-tooling joins ai-hosting after experiment.admin's intake.
+Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
+container, laid out as agent on gb10-1, vision on gb10-2, and audio and embedding on the
+Framework; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority,
+budgets, and overflow to Azure AI Foundry on all four aliases; a multilingual model in place of
+set A's English-only embedding model; and the upgrade-evaluation convention rebuilt on vLLM. Its
+first `plan` creates `ai-hosting` and adds it to the workspace's `order` and the references
+catalog. Its `architecture` task lands four method pages in architecture on its own branch,
+sharing the architecture lock with v1.ai.processing and harness.optimization; the architect frees
+the lock before that task merges (intake, 2026-11-19). Runs before the capstone, which runs on the
+hosts and gateway it specifies; the admin tooling joins ai-hosting after experiment.admin's
+intake. Its sync archives personal-agents, with a forward link to ai-hosting, and
+spike-model-engines, spike-model-gateway, and spike-hosting-upgrades.
 '''
 context = ["standards-lab/context/ai-hosting.md"]
-# From spike-ai-pipeline's host/: its host-update could detect a running llama container with no
-# published port (or no network) and print the fix, instead of waiting out its 120 s health
-# check; ai-hosting's update script can take the check.
 
+[goals.v1.ai.hosting.tasks.design]
+name = "Design review of the hosting stack"
+summary = '''
+Opens with Fable 5.2 evaluations of the three promoted artifacts, against the full architecture
+standards, the workspace, and `ai-hosting.md`: spike-model-engines' `host/` at 6ce3210 (the
+engines suite and each host class's vLLM rows), spike-model-gateway at 2f2e8c1 (the gateway's
+compose stack and `docs/gateway.md`'s requirements), and spike-model-hosting's `profile` package
+at aac0764 (the host-class profile schema, its validator and renderer). Settles each finding with
+the architect, one review round per evaluation, and writes ai-hosting's design note: the
+repository's layout, which parts each task takes from which spike, and the gateway's open points
+(the `gateway` task's comments). Settles the repository's name (`ai-hosting.md`, "Open for
+v1.ai.hosting's design"). No code.
+'''
+
+[goals.v1.ai.hosting.tasks.hosts]
+name = "The hosts on ai-hosting"
+summary = '''
+Each host class's vLLM rows with their install, update, and uninstall, the Tailscale bind and CDI
+fixes, a check for a stranded container, and a runbook per host class, which documents the
+Framework's LUKS unlock; then moves every host off its spike clone onto ai-hosting.
+'''
+# From spike-ai-pipeline's host/ and experiment.hosting: a container that publishes a port on the
+# host's Tailscale address races Tailscale at boot and is stranded with no published port. Every
+# host sets `net.ipv4.ip_nonlocal_bind = 1` (`ai-hosting.md`, "The hosts"); the update script can
+# also detect a running container with no published port (or no network) and print the fix,
+# `docker network connect bridge <container>`, instead of waiting out its health check.
+#
+# From experiment.hosting's intake notes:
+# - The Framework's LUKS unlock: its root is LUKS-encrypted, so it returns from a reboot only after
+#   a person enters the passphrase at its console, and it can't be rebooted remotely or unattended
+#   as the GB10s can. How it unlocks is the architect's security decision: TPM2 enrollment or a
+#   keyfile (no person), or SSH in the initramfs (remote) (spike-model-layout
+#   `docs/findings/vllm-layout.md`, I.4 and N.3).
+# - The Framework's GTT and memory floors: the GTT ceiling is 112 GiB (`ttm.pages_limit`
+#   29,360,128, set by spike-model-engines' setup); vllm-layout removed the deprecated amdgpu
+#   `gttsize` option and kept `ttm.pages_limit` alone. The BIOS VRAM carve-out is 512 MiB. The
+#   system's 12.5 GiB floor binds before GTT's (capability-vllm, at 0.81 of GTT). The Framework
+#   stays on Omarchy with Hyprland by the architect's choice, after weighing headless Ubuntu Server.
+# - Each host's model store holds only the models its rows serve: gb10-1 `openai/gpt-oss-120b`,
+#   gb10-2 `nvidia/Gemma-4-26B-A4B-NVFP4`, and the Framework `google/gemma-4-E4B-it` and
+#   `ibm-granite/granite-embedding-english-r2` (spike-model-layout `docs/findings/framework.md`, A;
+#   `docs/findings/vllm-layout.md`, G.4 and H).
+# - spike-model-engines' vLLM guides (`docs/engines/vllm/`) still describe v0.32.0 and one `vllm`
+#   container on port 8000. They don't cover a row's own container, port, and image (4ad76e6),
+#   `VLLM_ROCM_BUILD` and the `-rocm72` fallback, building the Framework's audio image, or the
+#   Framework's ufw route rules for ports 8001 and 8002, and they list none of the standing rows
+#   or their caps: `gpt-oss-120b-agent-fp8` (12) and `gpt-oss-120b-agent` (8) on gb10-1,
+#   `gemma-4-26B-A4B-NVFP4-vision-gb10` (16), `gemma-4-E4B-it-audio-framework` (4), and
+#   `granite-embedding-english-r2-framework` (128, 65,536 batched tokens). `api.md`'s examples send
+#   the Hugging Face repository as `"model"`, while each standing row serves only its alias;
+#   `models.md`, "The rows", lists the four rows with their queue limits and scheduling policy
+#   (#19, 683b78e).
+# - The Framework's audio image lacks torchcodec, so every audio request logs `torchcodec
+#   unavailable ... falling back to soundfile/PyAV`; the image keeps that fallback
+#   (spike-model-layout `docs/findings/vllm-layout.md`, L).
+# - `engines vllm update` removes every official image no container was created from, so the
+#   Framework's update for granite removed the staged `vllm/vllm-openai-rocm:v0.33.0-rocm72`
+#   fallback's tag; its layers stay under the `-rocm72` audio image, and `docker pull` restores it
+#   (spike-model-layout `docs/findings/vllm-layout.md`, B).
+# - Per-row tracing: `VLLM_TRACE=on VLLM_MODEL=<row id> host/engines vllm update` adds
+#   `--otlp-traces-endpoint grpc://gb10-2:4317` (`VLLM_TRACE_COLLECTOR`), `--add-host
+#   gb10-2:<tailnet address>` resolved at run time, and `OTEL_SERVICE_NAME=vllm-<alias>`; the same
+#   update without `VLLM_TRACE` turns it off (spike-model-engines #20). The update guide doesn't
+#   document it yet. `vllm update` compares only the image and the command, so a changed collector
+#   address or alias in `--add-host` or `OTEL_SERVICE_NAME` doesn't restart a traced row.
+# - spike-ai-pipeline's laptop-side `mise run host-update` fails at its clone pull once the clone
+#   is gone; it touches nothing first.
+
+[goals.v1.ai.hosting.tasks.embedding]
+name = "A multilingual embedding model"
+summary = '''
+Replaces set A's embedding model, granite-embedding-english-r2 (English-only), with a
+multilingual model that both the Framework's vLLM and Azure's managed compute serve,
+multilingual-e5-large first. Checks retrieval across ~/docs' languages, that docinfer's chunks
+fit in 512 tokens, and that the model doesn't degrade the Framework's audio row, by running audio
+alone and then beside embedding at load. A Chinese-origin candidate runs only if e5 fails, with
+the reason recorded. Re-measures the embedding row, its 34 req/s limit, and the layout table.
+'''
+# Why granite and why it goes: granite was chosen only because vLLM couldn't serve EmbeddingGemma
+# 2 on GB10 (spike-ai-pipeline `host.md`). ~/docs holds the EU act in English, Bulgarian, Greek,
+# and Polish, a generated document in Arabic, Hebrew, Japanese, and Russian, mail in Cyrillic,
+# Japanese, and Chinese, and audio in nine languages; its report lists "embeddings and search
+# across languages" as a purpose. Azure's Hugging Face registry (Foundry managed compute) offers
+# multilingual-e5-large (MIT, XLM-R base, GPU SKU), and the Chinese-origin Qwen3-Embedding-0.6B,
+# bge-m3, and gte-multilingual-base; it lacks granite-embedding-278m/107m-multilingual,
+# embeddinggemma-300m, and multilingual-e5-large-instruct (intake, 2026-11-19).
+#
+# No benchmark scenario covers embedding in spike-hosting-upgrades' `bench/`, and spike-model-
+# layout's `bench/levels.jq` `client` mode stops with a jq error on an embedding result, whose
+# requests carry no first-chunk time.
+
+[goals.v1.ai.hosting.tasks.gateway]
+name = "The model gateway"
+summary = '''
+agentgateway's compose stack on gb10-2: gateway keys, priority, budgets, embedding's rate bucket,
+LGTM telemetry, and path hardening. Overflow goes to Azure for all four aliases: agent to
+gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions (refusing a
+text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
+model on Foundry managed compute, whose scope and price the design confirms first. Decided in its
+design: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk
+concurrency, a sliding budget window, and authenticated OTLP.
+'''
 # For Cerebro (capstone.data-intelligence; data-intelligence.md, "What it asks of the goals
 # beneath it"):
 # - Cerebro (bulk processing) and Athena (chat) are separate gateway consumers, each with a key
 #   and a budget; the gateway's 429 and queueing behave as go-ai's retry expects.
-
-# From spike-model-gateway (its answer: ai-hosting.md, "Answer ·
-# experiment.hosting.spike-model-gateway"; the requirements: spike-model-gateway `docs/gateway.md`):
+#
+# From spike-model-gateway (its answer: spike-model-gateway's README, "The answer"; the
+# requirements: spike-model-gateway `docs/gateway.md`):
 # - Observability: metrics and logs through the same Collector into the full LGTM stack
 #   (architect, 2026-11-18), on go-web-service's observability profile (its Collector, contrib
 #   0.165.0, with Loki, Tempo, Mimir, and Grafana). One central Collector takes every service's
@@ -358,15 +465,25 @@ context = ["standards-lab/context/ai-hosting.md"]
 #   premature), and it deprecated `binds` without parity (#3204). The spike's watch register
 #   (`docs/watch.md`) tracks route `ai`, and the `llm` form, trialled in task `routing` where it
 #   passed, is the fallback (`docs/gateway.md`, "Priority's gaps").
-# - Embedding gets no Azure group, since cloud embedding replies come from another vector space
-#   (text-embedding-3-small at 768 dimensions). Every Azure-answered reply carries an overflow
-#   marker (`x-gateway-overflow: azure`); should a deployment give embedding an Azure group, a
-#   client that stores vectors must refuse or re-route a marked reply (`docs/gateway.md`,
-#   requirements 8 and 9).
+# - Embedding overflow: every Azure-answered reply carries an overflow marker
+#   (`x-gateway-overflow: azure`). The spike gave embedding no Azure group, since
+#   text-embedding-3-small's replies come from another vector space; it stays deployed and
+#   unrouted. A client that stores vectors refuses or re-routes a marked reply from a model whose
+#   vectors don't match the row's (`docs/gateway.md`, requirements 8 and 9); acceptance's
+#   vector-parity cell gates embedding's overflow.
+# - Embedding past its limit: spike-model-layout's `docs/layout.md` requirement 3 says traffic past
+#   embedding's 34 req/s limit "queues or overflows"; agentgateway answers it with 429 and
+#   `Retry-After: 1` instead, and the client waits (`docs/gateway.md`, requirement 6).
 # - vLLM's queue limit counts every key alike, so a bulk flood also refuses interactive requests,
 #   which then overflow. Under saturation a row's 503 with eviction sends nearly the whole load to
 #   Azure, and agentgateway's eviction multiplier has no cap, so after a long outage or overload a
-#   row can stay out for minutes after it is back (`docs/gateway.md`, "Priority's gaps").
+#   row can stay out for minutes after it is back (`docs/gateway.md`, "Priority's gaps"). Priority
+#   orders only vLLM's waiting queue: interactive vision's median latency stayed 0.47 s over its
+#   10 s floor on a saturated row, so holding it under bulk load needs more, such as a cap on
+#   bulk's concurrency.
+# - Admission on `/metrics`: agentgateway reads no row's `/metrics` and queues nothing itself, and
+#   no candidate does it natively (`docs/comparison.md`, "Scoring").
+# - A sliding budget window is wanted: v1.7.0's `rolling: 1h` is a fixed UTC clock hour.
 # - Authenticated OTLP ingress and sampling below 100% are production requirements. The spike's
 #   Collector takes spans on gb10-2's tailnet address unauthenticated, and the gateway and rows
 #   sample every request (`docs/findings/answer.md`, "For production"; `docs/gateway.md`,
@@ -374,9 +491,14 @@ context = ["standards-lab/context/ai-hosting.md"]
 # - `/models` through the gateway is the gateway's own answer,
 #   `{"id":"<alias>","object":"model","owned_by":"gateway"}`, so go-ai v0.3.0's `Model.Native` and
 #   `infer models`' root column carry no served model, while the row's own listing gives `root`
-#   (`openai/gpt-oss-120b` on gb10-1). Whether to pass `root` through or keep it hidden is
-#   v1.ai.hosting's call; a consumer reading `Native` through the gateway gets no `root`
+#   (`openai/gpt-oss-120b` on gb10-1). Whether to pass `root` through or keep it hidden is the
+#   design's call; a consumer reading `Native` through the gateway gets no `root`
 #   (`docs/findings/answer.md`, "At v0.3.0"; `docs/gateway.md`, requirement 1).
+# - Path hardening: agentgateway doesn't normalize dot segments (`docs/findings/routing.md`,
+#   "Realignment on route `ai`").
+# - A body over 64 KiB isn't retried, each attempt to a powered-down host costs about 11 s, the
+#   UI's Logs and Analytics are reached only by URL on route `ai`, and the gateway's `Retry-After`
+#   reads as rounded down, so a client allows one attempt more.
 # - A measured cold start, a candidate for the restart and capacity notes in place of an
 #   estimate. vLLM's startup traces give each row's cold start by phase, read from its `Overall
 #   Loading` trace: weights' load, model preparation, KV cache allocation, and warmup. The agent's
@@ -393,6 +515,73 @@ context = ["standards-lab/context/ai-hosting.md"]
 #   on a request streamed directly to Azure too. The cause of the 2026-11-16 stall at
 #   `--max-tokens 16` stays open; it hasn't recurred in three reruns (`docs/findings/priority.md`,
 #   "Addendum 2026-11-19 · the 16-token Messages stall").
+# - The compose stack bind-mounts its config read-only, an exception to `~/architecture`'s
+#   convention, to weigh for the capstone's stack. `gateway/compose.sh` also exports
+#   `BUILDX_NO_DEFAULT_ATTESTATIONS=1`: Compose v5.2.0 ignores `provenance: false`, and on
+#   Docker's containerd image store each build's new attestation changes the image id, so compose
+#   recreates the built service on every `up --build`. The convention may want the same
+#   (`docs/gateway.md`, "Operational notes for the intake").
+# - Audio overflow: gpt-audio-mini on Chat Completions answered the priority walkthrough's clip
+#   with 200, "The access code is 7429." (`docs/findings/priority.md`, the walkthrough). It
+#   processes globally, as vision's overflow does.
+
+[goals.v1.ai.hosting.tasks.upgrades]
+name = "The upgrade-evaluation convention on vLLM"
+summary = '''
+Rebuilds spike-hosting-upgrades' convention and its `hosting-upgrades` skill on vLLM, with a host
+descriptor for each of the three hosts, their purposes and load targets taken from the layout.
+The skill stays in ai-hosting's `.claude/` until v1.harness makes it a plugin.
+'''
+# From spike-hosting-upgrades and spike-model-layout:
+# - The descriptors follow the layout (spike-model-layout `docs/layout.md`, "Requirements for the
+#   intake: the host descriptors"). gb10-1 serves the agent alone on `gpt-oss-120b-agent-fp8` (4
+#   sessions, 12 at most), with 15.07 GiB idle and 14.87 GiB at its lowest against its 12.2 GiB
+#   floor; its compiling start dips to 11.39 GiB. gb10-1's current descriptor still says gb10-2 is
+#   reserved for spike-ai-pipeline. gb10-2 has no descriptor yet: vision alone (4 requests, 16 at
+#   most), with the hosts task's within-session spread on gb10-2 (output tok/s: A 2.37%, B 0.52%)
+#   as its first run-noise figure. The Framework serves audio (4 requests, 4 at most) and
+#   embedding (16 streams, admitted at up to 34 requests a second).
+# - The convention was measured on llama.cpp hosts only. The weekly cadence has never run, the
+#   measure mode has run once, as a settings check, and no register entry has reached "cleared on
+#   the host".
+
+[goals.v1.ai.hosting.tasks.acceptance]
+name = "Acceptance of the hosting stack"
+summary = '''
+Reruns the standing layout cell on vLLM 0.34, and go-ai's and docinfer's tiers through the
+gateway. Adds an overflow cell for each alias, and a vector-parity cell: the Framework's and
+Azure's embeddings must reach cosine ≥ 0.999 before embedding's overflow is enabled. Fixes what it
+finds, never redesigning.
+'''
+# From experiment.hosting's intake notes:
+# - vLLM 0.34: every row runs v0.34.0, and the layout's measurements are v0.33.0's. v0.34 carries
+#   the GB10 weight-loading fix (#58868), which bears on gb10-1's 437 s and gb10-2's 128 s weight
+#   reads after a reboot, and the extensible KV cache (spike-model-layout
+#   `docs/findings/vllm-layout.md`, A.2 and N.6).
+# - The agent's FP8 KV runs uncalibrated at scale 1.0. The accuracy check found no significant
+#   loss against BF16, but GPQA diamond's 198 questions put the paired difference's 95% interval at
+#   −10.7 to +1.6 points, so a loss of up to about 10 points isn't excluded. Calibration or a
+#   larger set would narrow it (spike-model-layout `docs/findings/vllm-layout.md`, C.5 and N.1).
+# - Vision's load from streamed video is unmeasured: every vision cell sent image questions.
+# - Audio has no headroom above its target of 4; 8 streams beside embedding at 8.4 requests a
+#   second is untested. Sessions of 131,072 tokens are computed from the KV cache, not run.
+# - Benchmarks over the network: production clients sit on the same direct network as the GPUs,
+#   so the layout is sized on LAN figures. A cell run from the laptop over a Tailscale relay
+#   carries the relay's trip in its client-side figures (TTFT, request latency, RTFx), about 0.4 s
+#   for a 6 s audio clip; its server-side figures are unaffected (spike-model-layout
+#   `docs/findings/role-split.md`, "Stack, engine and network path" and L.7).
+# - spike-model-layout's `mise.bench.toml` pins uv 0.13.7, behind 0.13.8, left to the next
+#   currency step.
+
+[goals.v1.ai.hosting.tasks.architecture]
+name = "The hosting method pages in the architecture"
+repos = ["architecture"]
+summary = '''
+Writes four method pages on its own branch in architecture: reading a model card (from
+spike-model-hosting's `docs/model-cards.md`), tool-call reliability (from its
+`docs/findings/tool-reliability.md`), sizing a vLLM row, and the placement rule. The architect
+frees the architecture lock before it merges.
+'''
 
 [goals.v1.ai.processing]
 name = "docproc, the processing library and its system tools"
@@ -688,6 +877,8 @@ context = [
   "standards-lab/context/data-intelligence.md",
   "docproc/context/layers.md",
 ]
+# Set A's embedding model, granite-embedding-english-r2, is under replacement by v1.ai.hosting's
+# `embedding` task (`ai-hosting.md`, "Set A's embedding model").
 
 [goals.v1.ai.inference.tasks.design]
 name = "Design review of docinfer"
@@ -947,7 +1138,8 @@ context = [
 name = "The harness at v1"
 summary = '''
 The claude-plugins work beyond factory: extraction, the references extension, the
-deterministic tooling layer, and local models as subagents. Each waits for its trigger.
+deterministic tooling layer, local models as subagents, the hosting-upgrades skill as a plugin,
+and the watch register as a shared check. Each waits for its trigger.
 '''
 
 [goals.v1.harness.tasks.extraction]
@@ -1006,6 +1198,31 @@ the reviews, its session brief posted rather than accepted, while one-way doors 
 for evidence from harness.optimization's verification artifacts.
 '''
 context = ["claude-plugins/context/harness-optimization.md"]
+
+[goals.v1.harness.tasks.hosting-upgrades]
+name = "The hosting-upgrades skill as a plugin"
+repos = ["claude-plugins"]
+summary = '''
+The plugin form of the `hosting-upgrades` skill, which v1.ai.hosting's `upgrades` task rebuilds on
+vLLM in ai-hosting's `.claude/`, with the convention for where its `docs/` initializes. Waits on
+ai-hosting.
+'''
+context = ["standards-lab/context/ai-hosting.md"]
+# From spike-hosting-upgrades (the architect, at its session brief, 2026-11-09): the skill
+# resolves every input and output against the project it runs in (`${CLAUDE_PROJECT_DIR}`), so the
+# plugin says which repository that is and how its `docs/` is initialized there. The host
+# descriptors, the policy, the reports, the measure records, the blocker register, and the
+# research cache live beside the scripts and settings an adoption changes, in ai-hosting.
+
+[goals.v1.harness.tasks.watch-register]
+name = "The watch register as a shared check at PLAN"
+repos = ["claude-plugins"]
+summary = '''
+spike-model-gateway's watch register (`docs/watch.md`) as a shared feature for the infrastructure
+repositories: one entry per dependency for anticipated capabilities, deprecations, and other
+changes that would affect the infrastructure we maintain, with a read-only `gh` check run at each
+PLAN beside currency (architect, 2026-11-16).
+'''
 
 # ── The harness ────────────────────────────────────────────────────────────────────────────
 
@@ -1136,8 +1353,8 @@ each stage live on the promoted web client stack; and capstone-data-intelligence
 root with the compose stack and the ~/docs acceptance run. It shows how Cerebro and the gateway
 replace ~/s2va/athena's ingest layer without taking in its code (`data-intelligence.md`, "Cerebro
 and Athena"). Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Runs in wave D as the sole
-active goal apart from sites.status-reports and sites.training, after experiment.hosting's
-intake and the libraries v1.ai and v1.client.stack promote. It holds go-messaging and
+active goal apart from sites.status-reports and sites.training, after v1.ai.hosting and the
+libraries v1.ai and v1.client.stack promote. It holds go-messaging and
 builds Cerebro's stream-backed root and work queue there itself (the messaging
 tasks; plan, 2026-11-10); its repos gain the other libraries at staging, so a capstone task can update a library and use the change.
 Its repositories are created at staging. graph-ergonomics is a prerequisite: both composition
@@ -1417,8 +1634,9 @@ repos = ["spike-local-models"]
 remote = "https://github.com/JaimeStill/spike-local-models.git"
 path = "~/experiments/spike-local-models"
 summary = '''
-On the stack experiment.hosting settles, how does a Claude Code session route subagent tasks to
-locally hosted models, and for which kinds of task is the output acceptable? Harness layer, a
+On the stack v1.ai.hosting builds, with agentgateway as its gateway candidate, how does a Claude
+Code session route subagent tasks to locally hosted models, and for which kinds of task is the
+output acceptable? Harness layer, a
 later priority: runs last, after spike-go-harness; application workloads on local models are
 spike-ai-pipeline's. Decides v1.harness.local-models (`ai-strategy.md`, "Experiment:
 spike-local-models").
@@ -1487,53 +1705,12 @@ remote = "https://github.com/JaimeStill/spike-host-admin.git"
 path = "~/experiments/spike-host-admin"
 summary = '''
 Can one CLI, generated from go-cli-sdk-template (template/v0.1.0) on go-cli-sdk v0.2.0, manage
-every engine and host experiment.hosting keeps, from its runbooks and setup scripts: install,
-update, service status and restart, models, metrics, and GPU and memory use? Runs after
-capstone.data-intelligence, managing what experiment.hosting settled. outpost is read as the baseline, not
+the vLLM rows on the three hosts, from ai-hosting's runbooks and setup scripts: install, update,
+service status and restart, models, metrics, and GPU and memory use? Runs after
+capstone.data-intelligence, managing the stack ai-hosting specifies, and keeps the hosting
+experiment rules (`ai-hosting.md`, "Experiment rules"). outpost is read as the baseline, not
 rebuilt; the profile format is settled at its setup. Decides ai-hosting's admin tooling
-(`ai-hosting.md`, "Open for v1.ai.hosting's SETTLE").
-'''
-
-[goals.experiment.hosting]
-name = "The self-hosted model stack"
-summary = '''
-Five spikes that settle how the workstations (the Framework and the two GB10s) serve local
-models: spike-model-hosting's Framework baseline, then engines, hosting-upgrades, layout, and
-gateway, one at a time; then one intake, before capstone.data-intelligence. Serves v1.ai.hosting.
-spike-host-admin moved to experiment.admin, after the capstone (plan, 2026-11-09). Its hosts are
-gb10-1, the Framework, and, since spike-ai-pipeline's docinfer task shipped, gb10-2, which goes to
-the capstone after spike-model-gateway (`ai-hosting.md`, "Hosts and access"). Every spike keeps to the hosting rules
-(`ai-hosting.md`, "Experiment: experiment.hosting"): one new tool per task, explained in its brief
-and walkthrough; at most four slices, ending in a walkthrough the architect runs before the next
-task is planned; every benchmark agreed in the plan round (tool, configuration, load, duration,
-and the decision it informs), a run at most 10 minutes unless the brief decides otherwise, and
-none run that the brief doesn't name; a solid starting point, not perfection. Sessions are
-guided where the architect is learning (a new tool's first walk, every root step, and the last
-slice's walkthrough); routine host steps that need no root the session runs itself over Tailscale
-SSH, every command recorded in the docs exactly as run, and every benchmark is built a step at a
-time in the architect's view. Hosts are brought up to date at every session start, engines stay
-current, and only same-session cells compare, with an anchor cell rerun for any comparison across
-sessions.
-'''
-context = ["standards-lab/context/ai-hosting.md"]
-# For spike-model-engines' host/ (from spike-ai-pipeline): its copied scripts publish the llama
-# container's port on the host's Tailscale address, which races Tailscale at boot and strands the
-# container with no published port; gb10-2 sets `net.ipv4.ip_nonlocal_bind = 1` so the bind
-# succeeds first (`ai-hosting.md`, "Hosts and access").
-
-[goals.experiment.hosting.tasks.intake]
-name = "The hosting intake"
-summary = '''
-Run by `marathon intake experiment.hosting` once spike-model-hosting, spike-model-engines,
-spike-hosting-upgrades, spike-model-layout, and spike-model-gateway have their answers in
-`ai-hosting.md`. Decides what v1.ai.hosting builds before the capstone: the engine and hosting
-method per host class, the upgrade-evaluation convention, the model layout across the three
-pools, the gateway and its access control, and the
-setup scripts and runbooks `ai-hosting` holds; which method pages (model cards, context sizing, memory footprint, tool-call reliability)
-the architecture layer takes; and whether personal-agents' contents move into `ai-hosting`. It
-takes in the application-workload model roles from spike-ai-pipeline's set A (vision with
-reasoning off, transcription, and embeddings), and decides whether hosting stays under v1.ai or
-becomes its own goal. It archives the five spikes. experiment.harness's spikes wait for it.
+(`ai-hosting.md`, "Open for experiment.admin").
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
@@ -1701,10 +1878,20 @@ The large-scale benchmarking suite, once requirements call for it: benchmarking 
 elements (a model's fit on a host, a model as an agent, a set of role models at once, any of these
 under concurrent sessions or across hosts behind the gateway) composed into a workload per
 scenario; results kept by model, build, preset, and host; a run queue per host; and a management
-interface. Builds on experiment.hosting.spike-hosting-upgrades' upgrade-evaluation convention
-and spike-host-admin's CLI, and stays the place for workloads only we can measure: our agents,
-and our role sets under our own sessions.
+interface. Builds on the upgrade-evaluation convention, which v1.ai.hosting's `upgrades` task
+rebuilds on vLLM, and spike-host-admin's CLI, and stays the place for workloads only we can
+measure: our agents, and our role sets under our own sessions, with tuning at scale.
 '''
+# From experiment.hosting's intake (spike-hosting-upgrades' and spike-model-engines' answers):
+# - The candidate backlog, which one screen a session can't clear: the Framework's second survey
+#   lists over twenty agent candidates as needing measurement.
+# - Workload-based tuning: concurrency and context tuned per model, workload, and host.
+# - A `max_tokens` cap per tier in the agent-tier harness (spike-model-hosting's
+#   `evaluation/suites/agent_quality.py`), recorded with the tier's list, so a runaway reply is a
+#   counted cap hit, not a lost sample. BFCL sends none: on gb10-1 one multi-turn sample generated
+#   23,306 output tokens, and the tier hit its 45-minute cap at 19 of 20 samples.
+# - An embedding scenario: spike-hosting-upgrades' `bench/` has none, so no embedding candidate can
+#   be measured.
 
 [goals.nats-credentials]
 name = "NATS credentials in go-messaging"

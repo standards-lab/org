@@ -110,8 +110,10 @@ migration is later work outside the workspace. Facts from `~/s2va/athena` the ma
   `pg_notify`, and the browser sees only claimed, done, and failed.
 - Chat reads `chunks` rows (vault, `<version>-<i>` id, content, page, blob key, chunk 0's summary
   and `processing_metadata`), a 1024-dimension snowflake-arctic-embed-l-v2.0 embedding, and
-  `entities` and `sparse_rows`. The workspace embeds at 768 dimensions (granite-embedding-english-r2);
-  Athena's registered embedding spaces carry the blue/green re-embed.
+  `entities` and `sparse_rows`. The workspace embeds at 768 dimensions with
+  granite-embedding-english-r2, an English-only model that v1.ai.hosting's `embedding` task
+  replaces with a multilingual one, so anything indexed with granite is re-embedded (`ai-hosting.md`,
+  "Set A's embedding model"). Athena's registered embedding spaces carry the blue/green re-embed.
 - Its ingest also runs Tesseract OCR, Whisper, a summary chain, regex entities, tabular rows into
   `sparse_rows`, and TEI reranking. Summary maps onto Cerebro's extraction stage; the rest stays
   Athena's.
@@ -233,15 +235,16 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   content and fails the job at once on a permanent error.
 - **v1.ai.processing's tools:** docproc-ooxml, docproc-mail, and docproc-onenote ship inside
   Cerebro's image, each pinned by its `tools/<format>/v<version>` tag.
-- **v1.ai.hosting and spike-model-gateway:** Cerebro (bulk) and Athena (chat) are separate
-  consumers, each with a key and a budget; 429 and queueing behave as go-ai's retry expects; chat
-  stays responsive during a ~/docs-scale run (3,470 vision images, 20,395 s of vision in
-  docinfer's run; vision latency on gb10-2 rose to 38.9 s an image under mixed load,
-  spike-model-layout's `docs/layout.md`). The gateway routes to the self-hosted models first and
-  falls back to cloud-hosted models when they are at capacity; which workloads may leave the
-  self-hosted machines is open. The models are laid out across the two GB10s and the Framework
-  (AMD AI Max+ 395), with a vLLM instance per model as a target to weigh for concurrent inference
-  (the architect, 2026-11-11).
+- **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) are separate gateway consumers, each with
+  its own key and budget; 429 and queueing behave as go-ai's retry expects; chat stays responsive
+  during a ~/docs-scale run (3,470 vision images, 20,395 s of vision in docinfer's run; vision
+  latency on gb10-2 rose to 38.9 s an image under mixed load, spike-model-layout's
+  `docs/layout.md`). The gateway routes to the self-hosted models first and overflows to Azure AI
+  Foundry when a row is down or at capacity, on all four aliases: agent, vision, audio, and
+  embedding (`ai-hosting.md`, "Overflow to Azure AI Foundry"). Nothing overflows under IL6.
+  Embedding past its 34 requests a second gets 429 with `Retry-After`, and the client waits. Each
+  model runs in its own vLLM instance, laid out across the two GB10s and the Framework (AMD AI
+  Max+ 395) (`ai-hosting.md`, "The layout").
 - **go-messaging (the capstone's `messaging-append` and `messaging-work-queue` tasks):** the
   expected-sequence append and the work-queue package. The capstone holds go-messaging and builds
   them itself.
@@ -257,8 +260,8 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
 The capstone runs in wave D of the roadmap (`roadmap.toml`, header), as the sole active goal
 apart from sites.status-reports and sites.training. Before it:
 
-- experiment.hosting's spike-model-layout and spike-model-gateway answer, and experiment.hosting's
-  intake runs; v1.ai.hosting builds ai-hosting from it.
+- v1.ai.hosting builds ai-hosting: the hosts, the gateway with its overflow, and the multilingual
+  embedding model.
 - v1.ai.processing builds docproc and its system tools, v1.ai.client builds go-ai, and
   v1.ai.inference builds docinfer once go-ai's library releases, each closed by acceptance that
   reruns the real workloads: v1.ai.client's reruns infer against set A, v1.ai.processing's reruns

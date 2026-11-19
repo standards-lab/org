@@ -87,8 +87,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
   processing, harness) and their homes, the pivot from tau to external harnesses, the decided
   design of the client and processing layers (go-ai, and docproc with its system tools), the
-  questions of experiment.ocr and experiment.harness, and
-  experiment.hosting's and experiment.admin's questions and decomposition of personal-agents.
+  questions of experiment.ocr and experiment.harness, and the self-hosted stack v1.ai.hosting
+  builds, with experiment.admin's question.
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
   Cerebro and Athena architecture and repositories, what it asks of the goals beneath it, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
