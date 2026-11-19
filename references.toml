@@ -116,6 +116,9 @@ remote = "https://github.com/standards-lab/web-tooling.git"
 [repos.web-foundation]
 remote = "https://github.com/standards-lab/web-foundation.git"
 
+[repos.web-icons]
+remote = "https://github.com/standards-lab/web-icons.git"
+
 [repos.web-components]
 remote = "https://github.com/standards-lab/web-components.git"
 
@@ -228,8 +231,8 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-html-go-wasm.git"
 archived = true
 
-# Read by spike-html-hosting-icons at 9a274e2 (tag @primer/octicons@19.42.0), whose LICENSE it
-# copies; never written.
+# Read by web-icons, as by spike-html-hosting-icons before it, at 9a274e2 (tag
+# @primer/octicons@19.42.0), whose LICENSE it copies; never written.
 [repos.octicons]
 remote = "https://github.com/primer/octicons.git"
 

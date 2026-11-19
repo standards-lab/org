@@ -43,16 +43,20 @@ the org's free plan.
 
 ## The shared layers
 
-Three layers, each released by tag, sit between web-foundation and the sites:
+Two layers, each released by tag, sit between the client stack and the sites. The icons layer
+is the stack's web-icons, not a sites layer: a site fills its glyph markers through web-icons' Vite
+plugin and ships only the glyphs it uses, 7 or 8 of 986. Settings (`sl-settings`), Help
+(`sl-shortcuts`), and the glyph button come from the stack too, from web-components and
+web-foundation (`web-client.md`, "Conventions").
 
-- **The icons layer** ships Octicons. A site ships only the glyphs it uses: 7 or 8 of 986.
 - **The documentation components layer** holds the sites' components, separate from
-  web-components, which serves applications. sites.status-reports and sites.training each build
-  components of their own on web-foundation, and only the overlap they prove moves into this
-  layer. Its `sl-section-tree` follows claude.dev's article pages: J and K move between
-  sections, H and L to the previous and next page through the SDK's pager links, and the arrow
-  keys stay the browser's scrolling. A key hint is a `kbd` alone, and the tree marks the current
-  section by an accent rule and bold text, with no reading progress.
+  web-components, which serves applications: the site nav, the index, and the section tree.
+  sites.status-reports and sites.training each build components of their own on web-foundation,
+  and only the overlap they prove moves into this layer. Its `sl-section-tree` follows claude.dev's
+  article pages: J and K move between sections, H and L to the previous and next page through the
+  SDK's pager links, and the arrow keys stay the browser's scrolling. A key hint is a `kbd` alone,
+  and the tree marks the current section by an accent rule and bold text, with no reading
+  progress.
 - **The site SDK** builds the sites: a shell, a crawl that checks every in-site link and each
   page's head, a currency bin, and a template inside its release. It highlights code fences at
   build.

@@ -55,7 +55,7 @@ The draft web standard beside Go Elemental, with Lit as its one runtime dependen
 definition yet: v1.client.stack's `standard` task founds it in the architecture repository, adds
 its `[standards.web-elemental]` entry, and declares its members. Until then its direction is in
 [`context/web-client.md`, "Toward Web Elemental"](context/web-client.md#toward-web-elemental).
-Intended members, all planned (v1.client.stack): `web-tooling`, `web-foundation`,
+Intended members, all planned (v1.client.stack): `web-tooling`, `web-foundation`, `web-icons`,
 `web-components`, `web-app-sdk`, and `webappgen`; the `standard` task settles which
 join.
 
@@ -211,6 +211,14 @@ preferences and menu, the profile conformance check, and the Intl formatters. Pl
 (v1.client.stack), copied from spike-html-apps-foundation v0.3.1; v1.client.stack's root. An
 intended member of the preliminary `web-elemental` standard (above).
 
+### web-icons
+The icons layer, `@standards-lab/web-icons`: Octicons 19.42.0 (MIT, its LICENSE kept) as one
+string ES module per icon, and the Vite plugin that fills `<svg data-icon="set/name">` markers in
+dev and build; the iconography convention for every web client and page. Planned
+(v1.client.stack's `icons` task, released at its v0.1.0 tag), seeded from
+spike-html-hosting-icons at 8b8d955, its fill from spike-html-hosting-sdk. An intended member of
+the preliminary `web-elemental` standard (above).
+
 ### web-components
 The Lit components with a shadow root, on web-foundation as a peer: the chat thread, composer,
 upload dropzone, stage timeline, and the rest of the application set. Planned (v1.client.stack),
@@ -307,7 +315,9 @@ the reference for the `sites` goal (`context/sites.md`).
 ### spike-html-hosting-components, spike-html-hosting-architecture, spike-html-hosting-sqlate, spike-html-hosting-sdk, spike-html-hosting-icons
 spike-html-hosting's layer and site repositories: the documentation components, the architecture
 and sqlate stand-in sites, the site SDK, and the icons layer. They are the references for the
-`sites` goal's tasks.
+`sites` goal's tasks. web-icons is seeded from spike-html-hosting-icons (8b8d955), its marker fill
+from spike-html-hosting-sdk's `src/icons.ts`; web-components' sl-settings and sl-shortcuts come
+from spike-html-hosting-components v0.5.1.
 
 ### spike-html-go-wasm
 Asked whether a page can run workspace Go live in the browser through `GOOS=js` WebAssembly:

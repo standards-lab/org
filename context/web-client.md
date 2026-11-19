@@ -16,7 +16,7 @@ and [spike-html-go-wasm](https://github.com/JaimeStill/spike-html-go-wasm/blob/m
 
 ## The stack
 
-The stack is five planned standards-lab repositories, each a package under the `@standards-lab`
+The stack is six planned standards-lab repositories, each a package under the `@standards-lab`
 scope, and a handler in go-web-sdk. Each repository starts fresh at v0.1.0, seeded by copy from
 its spike with a provenance line.
 
@@ -25,12 +25,18 @@ its spike with a provenance line.
 - **web-foundation**: native CSS and ES modules with no dependencies, from
   spike-html-apps-foundation v0.3.1: the baseline sheets (tokens, reset, and elements), the color,
   space, and type profiles, the tool sheets, the DOM helpers, the registry and keys family, the
-  theme preferences and menu, the profile conformance check, and the Intl formatters.
+  theme preferences, the profile conformance check, and the Intl formatters.
   [Its README](https://github.com/JaimeStill/spike-html-apps-foundation/blob/v0.3.1/README.md)
-  documents the interface. spike-html-design v0.7.0 stays a frozen reference.
+  documents the interface. spike-html-design v0.7.0 stays a frozen reference. v0.4.0 drops the
+  theme menu and the keys help for the components' Settings and Help, and adds the glyph-button,
+  dialog, and page-layout sheets and the color role hooks ("Conventions").
+- **web-icons**: the icons layer, seeded from spike-html-hosting-icons: Octicons (MIT) as one
+  string ES module per icon, sized 1em in `currentColor` and `aria-hidden`, and a Vite plugin, from
+  spike-html-hosting-sdk, that fills `<svg data-icon="set/name">` markers in dev and build.
 - **web-components**: Lit elements with a shadow root, from spike-html-apps-components: the chat
   thread, composer, upload dropzone, stage timeline, event log, search results, artifact viewer,
-  document list, status badge, entry, pagination, and `sl-drawer`. A component takes properties
+  document list, status badge, entry, pagination, and `sl-drawer`; v0.2.0 adds `sl-settings` and
+  `sl-shortcuts`, from spike-html-hosting-components v0.5.1. A component takes properties
   and attributes, sends events, and may hold its own UI state. It holds no services, fetches no
   data, and holds no application state. An application's internal element becomes a component
   once a second application needs it.
@@ -47,10 +53,10 @@ its spike with a provenance line.
   whole build's size and enforces no budget. Released as binaries for Linux and macOS.
 - **`NewClient` in go-web-sdk** ("NewClient", below).
 
-A layer imports only from the layers below it. The foundation is at the bottom; the components
-and the SDK are siblings on it; an app may import all three. No app imports another, and a
-component never imports the SDK, which is why the formatters are the foundation's. An app is one
-of two kinds:
+A layer imports only from the layers below it. The foundation is at the bottom and web-icons above
+it; the components sit on the foundation and web-icons, and the SDK on the foundation; an app may
+import all four. No app imports another, and a component never imports the SDK, which is why the
+formatters are the foundation's. An app is one of two kinds:
 
 - a static app: an entry and its own Lit elements;
 - an application: an entry and a route table over four tiers, views, modules, app-internal
@@ -103,6 +109,20 @@ template and the web standard adopt them. The choices underneath:
   sha256, over the raw DevTools pipe with no package. It launches with `--no-sandbox`, since
   Ubuntu 23.10+ AppArmor refuses a downloaded Chrome's sandbox, and loads only the repository's
   own pages on loopback. Playwright took 1.25 times as long and is not used.
+- **Settings and Help.** Every client and page follows spike-html-go-wasm's shortcut-dialog
+  pattern. Settings is the home of all settings (the theme and the keys settings), applied and
+  stored at once, on S; Help lists the keyboard shortcuts as plain text, on ?. Each opens from a
+  glyph button in the header's `.header-actions`, Help then Settings, and each dialog's header row
+  holds its heading and a Close glyph, with Esc to close. Neither has Save or Cancel.
+- **Iconography.** web-icons is the convention for every web client and page. A page's glyph is a
+  `<svg data-icon="set/name">` marker that web-icons' Vite plugin fills; a component imports the
+  icon's module and renders it with Lit's `unsafeHTML`.
+- **Color roles.** Five hooks name the roles: `--color-primary` (falling back to `--blue`),
+  `--color-accent` (`--magenta`), `--color-success` (`--green`), `--color-warning` (`--orange`), and
+  `--color-danger` (`--red`). No profile declares them, and the hues stay role-free, so a page or
+  app sets a role without touching a profile.
+- **Page types.** The foundation's opt-in page-layout sheet has two: an application page, one
+  screen of a header row and a main row, and a prose page, a reading column.
 - **In-session review.** web-tooling's screenshot command captures pages in headless chromium
   into a `mktemp -d` directory, removed on exit, and shows them inline with
   `kitten icat --transfer-mode=stream`; tmux passes the image through with
@@ -119,10 +139,10 @@ template and the web standard adopt them. The choices underneath:
   Changelog section, cut by hand on a green check.
 - **Consumers install by tag** under npm, pnpm, and bun; npm needs `allow-git=root`. A page may
   also load the release from jsDelivr `/gh/` through an import map: the foundation's sheets and
-  the SDK work that way in every browser, but the components and the theme menu only in Chromium
-  and Firefox, since they import CSS module scripts ("Browser support"). GitHub Packages is the
-  measured alternative: it resolves the peer range, at the price of a registry setting and a
-  token for every install.
+  the SDK work that way in every browser, but the components only in Chromium and Firefox, since
+  they import CSS module scripts ("Browser support"). GitHub Packages is the measured
+  alternative: it resolves the peer range, at the price of a registry setting and a token for
+  every install.
 
 ## Browser support
 
@@ -134,7 +154,7 @@ v1.client.stack's plan (2026-11-18) settled its two gaps:
   reader whose stored theme isn't the default can see the default for one frame before first
   paint. No inline script works around it, since one would copy the preference logic outside its
   module and need a CSP hash on every page. Revisit when Firefox ships `blocking="render"`.
-- **No Safari release loads CSS module scripts**, which the components and the theme menu import.
+- **No Safari release loads CSS module scripts**, which the components import.
   A page that uses them requires a build: Vite with vite-plugin-standard-css-modules works in
   every browser, and every consumer the roadmap names already builds with Vite. The released
   packages keep the standard syntax, with no pack-time rewrite. Revisit when Safari ships CSS
@@ -161,26 +181,12 @@ rules, and its validation.
 
 ## Foundation candidates
 
-The backlog goal `foundation-extension` is a web-foundation minor that takes these:
-
-- From the sites: `sl-drawer` with its Close glyph passed through a slot and a modal-only mode;
-  and an `outline-offset` token. Settings and Help as foundation changes (the theme menu's fixed
-  heading and T to save, the keys help's built-in settings, so the components stop rebuilding them
-  as `sl-settings` and `sl-shortcuts`), with a pattern page for the keyboard-shortcut dialog,
-  `glyph-button` as a control, and a page-layout sheet (gutter, section spacing, and named content
-  and full lines) moved to v1.client.stack's `foundation-settings` task, ahead of `template`
-  (architect, 2026-11-19), so webappgen's starter builds on them. `preferences.js` and `keys.js` import
-  `theme-menu.js` and `keys-help.js` dynamically, so every site builds both chunks without
-  requesting them.
-- From the components,
-  [spike-html-apps-components' foundation candidates](https://github.com/JaimeStill/spike-html-apps-components/blob/main/context/foundation-candidates.md),
-  each found in two or more components: tokens for a control's block size, the focus outline's
-  reach, status roles, and a hook's tint; elements-sheet rules for a disabled text field and a
-  dark-scheme `<progress>` track; utility classes for a bare list, keep-whole values, breaking
-  only when longer than the line, one-line truncation, the scrolling frame, a slot as wide as its
-  widest content, the head row, quiet label type, the status line, motion behind reduced motion,
-  and visually hidden text; and `formatJson` with `formatBytes` below a kilobyte, which reads
-  "0 byte".
+The patterns the components kept locally
+([spike-html-apps-components' foundation candidates](https://github.com/JaimeStill/spike-html-apps-components/blob/main/context/foundation-candidates.md))
+and the gaps the sites found went into v1.client.stack (plan, 2026-11-19): web-foundation v0.4.0
+takes the tokens, field and progress rules, utility classes, motion sheet, `formatJson`, and the
+role hooks, and web-components v0.2.0 takes Settings, Help, and `sl-drawer`'s modal-only mode and
+drops its local copies.
 
 ## The reference client
 
