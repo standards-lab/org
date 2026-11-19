@@ -117,8 +117,8 @@ remote = "https://github.com/standards-lab/web-components.git"
 [repos.web-app-sdk]
 remote = "https://github.com/standards-lab/web-app-sdk.git"
 
-[repos.web-app-sdk-template]
-remote = "https://github.com/standards-lab/web-app-sdk-template.git"
+[repos.webappgen]
+remote = "https://github.com/standards-lab/webappgen.git"
 
 # Experiments — archived spikes. A running spike is a sub-goal of its experiment in
 # context/roadmap.toml, with its remote and path there; the experiment's intake records it here.
