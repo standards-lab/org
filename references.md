@@ -327,9 +327,10 @@ vLLM instance and one heavy purpose to a GPU: gb10-1 serves the agent, gb10-2 vi
 Framework audio beside embedding; experiment.hosting's intake archives it.
 
 ### spike-model-gateway
-Asks which gateway fronts the vLLM layout and how access to the model APIs is restricted without
-the tailnet: agentgateway and LiteLLM live on gb10-2, with purpose aliases on per-purpose base
-URLs, per-consumer keys with priority, and overflow to Azure AI Foundry. Active.
+Asked which gateway fronts the vLLM layout and how access to the model APIs is restricted without
+the tailnet. Answered with agentgateway v1.7.0 on gb10-2: purpose aliases on per-purpose base
+URLs, gateway-issued keys with priority, buckets, and budgets, and overflow to Azure AI Foundry for
+agent and vision only; experiment.hosting's intake archives it.
 
 ### spike-ai-pipeline
 Asked whether a Go model client and a message, document, and stream processing layer can carry a

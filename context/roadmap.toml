@@ -6,9 +6,8 @@
 # the reference-architecture code repositories; it is free since api-maintenance synced
 # (2026-11-12). v1.client.stack holds it only for its `newclient` task, the one that locks
 # go-web-sdk. Outside the group, experiment.hosting's spike-model-hosting, spike-model-engines,
-# spike-hosting-upgrades, and spike-model-layout have answered (ai-hosting.md, "Answers ·
-# experiment.hosting"), and spike-model-gateway is active, staged by layout's sync, with gb10-2 in
-# experiment.hosting's host set since spike-ai-pipeline's docinfer task shipped.
+# spike-hosting-upgrades, spike-model-layout, and spike-model-gateway have answered
+# (ai-hosting.md, "Answers · experiment.hosting"); `marathon intake experiment.hosting` is next.
 # experiment.html's intake (2026-11-18) split v1.client into v1.client.stack, before the
 # capstone, and v1.client.reference, after it (web-client.md), and moved status-reports and
 # training under sites (sites.md). graph-ergonomics shipped its API in go-core v0.11.0
@@ -30,8 +29,8 @@
 # - A (done): spike-model-layout and spike-html-hosting answered; spike-ai-pipeline's `answer`,
 #   graph-ergonomics with spike-graph, experiment.ai's and experiment.graph's intakes,
 #   graph-ergonomics' release and per-tier migrations, and api-maintenance shipped.
-# - B: spike-model-gateway (agentgateway done; then routing, priority, answer: plan, 2026-11-13);
-#   then experiment.hosting's intake. v1.ai.processing (docproc and its system tools, absorbing
+# - B: spike-model-gateway (answered: ai-hosting.md, "Answers · experiment.hosting"); then
+#   experiment.hosting's intake, next. v1.ai.processing (docproc and its system tools, absorbing
 #   v1.ai.tools) runs beside them, ahead of wave C, holding the architecture lock ahead of
 #   v1.ai.hosting; v1.ai.client (go-ai) has finished, releasing go-ai v0.3.0.
 #   v1.ai.inference (docinfer) is active after it (plan, 2026-11-18). v1.client.stack is active
@@ -57,7 +56,6 @@
 #   the rest of sites, last.
 
 active = [
-  "experiment.hosting.spike-model-gateway",
   "v1.ai.processing",
   "v1.client.stack",
   "harness.optimization",
@@ -335,6 +333,66 @@ context = ["standards-lab/context/ai-hosting.md"]
 # beneath it"):
 # - Cerebro (bulk processing) and Athena (chat) are separate gateway consumers, each with a key
 #   and a budget; the gateway's 429 and queueing behave as go-ai's retry expects.
+
+# From spike-model-gateway (its answer: ai-hosting.md, "Answer ·
+# experiment.hosting.spike-model-gateway"; the requirements: spike-model-gateway `docs/gateway.md`):
+# - Observability: metrics and logs through the same Collector into the full LGTM stack
+#   (architect, 2026-11-18), on go-web-service's observability profile (its Collector, contrib
+#   0.165.0, with Loki, Tempo, Mimir, and Grafana). One central Collector takes every service's
+#   telemetry:
+#   - traces pushed over OTLP, as agentgateway and the four rows do in the spike;
+#   - metrics by its `prometheus` receiver scraping agentgateway's stats port (15020) and each
+#     vLLM row's `/metrics` (queue depth, KV cache, latency histograms), exported to Mimir;
+#   - container logs by Docker's `fluentd` logging driver on each service (dual logging keeps
+#     `docker logs`), sent across hosts to the Collector's `fluentforward` receiver (24224), with
+#     a `transform` processor mapping each container's tag to its `service.name`, so Grafana's
+#     trace-to-logs link searches the name Tempo uses. A per-host `filelog` agent is the
+#     alternative.
+#   Joining the gateway's 503s and evictions to a row's queue and KV cache is the evidence the
+#   `/metrics` admission gap needs. Unverified: whether agentgateway v1.7.0's access log carries
+#   the trace id (if so, go-web-service's `json_parser` trace operators apply), and whether vLLM's
+#   histograms carry exemplars; vLLM's plain-text logs carry no trace id.
+# - Route `ai`: the gateway runs route `ai` backends, the form agentgateway's docs recommend for
+#   path-based LLM routing. The UI labels them "legacy", and since 1.7 the Kubernetes model form
+#   is called the recommended one (#4307); agentgateway has no deprecation policy (#2767, closed as
+#   premature), and it deprecated `binds` without parity (#3204). The spike's watch register
+#   (`docs/watch.md`) tracks route `ai`, and the `llm` form, trialled in task `routing` where it
+#   passed, is the fallback (`docs/gateway.md`, "Priority's gaps").
+# - Embedding gets no Azure group, since cloud embedding replies come from another vector space
+#   (text-embedding-3-small at 768 dimensions). Every Azure-answered reply carries an overflow
+#   marker (`x-gateway-overflow: azure`); should a deployment give embedding an Azure group, a
+#   client that stores vectors must refuse or re-route a marked reply (`docs/gateway.md`,
+#   requirements 8 and 9).
+# - vLLM's queue limit counts every key alike, so a bulk flood also refuses interactive requests,
+#   which then overflow. Under saturation a row's 503 with eviction sends nearly the whole load to
+#   Azure, and agentgateway's eviction multiplier has no cap, so after a long outage or overload a
+#   row can stay out for minutes after it is back (`docs/gateway.md`, "Priority's gaps").
+# - Authenticated OTLP ingress and sampling below 100% are production requirements. The spike's
+#   Collector takes spans on gb10-2's tailnet address unauthenticated, and the gateway and rows
+#   sample every request (`docs/findings/answer.md`, "For production"; `docs/gateway.md`,
+#   requirement 10).
+# - `/models` through the gateway is the gateway's own answer,
+#   `{"id":"<alias>","object":"model","owned_by":"gateway"}`, so go-ai v0.3.0's `Model.Native` and
+#   `infer models`' root column carry no served model, while the row's own listing gives `root`
+#   (`openai/gpt-oss-120b` on gb10-1). Whether to pass `root` through or keep it hidden is
+#   v1.ai.hosting's call; a consumer reading `Native` through the gateway gets no `root`
+#   (`docs/findings/answer.md`, "At v0.3.0"; `docs/gateway.md`, requirement 1).
+# - A measured cold start, a candidate for the restart and capacity notes in place of an
+#   estimate. vLLM's startup traces give each row's cold start by phase, read from its `Overall
+#   Loading` trace: weights' load, model preparation, KV cache allocation, and warmup. The agent's
+#   46.2 s is led by its 17.8 s weights' load, audio's 50.0 s by its 20.5 s warmup; vision 31.3 s,
+#   embedding 13.0 s, one restart each with the weights cached (`docs/findings/answer.md`, "The
+#   rows' startup traces and cold start").
+# - An agent Messages stream that overflows to Azure streams. Through the rows-down overlay
+#   (agentgateway v1.7.0, Foundry `gpt-oss-120b`), three sends counting to 300 at `max_tokens` 1024
+#   each gave 61 text deltas in bursts spread over the reply, never all at the end: the first at
+#   0.57–0.66 s, and the last with `message_stop` at 1.12–1.36 s. The translated stream's
+#   `message_start` reports 0 input tokens, because agentgateway builds it from the first chunk,
+#   before any usage; only `message_delta` carries the real count, so a consumer must read input
+#   usage there. Azure's `azureai-fe-is-streaming` header doesn't show streaming: it reads `False`
+#   on a request streamed directly to Azure too. The cause of the 2026-11-16 stall at
+#   `--max-tokens 16` stays open; it hasn't recurred in three reruns (`docs/findings/priority.md`,
+#   "Addendum 2026-11-19 · the 16-token Messages stall").
 
 [goals.v1.ai.processing]
 name = "docproc, the processing library and its system tools"
@@ -1476,100 +1534,6 @@ the architecture layer takes; and whether personal-agents' contents move into `a
 takes in the application-workload model roles from spike-ai-pipeline's set A (vision with
 reasoning off, transcription, and embeddings), and decides whether hosting stays under v1.ai or
 becomes its own goal. It archives the five spikes. experiment.harness's spikes wait for it.
-'''
-
-[goals.experiment.hosting.spike-model-gateway]
-name = "Routing and access across the model pool"
-root = "spike-model-gateway"
-repos = ["spike-model-gateway", "spike-model-engines"]
-remote = "https://github.com/JaimeStill/spike-model-gateway.git"
-path = "~/experiments/spike-model-gateway"
-summary = '''
-Which gateway fronts the self-hosted vLLM layout (gb10-1 the agent, gb10-2 vision, the Framework
-audio and embedding; one row per purpose, no failover), and its access control. The gateway admits
-on each row's live `/metrics` per purpose floor and queues past each cap; holds embedding to 34
-requests a second; issues per-consumer keys with budgets, rate limits, and priority, so
-capstone.data-intelligence's chat stays responsive during a ~/docs-scale processing run; names
-purposes by alias (agent, vision, audio, embedding), each on its own base URL `/<alias>/v1` whose
-`/models` lists only that alias, so go-ai's integration tier and the `infer` CLI pick their model
-unchanged; overflows to Azure AI Foundry under the same alias when a purpose is full or its host is
-down; and reaches only serving routes with a consumer key, so no serving API manages models (row
-lifecycle stays with spike-model-engines' host/ and experiment.admin). Making the gateway the only
-network path to the rows is production's, for the networking and platform teams; in dev the rows
-stay reachable on the tailnet. agentgateway, an Agentic AI Foundation project, is tried live from
-gb10-2, its 429, 503, and Retry-After checked against go-ai's retry set through go-ai's own
-integration tier. On paper: a gateway comparison with LiteLLM as the feature reference (not tried
-live: its supply-chain compromise and 2026 advisories, a Python runtime whose Rust port isn't
-production-ready, single-vendor governance), Bifrost, Agent Router (AAIF, Kubernetes-first), Kong,
-Portkey, Helicone, and TensorZero (archived); vLLM's production-stack router
-(it balances replicas of one model), Kubernetes portability, JWT/OIDC, production's Azure Container
-Apps routing, IL6, and a cheaper chat tier. Claude-model workloads stay off the gateway. Reads
-spike-model-layout's "Requirements for spike-model-gateway" and spike-model-hosting's
-tool-reliability findings; changes spike-model-engines' host/ through pull requests (plan,
-2026-11-13; LiteLLM dropped and routing added after agentgateway, plan, 2026-11-13).
-'''
-
-[goals.experiment.hosting.spike-model-gateway.tasks.agentgateway]
-name = "agentgateway in front of the rows"
-summary = '''
-agentgateway v1.7.0 on gb10-2 with purpose aliases on per-purpose base URLs and gateway-issued keys;
-the rows rebound behind it by a spike-model-engines host/ pull request. Covers the fence, each
-cap's queueing and 429/503 with Retry-After, `/metrics` admission against static caps, and the
-overhead against the same GuideLLM cells sent direct in one session.
-'''
-proof = '''
-Chat, streaming, embeddings, and audio pass through on `/<alias>/v1`, each listing only its alias;
-a keyless or revoked key is refused; go-ai's integration tier passes through the gateway.
-'''
-
-[goals.experiment.hosting.spike-model-gateway.tasks.routing]
-name = "agentgateway's config off the legacy route form"
-summary = '''
-agentgateway's UI labels the inline `ai` route backends agentgateway's task used "legacy"; its
-providers, models, and virtual models (failover, weighted, conditional, callout) live in the `llm`
-section, which takes one path prefix. Weighs moving to the `llm` section or another non-legacy
-form, whether per-alias base URLs `/<alias>/v1` survive it or one shared `/v1` routed by model name
-replaces them, and other config optimizations, so priority builds on the settled form.
-'''
-proof = '''
-The four aliases served in the chosen form; go-ai's and infer's integration tiers pass through it;
-the base-URL choice recorded.
-'''
-
-[goals.experiment.hosting.spike-model-gateway.tasks.priority]
-name = "Priority and cloud overflow"
-summary = '''
-On agentgateway alone, in the form routing settles: Azure AI Foundry overflow with a capped request
-count, embedding's 34 requests a second beside audio, per-key priority and budgets with chat beside
-a bulk vision run, budgets counting streamed requests' usage (agentgateway reads none from a stream
-without `include_usage`), overflow under the same alias, no failover between hosts, the Framework
-down until `/health`, and which workloads may leave the self-hosted machines.
-'''
-proof = '''
-Chat holds its floor while a bulk key saturates vision; a streamed request counts against its key's
-budget; and an overflowed request is answered by Foundry under its alias.
-'''
-
-[goals.experiment.hosting.spike-model-gateway.tasks.answer]
-name = "The answer"
-summary = '''
-agentgateway's OpenTelemetry traces through a Collector; the paper sections, among them the gateway
-comparison (LiteLLM as the feature reference, Bifrost, Agent Router, Kong, Portkey, Helicone,
-TensorZero archived); the gateway document, which carries the hardening of dot-segment paths as a
-requirement; the README's answer; and the answer section for `ai-hosting.md`.
-'''
-proof = "The README's \"The answer\", and the answer section in the goal record's pending edits."
-
-[goals.experiment.hosting.spike-model-gateway.tasks.max-tokens-note]
-name = "The `--max-tokens 16` hang in the priority findings"
-summary = '''
-Adds to the note in `docs/findings/priority.md` on the hang at `--max-tokens 16` (from
-v1.ai.client's sync): rerun through rows-down on 2026-11-17, the translated Messages stream ended
-in message_stop within 1.3 s and go-ai ended on it, so the 15 s stall wasn't go-ai's. Azure's
-reply carried `azureai-fe-is-streaming: False`, which suggests the gateway sends Azure an
-unstreamed Chat Completions request and builds the Messages stream from the whole reply, so a
-longer reply stalls until Azure finishes. The translated stream's message_start reports 0 input
-tokens, and its message_delta reports the real count (go-ai v1.ai.client, azure-streams).
 '''
 
 # ── Backlog ────────────────────────────────────────────────────────────────────────────────
