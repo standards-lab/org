@@ -102,6 +102,11 @@ remote = "https://github.com/standards-lab/docproc.git"
 [repos.docinfer]
 remote = "https://github.com/standards-lab/docinfer.git"
 
+# ai-hosting is low-level infrastructure outside the five tiers, beside the harness
+# repositories (v1.ai.hosting), so its entry declares no standard.
+[repos.ai-hosting]
+remote = "https://github.com/standards-lab/ai-hosting.git"
+
 # The web client stack (v1.client.stack). Each is an intended member of the draft
 # web-elemental standard (references.md, "web-elemental (preliminary)"); its entry
 # declares standard = "web-elemental" once v1.client.stack's `standard` task founds it.

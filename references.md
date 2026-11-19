@@ -188,6 +188,16 @@ with a result cache behind an interface. Its PostgreSQL cache, `docinfer/postgre
 command, `cmd/docinfer`, are nested modules, each tagged on its own. Adjacent to the `go-elemental`
 standard, as `sqlate` is. Its reference is spike-ai-pipeline's docinfer.
 
+### ai-hosting
+The hosting layer of the AI capability (v1.ai.hosting): the specification the organization's
+local model hosts follow. It holds the `hosting` command suite, host-class profiles, each host
+class's vLLM rows with their install, update, and uninstall, agentgateway's compose stack with
+overflow to Azure AI Foundry, a runbook per host class, and the upgrade-evaluation convention and
+its skill; admin tooling joins after experiment.admin's intake. Low-level infrastructure outside
+the five tiers, beside the harness repositories, and the one hosting repository on each
+workstation. Its references are spike-model-engines, spike-model-gateway, spike-model-hosting,
+spike-hosting-upgrades, and spike-model-layout.
+
 ### web-tooling
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
 test server, the process helper, the `web-screenshots` bin, and a pinned-font-set helper. Planned
