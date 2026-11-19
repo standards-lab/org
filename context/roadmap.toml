@@ -54,8 +54,8 @@
 #   sites.training.foundation's setup and syllabus.
 # - During it (wave D): sites.status-reports' second report, an orientation to the capstone, and
 #   sites.training.foundation's writing tasks.
-# - After it: v1.client.reference, v1.repository-docs, foundation-extension, client-create, and
-#   the rest of sites, last.
+# - After it: v1.client.reference, v1.repository-docs, client-create, and the rest of sites,
+#   last.
 
 active = [
   "v1.ai.processing",
@@ -106,7 +106,6 @@ backlog = [
   "api-versioning",
   "model-evaluation",
   "nats-credentials",
-  "foundation-extension",
   "client-create",
   "screenshots-in-neovim",
   "retrieval",
@@ -1013,20 +1012,23 @@ root = "web-foundation"
 repos = [
   "web-tooling",
   "web-foundation",
+  "web-icons",
   "web-components",
   "web-app-sdk",
   "webappgen",
 ]
 summary = '''
-Five standards-lab repositories: web-tooling, web-foundation, web-components, and web-app-sdk,
-each a package under the @standards-lab scope released by a plain vX.Y.Z tag on a pack commit,
-cut by hand; and webappgen (renamed from web-app-sdk-template), a Go CLI released as binaries
-from a plain vX.Y.Z tag. Each starts fresh at v0.1.0, seeded by copy from its spike with
+Six standards-lab repositories: web-tooling, web-foundation, web-icons, web-components, and
+web-app-sdk, each a package under the @standards-lab scope released by a plain vX.Y.Z tag on a
+pack commit, cut by hand; and webappgen (renamed from web-app-sdk-template), a Go CLI released as
+binaries from a plain vX.Y.Z tag. Each starts fresh at v0.1.0, seeded by copy from its spike with
 provenance. go-web-sdk gains `NewClient`, and the architecture layer gains the
 draft web-elemental standard. The whole goal runs before the capstone, starting in wave B. Its
 first `plan` (2026-11-18) created the five repositories, added them to `order` and the catalog,
 and set its root, web-foundation. It holds go-web-sdk and the exclusive group only for its
-`newclient` task, and architecture only for its `standard` task.
+`newclient` task, and architecture only for its `standard` task. The plan at template's BRIEF
+(2026-11-19) added foundation-settings, icons, which created web-icons, and components-settings,
+and absorbed foundation-extension.
 '''
 context = ["standards-lab/context/web-client.md"]
 
@@ -1089,16 +1091,37 @@ exclusive group: the goal's repos gain go-web-sdk for it and drop it at its SHIP
 '''
 
 [goals.v1.client.stack.tasks.foundation-settings]
-name = "Settings, Help, and page layout in web-foundation"
+name = "The foundation's shared patterns in web-foundation"
 repos = ["web-foundation"]
 summary = '''
-A web-foundation minor, v0.4.0, that takes four of foundation-extension's candidates
-(`web-client.md`, "Foundation candidates") so webappgen's starter builds on them: the Settings
-dialog, which applies and stores the theme and the keys settings at once, on S; the Help dialog,
-the keyboard shortcuts, on ?; the glyph button; and a page-layout sheet. From
-spike-html-hosting-components' sl-settings, sl-shortcuts, and glyph-button, as
-spike-html-go-wasm's pages arrange them. The architect moved it ahead of template at template's
-BRIEF (2026-11-19).
+A breaking web-foundation minor, v0.4.0 (`web-client.md`, "Conventions"). It removes sl-theme-menu,
+setOpen and isOpen, keys-help.ts, and keys.js' [data-keys-list] fill (Listed drops run); the theme
+menu's sheet moves into web-components' sl-settings. It adds the glyph button and hint sheet; the
+dialog sheet, with its header row and the wide and fit-content (capped at 56rem) widths; an opt-in
+page-layout sheet with the application and prose page types; the tokens, field and progress rules,
+utility classes, and motion sheet the components keep locally; formatJson, from web-components'
+json.js, with a text-parsing companion; and five --color-* role hooks over role-free hues.
+'''
+
+[goals.v1.client.stack.tasks.icons]
+name = "web-icons"
+repos = ["web-icons"]
+summary = '''
+The icons layer, seeded from spike-html-hosting-icons at 8b8d955 with provenance: Octicons 19.42.0
+(its MIT LICENSE kept) as one string ES module per icon, and the Vite plugin, from
+spike-html-hosting-sdk's src/icons.ts, that fills <svg data-icon="set/name"> markers in dev and
+build. Its browse page runs on web-foundation v0.4.0 without a theme menu. Released as v0.1.0.
+'''
+
+[goals.v1.client.stack.tasks.components-settings]
+name = "Settings and Help in web-components"
+repos = ["web-components"]
+summary = '''
+A web-components minor, v0.2.0, on web-foundation ^0.4.0 and web-icons ^0.1.0: sl-settings, the
+theme and keys settings applied and stored at once, on S, and sl-shortcuts, Help's plain-text
+keyboard shortcuts, on ?, from spike-html-hosting-components v0.5.1. sl-drawer's Close renders
+web-icons' x-16 and gains a modal-only mode. The local copies of the patterns web-foundation v0.4.0
+takes go, and json.js goes with no re-export.
 '''
 
 [goals.v1.client.stack.tasks.template]
@@ -1109,8 +1132,8 @@ webappgen, a Go CLI on go-cli-sdk, with its first kind: `webappgen new standalon
 static app on the stack that reads a `config.json` placed beside its build, with `--install` to
 install it. A written project's check reports the whole build's size and enforces no budget. The
 CLI's check writes a project and runs that project's own check. Its page takes web-foundation
-v0.4.0's full entry, layout, Settings on S, and Help on ?. Released as v0.1.0, binaries for Linux
-and macOS.
+v0.4.0's application page, web-icons v0.1.0's glyphs, and web-components v0.2.0's Settings on S
+and Help on ?. Released as v0.1.0, binaries for Linux and macOS.
 '''
 
 [goals.v1.client.stack.tasks.standard]
@@ -1935,17 +1958,6 @@ summary = '''
 go-messaging's `nats.Config` gains a credentials field, and `Start`'s error stops printing a
 token in its URL.
 '''
-
-[goals.foundation-extension]
-name = "A foundation minor for the components' local patterns"
-summary = '''
-A web-foundation minor that takes the patterns the components keep locally, the architect's
-request during spike-html-apps' primitives task, and the gaps the sites found: sl-drawer, an
-outline-offset token, and the help and menu chunks every site builds without requesting them
-(`standards-lab/context/web-client.md`, "Foundation candidates"). Settings and Help,
-glyph-button, and the page-layout sheet moved to v1.client.stack's foundation-settings.
-'''
-context = ["standards-lab/context/web-client.md"]
 
 [goals.client-create]
 name = "A command that creates a client project"
