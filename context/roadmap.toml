@@ -960,7 +960,7 @@ The workflow every session runs: marathon and its extensions, kept lean and chec
 [goals.harness.optimization]
 name = "marathon optimized for context and effectiveness"
 root = "claude-plugins"
-repos = ["claude-plugins"]
+repos = ["claude-plugins", "architecture"]
 summary = '''
 marathon and the content it produces made smaller and checked rather than described, from Lauren
 Tan's "All Code Is Slop (Except Mine)" and Brandon Thomas's "Let's Open Source the World", on top
@@ -1002,7 +1002,7 @@ summary = "One artifact per Behavior in the session brief's Evidence, produced b
 
 [goals.harness.optimization.tasks.comment-standard]
 name = "The comment near-ban in the architecture layer"
-summary = "Only package documentation and the reasons lint suppressions and pin holds require, with its enforcement. Needs architecture free of v1.ai.processing; a plan adds it to the goal's repos then."
+summary = "Only package documentation and the reasons lint suppressions and pin holds require, with its enforcement."
 
 [goals.harness.optimization.tasks.harness-standards]
 name = "Harness programming standards in claude-plugins"
