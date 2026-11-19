@@ -34,7 +34,10 @@ exclusive = [
   ],
 ]
 order = [
-  "claude-plugins", # harness
+  [
+    "claude-plugins", # harness
+    "ai-hosting",     # model hosting: hosts, vLLM rows, and the gateway; low-level infrastructure
+  ],
   [
     "go-core", # core SDK
     "sqlate",  # SQL templating library, adjacent to the standard
