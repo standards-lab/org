@@ -6,6 +6,20 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "harness.adoption",
+  "harness.adoption-core",
+  "harness.adoption-go-base",
+  "harness.adoption-go-web-sdk",
+  "harness.adoption-go-storage",
+  "harness.adoption-blobfs",
+  "harness.adoption-templates",
+  "harness.adoption-go-web-service",
+  "harness.adoption-docproc",
+  "harness.adoption-go-ai",
+  "harness.adoption-docinfer",
+  "harness.adoption-web-foundation",
+  "harness.adoption-web-components",
+  "harness.adoption-web-rest",
+  "harness.adoption-spikes",
 ]
 
 planned = [

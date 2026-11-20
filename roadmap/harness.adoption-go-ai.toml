@@ -1,0 +1,16 @@
+name = "go-ai adopts 0.21.0"
+summary = '''
+go-ai adopts marathon 0.21.0 on ai-hosting's pattern and the rules every adoption shares
+(standards-lab/context/harness-adoption.md).
+'''
+repos = ["go-ai"]
+root = "go-ai"
+order = ["adopt"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.adopt]
+name = "go-ai adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in go-ai. Its design review of built work moves
+to docs/.
+'''

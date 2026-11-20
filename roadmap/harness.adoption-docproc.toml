@@ -1,0 +1,22 @@
+name = "docproc adopts 0.21.0"
+summary = '''
+docproc adopts marathon 0.21.0 on ai-hosting's pattern and the rules every adoption shares
+(standards-lab/context/harness-adoption.md).
+'''
+repos = ["docproc"]
+root = "docproc"
+order = ["docproc", "docproc-comments"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.docproc]
+name = "docproc adopts 0.21.0"
+summary = '''
+The pin, the check, context, configuration comments, and pointers, in docproc, and its
+v1.ai.processing record's sections over budget; its notes on built work move to docs/.
+'''
+
+[tasks.docproc-comments]
+name = "docproc's code comments come to the five kinds"
+summary = '''
+Go, Rust, and C# comments outside the five kinds, by package.
+'''

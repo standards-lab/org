@@ -1,0 +1,15 @@
+name = "web-tooling, web-app-sdk, and web-icons adopt 0.21.0"
+summary = '''
+web-tooling, web-app-sdk, and web-icons adopt marathon 0.21.0 on ai-hosting's pattern and the rules
+every adoption shares (standards-lab/context/harness-adoption.md).
+'''
+repos = ["web-tooling", "web-app-sdk", "web-icons"]
+root = "web-tooling"
+order = ["adopt"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.adopt]
+name = "web-tooling, web-app-sdk, and web-icons adopt 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in web-tooling, web-app-sdk, and web-icons.
+'''

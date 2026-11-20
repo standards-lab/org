@@ -1,0 +1,17 @@
+name = "docinfer adopts 0.21.0"
+summary = '''
+docinfer adopts marathon 0.21.0 on ai-hosting's pattern and the rules every adoption shares
+(standards-lab/context/harness-adoption.md).
+'''
+repos = ["docinfer"]
+root = "docinfer"
+order = ["adopt"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.adopt]
+name = "docinfer adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in docinfer. Including its v1.ai.inference
+record's sections over budget; its design note's built material moves to docs/ and its planned
+material to notes.
+'''
