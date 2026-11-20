@@ -2,17 +2,11 @@ name = "The ai-hosting specification repository"
 summary = '''
 Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
 container, laid out as agent on gb10-1, vision on gb10-2, and audio and embedding on the
-Framework; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority,
-budgets, and overflow to Azure AI Foundry on all four aliases; a multilingual model in place of
-set A's English-only embedding model; and the upgrade-evaluation convention rebuilt on vLLM. Its
-first `plan` (2026-11-19) created `ai-hosting` as a peer of claude-plugins in the workspace's
-lowest layer; ai-hosting becomes the one hosting repository on each workstation. Its `architecture` task lands four method pages in architecture on its own branch,
-sharing the architecture lock with v1.ai.processing; the architect frees
-the lock before that task merges (intake, 2026-11-19). Runs before the capstone, which runs on the
-hosts and gateway it specifies; the admin tooling joins ai-hosting after experiment.admin's
-intake. `secrets` shares go-ai and docinfer with v1.ai.inference until it ships. Its sync
-archives personal-agents, with a forward link to ai-hosting, and
-spike-model-engines, spike-model-gateway, and spike-hosting-upgrades.
+Framework; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority, budgets, and overflow to
+Azure AI Foundry on all four aliases; a multilingual model in place of set A's English-only
+embedding model; and the upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the
+one hosting repository on each workstation. Runs before the capstone, which runs on the hosts and
+gateway it specifies.
 '''
 repos = ["ai-hosting", "architecture", "secrets", "go-ai", "docinfer"]
 root = "ai-hosting"
@@ -34,18 +28,14 @@ context = ["standards-lab/context/ai-hosting.md"]
 [tasks.design]
 name = "Design review of the hosting stack"
 summary = '''
-Opens with Fable 5.2 evaluations of the three promoted artifacts, against the full architecture
-standards, the workspace, and `ai-hosting.md`: spike-model-engines' `host/` at 6ce3210 (the
-engines suite and each host class's vLLM rows), spike-model-gateway at 2f2e8c1 (the gateway's
-compose stack and `docs/gateway.md`'s requirements), and spike-model-hosting's `profile` package
-at aac0764 (the host-class profile schema, its validator and renderer). Settles each finding with
-the architect, one review round per evaluation, and writes ai-hosting's design note: the
-repository's layout, which parts each task takes from which spike, and the gateway's open points
-(ai-hosting.md, "The `gateway` task", settled at its plan), and the `hosting` suite: its
-groups and verbs, the read-only operator commands taken from personal-agents' `outpost` at
-d3e0755 with the task that builds each, the host-class pattern, the `~/.local/bin` install, and
-the `cleanup` task's inventory. Confirms multilingual-e5-large's scope and price on Foundry
-managed compute. No code.
+Opens with Fable 5.2 evaluations of the three promoted artifacts against the full architecture
+standards, the workspace, and `ai-hosting.md`: spike-model-engines' `host/`, spike-model-gateway,
+and spike-model-hosting's `profile` package. Settles each finding with the architect, one review
+round per evaluation, and writes ai-hosting's design note: the repository's layout, which parts
+each task takes from which spike, the gateway's open points (`docs/ai-hosting.md`, "The `gateway`
+task", settled at its plan), the `hosting` suite with the read-only operator commands taken from
+personal-agents' `outpost`, and the `cleanup` task's inventory. Confirms multilingual-e5-large's
+scope and price on Foundry managed compute. No code.
 '''
 
 [tasks.secrets]

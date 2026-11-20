@@ -1,13 +1,11 @@
 name = "Training"
 summary = '''
-The standards-lab/training repository of training materials, which can host several curricula,
-at ~/architecture/training, published as a standalone project site under `/training/`. Its first
-curriculum lays a short foundation, an orientation to what working through the Standards Lab
-architecture needs, then a guided path through the architecture that validates each layer the
-organization adopts. Each unit is a short sub-goal, `sites.training.<layer>`, that lists the
-library repositories it builds against, so it holds them only while active, fixes what it finds,
-and runs their currency maintenance; a unit that locks exclusive-group libraries is staged only
-when the group is free. The prose is the architect's: agents suggest revisions, through the
-editor, and make the supplements and the components.
+The standards-lab/training repository of training materials, able to host several curricula, at
+~/architecture/training, published as a standalone project site under `/training/`. Its first
+curriculum lays a short foundation for working through the Standards Lab architecture, then a
+guided path validating each layer the organization adopts. Each unit is a short sub-goal,
+`sites.training.<layer>`, listing the libraries it builds against, so it holds them only while
+active, fixes what it finds, and runs their currency maintenance. The prose is the architect's;
+agents suggest revisions through the editor and make the supplements and components.
 '''
 repos = []

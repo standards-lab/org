@@ -5,10 +5,10 @@ active = [
   "v1.client.stack",
   "v1.ai.inference",
   "v1.ai.hosting",
+  "harness.adoption",
 ]
 
 planned = [
-  "harness.adoption",
   "sites.status-reports",
   "sites.training.foundation",
   "corpus.docs",

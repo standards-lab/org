@@ -1,14 +1,12 @@
 name = "Observability"
 summary = '''
 The go-observability infrastructure library: a base module over the stable OpenTelemetry API
-and SDK, and an `otlp` sub-module pinning the exporters and the gRPC/protobuf weight they
-carry — the shape and the standard-versus-native split are settled in the linked strategy
-record. Logs stay on stdout as structured JSON with trace and span ids stamped in, ingested by
-the collector's filelog receiver; the OTLP logs pipeline waits for that signal's SDK to reach a
-stable release. The LGTM stack (Loki, Grafana, Tempo, Mimir) is reached entirely through the
-OpenTelemetry standard — OTLP to the collector, standard exporters onward — with no native
-deviation projected and never a Go dependency of its own. Sequenced before the layers that
-follow so each instruments as it lands.
+and SDK, and an `otlp` sub-module pinning the exporters and their gRPC/protobuf weight, as the
+linked strategy record settles. Logs stay on stdout as structured JSON stamped with trace and span
+ids, ingested by the collector's filelog receiver, until the OTLP logs SDK is stable. The LGTM
+stack (Loki, Grafana, Tempo, Mimir) is reached only through OpenTelemetry, OTLP to the collector,
+and is never a Go dependency. Sequenced before the layers that follow, so each instruments as it
+lands.
 '''
 repos = []
 context = ["go-observability/README.md"]

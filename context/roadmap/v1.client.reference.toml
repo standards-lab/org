@@ -3,12 +3,10 @@ summary = '''
 go-web-service's client on spike-html-apps' app shape, embedded in the service and served by
 `NewClient`, in parity with the service as slab is on the command line, and applying
 web-elemental. It first demonstrates the organizations, the document hierarchy, and a live view
-of go-web-service's reactors over the WebSocket bridge, against the open API; v1.auth's client
-sweep puts it behind authentication. It evaluates the embedded strategy against an external
-client hosted apart from any one service. Recorded inputs: the organization logo's fallback
-(v1.storage), and NATS-native chat as a candidate transport (`standards-lab/context/messaging.md`).
-Runs after the capstone, first in wave E, ahead of v1.data and v1.auth; its own planning writes
-its tasks.
+of go-web-service's reactors over the WebSocket bridge, against the open API, and evaluates the
+embedded strategy against an external client (`web-client.md`, "The reference client"). Runs
+after the capstone, first in wave E, ahead of v1.data and v1.auth; its own planning writes its
+tasks.
 '''
 repos = []
 context = ["standards-lab/context/web-client.md"]

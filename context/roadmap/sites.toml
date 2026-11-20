@@ -5,8 +5,7 @@ The workspace's GitHub Pages sites, native web built by Vite from Markdown
 holding the charter, the index of sites, and the site list every nav fetches; architecture and
 each code repository's docs/ guide as project sites under `/<repo>/`; and the documentation
 components layer and the site SDK they build on, each released by tag, on the client stack's
-layers, web-icons among them. Planned
-last, after v1.middleware. Its sub-goals, sites.status-reports and sites.training, are early work
+layers. Planned last, after v1.middleware. Its sub-goals, sites.status-reports and sites.training, are early work
 the architect needs for leadership: they publish as standalone project sites under `/<repo>/`
 and wait on no `sites` task.
 '''
