@@ -3,12 +3,10 @@ summary = '''
 The admin mount on its own listener, unreachable from the public API's network path,
 authenticated through the auth layer, with audit logging on anything that mutates and a
 confirmation token gating the destructive down, force, and state verbs; config rendering
-over a go-core redaction contract; the
-composition-root reshape in go-web-service and the same reshape in go-web-sdk-template.
-Posture decisions on record: whether the serving role ever holds DDL, and whether off by
-default is mandated by the standard. It waits on auth and observability, because each choice it
-would make (the token's mechanism, the listener's authentication, the audit record) is one those
-layers make.
+over a go-core redaction contract; the composition-root reshape in go-web-service and
+go-web-sdk-template. Posture decisions on record: whether the serving role ever holds DDL, and
+whether off by default is mandated by the standard. It waits on auth and observability, which
+make its choices: the token's mechanism, the listener's authentication, the audit record.
 '''
 repos = []
 context = [

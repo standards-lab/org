@@ -1,15 +1,12 @@
 name = "Status reports"
 summary = '''
 The repository of status reports on the effort, a standalone project site under
-`/status-reports/`. marathon sets it up and then steps back: the repository defines its own
-report layout, components, and conventions and a documented report workflow, and every report
-follows that workflow, not marathon tasks. The prose is the architect's: agents suggest
-revisions, through the editor, and make the supplements (diagrams, screenshots, demonstrations)
-and the components. Each report ends with "Explore it yourself", a guide prompt scoped to the
-report and built from a shared base guide, so a reader can dig deeper with an agent, as the
-coordinator's briefs/orientation.md does with interview.md. Starts after v1.client.stack's
-`foundation` task, ahead of wave C. The first reports are backfills: ~/architecture as it stands
-at the capstone's start (end of wave C) and an orientation to the capstone (start of wave D).
+`/status-reports/`. marathon sets it up and steps back: the repository defines its own report
+layout, components, conventions, and documented report workflow, which every report follows
+instead of marathon tasks. The prose is the architect's; agents suggest revisions through the
+editor and make the supplements and components. Each report ends with "Explore it yourself", a
+report-scoped guide prompt built from a shared base guide. Starts after v1.client.stack's
+`foundation` task; the first reports backfill the end of wave C and the start of wave D.
 '''
 repos = ["status-reports", "standards-lab"]
 root = "status-reports"

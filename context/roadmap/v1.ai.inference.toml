@@ -1,29 +1,12 @@
 name = "docinfer, the inference library"
 summary = '''
-docinfer, from spike-ai-pipeline's docinfer (`internal/docinfer` and `cmd/docinfer`) and the
-inference parts of docproc's `context/layers.md` ("docinfer's API", "docinfer's go-ai use",
-"docinfer's packages"): an adjacent library above go-ai's tier. Its base module, `docinfer`,
-requires docproc and go-ai: the root package's pipeline over go-ai's client, with extraction, the
-cache with its filesystem and memory implementations, batches as made, and their shapes; `chunk`;
-`join`, holding docproc's `audio.Join`, `JoinRequest`, `Seam`, and `Transcript`, moved, with its
-own seam-word setting; `job`, which counts outputs by part ID, not by output events
-(`job.Done.Outputs`), since events are at-least-once after a replay miss; and `outdir`, which owns
-its atomic write, since `rundir` drops WriteFile and WriteRunFile. docinfer reads `dispatch`'s
-Meta keys, and one metadata-text function over `dispatch.Part` serves it, `cmd/docinfer` adding
-its file lines (`ContentType.Detected` leaves `dispatch`); docinfer's "1" states that it includes
-`dispatch`'s "1" (design, 2026-11-13). The nested `docinfer/postgres` module holds the cache in
-PostgreSQL over sqlate, requiring docinfer, sqlate, and sqlate/postgres; the nested
-`cmd/docinfer` module requires docinfer, docproc, go-ai, go-cli-sdk, and go-core. go-ai's
-library has released (v0.3.0, v1.ai.client's sync). Its first `plan` (2026-11-19) created
-docinfer, public under Apache-2.0 from a fresh `init`, placed it in the templates' layer of
-`order`, and set up its tasks. Each module, the base, `postgres`, and `cmd/docinfer`, starts at
-v0.1.0 on its own tags, the base tagged before the modules that require it. docinfer's design note
-takes over the docinfer sections of docproc's `context/layers.md`, which retire at this goal's
-sync. design (2026-11-19) wrote that note, docinfer's `context/design.md`, now the one home of its
-API: `outdir` is `cmd/docinfer`'s `internal/outdir`, not the base module's; the base module
-requires go-ai v0.4.0, which the go-ai task releases, and holds `docinfertest`, the suite every
-cache passes; `join`'s setting is `Request.WordsPerSecond`, with no default, as no library bound
-has one.
+docinfer, from spike-ai-pipeline's docinfer (`internal/docinfer` and `cmd/docinfer`): an adjacent
+library above go-ai's tier. Its base module requires docproc and go-ai v0.4.0 and holds the
+pipeline over go-ai's client with extraction, the cache and `docinfertest`'s suite, `chunk`,
+`join`, and `job`; the nested `docinfer/postgres` holds the cache in PostgreSQL over sqlate, and
+the nested `cmd/docinfer` is its command. Each module starts at v0.1.0 on its own tags, the base
+tagged first. docinfer's `context/design.md` is its API's one home, taking over the docinfer
+sections of docproc's `context/layers.md`, which retire at this goal's sync.
 '''
 repos = ["go-ai", "docinfer"]
 root = "docinfer"
@@ -64,15 +47,13 @@ repos = ["go-ai"]
 [tasks.library]
 name = "The inference library"
 summary = '''
-docinfer's base module, its first slice copying the spike at 6a631f1 in one commit that the
-CHANGELOG cites, then built to the design note on go-ai v0.4.0 (`OutputText`,
-`TranscriptionMode()`, `aitest`): the root package's pipeline with extraction, `Bounds`, the cache
-with its filesystem and memory implementations and `docinfertest`'s suite, golden keys and a golden
-chunk corpus, batches as made, and docinfer's shapes; its own claim table for work in flight, not
-golang.org/x/sync; no defaults, a value below 1 refused with `ErrRequest`; a window group ended by
-its audio plan record, its last window, or the end of the inputs; extraction tested against
-`aitest`; `chunk`; and `join`, from spike-ai-pipeline-processing v0.9.0's audio join. Builds
-docinfer's CI with its Go module releases. Tags v0.1.0, after go-ai v0.4.0.
+docinfer's base module, from the spike at 6a631f1, built to the design note on go-ai v0.4.0: the root package's pipeline with
+extraction, `Bounds`, the cache with its filesystem and memory implementations and
+`docinfertest`'s suite, golden keys and a golden chunk corpus, batches as made, and docinfer's
+shapes; its own claim table for work in flight; no defaults, a value below 1 refused with
+`ErrRequest`; extraction tested against `aitest`; `chunk`; and `join`, from
+spike-ai-pipeline-processing v0.9.0's audio join. Builds docinfer's CI with its Go module
+releases. Tags v0.1.0, after go-ai v0.4.0.
 '''
 
 [tasks.job]
@@ -98,16 +79,13 @@ integration job. Its first CHANGELOG entry says "new". Tags postgres/v0.1.0.
 [tasks.docinfer]
 name = "docinfer"
 summary = '''
-The nested `cmd/docinfer` module, from the spike's `cmd/docinfer`, started from go-cli-sdk-template
-`template/v0.3.0` on go-cli-sdk v0.4.0 and go-core v0.12.0, building the design note's C1–C24 and
-L4: it reads a `cmd/docproc` run directory at schema "2" through docproc's `rundir`, feeds
-`Pipeline.Run`, and writes its own directory at schema "2" (`outdir.json`, a `FileCache` under
-`results/`, `inferences.jsonl` and the chunk record appended per batch, the manifest's inputs and
-the relative docproc directory). Its configuration and clients are graph nodes over go-ai's
-`Client.Models`, each endpoint's transport shipping a `ResponseHeaderTimeout` and its client a
-`StreamIdleTimeout`, transcribing over chat where an endpoint has no transcription route. Its
-report is per run, one page per input content, every text whole (moved from v1.ai.processing's
-`reports`). Tags cmd/docinfer/v0.1.0.
+The nested `cmd/docinfer` module, from the spike's `cmd/docinfer`, started from
+go-cli-sdk-template `template/v0.3.0` on go-cli-sdk v0.4.0 and go-core v0.12.0, building the
+design note's C1–C24 and L4: it reads a `cmd/docproc` run directory at schema "2" through
+docproc's `rundir`, feeds `Pipeline.Run`, and writes its own directory at schema "2". Its clients
+are graph nodes over go-ai's `Client.Models`, with the transport and stream timeouts and the
+transcription mode the design note sets. Its report is per run, one page per input content, every
+text whole. Tags cmd/docinfer/v0.1.0.
 '''
 
 [tasks.acceptance]

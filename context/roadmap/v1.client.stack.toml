@@ -2,15 +2,11 @@ name = "The client stack"
 summary = '''
 Six standards-lab repositories: web-tooling, web-foundation, web-icons, web-components, and
 web-app-sdk, each a package under the @standards-lab scope released by a plain vX.Y.Z tag on a
-pack commit, cut by hand; and webappgen (renamed from web-app-sdk-template), a Go CLI released as
-binaries from a plain vX.Y.Z tag. Each starts fresh at v0.1.0, seeded by copy from its spike with
-provenance. go-web-sdk gains `NewClient`, and the architecture layer gains the
-draft web-elemental standard. The whole goal runs before the capstone, starting in wave B. Its
-first `plan` (2026-11-18) created the five repositories, added them to `order` and the catalog,
-and set its root, web-foundation. It holds go-web-sdk and the exclusive group only for its
-`newclient` task, and architecture only for its `standard` task. The plan at template's BRIEF
-(2026-11-19) added foundation-settings, icons, which created web-icons, and components-settings,
-and absorbed foundation-extension.
+pack commit, cut by hand; and webappgen, a Go CLI released as binaries from a plain vX.Y.Z tag.
+Each starts fresh at v0.1.0, seeded by copy from its spike with provenance. go-web-sdk gains
+`NewClient`, and the architecture layer gains the draft web-elemental standard. The goal runs
+before the capstone, starting in wave B. It holds go-web-sdk and the exclusive group only for its
+`newclient` task, and architecture only for its `standard` task.
 '''
 repos = [
   "web-tooling",

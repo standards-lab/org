@@ -2,117 +2,77 @@
 
 The event and reactor layer for a web service: one consolidated contract through which a service
 emits events and runs reactors without knowing which broker carries the events between services.
-spike-messaging proved it (archived; `references.md`), and go-core and go-messaging implement it.
-The spike's package documentation and its `context/design.md` hold the detail this note
-summarizes.
+go-core and go-messaging implement it, and their behavior is documented in the `go-messaging`
+README and the package documentation of go-messaging and go-core's `event`, `reactor`, and
+`lifecycle`; this note holds the decisions. spike-messaging's evidence and the
+capability ledger are in [the messaging docs](../docs/messaging.md).
 
-The architecture already fixes the vocabulary (`architecture/architecture.md`, "The elements"):
-
-- A **Reactor** is an entry point driven by an occurrence rather than a caller: a subscription, a
-  poll interval, or a schedule. It dispatches to a Domain Service.
-- An **event** tells a system outside the domain that a mutation committed. The architecture
-  defines emission only, and delivery guarantees belong to the messaging system. Events are never
-  used inside the application.
-
-`go-web-service/internal/app/reactors.go` is the service's reactors layer, which defines each
-reactor as a graph node and appends it to `Nodes.Reactors`, and `auth-strategy.md` §9 commits
-grant and identity-link writes to emit events.
+The architecture fixes the vocabulary, Reactor and event (`architecture/architecture.md`, "The
+elements"): it defines emission only, and delivery guarantees belong to the messaging system.
+`go-web-service/internal/app/reactors.go` is the service's reactors layer, and `auth-strategy.md`
+§9 commits grant and identity-link writes to emit events.
 
 ## Decisions
 
-- **The envelope is CloudEvents 1.0**, carried in binary mode with its attributes as message
-  headers under the CloudEvents NATS protocol binding. `service-tiers.md` says messaging has no
-  formal standard. That is true of broker operations, but not of the event's shape: CloudEvents is
-  the standard tier's event vocabulary, the way OpenTelemetry is observability's. Rejected: an
-  envelope of our own evolved from signal-lab's `Signal`.
+- **The envelope is CloudEvents 1.0**, in binary mode with its attributes as message headers under
+  the CloudEvents NATS protocol binding. `service-tiers.md` says messaging has no formal standard;
+  that is true of broker operations, not of the event's shape: CloudEvents is the standard tier's
+  event vocabulary, the way OpenTelemetry is observability's. Rejected: an envelope of our own
+  evolved from signal-lab's `Signal`.
 - **The CloudEvents type is go-core's own**, in `event`, on the standard library alone. Rejected:
   `github.com/cloudevents/sdk-go/v2/event`, whose event package imports json-iterator and whose
-  one module brings zap, testify, and x/time into the graph.
-- **Emission goes through a transactional outbox.** A domain declares each event with
-  `event.Define[T](type)` and raises it into the `Queue` its command receives. `Recorder[Tx].Emit`
-  stamps each event (a UUIDv7 id, the service's source, the time) only when the command succeeds,
-  and writes it through a `Sink[Tx]` in the command's own transaction. `Tx` is a type parameter
-  the composition root fixes (`*sqlate.Tx` for the outbox), so a pool fails to compile and go-core
-  names no database. Delivery is at least once. Rejected: publishing after commit, which loses the
-  event when the process stops between the two.
-- **An inbox table backs idempotency.** `Inbox.Claim` inserts the consumer and event in the
-  handler's own transaction, and a repeat changes no row. A domain never sees the event: the
-  reactor's adapter hands its command a claim function. Deduplication keys on the event's source
-  and id, on the broker and in the inbox. The broker's key is `Nats-Msg-Id`, the event's
-  length-prefixed source followed by its id, and its window is the stream owner's `duplicates`
-  (`messaging.DefaultDuplicates` when unset).
-- **The reactor contract is source-agnostic.** A reactor runs one source of occurrences on the
-  lifecycle coordinator: a subscription, an interval (`Every`), or a demand (`Wake`, with the
-  interval as backstop). The source decides what a handler error means: a subscription
-  redelivers, and `event.Permanent` terminates. `reactor` is its own package, importing neither
-  `lifecycle` nor `messaging`. A reactor's cancel-after period is half the drain timeout
-  (`reactor.CancelWithin`).
+  module brings zap, testify, and x/time into the graph.
+- **Emission goes through a transactional outbox**, written through `Recorder[Tx]` in the
+  command's own transaction and stamped only when the command succeeds. `Tx` is a type parameter
+  the composition root fixes, so a pool fails to compile and go-core names no database. Delivery
+  is at least once. Rejected: publishing after commit, which loses the event when the process
+  stops between the two.
+- **An inbox table backs idempotency**, claimed in the handler's own transaction. A domain never
+  sees the event: the reactor's adapter hands its command a claim function. Deduplication keys on
+  the event's source and id, on the broker (`Nats-Msg-Id`) and in the inbox.
+- **The reactor contract is source-agnostic.** A reactor runs one source of occurrences, and the
+  source decides what a handler error means. `reactor` is its own package, importing neither
+  `lifecycle` nor `messaging`.
 - **A subscription's `Name` is its durable consumer and its delivery group.** Rejected: a
   separate `Group` field, since JetStream has no second level of grouping within a durable.
-- **A subscription carries a binding start position**, `StartAll` (the zero value) or `StartNew`.
-  It places only a new consumer, and a mismatch under an existing `Name` fails the bind. A service
-  binds `StartNew`.
+- **A subscription carries a binding start position**, which places only a new consumer; a
+  mismatch under an existing `Name` fails the bind. A service binds `StartNew`.
 - **`MaxDeliver` is set per subscription**, never as a default: a subscription whose input can
-  arrive early bounds its redelivery. Exhausting the bound reaches the `Runtime`'s error hook.
-  The handler reads its delivery attempt with `messaging.Attempt`.
-- **The providers are NATS JetStream and an in-memory provider.** The in-memory provider is the
-  conformance double and the test double. The standard tier stays provisional until a second real
-  broker proves it (`second-providers`), as `service-tiers.md` requires.
-- **A broker constructs without I/O and starts as a lowest-layer graph node.** `Start`
-  connects, reconnecting without limit, so an outage makes the broker not ready rather than ending
-  the process. An outage also makes a nats source not ready, and the source reports each failed
-  pull, one per consumer member about every 1.1s, including a pull that ends empty while the
-  connection is down.
-- **A service's messaging is one `messaging.Runtime`**, built from its `messaging` configuration
-  block, the broker, the engine's statements, and the drain timeout. `Runtime.Relay` builds the
-  relay reactor and `Runtime.Consume[T]` a consuming reactor. The `messaging` block carries
-  `relay_poll` and `relay_timeout` (10s by default, `<PREFIX>_MESSAGING_RELAY_TIMEOUT`), which
-  bounds the relay's publish of one event. The provider has a configuration block of its own
-  beside `messaging`. `messaging.Setup`'s `Gate` field gives the runtime a quiesce gate, such as
-  go-core's `reactor.Gate`, that the relay holds shared for each outbox row and a consuming
-  reactor holds for each delivery's handling.
-- **Failures the runtime survives reach one error hook.** `messaging.Setup`'s `OnFailure` field
-  sets a `Hook`, `func(ctx, Failure)`, which by default logs one warn line, "messaging failure",
-  per Failure. A Failure's kind is `relay` (a pass that a transient publish failure or a database
-  error ends), `quarantine`, `source` (an error a consumer's source survived), or `exhausted` (the
-  handler's non-permanent error on the attempt equal to `MaxDeliver`). An event whose last
-  delivery overruns AckWait is given up unreported. Deferred: a dead-letter stream, until a
-  consumer needs replay.
-- **A stream has one owner.** The nats block's `owner` switch (`<PREFIX>_NATS_OWNER`) marks the
-  owner, whose Start creates the stream or updates it to its config: file storage, limits
-  retention, subjects `<prefix>.>`, the deduplication window `duplicates`, and `max_age`. Every
-  other broker writes nothing and binds the stream. Its Start fails when the stream is missing or
-  does not capture `<prefix>.>`, and its config fails validation when it sets `duplicates` or
-  `max_age`. The spike's last-writer-wins `CreateOrUpdateStream` on every broker is the case this
-  removes.
-- **An event's NATS subject is its type, unchanged.** The nats block's prefix is the namespace
-  every type must start with, rather than a token the broker prepends to the type. This and the
-  stream's one owner capturing `<prefix>.>` govern a web service's events for committed mutations
-  of executed commands. A job's progress and result stream, such as Cerebro's
-  (`cerebro.job.<job>`, one subject per job for the job's gap-free sequence), is a different use
-  case these conventions don't govern.
+  arrive early bounds its redelivery.
+- **The providers are NATS JetStream and in-memory**, the conformance and test double. The tier
+  stays provisional until a second real broker proves it (`second-providers`, `service-tiers.md`).
+- **A broker constructs without I/O and starts as a lowest-layer graph node**, so an outage makes
+  it not ready rather than ending the process.
+- **A service's messaging is one `messaging.Runtime`**; the provider's configuration block sits
+  beside its `messaging` block.
+- **Failures the runtime survives reach one error hook**, which logs by default and which a
+  service replaces to throttle, count, or alert.
+- **A stream has one owner**, which creates or updates the stream; every other broker writes
+  nothing and binds it. This removes the spike's last-writer-wins `CreateOrUpdateStream` on every
+  broker.
+- **An event's NATS subject is its type, unchanged**, and the nats block's prefix is the namespace
+  every type must start with, not a token prepended to it. This and the one owner capturing
+  `<prefix>.>` govern a web service's events for committed mutations of executed commands. A job's
+  progress and result stream, such as Cerebro's (`cerebro.job.<job>`, one subject per job for the
+  job's gap-free sequence), is a different use case these conventions don't govern.
 - **The scope is the standard tier plus one native use**: request and reply through the `nats`
-  provider's `Conn()`, in the composition root alone. The rest of the ledger below is recorded and
-  not built.
+  provider's `Conn()`, in the composition root alone. The rest of the capability ledger is not
+  built.
 
 ## Outbox sequencing
 
-The relay polls (250ms by default) and is a `reactor.Source`; its pass is the primary path and its
-own sweeper over unpublished rows. Each row is handled in a transaction of its own: claim the
-oldest row that is neither published nor quarantined with `FOR UPDATE SKIP LOCKED`, publish while
-holding it, and mark it published in the same transaction. A transient failure leaves the row
-unpublished and ends the pass, and a later pass republishes it under the same source and id. A
-corrupt row or a publish failure marked `event.Permanent` is quarantined at once in the row's
-transaction, and the pass goes on. A quarantined row carries `quarantined_at` and
-`quarantine_reason` on `messaging_outbox`, and sits outside the unpublished index and
-`postgres.Pending`. Holding the claim across the publish lets several relays share the outbox, at
-the cost of a row lock and a connection held for the publish. Rejected: LISTEN/NOTIFY, which needs
-a pinned connection outside `database/sql` and only lowers latency; and spike-blobfs's two-step,
-publishing and then marking in separate steps, which the spike's
-`TestStopBetweenCommitAndPublishLosesNoEvent` fails when the mark comes first.
+The relay is a polling `reactor.Source` and its own sweeper over unpublished rows. Each row is
+handled in a transaction of its own: claim the oldest row that is neither published nor
+quarantined with `FOR UPDATE SKIP LOCKED`, publish while holding it, and mark it published in the
+same transaction. A transient failure leaves the row unpublished and ends the pass, and a later
+pass republishes it under the same source and id. A row that can never be published is
+quarantined at once and the pass goes on. Holding the claim across the publish lets
+several relays share the outbox, at the cost of a row lock and a connection held for the publish.
+Rejected: LISTEN/NOTIFY, which needs a pinned connection outside `database/sql` and only lowers
+latency; and spike-blobfs's two-step, publishing and then marking in separate steps, which the
+spike's `TestStopBetweenCommitAndPublishLosesNoEvent` fails when the mark comes first.
 
-The relay sits below every reactor that commits events, so the drain stops the producers first,
-and `outbox.RelayOptions.Drain` gives it a last pass at a quarter of the drain timeout.
+The relay sits below every reactor that commits events, so the drain stops the producers first.
 
 The rule: **an event is enqueued in the transaction that makes the state it reports true.** For a
 composite operation such as a blobfs upload, that is the complete step's transaction, never the
@@ -138,109 +98,45 @@ emits none.
 
 A proven pattern sinks to the lowest level at which it is generic:
 
-- **go-core** holds what emitters and reactors share, on the standard library alone:
-  - `reactor` (v0.9.0): the source contract, `Every`, `Wake`/`Waker`, `Draining`, `CancelWithin`,
-    and `Gate`, the context-aware readers-writer gate that quiesces background work around the
-    schema-changing admin verbs (`migration-sets.md`).
-  - `event` (v0.10.0): the CloudEvents type, its binary-mode codec (whose `Decode` returns
-    `ce-time` in UTC), `CheckType`, `Permanent`, `Define`/`EventKind`, `Queue`, and
-    `Recorder[Tx]`/`Sink[Tx]`.
-
-  A domain's emission and a reactor's adapter import no infrastructure library, and the SDKs and
-  the template can name events without taking a broker dependency.
-- **go-messaging** holds the broker tier: the broker contract, subscriptions, `Runtime`, the
-  engine-agnostic `outbox` and `inbox`, the `memory` provider, and `messagingtest`. The `nats`
-  provider and the `postgres` engine are modules of their own; the engine authors the outbox's and
-  the inbox's statements and ships both tables in one migration set (`migration-sets.md`).
-- **The general sweeper** is go-database's `sweep` package. It runs a service's reclaimers as one
-  go-core reactor, each registered by name with a policy (interval, budget). A reclaimer's cycle
-  claims the session advisory lock `sweep.<name>` through sqlate's `TryLocker` without waiting,
-  and skips the cycle when another replica holds it. Otherwise it runs passes while one reports
-  more, for at most the reclaimer's interval, then yields and stays due. go-messaging/postgres's
-  `OutboxRetention` deletes outbox rows published more than an age ago, never an unpublished or
-  quarantined row, and `InboxRetention` deletes inbox rows handled more than an age ago.
-  go-messaging exports no default age; go-web-service sets both to 7 days, beside blobfs's sweep
-  as its `files` reclaimer.
+- **go-core** holds what emitters and reactors share, `event` and `reactor`, on the standard
+  library alone, so a domain's emission and a reactor's adapter import no infrastructure library,
+  and the SDKs and the template name events without a broker dependency.
+- **go-messaging** holds the broker tier.
+- **The general sweeper**, go-database's `sweep`, runs the outbox and inbox retentions;
+  go-web-service sets both ages to 7 days.
 
 ## Lifecycle registration
 
-Infrastructure joins the lifecycle through `Start`, `Shutdown`, and `Ready` (go-database's pool,
-go-storage's store, the broker). Under go-core v0.8.0 each is a graph node's value, and the
-Coordinator infers its part: Starter and Stopper from those methods, a readiness check only from a
-`ReadyStarter` (a Starter that also has `Ready`), and Monitored from `Err() <-chan error`. No composition root copies methods into a
-`lifecycle.Service`, and nothing registers. The coordinator's two error-drop windows (after the
-signal, and at the drain deadline) stay as they are, since the reactor covers both itself.
-
-The graph's layers order the drain: a node drains before every node it uses or orders After, so
-the server drains first, and the database and the broker drain after every node that uses them.
-
-## The capability ledger
-
-signal-lab (`references.md`, "Prior R&D — event-driven architecture") proved more capabilities than
-the standard tier holds. Each capability is classed through the standard and native split, and
-some turn out to strengthen a different architecture layer:
-
-| Capability | Class | Reason |
-|---|---|---|
-| Durable publish and subscribe | Standard | The core of the tier |
-| Competing consumers: work assignment across a delivery group | Standard: a subscription's `Name` is its durable consumer and its delivery group | Every target broker has it, and it is how a reactor scales across replicas |
-| Acknowledge, redeliver with delay, terminate | Standard, expressed through the handler's return value | Every broker has it. The redelivery and ordering policy is the "interchangeable with review" part |
-| Request and reply, multi-reply discovery | Native, through the `nats` provider's handle | Not common across brokers. A request between services is an HTTP call (`service-organization.md`) |
-| Subject wildcards and hierarchy | Native in filter syntax. The standard tier filters on event `type` only | Topic syntax differs by broker |
-| Key-value store with watch and compare-and-set | A candidate provider for another service: caching (`backlog.response-caching`) | Enhances another layer, not messaging |
-| Object store | A candidate go-storage provider, judged against go-storage's standard tier | Enhances another layer |
-| WebSocket bridge, NATS-native chat | Belongs to `v1.client.reference` | Client transport, not events between services |
-
-## The evidence
-
-spike-messaging answered its question, whether one broker-agnostic event and reactor contract on
-CloudEvents with outbox emission runs a service's reactors on JetStream and in memory with no
-broker import outside the composition root and the provider: yes. Four services played a 30-round
-exercise on JetStream through the contract, and the same contract passed the conformance suite in
-memory.
-
-1. The conformance suite passes on both providers. Proven only by tests (`messagingtest.Run`).
-2. A stop between commit and publish loses no event. Proven only by tests.
-3. A redelivered event is handled once. Proven only by tests.
-4. Two replicas in one delivery group share the work. Proven by a validate task.
-5. A shutdown drains in-flight handling through the coordinator, in about 110ms. Proven by
-   validate tasks.
-6. No provider import outside the composition root and the provider. Proven by a standing import
-   check (`split-check`).
-7. An event is emitted only in its command's transaction. Proven by tests, and the composite
-   Postgres-and-blob case by go-web-service's integration tier.
-8. The native request and reply stays inside the provider and the root. Proven by a running demo.
+Infrastructure (go-database's pool, go-storage's store, the broker) joins the lifecycle as a graph
+node's value whose part the coordinator infers from its methods, so nothing registers. The
+coordinator's two error-drop windows (after the signal, and at the drain deadline) stay as they
+are, since the reactor covers both itself. The graph's layers order the drain, so the server
+drains first and the database and the broker last.
 
 ## Open
 
 - Trace context as the CloudEvents `traceparent` extension, which `v1.observability` owns;
   `Event.Extensions` already carries it.
 - Migrating a durable's binding configuration (`Start`, `MaxDeliver`, `AckWait`, the types) across
-  a rolling deploy. Changing it fails the bind today, so every change is a recreation.
-- Reaping an abandoned durable consumer (`InactiveThreshold`). nats-server 2.15 limits a stream
-  to 1000 consumers by default, so abandoned durables count against a limit.
+  a rolling deploy. Changing it fails the bind, so every change is a recreation.
+- Reaping an abandoned durable consumer (`InactiveThreshold`), since nats-server 2.15 limits a
+  stream to 1000 consumers by default.
 - `natstest.Scratch` hands out a random prefix, so a service harness can't run its real event
   types on a scratch stream, and owned streams under one namespace can't run in parallel on one
   server.
 - Whether go-messaging names the change-only event pattern: an event that carries its producer's
   whole state and a monotonic sequence, so a consumer that skips stale input loses nothing.
 - A dead-letter stream, deferred until a consumer needs replay.
-- **A stream-backed root** (plan, 2026-11-10). In capstone.data-intelligence's Cerebro, each job is
-  a root Entity whose state is folded from the events on its own subject, so appending an Event,
-  guarded by an expected-last-subject-sequence check, is the transaction that makes the Command's
-  change true (`architecture/architecture.md`, "The elements", asks for that atomicity, not for
-  SQL). Its other events go through the outbox in PostgreSQL (docproc's `context/layers.md`, "State
-  and subjects"). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
-  `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, and
-  a work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
-  dead-letter subject) whose contract a Postgres `SKIP LOCKED` provider could also meet
-  (`data-intelligence.md`, "Cerebro and Athena").
+- **A stream-backed root** (planned). In capstone.data-intelligence's Cerebro, each job is a root
+  Entity folded from the events on its own subject, so a guarded append is the transaction that
+  makes the Command's change true (`architecture/architecture.md`, "The elements", asks for that
+  atomicity, not for SQL). go-messaging gains an expected-sequence append beside the outbox and a
+  work-queue package ([design](../docs/messaging.md#a-stream-backed-root)).
 
 ## Assumptions
 
 - Assumes JetStream's deduplication window covers the relay's retry interval.
 - Assumes every event a service emits reports a mutation in its own database, so an outbox table
-  in that database suffices. capstone.data-intelligence's Cerebro breaks it on purpose: a job's
-  events are its root Entity, stored as a JetStream subject and appended there directly, outside
-  any outbox ("A stream-backed root", under Open).
+  in that database suffices. Cerebro breaks it on purpose: a job's events are its root Entity,
+  appended to a JetStream subject outside any outbox ("A stream-backed root", under Open).
 - Assumes the service stays on `database/sql`-shaped sessions (sqlate's `Session`).

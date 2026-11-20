@@ -1,11 +1,158 @@
 name = "Every repository aligned with marathon 0.19.0"
 summary = '''
-After harness.optimization releases marathon 0.19.0, brings every repository in ~/architecture
-and ~/experiments into line with it: each check calls lint-context, and what fails is trimmed or
-moved. Notes, READMEs, and goal records come under budget, capability maps take the built and
-planned shape, spike evidence moves into docs/, and Decisions keep only what binds. The plan that
-stages it settles its root, repos, tasks, and the 31 archived spikes, from 0.19.0's real check
-output.
+Brings every repository in ~/architecture, and the four unarchived spikes, into line with
+marathon 0.19.0: each check calls lint-context and resolves its reference comments, context
+comes under budget with a built-and-planned capability map, and code and configuration comments
+come to architecture's five kinds, restated reasoning moving to its source of truth behind a
+reference comment. Its first task also moves the roadmap to a root roadmap/ directory with
+index.toml. Archived spikes stay as they are.
 '''
-repos = []
-context = ["claude-plugins/context/harness-optimization.md"]
+repos = [
+  "claude-plugins",
+  "ai-hosting",
+  "go-core",
+  "sqlate",
+  "docproc",
+  "go-database",
+  "go-web-sdk",
+  "go-observability",
+  "go-storage",
+  "go-ai",
+  "go-messaging",
+  "blobfs",
+  "go-cli-sdk",
+  "go-web-sdk-template",
+  "go-cli-sdk-template",
+  "docinfer",
+  "web-tooling",
+  "web-foundation",
+  "web-icons",
+  "web-components",
+  "web-app-sdk",
+  "webappgen",
+  "go-web-service",
+  "architecture",
+  "spike-model-gateway",
+  "spike-model-engines",
+  "spike-hosting-upgrades",
+  "spike-harness-driver",
+]
+root = "claude-plugins"
+order = [
+  "references",
+  "ai-hosting",
+  "core",
+  "docproc",
+  "go-ai",
+  "go-libraries",
+  "templates",
+  "web",
+  "go-web-service",
+  "architecture",
+  "spikes",
+]
+context = [
+  "claude-plugins/context/harness-optimization.md",
+  "architecture/principles/comments.md",
+]
+
+[tasks.references]
+name = "Reference check and roadmap layout"
+summary = '''
+A marathon release that ships one reference check beside lint-context, resolving reference
+comments as architecture's scripts/check.sh does and fetched pinned in CI, and moves the roadmap
+to a root roadmap/ directory with index.toml, with a migration step for each. A plan session
+moves the coordinator's roadmap once the release is installed.
+'''
+repos = ["claude-plugins"]
+
+[tasks.ai-hosting]
+name = "ai-hosting adopts 0.19.0"
+summary = '''
+The check calls lint-context and the reference check; context/ comes under budget with a
+capability map; comments come to the five kinds, restated reasoning moving behind a reference
+comment.
+'''
+repos = ["ai-hosting"]
+
+[tasks.core]
+name = "go-core and sqlate adopt 0.19.0"
+summary = "The ai-hosting task's adoption, in go-core and sqlate."
+repos = ["go-core", "sqlate"]
+
+[tasks.docproc]
+name = "docproc adopts 0.19.0"
+summary = '''
+The ai-hosting task's adoption, in docproc, including its goal record's sections over budget.
+'''
+repos = ["docproc"]
+
+[tasks.go-ai]
+name = "go-ai adopts 0.19.0"
+summary = "The ai-hosting task's adoption, in go-ai."
+repos = ["go-ai"]
+
+[tasks.go-libraries]
+name = "The Go infrastructure libraries adopt 0.19.0"
+summary = '''
+The ai-hosting task's adoption, in go-database, go-web-sdk, go-observability, go-storage,
+go-messaging, blobfs, and go-cli-sdk.
+'''
+repos = [
+  "go-database",
+  "go-web-sdk",
+  "go-observability",
+  "go-storage",
+  "go-messaging",
+  "blobfs",
+  "go-cli-sdk",
+]
+
+[tasks.templates]
+name = "The templates and docinfer adopt 0.19.0"
+summary = '''
+The ai-hosting task's adoption, in go-web-sdk-template, go-cli-sdk-template, and docinfer,
+including docinfer's goal record's sections over budget.
+'''
+repos = ["go-web-sdk-template", "go-cli-sdk-template", "docinfer"]
+
+[tasks.web]
+name = "The web stack adopts 0.19.0"
+summary = '''
+The ai-hosting task's adoption, in web-tooling, web-foundation, web-icons, web-components,
+web-app-sdk, and webappgen, including web-foundation's goal record's sections over budget.
+'''
+repos = [
+  "web-tooling",
+  "web-foundation",
+  "web-icons",
+  "web-components",
+  "web-app-sdk",
+  "webappgen",
+]
+
+[tasks.go-web-service]
+name = "go-web-service adopts 0.19.0"
+summary = "The ai-hosting task's adoption, in go-web-service."
+repos = ["go-web-service"]
+
+[tasks.architecture]
+name = "architecture adopts 0.19.0"
+summary = '''
+architecture's check calls lint-context and switches its own reference resolution to marathon's
+reference check; its README comes under budget.
+'''
+repos = ["architecture"]
+
+[tasks.spikes]
+name = "The unarchived spikes adopt 0.19.0"
+summary = '''
+The ai-hosting task's adoption, in spike-model-gateway, spike-model-engines,
+spike-hosting-upgrades, and spike-harness-driver, with each spike's evidence in docs/.
+'''
+repos = [
+  "spike-model-gateway",
+  "spike-model-engines",
+  "spike-hosting-upgrades",
+  "spike-harness-driver",
+]

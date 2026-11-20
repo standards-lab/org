@@ -12,8 +12,7 @@ coordinator. Authoritative context lives at its single home and is linked from h
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
   implementation of the architecture.
-- **The path** — `roadmap.toml` and `roadmap/`: the goal tree holds what remains, each goal `active`,
-  `planned` (in order), or `backlog`.
+- **The path** — `roadmap.toml` and `roadmap/`: the goal tree of what remains.
 - **Prior work** — most of the architecture already exists across prior R&D, catalogued in
   `../references.md`; the work is to organize it into an effective standard.
 
@@ -44,33 +43,30 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   reference; it is a separate focused reference, created when a consumer demands it and named
   when the first exists.
 
-## Capabilities of this repository
+## Capability map
 
-- **Baseline profile** (`public/profile/README.md`) — the public org landing: the vision and
-  the organization contents index; the authored source of the profile body.
-- **Extended profile** (`private/profile/README.md`) — what members see in place of the
-  baseline profile: the baseline body mirrored verbatim, plus the appended member-only
-  orientation. `../CLAUDE.md` states the mirror convention.
-- **The workspace roadmap** (`context/roadmap.toml`) — the goal tree and its tasks, each
-  citable by slug path, with every goal listed as `active`, `planned`, or `backlog`.
-- **Leadership briefs** (`../briefs/`) — orientation briefs for technical leadership.
-  `../briefs/orientation.md` is the first, and the agent-interview prompt `../interview.md`
-  accompanies it. Both move to sites.status-reports at its `layout` task.
-- **References catalog** (`../references.toml`, `../references.local.toml`, `../references.md`)
-  — portable identity for every repository in the effort, with a per-machine local-directory
-  map, the standards declarations, and a private annex in `../private/`. `../references.md`
+- **Baseline profile** (built): the public org landing, the vision and the organization contents
+  index, authored in [the baseline](../public/profile/README.md).
+- **Extended profile** (built): what members see, the baseline mirrored verbatim plus a
+  member-only orientation, in [the extended profile](../private/profile/README.md); `../CLAUDE.md`
+  states the mirror convention.
+- **The workspace roadmap** (built): the goal tree and its tasks, each goal `active`, `planned`,
+  or `backlog`, in [the index](roadmap.toml) and `roadmap/`. harness.adoption's `references` task
+  moves it to a root `roadmap/` directory.
+- **Leadership briefs** (built): orientation briefs for technical leadership, starting with
+  [the orientation](../briefs/orientation.md) and its agent-interview prompt `../interview.md`;
+  both move to sites.status-reports at its `layout` task.
+- **References catalog** (built): portable identity for every repository in the effort, with a
+  per-machine local map and a private annex in `../private/`; [the catalog](../references.md)
   states the mechanics.
-- **Experiments** — running spikes are tasks of the `experiment` goals in `roadmap.toml`;
-  archived spikes are in the references catalog; the hosting convention is
-  `[workspace.experiments]` in `.claude/marathon.toml`. Every spike repository matches the
-  reference-architecture repositories: go-core's Apache-2.0 `LICENSE` (`Copyright 2026 Standards
-  Lab`) in its initial commit, and a `main` ruleset on its default branch that blocks deletion and
-  force pushes and requires a pull request with no approvals, bypassed by the admin role so
-  goal-record bookkeeping commits directly; `plan`'s spike setup applies both. Spikes take secrets
-  from architecture's "Development-time secrets" principle, never a prior spike. Capstones are
-  `capstone.<slug>` goals, checked out at `~/capstones/<slug>` and listed in `[workspace.paths]` (`naming.md`).
-- **Cross-repo coordination** — the references catalog is the repository list, and the
-  workspace order in `.claude/marathon.toml` is its dependency graph.
+- **Experiments** (built): running spikes are goals under `experiment` in the roadmap, archived
+  spikes are in [the catalog](../references.toml), and `[workspace.experiments]` in
+  `.claude/marathon.toml` holds the hosting convention. Every spike carries go-core's Apache-2.0
+  `LICENSE` and a `main` ruleset, which `plan`'s spike setup applies, and takes secrets from
+  architecture's "Development-time secrets" principle. Capstones are `capstone.<slug>` goals at
+  `~/capstones/<slug>`, listed in `[workspace.paths]` (`naming.md`).
+- **Cross-repo coordination** (built): the catalog is the repository list, and the workspace
+  order in [the configuration](../.claude/marathon.toml) is its dependency graph.
 
 ## Notes
 
@@ -105,3 +101,5 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as
   experiment.graph's intake settled it, and the runners the libraries' releases built on it.
 - `waves.md` — the plan to the capstone.
+- `middleware.md` — v1.middleware's remaining adoptions: CORS's fired trigger and its
+  findings, and what real client IP and compression wait for.
