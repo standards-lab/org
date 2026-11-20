@@ -7,7 +7,7 @@ budgets, and overflow to Azure AI Foundry on all four aliases; a multilingual mo
 set A's English-only embedding model; and the upgrade-evaluation convention rebuilt on vLLM. Its
 first `plan` (2026-11-19) created `ai-hosting` as a peer of claude-plugins in the workspace's
 lowest layer; ai-hosting becomes the one hosting repository on each workstation. Its `architecture` task lands four method pages in architecture on its own branch,
-sharing the architecture lock with v1.ai.processing and harness.optimization; the architect frees
+sharing the architecture lock with v1.ai.processing; the architect frees
 the lock before that task merges (intake, 2026-11-19). Runs before the capstone, which runs on the
 hosts and gateway it specifies; the admin tooling joins ai-hosting after experiment.admin's
 intake. Its sync archives personal-agents, with a forward link to ai-hosting, and
@@ -39,7 +39,7 @@ compose stack and `docs/gateway.md`'s requirements), and spike-model-hosting's `
 at aac0764 (the host-class profile schema, its validator and renderer). Settles each finding with
 the architect, one review round per evaluation, and writes ai-hosting's design note: the
 repository's layout, which parts each task takes from which spike, and the gateway's open points
-(listed as the `gateway` task's comments, settled at its plan), and the `hosting` suite: its
+(ai-hosting.md, "The `gateway` task", settled at its plan), and the `hosting` suite: its
 groups and verbs, the read-only operator commands taken from personal-agents' `outpost` at
 d3e0755 with the task that builds each, the host-class pattern, the `~/.local/bin` install, and
 the `cleanup` task's inventory. Confirms multilingual-e5-large's scope and price on Foundry
