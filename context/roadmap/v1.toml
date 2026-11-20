@@ -1,0 +1,15 @@
+name = "The reference architecture at v1.0"
+summary = '''
+go-web-service reaches v1.0.0 as a holistic enterprise reference: every capability layer a
+production web service reasonably encounters, complete in the running composition, each layer
+built holistically — proving the architecture end to end and feeding the SDK,
+infrastructure-library, and template features that emerge from it.
+'''
+repos = []
+criteria = [
+  "Every capability goal beneath this one is closed: code, tests, and the layer's documentation in its repository (README, package documentation, and the docs/ guide of v1.repository-docs) complete; the standard tier used throughout with native use contained and entered in the port list; the capability's provider-swap class declared; and the promotion evaluation recorded — what moved outward into the SDKs, the libraries, and the template, and what stayed the service's own.",
+  "A layer goal closes once its extracted record has produced the library, the template element, and the repository documentation, wherever the layer was proven (ruled 2026-09-07, claude-plugins/context/marathon-extraction.md). v1.0 keeps the running composition: a layer proven outside go-web-service is adopted by the service in a sweep task of its own before this goal closes.",
+  "Import boundaries are a reviewed discipline — dependencies point bottom-up, no provider enters a base, and each module stays light — held in planning and review, and the service's README names each capability the service consumes, its class, and the port list.",
+  "The service is versionless until 1.0: minor releases cut as layers complete in whatever order they land, v1.0.0 when this goal's tree is empty; -dev.N prerelease tags serve only the cross-module-resolution case the release-and-ci principle states, never routine between-session practice. Each release is a coherent snapshot with its pins; a library change and the service change that proves it release together; a member release prompts the coordinator sweep.",
+]
+context = ["standards-lab/context/service-organization.md"]

@@ -1,0 +1,9 @@
+name = "A command that creates a client project"
+summary = '''
+A command that generates a project from web-app-sdk-template. Until it exists, the curl and tar
+command in the template's README serves Athena, the only consumer before the capstone. Its own
+planning decides whether it lives in web-tooling, run by `pnpm dlx` from a git spec, or is a Go
+CLI on go-cli-sdk.
+'''
+repos = []
+context = ["standards-lab/context/web-client.md"]

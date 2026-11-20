@@ -1,0 +1,6 @@
+name = "Capstones"
+summary = '''
+Applications that bring the workspace's libraries together end to end, each a `capstone.<slug>`
+in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones").
+'''
+repos = []

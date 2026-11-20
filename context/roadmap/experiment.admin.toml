@@ -1,0 +1,15 @@
+name = "The host admin experiment"
+summary = '''
+The spike that settles ai-hosting's admin tooling, split from experiment.hosting since the
+capstone doesn't need it (plan, 2026-11-09). After capstone.data-intelligence; then one intake.
+'''
+repos = []
+order = ["intake"]
+context = ["standards-lab/context/ai-hosting.md"]
+
+[tasks.intake]
+name = "The host admin intake"
+summary = '''
+Run by `marathon intake experiment.admin` once spike-host-admin has its answer in `ai-hosting.md`.
+Decides ai-hosting's admin tooling, as a v1.ai task, and archives spike-host-admin.
+'''

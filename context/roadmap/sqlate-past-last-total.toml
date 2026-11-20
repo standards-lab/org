@@ -1,0 +1,3 @@
+name = "A total on a page past the last"
+summary = "A scalar-subquery count in sqlate, so a page past the last still reports a total instead of `query.NoTotal`."
+repos = []

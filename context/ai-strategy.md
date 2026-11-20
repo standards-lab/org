@@ -574,6 +574,33 @@ and "Gates").
 [The answer](https://github.com/JaimeStill/spike-ai-pipeline#the-answer) ·
 [spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline)
 
+### Inputs for docproc's `library` task
+
+From spike-ai-pipeline-processing and v1.ai.processing's design review:
+
+- ODF, WordPerfect, .xlsb, and ODG report "no processor yet", and legacy OLE2 macros go
+  unflagged; the architect judged them unlikely on the deployment's share drives (formats r1).
+  Text encoding detection (uchardet named 10 of 11 sample encodings) is revisited if the
+  windows-1252 fallback misreads many files (formats r3).
+- media's live sources stay in the spike until the capstone's `protocol` task names their owner.
+  When they move:
+  - rtsp sources in `media` need an rtsp server, such as MediaMTX in a container, as the
+    integration tier's loopback sender, since ffmpeg 9.0.2's rtsp listener fails (streams r2 q1).
+  - Capture devices in `media`: v4l2loopback, a kernel module the architect loads as root, is the
+    camera test seam. On Wayland, as on the architect's Omarchy laptop, which has no X11, ffmpeg
+    has no screen input: a portal capture tool such as gpu-screen-recorder streams the screen to
+    a URL or the reader, and pw-record feeds audio; x11grab applies only to X11 hosts. The
+    container runner would need device passthrough, the device's group, and socket mounts
+    (streams r2 q2).
+- ClamAV stays out of `inspect`, since it doesn't fit Inspect's contract; processing v0.6.0
+  excludes it (onenote r6 q4).
+- The email `Threader` holds 362 bytes a message for the whole read (measured), about 362 MB past
+  a million messages; spilling its keys to disk would bound it.
+- A bare RFC 822 file with no extension is unrouted, since the nested route needs an .eml name or
+  a message type.
+- RAR, ISO, xz, bzip2, and the other formats the spike left unrouted.
+- HTML routing: no task carries saved web pages or HTML `.xls`.
+
 ## Experiment: spike-scanned-documents
 
 **Question.** spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision
@@ -692,6 +719,25 @@ image carries one pinned harness, Pi by default.
 
 [The answer](https://github.com/JaimeStill/spike-harness-driver/blob/main/context/findings.md#the-answer) ·
 [spike-harness-driver](https://github.com/JaimeStill/spike-harness-driver)
+
+## Candidates for `marathon retro`
+
+Architecture candidates from spike-ai-pipeline:
+
+- "Follow the spec wherever possible", the architect's standing rule for the client
+  (client-streaming), may belong in STANDARDS.md or the architecture layer as a standard.
+- processing's STANDARDS.md says a mature tool is never reimplemented in Go, and audio's
+  `Tracker` is the recorded exception, its reason in `audio/doc.go` (streams r2 q3). Should the
+  standard name it, so later reviews don't flag it?
+- processing's findings cite the goal record (`context/goals/…`), which sync deletes, so the links
+  break once a spike syncs.
+- mail's fixture generator rewrites every output on each run (random GUIDs, MsgKit timestamps), so
+  keeping an unchanged output's committed bytes takes a manifest edit its "never edit" note
+  forbids (formats kept v0.3.0's bytes by script). Should the generator keep unchanged outputs, or
+  the note allow the edit?
+- Agent shells resolve Arch's /usr/bin/rustc and /usr/bin/dotnet ahead of mise's tools, which
+  broke mail's check and fixtures task in formats; a scratch PATH of rustup proxies worked around
+  it.
 
 ## Assumptions
 

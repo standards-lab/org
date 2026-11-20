@@ -1,0 +1,8 @@
+name = "Graduating a standard to its own organization"
+summary = '''
+A standard meant for production graduates to an organization of its own; the blueprint's
+repositories keep their names, and the module namespace arrives with the new organization. Open:
+graduating at or before v1.0 so no production consumer pins the blueprint's paths, and whether
+repositories move or the new organization re-roots. Revisit as v1.0 nears.
+'''
+repos = []

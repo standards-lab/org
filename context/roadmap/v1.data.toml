@@ -1,0 +1,47 @@
+name = "Data composition and CQRS"
+summary = '''
+A composed data model over plain SQL and a CQRS-oriented interface, spanning go-database,
+go-web-sdk, and the service's domain packages. The organization domain runs on authored SQL;
+the remaining domains build once the integration standards they enhance exist: the web SDK's
+handler contract, observability, and messaging's event and reactor infrastructure. Sequenced
+ahead of auth by design, to prove out how the domain layer scales before auth constrains it;
+each domain adopts the auth contract (`standards-lab/context/auth-strategy.md`) in a sweep task of its own once
+go-auth lands. The domain design direction — the four domains, their invariants, and the CQRS
+contract — lives in the linked note.
+'''
+repos = []
+order = ["people", "inventory", "devices", "evaluation"]
+context = ["go-web-service/context/data-layer.md"]
+
+[tasks.people]
+name = "People domain"
+summary = "The person anchor, record status, unit membership, and its action commands."
+repos = ["go-web-service"]
+context = ["go-web-service/context/data-layer.md"]
+
+[tasks.inventory]
+name = "Inventory domain"
+summary = "The item template/instance split and the custody ledger."
+repos = ["go-web-service"]
+context = ["go-web-service/context/data-layer.md"]
+
+[tasks.devices]
+name = "Devices domain"
+summary = "The branch domain — composition over inheritance."
+repos = ["go-web-service"]
+context = ["go-web-service/context/data-layer.md"]
+
+[tasks.evaluation]
+name = "Evaluation and close"
+summary = '''
+The cross-board evaluation of the service and template code built after the quality goal's honest-tests task —
+correctness, simplification, what promotes to the template or the libraries — and the port-list
+audit. The pass rules from the extracted record if marathon-extraction has landed, and its
+findings are the extraction ledger's first entries either way. It runs the validation-first
+enforcement pass across that code. Then the closing coordinated releases (purging any -dev.N tags
+cut for cross-module resolution) and the layer's docs/ page. It also decides whether
+go-web-sdk-template's package-main test of the config-load failure moves to its integration
+tier, as go-web-service's TestStartup_ConfigLoadFailure did.
+'''
+repos = ["go-web-service", "go-web-sdk-template", "go-database", "go-web-sdk"]
+context = ["claude-plugins/context/marathon-extraction.md"]

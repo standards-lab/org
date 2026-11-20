@@ -1,0 +1,9 @@
+name = "Elemental layers beyond the app class"
+summary = '''
+The architect's raw direction: an app's binary runs on bare metal or is wrapped in a container,
+the runtime layer, and application-layer hierarchies sit beyond it, differentiated by the
+external services they connect to. A browser running a Go wasm build is another runtime layer
+(`standards-lab/context/sites.md`, "Live Go demos"). Revisit when v1.deployment makes the
+container layer concrete.
+'''
+repos = []

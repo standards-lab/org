@@ -1,0 +1,7 @@
+name = "Inline screenshots in a Neovim terminal"
+summary = '''
+An idea for a later web-tooling release: its screenshot command shows captures inline in a
+Neovim `:terminal` by sending kitty graphics through `nvim_ui_send` over `$NVIM` and printing
+icat's unicode placeholders (spike-html-apps' tooling task, escalation 1).
+'''
+repos = []

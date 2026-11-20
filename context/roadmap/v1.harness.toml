@@ -1,0 +1,93 @@
+name = "The harness at v1"
+summary = '''
+The claude-plugins work beyond factory: extraction, the references extension, the
+deterministic tooling layer, local models as subagents, the hosting-upgrades skill as a plugin,
+and the watch register as a shared check. Each waits for its trigger.
+'''
+repos = []
+order = [
+  "extraction",
+  "references",
+  "tooling",
+  "local-models",
+  "door-scaled-review",
+  "hosting-upgrades",
+  "watch-register",
+]
+
+[tasks.extraction]
+name = "The marathon-extraction extension"
+summary = '''
+The architectural record extracted from a consumer as a hybrid marathon extension: a
+consumer-side ledger and prose bundle, a blueprint-side intake producing roadmap work and
+appending the bundle's sources to the references catalog; first member go-web-service's
+data-layer record at v1.data.evaluation, crossing mechanics when a private consumer earns
+them.
+'''
+repos = ["claude-plugins"]
+context = ["claude-plugins/context/marathon-extraction.md"]
+
+[tasks.references]
+name = "The references system as a marathon extension"
+summary = '''
+Evaluate promoting the workspace's references catalog (references.toml/local/md, whose
+mechanics references.md states) to a marathon extension owning the three-file artifact; the
+proposal and its open questions — facet, hooks, artifact location — are the linked note.
+extraction's references append is its first concrete consumer.
+'''
+repos = ["claude-plugins"]
+context = ["claude-plugins/context/marathon-references-extension.md"]
+
+[tasks.tooling]
+name = "The tooling layer beneath the harness"
+summary = '''
+The deterministic half of the harness as tools the skills call rather than process the skills
+describe (tool-based-skills.md, "What a tool carries and what a skill carries", "The three
+layers a tooling domain is built in", and "How an extension uses the tooling"): schemas for the
+roadmap manifest and the goal record, the validators over them, and the checks the extensions need (extraction's bundle
+schema, evidence gate, origin de-duplication, and want-list generation). First consumers:
+marathon's manifest and goal records, and extraction.
+'''
+repos = ["claude-plugins"]
+context = ["claude-plugins/context/tool-based-skills.md"]
+
+[tasks.local-models]
+name = "Local models as Claude Code subagents"
+summary = '''
+The convention for routing Claude Code subagent tasks to locally hosted models: the profile
+format, the routing mechanism, and which kinds of task may run locally, from experiment.harness's
+spike-local-models result. Waits on experiment.harness's intake.
+'''
+repos = ["claude-plugins"]
+context = ["standards-lab/context/ai-strategy.md"]
+
+[tasks.door-scaled-review]
+name = "Touch 2 scaled by reversibility"
+summary = '''
+Whether a two-way-door task whose blast radius stays inside a spike ships on a green check and
+the reviews, its session brief posted rather than accepted, while one-way doors keep touch 2
+(Brandon Thomas, "Let's Open Source the World"). It changes a pipeline invariant, so it waits
+for evidence from the session brief's Verify section.
+'''
+repos = ["claude-plugins"]
+context = ["claude-plugins/context/harness-optimization.md"]
+
+[tasks.hosting-upgrades]
+name = "The hosting-upgrades skill as a plugin"
+summary = '''
+The plugin form of the `hosting-upgrades` skill, which v1.ai.hosting's `upgrades` task rebuilds on
+vLLM in ai-hosting's `.claude/`, with the convention for where its `docs/` initializes. Waits on
+ai-hosting.
+'''
+repos = ["claude-plugins"]
+context = ["standards-lab/context/ai-hosting.md"]
+
+[tasks.watch-register]
+name = "The watch register as a shared check at PLAN"
+summary = '''
+spike-model-gateway's watch register (`docs/watch.md`) as a shared feature for the infrastructure
+repositories: one entry per dependency for anticipated capabilities, deprecations, and other
+changes that would affect the infrastructure we maintain, with a read-only `gh` check run at each
+PLAN beside currency (architect, 2026-11-16).
+'''
+repos = ["claude-plugins"]

@@ -12,7 +12,7 @@ coordinator. Authoritative context lives at its single home and is linked from h
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
   implementation of the architecture.
-- **The path** — `roadmap.toml`: the goal tree holds what remains, each goal `active`,
+- **The path** — `roadmap.toml` and `roadmap/`: the goal tree holds what remains, each goal `active`,
   `planned` (in order), or `backlog`.
 - **Prior work** — most of the architecture already exists across prior R&D, catalogued in
   `../references.md`; the work is to organize it into an effective standard.
@@ -104,3 +104,4 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   interfaces across the stack, the cobra question, and the SDK and template plan.
 - `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as
   experiment.graph's intake settled it, and the runners the libraries' releases built on it.
+- `waves.md` — the plan to the capstone.

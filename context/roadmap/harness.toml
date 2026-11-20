@@ -1,0 +1,5 @@
+name = "The harness"
+summary = '''
+The workflow every session runs: marathon and its extensions, kept lean and checked.
+'''
+repos = []

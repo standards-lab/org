@@ -1,0 +1,16 @@
+name = "Postgres extensions at the native tier"
+summary = '''
+How a Postgres extension is declared at the native tier: its install, its migration, its image
+pin, and the packages allowed to use it. pgvector, for capstone.data-intelligence, is the first
+case. Staged after wave C, ahead of the capstone.
+'''
+repos = []
+order = ["strategy"]
+context = ["standards-lab/context/data-intelligence.md"]
+
+[tasks.strategy]
+name = "The extension strategy"
+summary = '''
+Decides the workspace's Postgres-extension strategy from the terms of spike-ai-pipeline's
+evidence 10 (`data-intelligence.md`, "Evidence"), since no spike ran pgvector.
+'''

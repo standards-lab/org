@@ -1,0 +1,7 @@
+name = "Deployment"
+summary = '''
+Deployment infrastructure in its own repository, separate from the service source; its targets
+are settled in its own planning session once the service is worth deploying. The Dockerfiles'
+base images join each repository's currency command.
+'''
+repos = []

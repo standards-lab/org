@@ -1,0 +1,27 @@
+name = "The foundation"
+summary = '''
+The training repository and the first curriculum's foundation. Starts after v1.client.stack's
+`foundation` task, ahead of wave C: its setup and syllabus finish before the capstone, and its
+writing tasks run beside it in wave D. It locks no library.
+'''
+repos = ["training", "standards-lab"]
+root = "training"
+remote = "https://github.com/standards-lab/training.git"
+path = "~/architecture/training"
+order = ["setup", "syllabus"]
+
+[tasks.setup]
+name = "Setup"
+summary = '''
+`init`, the components on web-foundation, and the conventions; joins `order` and the catalog
+outside the exclusive group.
+'''
+
+[tasks.syllabus]
+name = "The syllabus"
+summary = '''
+With agent help, the plan of the foundation and the architecture path, on four axes: dependency
+footprint, scope of capability, layer of reusability, and automation of testing and validation.
+Names each unit and the library repositories it builds against; the foundation's writing tasks
+and the `sites.training.<layer>` sub-goals are written from it.
+'''
