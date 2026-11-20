@@ -1,0 +1,6 @@
+name = "Currency reports the downloaded marathon pin"
+summary = '''
+A currency command reports a CI's trailing marathon/vX.Y.Z download pin, so the pins the
+harness.adoption tasks add don't drift silently.
+'''
+repos = ["claude-plugins"]
