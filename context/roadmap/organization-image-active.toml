@@ -1,0 +1,3 @@
+name = "Drop organization_image.active"
+summary = "The column is now always true; drop it in a schema cleanup."
+repos = []

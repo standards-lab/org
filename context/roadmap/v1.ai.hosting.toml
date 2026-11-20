@@ -1,0 +1,118 @@
+name = "The ai-hosting specification repository"
+summary = '''
+Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
+container, laid out as agent on gb10-1, vision on gb10-2, and audio and embedding on the
+Framework; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority,
+budgets, and overflow to Azure AI Foundry on all four aliases; a multilingual model in place of
+set A's English-only embedding model; and the upgrade-evaluation convention rebuilt on vLLM. Its
+first `plan` (2026-11-19) created `ai-hosting` as a peer of claude-plugins in the workspace's
+lowest layer; ai-hosting becomes the one hosting repository on each workstation. Its `architecture` task lands four method pages in architecture on its own branch,
+sharing the architecture lock with v1.ai.processing and harness.optimization; the architect frees
+the lock before that task merges (intake, 2026-11-19). Runs before the capstone, which runs on the
+hosts and gateway it specifies; the admin tooling joins ai-hosting after experiment.admin's
+intake. Its sync archives personal-agents, with a forward link to ai-hosting, and
+spike-model-engines, spike-model-gateway, and spike-hosting-upgrades.
+'''
+repos = ["ai-hosting", "architecture"]
+root = "ai-hosting"
+remote = "https://github.com/standards-lab/ai-hosting.git"
+path = "~/architecture/ai-hosting"
+order = [
+  "design",
+  "hosts",
+  "embedding",
+  "gateway",
+  "cleanup",
+  "upgrades",
+  "acceptance",
+  "architecture",
+]
+context = ["standards-lab/context/ai-hosting.md"]
+
+[tasks.design]
+name = "Design review of the hosting stack"
+summary = '''
+Opens with Fable 5.2 evaluations of the three promoted artifacts, against the full architecture
+standards, the workspace, and `ai-hosting.md`: spike-model-engines' `host/` at 6ce3210 (the
+engines suite and each host class's vLLM rows), spike-model-gateway at 2f2e8c1 (the gateway's
+compose stack and `docs/gateway.md`'s requirements), and spike-model-hosting's `profile` package
+at aac0764 (the host-class profile schema, its validator and renderer). Settles each finding with
+the architect, one review round per evaluation, and writes ai-hosting's design note: the
+repository's layout, which parts each task takes from which spike, and the gateway's open points
+(listed as the `gateway` task's comments, settled at its plan), and the `hosting` suite: its
+groups and verbs, the read-only operator commands taken from personal-agents' `outpost` at
+d3e0755 with the task that builds each, the host-class pattern, the `~/.local/bin` install, and
+the `cleanup` task's inventory. Confirms multilingual-e5-large's scope and price on Foundry
+managed compute. No code.
+'''
+
+[tasks.hosts]
+name = "The hosts on ai-hosting"
+summary = '''
+Each host class's vLLM rows with their install, update, and uninstall, the Tailscale bind and CDI
+fixes, a check for a stranded container, and a runbook per host class, which documents the
+Framework's LUKS unlock, all as `hosting <group> <verb>` commands symlinked into `~/.local/bin`: a
+command that differs by host class detects the class once and calls its private per-class
+function. Then moves every host off its spike clone onto ai-hosting, removing only what it
+replaces.
+'''
+
+[tasks.embedding]
+name = "A multilingual embedding model"
+summary = '''
+Replaces set A's embedding model, granite-embedding-english-r2 (English-only), with a
+multilingual model that both the Framework's vLLM and Azure's managed compute serve,
+multilingual-e5-large first. Checks retrieval across ~/docs' languages, that docinfer's chunks
+fit in 512 tokens, and that the model doesn't degrade the Framework's audio row, by running audio
+alone and then beside embedding at load. A Chinese-origin candidate runs only if e5 fails, with
+the reason recorded. Re-measures the embedding row, its 34 req/s limit, and the layout table.
+'''
+
+[tasks.gateway]
+name = "The model gateway"
+summary = '''
+agentgateway's compose stack on gb10-2: gateway keys, priority, budgets, embedding's rate bucket,
+LGTM telemetry, and path hardening. Overflow goes to Azure for all four aliases: agent to
+gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions (refusing a
+text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
+model on Foundry managed compute, whose scope and price the design confirms first. Settled at its
+plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk
+concurrency, a sliding budget window, and authenticated OTLP.
+'''
+
+[tasks.cleanup]
+name = "ai-hosting alone on the workstations"
+summary = '''
+Leaves ai-hosting as the only hosting repository and script infrastructure on each workstation:
+removes every spike clone (spike-model-engines and the rest), gb10-2's `~/gateway`,
+spike-ai-pipeline's host clone and router, personal-agents' `outpost` links, and the images,
+units, and sudoers rules no `hosting` command created, from the design note's inventory. Checks
+each host afterward holds only ai-hosting and what its commands installed.
+'''
+
+[tasks.upgrades]
+name = "The upgrade-evaluation convention on vLLM"
+summary = '''
+Rebuilds spike-hosting-upgrades' convention and its `hosting-upgrades` skill on vLLM, with a host
+descriptor for each of the three hosts, their purposes and load targets taken from the layout.
+The skill stays in ai-hosting's `.claude/` until v1.harness makes it a plugin.
+'''
+
+[tasks.acceptance]
+name = "Acceptance of the hosting stack"
+summary = '''
+Reruns the standing layout cell on vLLM 0.34, and go-ai's and docinfer's tiers through the
+gateway. Adds an overflow cell for each alias, and a vector-parity cell: the Framework's and
+Azure's embeddings must reach cosine ≥ 0.999 before embedding's overflow is enabled. Fixes what it
+finds, never redesigning.
+'''
+
+[tasks.architecture]
+name = "The hosting method pages in the architecture"
+summary = '''
+Writes four method pages on its own branch in architecture: reading a model card (from
+spike-model-hosting's `docs/model-cards.md`), tool-call reliability (from its
+`docs/findings/tool-reliability.md`), sizing a vLLM row, and the placement rule. The architect
+frees the architecture lock before it merges.
+'''
+repos = ["architecture"]

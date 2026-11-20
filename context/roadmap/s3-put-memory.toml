@@ -1,0 +1,9 @@
+name = "s3 Put's memory held to its read-ahead"
+summary = '''
+A multipart `Put` in go-storage's `s3` provider reads ahead part_size × (concurrency + 2), 48 MiB
+at the defaults, but holds part_size × (concurrency + 3) with a declared size and
+part_size × (concurrency + 4) without one, 56 and 64 MiB, while it starts. transfermanager copies
+the first part out of `Put`'s decision buffer unpooled, and for an unknown size that buffer grows
+by doubling. The outcome holds when `Put` holds no more than it reads ahead.
+'''
+repos = []

@@ -1,0 +1,11 @@
+name = "Model evaluation at scale"
+summary = '''
+The large-scale benchmarking suite, once requirements call for it: benchmarking built from small
+elements (a model's fit on a host, a model as an agent, a set of role models at once, any of these
+under concurrent sessions or across hosts behind the gateway) composed into a workload per
+scenario; results kept by model, build, preset, and host; a run queue per host; and a management
+interface. Builds on the upgrade-evaluation convention, which v1.ai.hosting's `upgrades` task
+rebuilds on vLLM, and spike-host-admin's CLI, and stays the place for workloads only we can
+measure: our agents, and our role sets under our own sessions, with tuning at scale.
+'''
+repos = []

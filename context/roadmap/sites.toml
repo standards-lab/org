@@ -1,0 +1,56 @@
+name = "The Pages sites"
+summary = '''
+The workspace's GitHub Pages sites, native web built by Vite from Markdown
+(`standards-lab/context/sites.md`): the org site, standards-lab.github.io, at the origin root,
+holding the charter, the index of sites, and the site list every nav fetches; architecture and
+each code repository's docs/ guide as project sites under `/<repo>/`; and the documentation
+components layer and the site SDK they build on, each released by tag, on the client stack's
+layers, web-icons among them. Planned
+last, after v1.middleware. Its sub-goals, sites.status-reports and sites.training, are early work
+the architect needs for leadership: they publish as standalone project sites under `/<repo>/`
+and wait on no `sites` task.
+'''
+repos = []
+order = ["components", "sdk", "org-site", "architecture-site", "repository-sites"]
+context = ["standards-lab/context/sites.md"]
+
+[tasks.components]
+name = "The documentation components layer"
+summary = '''
+The sites' components on web-foundation, from spike-html-hosting-components, taking in the
+overlap sites.status-reports and sites.training prove between their own components.
+'''
+
+[tasks.sdk]
+name = "The site SDK"
+summary = '''
+The site SDK, released by tag with a template inside its release, from spike-html-hosting-sdk. It
+closes the gaps spike-html-go-wasm found and adds a nav menu at narrow widths with sub-navs
+(`sites.md`, "The shared layers").
+'''
+
+[tasks.org-site]
+name = "The org site"
+summary = '''
+standards-lab.github.io at the origin root: the charter, the index of sites, and the site list
+every nav fetches, from spike-html-hosting's org stand-in.
+'''
+repos = ["standards-lab.github.io"]
+
+[tasks.architecture-site]
+name = "The architecture site"
+summary = '''
+architecture as a project site, from spike-html-hosting-architecture. It repoints
+`architecture/context/README.md`, which names backlog.docs-site as the owner of site hosting, to
+this layout.
+'''
+repos = ["architecture"]
+
+[tasks.repository-sites]
+name = "The repository sites"
+summary = '''
+Each code repository's docs/ guide, written by v1.repository-docs, published as its project site
+in the shape of spike-html-hosting-sqlate, with the live Go demos each site chooses. Demo sites
+warm the worker on intent, share one deployed toolchain across the project sites, and build with
+`-buildvcs=false` (`sites.md`, "Live Go demos").
+'''

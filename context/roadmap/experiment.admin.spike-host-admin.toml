@@ -1,0 +1,14 @@
+name = "The admin tool on go-cli-sdk"
+summary = '''
+Can one CLI, generated from go-cli-sdk-template (template/v0.1.0) on go-cli-sdk v0.2.0, manage
+the vLLM rows on the three hosts, from ai-hosting's runbooks and setup scripts: install, update,
+service status and restart, models, metrics, and GPU and memory use? Runs after
+capstone.data-intelligence, managing the stack ai-hosting specifies, and keeps the hosting
+experiment rules (`ai-hosting.md`, "Experiment rules"). outpost is read as the baseline, not
+rebuilt; the profile format is settled at its setup. Decides ai-hosting's admin tooling
+(`ai-hosting.md`, "Open for experiment.admin").
+'''
+repos = ["spike-host-admin"]
+root = "spike-host-admin"
+remote = "https://github.com/JaimeStill/spike-host-admin.git"
+path = "~/experiments/spike-host-admin"

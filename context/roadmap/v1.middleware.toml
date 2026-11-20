@@ -1,0 +1,28 @@
+name = "The sourced middleware set"
+summary = '''
+CORS, real client IP, and compression remain; rate limiting has landed
+(`go-web-sdk/middleware/rate-limit`). rate-limit's main carries untagged go-core v0.6.0, httprate
+v0.16.1, and the go-web-sdk v0.14.0 requirement; its next release dates them and can move to
+go-web-sdk v0.15.0. The convention is settled — each is imported as a declared
+dependency, in its own capability sub-module when it carries a third-party dependency — but the
+concrete adoption for the remaining three is not: versions, real-IP's trusted-proxy
+configuration, and each library's own entry in go-web-sdk's dependency-line statement.
+CORS's trigger is the first client served cross-origin, such as an external client or a
+Pages-hosted page that calls a service; v1.client.reference's embedded client is same-origin and
+sends no cross-origin requests (standards-lab/context/web-client.md). That trigger has fired:
+spike-html-apps' external client calls two services. It needed one allowed-origins list shared
+by the CORS middleware and the NATS WebSocket listener, Authorization and Content-Type allowed, a
+preflight on every upload sent with a progress listener, and the caller naming the methods.
+rs/cors reads an empty list as admitting every origin, which the spike's wrapper turns into a
+pass-through. rs/cors's latest tag is v1.11.1 (2024-08) while its main stays active, with #220
+(credentialed wildcard) and #222 (malformed origins) open; jub0bs/cors is the alternative to
+weigh, and herald's CORS middleware (`HERALD_CORS_*`) is prior art. Real client IP and
+compression have none recorded and wait for one — neither has a live consumer yet: real-IP's
+only other use, keying rate limiting, is covered by `RemoteAddr`; compression has no
+large-response case until more of the data layer lands.
+'''
+repos = []
+context = [
+  "go-web-sdk/context/middleware-sourcing.md",
+  "architecture/standards/go-elemental/principles/dependencies.md",
+]

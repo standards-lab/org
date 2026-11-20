@@ -1,0 +1,9 @@
+name = "Second providers"
+summary = '''
+Entra for auth, a second SQL engine — each proven by a focused
+reference or a real consumer, one session each. A second broker proves go-messaging's standard
+tier, which stays provisional until it does. A second SQL engine includes blobfs's own engine
+sub-module; the NATS object store is a candidate go-storage provider, judged against go-storage's
+standard tier (`standards-lab/context/messaging.md`). Post-1.0 candidate.
+'''
+repos = []

@@ -1,0 +1,8 @@
+name = "Staged query aggregation"
+summary = '''
+An orchestration layer composing a request's staged cross-service hops into one response graph,
+each hop still authorized, filtered, and sorted in its own service: a live alternative to the
+materialized read model. Gated on the bounded, staged query strategy (`auth-strategy.md` §7)
+being built and on production experience with it.
+'''
+repos = []

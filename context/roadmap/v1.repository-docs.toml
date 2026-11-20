@@ -1,0 +1,23 @@
+name = "Repository documentation"
+summary = '''
+Each Go repository's docs/ guide, in Markdown and indexed by its README, written once the layers
+stop churning: the accessibility layer over the README, the package documentation, and the
+source, in the shape sqlate's guide established (concepts by example, a quick start, the features
+by package, a glossary). Sequenced last so no layer's guide is revised while the roadmap still
+changes it; sqlate's guide exists and is verified rather than written, taking the quick-start
+revision spike-html-hosting made. A guide's front matter is its page's head meta, and a CLI's
+output is shown as text, not as a recorded demo (`standards-lab/context/sites.md`, "The docs/
+guides").
+'''
+repos = [
+  "go-core",
+  "sqlate",
+  "go-database",
+  "go-web-sdk",
+  "go-web-sdk-template",
+  "go-web-service",
+]
+context = [
+  "architecture/principles/context-architecture.md",
+  "standards-lab/context/sites.md",
+]

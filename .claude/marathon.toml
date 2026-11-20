@@ -2,6 +2,7 @@
 # not production source code.
 [project]
 kind = "context"
+check = "lint-context"
 
 # Workspace coordinator: standards-lab is the org-context project for the
 # reference-architecture workspace (~/architecture/). It declares the dependency

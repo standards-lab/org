@@ -1,0 +1,10 @@
+name = "The SQL meta language"
+summary = '''
+A provider-agnostic SQL meta language. Its first phase exists: the sqlate grammar —
+declarations, parameters and expansion, includes, namespaced patterns, tiers, overlays — is
+language independent, and sqlate is its first host. What remains is schema typing (types
+from the migration set rather than declared) and portability by construction (compiled to
+a dialect rather than declared by tier); the concept is reframed in the docs pass. Not a
+v1 dependency.
+'''
+repos = []

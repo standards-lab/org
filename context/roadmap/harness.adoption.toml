@@ -1,0 +1,11 @@
+name = "Every repository aligned with marathon 0.19.0"
+summary = '''
+After harness.optimization releases marathon 0.19.0, brings every repository in ~/architecture
+and ~/experiments into line with it: each check calls lint-context, and what fails is trimmed or
+moved. Notes, READMEs, and goal records come under budget, capability maps take the built and
+planned shape, spike evidence moves into docs/, and Decisions keep only what binds. The plan that
+stages it settles its root, repos, tasks, and the 31 archived spikes, from 0.19.0's real check
+output.
+'''
+repos = []
+context = ["claude-plugins/context/harness-optimization.md"]

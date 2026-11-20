@@ -1,0 +1,21 @@
+name = "The harness experiments"
+summary = '''
+The spikes that settle the harness layer, which go-ai's harness surface and v1.harness build on:
+spike-harness-driver has answered; spike-go-harness, then spike-local-models, run after
+capstone.data-intelligence, which needs no harness (its model calls go through go-ai's client).
+Then one intake.
+'''
+repos = []
+order = ["intake"]
+context = ["standards-lab/context/ai-strategy.md"]
+
+[tasks.intake]
+name = "The harness intake"
+summary = '''
+Run by `marathon intake experiment.harness` once spike-go-harness and spike-local-models have
+their answers in `ai-strategy.md`, beside spike-harness-driver's. Decides go-ai's harness surface
+from spike-harness-driver, whether go-ai carries its own agent loop from spike-go-harness, tau's
+retirement, and v1.harness.local-models from spike-local-models. It archives spike-harness-driver,
+spike-go-harness, and spike-local-models. personal-agents is a reference, never archived by this
+intake.
+'''

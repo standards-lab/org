@@ -1,0 +1,8 @@
+name = "Versioned public API after v1"
+summary = '''
+After go-web-service's v1.0.0, its public API changes by version rather than in place: the HTTP
+API, and each event's type and data, which before v1 change freely with no version suffix
+(messaging.md, "Which commands emit events"). The outcome holds when a breaking change to either ships beside
+the version it replaces.
+'''
+repos = []

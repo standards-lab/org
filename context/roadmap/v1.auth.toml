@@ -1,0 +1,18 @@
+name = "Auth and authorization"
+summary = '''
+The go-auth infrastructure library with Keycloak as the declared provider (standard tier:
+OAuth 2.0, OIDC, JWT); the subject anchor, the relationship-derived authorization model, and
+the composition-root seams every domain builds against are settled in the linked strategy
+record. The admin listener (v1.admin-listener) is a consumer of the authentication this goal
+settles. What remains is the build: go-auth itself, the schema it introduces as a migration
+source of its own, and the composition-root reshape in go-web-service. The storage domain's auth
+sweep proves the composed authorized listing that the blobfs experiment cannot: the consumer's
+join table driving a blobfs listing under the scope predicate. v1.client.reference lands first,
+on the open API, so this goal adds a client sweep task: the reference client behind authentication,
+and whether an image is fetched as an `<img>` with a cookie or with a bearer token.
+'''
+repos = []
+context = [
+  "standards-lab/context/auth-strategy.md",
+  "standards-lab/context/web-client.md",
+]

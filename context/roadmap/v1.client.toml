@@ -1,0 +1,8 @@
+name = "The web client"
+summary = '''
+The stack beyond the terminal, by the strategy in `standards-lab/context/web-client.md`, in two
+parts: v1.client.stack builds the client stack before the capstone, whose UI builds on it, and
+v1.client.reference builds go-web-service's reference client on it after the capstone.
+'''
+repos = []
+context = ["standards-lab/context/web-client.md"]

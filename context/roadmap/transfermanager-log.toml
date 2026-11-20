@@ -1,0 +1,7 @@
+name = "transfermanager's log output through the application's logger"
+summary = '''
+When a multipart upload's completion fails, transfermanager writes to the standard library's
+`log`, which bypasses the application's logger. go-storage's `s3` provider routes or silences
+that output.
+'''
+repos = []

@@ -61,3 +61,33 @@ docproc-ooxml (docx, xlsx, and pptx), docproc-mail, and docproc-onenote (`ai-str
 
 The contracts move to schema "2", since the cuts remove fields each spike reader of "1" declares,
 and grow by addition only from there (docproc's `context/layers.md`, "Versioning").
+
+## Inputs for the tools' tasks
+
+What the tools' spikes and v1.ai.processing's design review left for the `ooxml`, `mail`, and
+`onenote` tasks:
+
+- **docproc-ooxml**, from spike-ai-pipeline-office:
+  - fixtures/README.md calls slide-objects' pictures "beside another", but generate.py places both
+    of slide 3's at one default position, so the blue square covers the red; say so, or place
+    them apart.
+  - Backlog: reading comments, SmartArt, text boxes, equations, and cell notes (design review).
+- **docproc-mail**, from spike-ai-pipeline-mail:
+  - The static musl release binary takes 2.0 times a glibc build's time on the 2.1 GB scale store
+    (13.27 s against 6.51 s at v0.1.0, 14.82 s against 6.88 s at v0.2.0), 2.3 times on plaso's
+    store (1.59 s against 0.71 s), and 1.7 times on the 2.7 GB scale mboxrd (6.86 s against
+    4.09 s). Its system time (3.2 s against 0.7 s on the store at v0.1.0, 2.6 to 2.8 s against
+    1.0 s on the mboxrd) points at musl's allocator (docs/findings/mail-cli.md, "The release
+    binary against a glibc build" and ".eml and mbox"); measure a replacement allocator if
+    processing's email runs find the time matters.
+  - Backlog: mail caps a .msg's nesting at 16 levels; raise or lift the cap if real stores nest
+    deeper.
+  - Backlog from the design review: a .pst's embedded-message content, waiting on outlook-pst's
+    unmerged fix; class-specific fields (contacts, appointments, and tasks); TNEF and opaque
+    S/MIME; and an ANSI .pst fixture.
+- **docproc-onenote**, from spike-ai-pipeline-onenote (backlog):
+  - Section decryption waits for a specification or an open implementation, since
+    [MS-ONESTORE] 2.5.19 leaves the scheme undocumented (onenote-cli, round 2 q7).
+  - An authored OneNote notebook, committed with hand truth from onenote-cli's round 2 authoring
+    spec, needs desktop OneNote on Windows or a Mac, since OneNote for the web can neither
+    download nor export a notebook (onenote r6 q1).

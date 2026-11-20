@@ -215,7 +215,7 @@ tools → docproc → docinfer ← go-ai, and Cerebro over docproc, docinfer, an
 
 ### What it asks of the goals beneath it
 
-Each is recorded on its roadmap entry, so the goal designs around Cerebro:
+Each goal beneath the capstone designs around Cerebro:
 
 - **v1.ai.client (go-ai):** Cerebro is its first long-running service consumer. Retry proven
   against the live gateway's 429, 503, and Retry-After; per-call timeouts and cancellation by
@@ -231,7 +231,7 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
   caller's prompt and schema, chunking, embedding, the result cache) in an adjacent library above
   go-ai that calls go-ai directly, with `cmd/docinfer` its command; results in batches as made;
   the cache behind an interface, with the provider `docinfer/postgres` (PostgreSQL through
-  sqlate); cancellation per job; a go-ai failure mapping that refuses only a verdict on the
+  sqlate); stable exported event shapes; cancellation per job; a go-ai failure mapping that refuses only a verdict on the
   content and fails the job at once on a permanent error.
 - **v1.ai.processing's tools:** docproc-ooxml, docproc-mail, and docproc-onenote ship inside
   Cerebro's image, each pinned by its `tools/<format>/v<version>` tag.
@@ -251,13 +251,14 @@ Each is recorded on its roadmap entry, so the goal designs around Cerebro:
 - **go-web-sdk:** the chunked upload primitive after graduation, and an SSE helper for Athena's
   chat.
 - **v1.data.extensions:** pgvector lives in capstone-athena only.
-- **v1.client.stack:** resumable chunked upload, a stage timeline driven by the event protocol rather
-  than hard-coded, and citations in the chat thread.
+- **v1.client.stack:** the upload component's resumable chunked upload on Cerebro's protocol, a
+  stage timeline driven by the event protocol rather than hard-coded, and citations in the chat
+  thread.
 - **graph-ergonomics:** both composition roots are written against its release.
 
 ## Gates
 
-The capstone runs in wave D of the roadmap (`roadmap.toml`, header), as the sole active goal
+The capstone runs in wave D of the roadmap (`waves.md`), as the sole active goal
 apart from sites.status-reports and sites.training. Before it:
 
 - v1.ai.hosting builds ai-hosting: the hosts, the gateway with its overflow, and the multilingual
@@ -323,3 +324,6 @@ input; build tasks are written once they close.
   until the capstone needs it (plan, 2026-11-03).
 - The scanned-document OCR tier isn't required: the capstone runs on vision transcription, and
   experiment.ocr settles the tier after it.
+- go-ai's `aitest` is its public API, which docinfer, go-ai's `tools/infer`, and Cerebro's tests
+  depend on, so a change to it is a breaking change to them. The capstone is the next goal to
+  hold go-ai after v1.ai.inference.

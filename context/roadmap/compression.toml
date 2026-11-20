@@ -1,0 +1,10 @@
+name = "Compression"
+summary = '''
+Already part of v1.middleware's recorded sourced set (github.com/klauspost/compress/gzhttp —
+middleware-sourcing.md), parked here because no response is large enough yet to pay for the
+wrapping and content negotiation. Becomes a task under goals.v1.middleware.tasks once a
+large-payload endpoint lands — the data layer's paginated lists once domains beyond organization
+exist, or a bulk admin export.
+'''
+repos = []
+context = ["go-web-sdk/context/middleware-sourcing.md"]
