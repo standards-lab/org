@@ -10,16 +10,17 @@ lowest layer; ai-hosting becomes the one hosting repository on each workstation.
 sharing the architecture lock with v1.ai.processing; the architect frees
 the lock before that task merges (intake, 2026-11-19). Runs before the capstone, which runs on the
 hosts and gateway it specifies; the admin tooling joins ai-hosting after experiment.admin's
-intake. Its sync archives personal-agents, with a forward link to ai-hosting, and
+intake. `secrets` shares go-ai and docinfer with v1.ai.inference until it ships. Its sync
+archives personal-agents, with a forward link to ai-hosting, and
 spike-model-engines, spike-model-gateway, and spike-hosting-upgrades.
 '''
-repos = ["ai-hosting", "architecture"]
+repos = ["ai-hosting", "architecture", "secrets", "go-ai", "docinfer"]
 root = "ai-hosting"
 remote = "https://github.com/standards-lab/ai-hosting.git"
 path = "~/architecture/ai-hosting"
 order = [
   "design",
-  "comment-kinds",
+  "secrets",
   "hosts",
   "embedding",
   "gateway",
@@ -47,15 +48,18 @@ the `cleanup` task's inventory. Confirms multilingual-e5-large's scope and price
 managed compute. No code.
 '''
 
-[tasks.comment-kinds]
-name = "The evaluation notes name five kinds of comment"
+[tasks.secrets]
+name = "The development-time secret store"
 summary = '''
-Brings `context/evaluation-host.md` and `context/evaluation-gateway.md` in line with the
-architecture's comments page, which now allows five kinds of comment: their summaries of the page
-name the reference, a line pointing a file at the document that governs it, beside the other four
-(retro reference-comments).
+Sets up the workspace's development-time secret convention and adopts it in one sweep: a private
+`secrets` repository holds every value, age-encrypted by fnox to one key per device plus an
+offline backup, in global and per-repository files. ai-hosting, go-ai, and docinfer import it
+through mise's `[secrets.fnox]`, and the integration tiers move onto it while a clone without it
+runs as today. Enrolls the laptop, gb10-2, and the backup, and writes architecture's
+"Development-time secrets" principle. Runs alone, after harness.adoption (design's note,
+`ai-hosting/context/design.md`).
 '''
-repos = ["ai-hosting"]
+repos = ["secrets", "ai-hosting", "go-ai", "docinfer", "architecture"]
 
 [tasks.hosts]
 name = "The hosts on ai-hosting"
@@ -88,7 +92,7 @@ gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions 
 text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
 model on Foundry managed compute, whose scope and price the design confirms first. Settled at its
 plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk
-concurrency, a sliding budget window, and authenticated OTLP.
+concurrency, a sliding budget window, and authenticated OTLP, with what design's note defers to it.
 '''
 
 [tasks.cleanup]

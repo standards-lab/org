@@ -107,6 +107,11 @@ remote = "https://github.com/standards-lab/docinfer.git"
 [repos.ai-hosting]
 remote = "https://github.com/standards-lab/ai-hosting.git"
 
+# secrets is the private development-time secret store (v1.ai.hosting's `secrets` task creates
+# it), outside the tiers, so its entry declares no standard.
+[repos.secrets]
+remote = "https://github.com/standards-lab/secrets.git"
+
 # The web client stack (v1.client.stack). Each is an intended member of the draft
 # web-elemental standard (references.md, "web-elemental (preliminary)"); its entry
 # declares standard = "web-elemental" once v1.client.stack's `standard` task founds it.

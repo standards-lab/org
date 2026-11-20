@@ -38,6 +38,7 @@ order = [
   [
     "claude-plugins", # harness
     "ai-hosting",     # model hosting: hosts, vLLM rows, and the gateway; low-level infrastructure
+    "secrets",        # private development-time secret store (fnox, age); created by v1.ai.hosting's `secrets`
   ],
   [
     "go-core", # core SDK
