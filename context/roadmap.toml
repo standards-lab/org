@@ -71,6 +71,7 @@ planned = [
   "sites.training.foundation",
   "corpus.docs",
   "v1.data.extensions",
+  "docproc-coverage",
   "capstone.data-intelligence",
   "v1.client.reference",
   "experiment.ocr.spike-scanned-documents",
@@ -111,6 +112,7 @@ backlog = [
   "retrieval",
   "cross-service-tracing",
   "chunked-upload-graduation",
+  "docproc-backlog",
 ]
 
 # ── v1 ─────────────────────────────────────────────────────────────────────────────────────
@@ -718,9 +720,10 @@ generator holds MimeKit at 4.x on .NET 11, its fixture truth unchanged. CI check
 as office's and onenote's did; the spike merged without waiting on checks.
 '''
 # Inputs from spike-ai-pipeline-mail:
-# - The static musl release binary takes 2.0 to 2.3 times a glibc build's time on large stores
-#   (13.27 s against 6.51 s on the 2.1 GB scale store at v0.1.0, 14.82 s against 6.88 s at
-#   v0.2.0) and 1.7 times on the 2.7 GB scale mboxrd (6.86 s against 4.09 s). Its system time
+# - The static musl release binary takes 2.0 times a glibc build's time on the 2.1 GB scale
+#   store (13.27 s against 6.51 s at v0.1.0, 14.82 s against 6.88 s at v0.2.0), 2.3 times on
+#   plaso's store (1.59 s against 0.71 s), and 1.7 times on the 2.7 GB scale mboxrd (6.86 s
+#   against 4.09 s). Its system time
 #   (3.2 s against 0.7 s on the store at v0.1.0, 2.6 to 2.8 s against 1.0 s on the mboxrd) points
 #   at musl's allocator (docs/findings/mail-cli.md, "The release binary against a glibc build"
 #   and ".eml and mbox"); measure a replacement allocator if processing's email runs find the
@@ -768,7 +771,7 @@ by the classification table, and a tool's death by signal is recorded failed, na
 bomb rule sums across entries (design, 2026-11-13). A signed PDF's form read fails, since
 processing's own form reader, not qpdf, refuses a signature field's reference value (as in
 ~/docs' cfr-2024-title32-vol1.pdf), and so fails the whole document part after its pages render:
-the index never records it and every docproc rerun renders its 1,823 pages again. A field's value
+the index never records it and every docproc rerun renders its 915 pages again. A field's value
 never fails the form. The audio stage's windows each run an ffmpeg that decodes the source from
 its start, so a 4.4 h audiobook took 1,614 s in docproc's ~/docs run while every other input
 finished in 332 s; the stage windows from one decode with the silence tracker alone (docproc
@@ -852,11 +855,47 @@ whether audio that fits in one request goes unsplit (`ai-strategy.md`, evidence 
 reruns move to v1.ai.inference.
 '''
 
-[goals.v1.ai.processing.tasks.go-ai-row]
-name = "go-ai in the Go Elemental infrastructure table"
+[goals.v1.ai.processing.tasks.hardening]
+name = "Library hardening"
 summary = '''
-Adds a go-ai row to the infrastructure table of architecture's `standards/go-elemental/README.md`,
-now that go-ai has released at v0.3.0 (from v1.ai.client's sync).
+Fixes what acceptance found in the library, each a defect or a gap in a test, never a redesign
+(acceptance, brief review, 2026-11-19; docproc's context/acceptance.md). `tool`'s environment sets
+`TMPDIR` to the run's scratch for every tool, so a gs ended early leaves no `gs_` or
+`gpdf-collection-` file beside the input. A portfolio's pages on the per-page path write one PNG
+per page and read only that page's text, not every embedded document's. An XPS package named
+`.docx` (LargeData.one's "testing - large.docx") is sniffed as no processor rather than failing as
+docproc-ooxml's "not a docx, xlsx, or pptx package". soffice's exit 77, a full disk, is recorded
+as the run's failure, not the content's, so the part is retried once the disk has room.
+`sevenzip.Reader.Extract` returns the failing writer's error, not 7zz's broken pipe.
+`GOARCH=386 go vet` passes (audio/floor.go's `SampleRate * int(FrameLength)` overflows int as a
+constant). A mail fixture spreading distinct attachments over enough messages lets
+`TestEmailStageReleases` assert the email stage's release property instead of logging its peak.
+ooxml's fixtures README describes slide-objects' slide 3 truly, or generate.py places its pictures
+apart.
+'''
+
+[goals.v1.ai.processing.tasks.mail-hardening]
+name = "docproc-mail hardening"
+summary = '''
+docproc-mail's follow-ups from acceptance (acceptance, brief review, 2026-11-19). Profiles the
+schema "2" reads that slowed v0.1.2 (plaso's store 3.34 s against the spike's 1.61 s, scale.mboxrd
+8.52 s against 6.73 s, likely the Markdown built for every message) and measures a replacement
+allocator against musl's. The RTF text reader breaks at `\cell` and `\row`, not only at `\par`,
+`\line`, and `\tab`. An `IPM.Note.SMIME` .msg or .pst message gets the S/MIME warning a MIME part
+gets. A fixture message and its golden pin the output differences tools/mail's CHANGELOG v0.1.2
+lists: htmd 0.6's math form, a link's text with edge whitespace or a line ending, a whole title,
+an `<img>` without a `src`, and a text beginning `+`, `1)`, or an autolink-like `<`.
+'''
+
+[goals.v1.ai.processing.tasks.final]
+name = "Final acceptance and sync"
+summary = '''
+Reruns `cmd/docproc` over ~/docs, the mail bench, and the shared-gs identity check against the
+hardened releases, and records them in docproc's context/acceptance.md; no word error rate or bomb
+reruns (acceptance, brief review, 2026-11-19). In architecture's
+`standards/go-elemental/README.md`, adds a go-ai row to the infrastructure table, naming no
+version, and docproc to the adjacent-library list, which then reads "Three libraries" (plan,
+2026-11-20, folding go-ai-row from v1.ai.client's sync). Then syncs the goal.
 '''
 
 [goals.v1.ai.inference]
@@ -1383,6 +1422,17 @@ name = "Capstones"
 summary = '''
 Applications that bring the workspace's libraries together end to end, each a `capstone.<slug>`
 in its own JaimeStill repository at ~/capstones/<slug> (`naming.md`, "Capstones").
+'''
+
+[goals.docproc-coverage]
+name = "docproc's format coverage"
+root = "docproc"
+repos = ["docproc"]
+summary = '''
+Widens what docproc and its tools read, ahead of the capstone (acceptance, brief review,
+2026-11-19): HTML and EPUB; docproc-ooxml's text boxes, comments, and cell notes; RAR, ISO, xz,
+and bzip2 through 7zz; ODF, WordPerfect, and .xlsb through soffice; the MPEG-2 program stream;
+TNEF; and docproc-ooxml's arm64 memory floor. A later `plan` writes its tasks.
 '''
 
 # For capstone.data-intelligence, the next goal to hold go-ai (v1.ai.inference's design,
@@ -1972,4 +2022,18 @@ summary = '''
 An idea for a later web-tooling release: its screenshot command shows captures inline in a
 Neovim `:terminal` by sending kitty graphics through `nvim_ui_send` over `$NVIM` and printing
 icat's unicode placeholders (spike-html-apps' tooling task, escalation 1).
+'''
+
+[goals.docproc-backlog]
+name = "docproc's backlog"
+root = "docproc"
+repos = ["docproc"]
+summary = '''
+What remains of docproc's and its tools' backlog after v1.ai.processing and docproc-coverage, with
+no tasks (acceptance, brief review, 2026-11-19): the email Threader's memory past a million
+messages; docproc-mail's .msg nesting cap; SmartArt and equations; a bare RFC 822 file with no
+extension; plain-text sniffing; class-specific mail fields (contacts, appointments, tasks); text
+encoding detection; an ANSI .pst fixture; and the gated items: ClamAV, media's live sources,
+outlook-pst's contacts and embedded messages, OneNote section decryption, and an authored
+notebook. Findings during the capstone are addressed as they are found (plan, 2026-11-20).
 '''
