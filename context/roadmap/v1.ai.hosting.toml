@@ -19,6 +19,7 @@ remote = "https://github.com/standards-lab/ai-hosting.git"
 path = "~/architecture/ai-hosting"
 order = [
   "design",
+  "comment-kinds",
   "hosts",
   "embedding",
   "gateway",
@@ -45,6 +46,16 @@ d3e0755 with the task that builds each, the host-class pattern, the `~/.local/bi
 the `cleanup` task's inventory. Confirms multilingual-e5-large's scope and price on Foundry
 managed compute. No code.
 '''
+
+[tasks.comment-kinds]
+name = "The evaluation notes name five kinds of comment"
+summary = '''
+Brings `context/evaluation-host.md` and `context/evaluation-gateway.md` in line with the
+architecture's comments page, which now allows five kinds of comment: their summaries of the page
+name the reference, a line pointing a file at the document that governs it, beside the other four
+(retro reference-comments).
+'''
+repos = ["ai-hosting"]
 
 [tasks.hosts]
 name = "The hosts on ai-hosting"
