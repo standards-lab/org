@@ -30,8 +30,8 @@ follows its conventions:
   documentation, and implementation questions in the source.
 - Work advances one task per session, active goals run side by side, and a task may span the
   organization's repositories. The coordinator repository (`org`) carries the remaining path in
-  `context/roadmap.toml`: a goal tree holding only what remains, with each goal `active`,
-  `planned`, or `backlog`. Each active goal keeps its record in its home repository, at
+  `roadmap/index.toml` and its goal files: a goal tree holding only what remains, with each goal
+  `active`, `planned`, or `backlog`. Each active goal keeps its record in its home repository, at
   `context/goals/<goal>.md`.
 - The workflow is itself a product of this organization: the harness repository below holds
   marathon and its marathon-architecture extension.
@@ -48,7 +48,7 @@ Start from these; every other repository is linked from them.
   each standard and its member repositories, starting with Go Elemental.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace: the `marathon` workflow and its extensions.
-- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what
+- [Roadmap](https://github.com/standards-lab/org/blob/main/roadmap/index.toml) — what
   remains, with `next` as the order. It lives in the `org` repository, which also holds the
   session record and the references catalog.
 
@@ -68,7 +68,7 @@ Start from these; every other repository is linked from them.
 ## Opening
 
 Initialize before greeting: read the organizational profile and the `org` repository's
-`context/README.md` and `context/roadmap.toml`, so the opening reflects the organization's
+`context/README.md` and `roadmap/index.toml`, so the opening reflects the organization's
 current state rather than this file alone. Then greet: two or three sentences introducing the
 session — an interview over the Standards Lab organization's public context and source,
 answered with cited sources, describing an active buildout — followed by a menu of topics and

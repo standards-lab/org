@@ -12,7 +12,7 @@ coordinator. Authoritative context lives at its single home and is linked from h
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
   implementation of the architecture.
-- **The path** — `roadmap.toml` and `roadmap/`: the goal tree of what remains.
+- **The path** — the root `roadmap/`, its index and goal files: the goal tree of what remains.
 - **Prior work** — most of the architecture already exists across prior R&D, catalogued in
   `../references.md`; the work is to organize it into an effective standard.
 
@@ -51,8 +51,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   member-only orientation, in [the extended profile](../private/profile/README.md); `../CLAUDE.md`
   states the mirror convention.
 - **The workspace roadmap** (built): the goal tree and its tasks, each goal `active`, `planned`,
-  or `backlog`, in [the index](roadmap.toml) and `roadmap/`. harness.adoption's `references` task
-  moves it to a root `roadmap/` directory.
+  or `backlog`, in [the index](../roadmap/index.toml) and the goal files beside it in the root
+  `roadmap/`.
 - **Leadership briefs** (built): orientation briefs for technical leadership, starting with
   [the orientation](../briefs/orientation.md) and its agent-interview prompt `../interview.md`;
   both move to sites.status-reports at its `layout` task.

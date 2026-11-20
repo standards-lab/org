@@ -84,7 +84,7 @@ template that future services start from, and the underlying principles that sha
 architecture and standard. Solve a layer holistically once and it becomes a repeatable blueprint
 that does not need to be solved again.
 
-The [live roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) holds the
+The [live roadmap](https://github.com/standards-lab/org/blob/main/roadmap/index.toml) holds the
 remaining layers and their order.
 
 This is a comprehensive review of how we can optimize the way we build production software, worked
@@ -103,5 +103,5 @@ together well, and dialing it in takes time.
 - [Harness](https://github.com/standards-lab/claude-plugins) — `claude-plugins`, the plugin
   marketplace codifying the organization's development processes: the `marathon` workflow and
   its extensions.
-- [Roadmap](https://github.com/standards-lab/org/blob/main/context/roadmap.toml) — what
+- [Roadmap](https://github.com/standards-lab/org/blob/main/roadmap/index.toml) — what
   remains, with `next` as the order.

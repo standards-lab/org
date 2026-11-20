@@ -247,7 +247,7 @@ web-app-sdk-template. An intended member of the preliminary `web-elemental` stan
 ## Experiments — archived spikes
 
 A running spike is a sub-goal of its experiment, `experiment.<topic>.<spike>`, in
-`context/roadmap.toml`, which records its remote and local path; the experiment's intake records
+`roadmap/`, whose goal file records its remote and local path; the experiment's intake records
 each spike here and archives its remote. A new spike follows the hosting convention in
 `.claude/marathon.toml`'s `[workspace.experiments]`. A spike whose sync has landed while its
 experiment awaits intake, or whose archive a goal's sync owns, is listed here unarchived.

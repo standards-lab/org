@@ -2,7 +2,7 @@
 # not production source code.
 [project]
 kind = "context"
-check = "lint-context"
+check = "lint-context && lint-references"
 
 # Workspace coordinator: standards-lab is the org-context project for the
 # reference-architecture workspace (~/architecture/). It declares the dependency
@@ -12,7 +12,7 @@ check = "lint-context"
 [workspace]
 role = "coordinator"
 # Marathon extensions enabled for every project in the workspace. marathon-architecture
-# finds the architecture layer each STANDARDS.md points to, named in its own
+# finds the architecture layer each repository's standards point to, named in its own
 # .claude/marathon-architecture.toml beside this file.
 extensions = ["marathon-architecture"]
 # Workspace policy: at most one active goal touches the reference-architecture code
@@ -78,7 +78,7 @@ spike-model-engines = "~/experiments/spike-model-engines"
 spike-model-gateway = "~/experiments/spike-model-gateway"
 spike-hosting-upgrades = "~/experiments/spike-hosting-upgrades"
 spike-harness-driver = "~/experiments/spike-harness-driver"
-# The capstones (naming.md, "Capstones").
+# The capstones (context/naming.md, "Capstones").
 capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
 capstone-cerebro = "~/capstones/capstone-cerebro"
 capstone-athena = "~/capstones/capstone-athena"
