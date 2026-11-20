@@ -101,5 +101,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as
   experiment.graph's intake settled it, and the runners the libraries' releases built on it.
 - `waves.md` — the plan to the capstone.
+- `harness-adoption.md` — how every repository adopts marathon 0.21.0: ai-hosting's pattern,
+  the rules every adoption goal shares, the lock exceptions, and the orchestrated run.
 - `middleware.md` — v1.middleware's remaining adoptions: CORS's fired trigger and its
   findings, and what real client IP and compression wait for.
