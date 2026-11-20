@@ -1,0 +1,49 @@
+name = "The unarchived spikes adopt 0.21.0"
+summary = '''
+spike-model-gateway, spike-model-engines, spike-hosting-upgrades, and spike-harness-driver adopt
+marathon 0.21.0 on ai-hosting's pattern and the rules every adoption shares
+(standards-lab/context/harness-adoption.md).
+'''
+repos = [
+  "spike-harness-driver",
+  "spike-model-gateway",
+  "spike-model-engines",
+  "spike-hosting-upgrades",
+]
+root = "spike-harness-driver"
+order = [
+  "model-gateway",
+  "model-engines",
+  "hosting-upgrades",
+  "harness-driver",
+]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.model-gateway]
+name = "spike-model-gateway adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in spike-model-gateway.
+'''
+repos = ["spike-model-gateway"]
+
+[tasks.model-engines]
+name = "spike-model-engines adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in spike-model-engines.
+'''
+repos = ["spike-model-engines"]
+
+[tasks.hosting-upgrades]
+name = "spike-hosting-upgrades adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in spike-hosting-upgrades.
+'''
+repos = ["spike-hosting-upgrades"]
+
+[tasks.harness-driver]
+name = "spike-harness-driver adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in spike-harness-driver. Its findings note
+moves to docs/.
+'''
+repos = ["spike-harness-driver"]

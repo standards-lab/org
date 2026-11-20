@@ -127,7 +127,8 @@ static app on the stack that reads a `config.json` placed beside its build, with
 install it. A written project's check reports the whole build's size and enforces no budget. The
 CLI's check writes a project and runs that project's own check. Its page takes web-foundation
 v0.4.0's application page, web-icons v0.1.0's glyphs, and web-components v0.2.0's Settings on S
-and Help on ?. Released as v0.1.0, binaries for Linux and macOS.
+and Help on ?. Released as v0.1.0, binaries for Linux and macOS. It adopts marathon 0.21.0 as
+standards-lab/context/harness-adoption.md sets out.
 '''
 repos = ["webappgen"]
 

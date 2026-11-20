@@ -1,0 +1,16 @@
+name = "go-web-service adopts 0.21.0"
+summary = '''
+go-web-service adopts marathon 0.21.0 on ai-hosting's pattern and the rules every adoption shares
+(standards-lab/context/harness-adoption.md).
+'''
+repos = ["go-web-service"]
+root = "go-web-service"
+order = ["adopt"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.adopt]
+name = "go-web-service adopts 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in go-web-service. Its README moves its detail
+to docs/.
+'''

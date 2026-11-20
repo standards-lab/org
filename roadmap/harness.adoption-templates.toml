@@ -1,0 +1,17 @@
+name = "The Go templates adopt 0.21.0"
+summary = '''
+go-web-sdk-template and go-cli-sdk-template adopt marathon 0.21.0 on ai-hosting's pattern and the
+rules every adoption shares (standards-lab/context/harness-adoption.md).
+'''
+repos = ["go-web-sdk-template", "go-cli-sdk-template"]
+root = "go-web-sdk-template"
+order = ["adopt"]
+context = ["standards-lab/context/harness-adoption.md"]
+
+[tasks.adopt]
+name = "The Go templates adopt 0.21.0"
+summary = '''
+The pin, the check, context, comments, and pointers, in go-web-sdk-template and go-cli-sdk-template.
+The generated template/ code is held to the five kinds. Releases go-web-sdk-template
+template/v0.16.0 and go-cli-sdk-template template/v0.3.1.
+'''
