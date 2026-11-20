@@ -1,7 +1,7 @@
-name = "Every repository aligned with marathon 0.20.0"
+name = "Every repository aligned with marathon 0.21.0"
 summary = '''
 Brings every repository in ~/architecture, and the four unarchived spikes, into line with
-marathon 0.20.0: each check calls lint-context and lint-references, context comes under budget
+marathon 0.21.0: each check calls lint-context and lint-references, context comes under budget
 with a built-and-planned capability map, and code and configuration comments come to
 architecture's five kinds, restated reasoning moving to its source of truth behind a reference
 comment. Archived spikes stay as they are.
@@ -39,6 +39,7 @@ repos = [
 root = "claude-plugins"
 order = [
   "references",
+  "go-tools",
   "ai-hosting",
   "core",
   "docproc",
@@ -65,34 +66,45 @@ moves the coordinator's roadmap once the release is installed.
 '''
 repos = ["claude-plugins"]
 
-[tasks.ai-hosting]
-name = "ai-hosting adopts 0.20.0"
+[tasks.go-tools]
+name = "marathon's tools as Go release binaries"
 summary = '''
-The check calls lint-context and the reference check; context/ comes under budget with a
-capability map; comments come to the five kinds, restated reasoning moving behind a reference
-comment; each link to the coordinator's roadmap points at standards-lab/roadmap/index.toml.
+lint-context, lint-references, marathon, and wrap-formats become Go commands released as
+binaries on each marathon/vX.Y.Z tag, pinned through mise's github: backend. A session runs them
+through the plugin's bin/ shims, and no Python remains in claude-plugins. Releases
+marathon/v0.21.0.
+'''
+repos = ["claude-plugins"]
+
+[tasks.ai-hosting]
+name = "ai-hosting adopts 0.21.0"
+summary = '''
+mise pins marathon's tools, and the check calls lint-context and lint-references; context/ comes
+under budget with a capability map; comments come to the five kinds, restated reasoning moving
+behind a reference comment; each link to the coordinator's roadmap points at
+standards-lab/roadmap/index.toml.
 '''
 repos = ["ai-hosting"]
 
 [tasks.core]
-name = "go-core and sqlate adopt 0.20.0"
+name = "go-core and sqlate adopt 0.21.0"
 summary = "The ai-hosting task's adoption, in go-core and sqlate."
 repos = ["go-core", "sqlate"]
 
 [tasks.docproc]
-name = "docproc adopts 0.20.0"
+name = "docproc adopts 0.21.0"
 summary = '''
 The ai-hosting task's adoption, in docproc, including its goal record's sections over budget.
 '''
 repos = ["docproc"]
 
 [tasks.go-ai]
-name = "go-ai adopts 0.20.0"
+name = "go-ai adopts 0.21.0"
 summary = "The ai-hosting task's adoption, in go-ai."
 repos = ["go-ai"]
 
 [tasks.go-libraries]
-name = "The Go infrastructure libraries adopt 0.20.0"
+name = "The Go infrastructure libraries adopt 0.21.0"
 summary = '''
 The ai-hosting task's adoption, in go-database, go-web-sdk, go-observability, go-storage,
 go-messaging, blobfs, and go-cli-sdk.
@@ -108,7 +120,7 @@ repos = [
 ]
 
 [tasks.templates]
-name = "The templates and docinfer adopt 0.20.0"
+name = "The templates and docinfer adopt 0.21.0"
 summary = '''
 The ai-hosting task's adoption, in go-web-sdk-template, go-cli-sdk-template, and docinfer,
 including docinfer's goal record's sections over budget.
@@ -116,10 +128,11 @@ including docinfer's goal record's sections over budget.
 repos = ["go-web-sdk-template", "go-cli-sdk-template", "docinfer"]
 
 [tasks.web]
-name = "The web stack adopts 0.20.0"
+name = "The web stack adopts 0.21.0"
 summary = '''
 The ai-hosting task's adoption, in web-tooling, web-foundation, web-icons, web-components,
-web-app-sdk, and webappgen, including web-foundation's goal record's sections over budget.
+web-app-sdk, and webappgen, including web-foundation's goal record's sections over budget. Each
+repository's run_auto_install comment in mise.toml goes once its task descriptions carry it.
 '''
 repos = [
   "web-tooling",
@@ -131,20 +144,21 @@ repos = [
 ]
 
 [tasks.go-web-service]
-name = "go-web-service adopts 0.20.0"
+name = "go-web-service adopts 0.21.0"
 summary = "The ai-hosting task's adoption, in go-web-service."
 repos = ["go-web-service"]
 
 [tasks.architecture]
-name = "architecture adopts 0.20.0"
+name = "architecture adopts 0.21.0"
 summary = '''
 architecture's check calls lint-context and switches its own reference resolution to marathon's
-reference check; its README comes under budget.
+reference check; its README comes under budget. principles/comments.md drops its closing "No
+code repository follows it yet".
 '''
 repos = ["architecture"]
 
 [tasks.spikes]
-name = "The unarchived spikes adopt 0.20.0"
+name = "The unarchived spikes adopt 0.21.0"
 summary = '''
 The ai-hosting task's adoption, in spike-model-gateway, spike-model-engines,
 spike-hosting-upgrades, and spike-harness-driver, with each spike's evidence in docs/.

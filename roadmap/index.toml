@@ -55,5 +55,4 @@ backlog = [
   "cross-service-tracing",
   "chunked-upload-graduation",
   "docproc-backlog",
-  "harness.pin-currency",
 ]
