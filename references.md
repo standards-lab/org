@@ -198,6 +198,12 @@ the five tiers, beside the harness repositories, and the one hosting repository 
 workstation. Its references are spike-model-engines, spike-model-gateway, spike-model-hosting,
 spike-hosting-upgrades, and spike-model-layout.
 
+### secrets
+The workspace's development-time secret store, private, created by v1.ai.hosting's `secrets` task:
+every value age-encrypted by fnox to one key per enrolled device plus an offline backup, in a
+global file and one file per repository. Each consuming repository imports it through mise's
+`[secrets.fnox]`. Its convention is architecture's "Development-time secrets" principle.
+
 ### web-tooling
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
 test server, the process helper, the `web-screenshots` bin, and a pinned-font-set helper. Planned
