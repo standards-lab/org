@@ -24,7 +24,7 @@ the workspace's extension strategy from this case. Each stage's output is a vers
 keyed by its input and configuration hash, so a stage reruns only when either changes; embeddings
 live in registered embedding spaces, so a model change re-embeds into a new space (design page,
 "Embedding spaces"). Its input is the schema "2" run directories of docproc's `cmd/docproc` and
-docinfer's `cmd/docinfer` (docproc's `context/layers.md`, "The nested modules").
+docinfer's `cmd/docinfer` (docproc's `docs/changes.md`, "The nested modules").
 
 ## Cerebro and Athena
 
@@ -82,7 +82,7 @@ socket; `retrieval` (hybrid ANN with tsvector and rerank; set A has no reranker)
 ### The layers
 
 Five layers: system tools → docproc → docinfer ← go-ai, and Cerebro over docproc, docinfer, and
-go-ai. docproc's `context/layers.md` states each boundary as signatures and schemas, the go-ai
+go-ai. docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md) states each boundary as signatures and schemas, the go-ai
 surface docinfer calls kept ("docinfer's go-ai use"), and Cerebro's API, state, and events
 ("Cerebro's API and events"); its open questions pass to the capstone's tasks (design page, "Open
 items").
@@ -93,10 +93,10 @@ Each goal beneath the capstone designs around Cerebro:
 
 - **v1.ai.client (go-ai)**, Cerebro its first long-running service consumer: retry proven against
   the live gateway, cancellation by context, a per-consumer key, Embed batching, and a relayable
-  streaming Generate (`layers.md`, "Requests to go-ai"); concurrency bounds stay the caller's.
+  streaming Generate ([`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "Requests to go-ai"); concurrency bounds stay the caller's.
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
-  the tools pinned in Cerebro's image (`layers.md`, "Changes per tool and per package").
+  the tools pinned in Cerebro's image (docproc's `docs/changes.md`).
 - **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with
   its own key and budget, chat responsive during a ~/docs-scale run (design page, "Gateway
   load").

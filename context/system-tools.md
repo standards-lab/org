@@ -60,7 +60,7 @@ docproc-ooxml (docx, xlsx, and pptx), docproc-mail, and docproc-onenote (`ai-str
   metadata belong to docproc, docinfer, and Cerebro, not the tools.
 
 The contracts move to schema "2", since the cuts remove fields each spike reader of "1" declares,
-and grow by addition only from there (docproc's `context/layers.md`, "Versioning").
+and grow by addition only from there (docproc's `docs/tool-contract.md`, "Versioning").
 
 ## Inputs for the tools' tasks
 

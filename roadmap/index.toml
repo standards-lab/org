@@ -6,7 +6,6 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "harness.adoption",
-  "harness.adoption-docproc",
   "harness.adoption-spikes",
 ]
 

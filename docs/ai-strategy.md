@@ -126,7 +126,7 @@ layer repositories beside it.
   every image to vision with reasoning off, every audio window to transcription, joined per part
   by `audio.Join`, and every text and each input's metadata, chunked, to embeddings. It writes a
   directory of its own, schema "1"; the capstone's input is `cmd/docinfer`'s directory at schema
-  "2" (docproc's `context/layers.md`, "The nested modules"). Its
+  "2" (docproc's `docs/changes.md`, "The nested modules"). Its
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
@@ -219,10 +219,10 @@ and "Gates").
 
 ## go-ai's name map and requests
 
-go-ai's `docs/design.md` maps each name of docproc's `context/layers.md`, "go-ai's surface",
+go-ai's `docs/design.md` maps each name of docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "go-ai's surface",
 to one go-ai name, and decides what docinfer and Cerebro ask of go-ai. A finding cited here is
 that page's "Evaluation", a decision its "Surface" section's, and "modules" its "Modules"
-section; "layers" is docproc's `context/layers.md`.
+section; "layers" is docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md).
 
 ### The name map
 
@@ -419,7 +419,7 @@ left open:
 
 ## v1.ai.processing · mail-hardening
 
-docproc-mail's follow-ups from acceptance (docproc's `context/acceptance.md`):
+docproc-mail's follow-ups from acceptance (docproc's `docs/acceptance.md`):
 
 - Profile the schema "2" reads that slowed v0.1.2 (plaso's store 3.34 s against the spike's
   1.61 s, scale.mboxrd 8.52 s against 6.73 s, likely the Markdown built for every message), and

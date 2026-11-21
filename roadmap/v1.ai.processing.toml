@@ -167,7 +167,7 @@ reruns move to v1.ai.inference.
 name = "Library hardening"
 summary = '''
 Fixes what acceptance found in the library, each a defect or a gap in a test, never a redesign
-(docproc's context/acceptance.md): `tool` sets `TMPDIR` to the run's scratch for every tool; a
+(docproc's docs/acceptance.md): `tool` sets `TMPDIR` to the run's scratch for every tool; a
 portfolio's per-page path writes one PNG per page and reads only that page's text; an XPS package
 named `.docx` is sniffed as no processor; soffice's full-disk exit is the run's failure, not the
 content's; `sevenzip.Reader.Extract` returns the failing writer's error; `GOARCH=386 go vet`
@@ -189,7 +189,7 @@ message and its golden pin the output differences tools/mail's CHANGELOG v0.1.2 
 name = "Final acceptance and sync"
 summary = '''
 Reruns `cmd/docproc` over ~/docs, the mail bench, and the shared-gs identity check against the
-hardened releases, and records them in docproc's context/acceptance.md; no word error rate or bomb
+hardened releases, and records them in docproc's docs/acceptance.md; no word error rate or bomb
 reruns (acceptance, brief review, 2026-11-19). In architecture's
 `standards/go-elemental/README.md`, adds a go-ai row to the infrastructure table, naming no
 version, and docproc to the adjacent-library list, which then reads "Three libraries" (plan,
