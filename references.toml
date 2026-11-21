@@ -1,26 +1,11 @@
-# Repository references — authoritative remote identity.
-#
-# Each key maps to the canonical remote for one repository. references.local.toml
-# (not committed) maps the same key to its directory on this machine. The key is
-# the join: to clone a missing repo, look up its remote here and its target
-# directory in references.local.toml. references.md describes what each key is.
-#
-# A private annex in the private repository (checked out at private/) extends this
-# catalog with the prior R&D that cannot be catalogued publicly; references.md states
-# the layering rule.
+# Repository references: each key's canonical remote.
+# See references.md
 
-# Standards — named standards that sets of repositories align to. Each
-# [standards.<key>] entry declares one; a member repository's [repos.<key>] entry
-# declares standard = "<key>", and architecture names the architecture the
-# standard implements. The definition itself lives in the architecture
-# repository at the definition URL; references.md states the declaration
-# mechanics.
 [standards.go-elemental]
 description = "The Go implementation of the Elemental Architecture: a complete reference architecture on the standard library"
 architecture = "elemental-architecture"
 definition = "https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md"
 
-# Effort repositories — the standards-lab organization.
 [repos.claude-plugins]
 remote = "https://github.com/standards-lab/claude-plugins.git"
 
@@ -80,41 +65,24 @@ standard = "go-elemental"
 remote = "https://github.com/standards-lab/go-web-service.git"
 standard = "go-elemental"
 
-# sqlate is adjacent to the standard, not a member: a standalone library the
-# standard's libraries consume, so its entry declares no standard.
 [repos.sqlate]
 remote = "https://github.com/standards-lab/sqlate.git"
 
-# blobfs is adjacent to the standard, as sqlate is: a standalone library over
-# sqlate and any object store, so its entry declares no standard.
 [repos.blobfs]
 remote = "https://github.com/standards-lab/blobfs.git"
 
-# docproc is adjacent to the standard, as sqlate is: the processing library that
-# prepares content for models, with its system tools nested under tools/, so its
-# entry declares no standard.
 [repos.docproc]
 remote = "https://github.com/standards-lab/docproc.git"
 
-# docinfer is adjacent to the standard, as sqlate is: the inference library above
-# go-ai's tier, with its PostgreSQL cache and its command nested as modules, so its
-# entry declares no standard.
 [repos.docinfer]
 remote = "https://github.com/standards-lab/docinfer.git"
 
-# ai-hosting is low-level infrastructure outside the five tiers, beside the harness
-# repositories (v1.ai.hosting), so its entry declares no standard.
 [repos.ai-hosting]
 remote = "https://github.com/standards-lab/ai-hosting.git"
 
-# secrets is the private development-time secret store (v1.ai.hosting's `secrets` task creates
-# it), outside the tiers, so its entry declares no standard.
 [repos.secrets]
 remote = "https://github.com/standards-lab/secrets.git"
 
-# The web client stack (v1.client.stack). Each is an intended member of the draft
-# web-elemental standard (references.md, "web-elemental (preliminary)"); its entry
-# declares standard = "web-elemental" once v1.client.stack's `standard` task founds it.
 [repos.web-tooling]
 remote = "https://github.com/standards-lab/web-tooling.git"
 
@@ -133,10 +101,6 @@ remote = "https://github.com/standards-lab/web-app-sdk.git"
 [repos.webappgen]
 remote = "https://github.com/standards-lab/webappgen.git"
 
-# Experiments — archived spikes. A running spike is a sub-goal of its experiment in
-# roadmap/, with its remote and path in its goal file; the experiment's intake records it here.
-# A spike whose sync has landed while its experiment awaits intake, or whose archive a goal's sync
-# owns, is listed without archived.
 [repos.spike-sql-dsl]
 remote = "https://github.com/JaimeStill/spike-sql-dsl.git"
 archived = true
@@ -236,8 +200,6 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-html-go-wasm.git"
 archived = true
 
-# Read by web-icons, as by spike-html-hosting-icons before it, at 9a274e2 (tag
-# @primer/octicons@19.42.0), whose LICENSE it copies; never written.
 [repos.octicons]
 remote = "https://github.com/primer/octicons.git"
 
@@ -245,12 +207,9 @@ remote = "https://github.com/primer/octicons.git"
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 archived = true
 
-# vLLM superseded its llama.cpp answer; v1.ai.hosting's design reviews its host/, and the goal's
-# sync archives it.
 [repos.spike-model-engines]
 remote = "https://github.com/JaimeStill/spike-model-engines.git"
 
-# v1.ai.hosting's `upgrades` task rebuilds its convention on vLLM; the goal's sync archives it.
 [repos.spike-hosting-upgrades]
 remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 
@@ -258,11 +217,9 @@ remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
 remote = "https://github.com/JaimeStill/spike-model-layout.git"
 archived = true
 
-# v1.ai.hosting's design reviews its gateway stack; the goal's sync archives it.
 [repos.spike-model-gateway]
 remote = "https://github.com/JaimeStill/spike-model-gateway.git"
 
-# Read by spike-model-layout for gb10-2's former preset and llama.env; never written.
 [repos.spike-ai-pipeline]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
 archived = true
@@ -291,11 +248,9 @@ archived = true
 remote = "https://github.com/JaimeStill/spike-graph.git"
 archived = true
 
-# Prior R&D — Go web service architecture.
 [repos.herald]
 remote = "https://github.com/JaimeStill/herald.git"
 
-# Prior R&D — TAU ecosystem (agentic libraries).
 [repos.tau-protocol]
 remote = "https://github.com/tailored-agentic-units/protocol.git"
 
@@ -326,14 +281,12 @@ remote = "https://github.com/tailored-agentic-units/diagrams.git"
 [repos.tau-blog]
 remote = "https://github.com/tailored-agentic-units/jaime.git"
 
-# Prior R&D — agentic dev process and event-driven architecture.
 [repos.curiosity]
 remote = "https://github.com/JaimeStill/curiosity.git"
 
 [repos.signal-lab]
 remote = "https://github.com/JaimeStill/signal-lab.git"
 
-# Prior R&D — local model hosting.
 [repos.personal-agents]
 remote = "https://github.com/JaimeStill/personal-agents.git"
 

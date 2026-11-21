@@ -13,14 +13,13 @@ sections.
 
 **The upload.** In one transaction: check the scope and begin the file's write, and nothing else —
 no consumer row may reference the pending file, since a reference refuses the library's stale
-reclaim on every pass and strands the row (the logo's first write did exactly this, found by a
-layering review). Outside any transaction: upload under the row's key. blobfs's `WriteFile` then
-completes the write in a transaction of its own, and the consumer's `OnComplete` hook runs in it,
-where the upload's event is enqueued. A put or completion that fails abandons the row through the
-delete steps, on a context that outlives the request's cancellation; a completion refused because a
-sweep reached the row first deletes the object just stored (the writer rule). A consumer's
-reference to the file, such as the logo's join row, is written after completion, in the
-transaction that holds the file. The service runs blobfs's own `WriteFile`, `EnsureFile`, and
+reclaim on every pass and strands the row. Outside any transaction: upload under the row's key.
+blobfs's `WriteFile` then completes the write in a transaction of its own, and the consumer's
+`OnComplete` hook runs in it, where the upload's event is enqueued. A put or completion that fails
+abandons the row through the delete steps, on a context that outlives the request's cancellation; a
+completion refused because a sweep reached the row first deletes the object just stored (the writer
+rule). A consumer's reference to the file, such as the logo's join row, is written after completion,
+in the transaction that holds the file. The service runs blobfs's own `WriteFile`, `EnsureFile`, and
 `RemoveFile`, setting `WriteFileRequest.OnComplete`, `EnsureFileRequest.OnComplete`, and
 `RemoveOptions.OnDelete`, and stages none of them.
 

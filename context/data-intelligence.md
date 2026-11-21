@@ -82,18 +82,22 @@ socket; `retrieval` (hybrid ANN with tsvector and rerank; set A has no reranker)
 ### The layers
 
 Five layers: system tools → docproc → docinfer ← go-ai, and Cerebro over docproc, docinfer, and
-go-ai. docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md) states each boundary as signatures and schemas, the go-ai
-surface docinfer calls kept ("docinfer's go-ai use"), and Cerebro's API, state, and events
-("Cerebro's API and events"); its open questions pass to the capstone's tasks (design page, "Open
-items").
+go-ai. docproc's [`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md)
+states each boundary as signatures and schemas, and its
+[`context/cerebro.md`](https://github.com/standards-lab/docproc/blob/main/context/cerebro.md)
+Cerebro's API, state, and events, whose open questions pass to the capstone's tasks (design page,
+"Open items"). The go-ai surface docinfer calls is kept in docproc's
+[`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md) ("go-ai's surface").
 
 ### What it asks of the goals beneath it
 
 Each goal beneath the capstone designs around Cerebro:
 
-- **v1.ai.client (go-ai)**, Cerebro its first long-running service consumer: retry proven against
-  the live gateway, cancellation by context, a per-consumer key, Embed batching, and a relayable
-  streaming Generate ([`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "Requests to go-ai"); concurrency bounds stay the caller's.
+- **go-ai** (built by v1.ai.client), Cerebro its first long-running service consumer: retry
+  proven against the live gateway, cancellation by context, a per-consumer key, Embed batching,
+  and a relayable streaming Generate (docproc's
+  [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md),
+  "Requests to go-ai"); concurrency bounds stay the caller's.
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
   the tools pinned in Cerebro's image (docproc's `docs/changes.md`).
@@ -104,7 +108,7 @@ Each goal beneath the capstone designs around Cerebro:
   builds itself.
 - **go-web-sdk** and **v1.client.stack:** the chunked upload after graduation, an SSE helper, a
   stage timeline driven by the event protocol, and citations in the chat thread.
-- **graph-ergonomics:** both composition roots are written against its release.
+- **go-core's graph API:** both composition roots are written against it.
 
 ## Gates
 
@@ -113,12 +117,10 @@ sites.status-reports and sites.training. Before it:
 
 - v1.ai.hosting builds the hosts, the gateway with its overflow, and the multilingual embedding
   model.
-- v1.ai.processing builds docproc and its system tools, v1.ai.client builds go-ai, and
-  v1.ai.inference builds docinfer once go-ai's library releases, each closed by acceptance that
-  reruns the real workloads.
+- v1.ai.processing builds docproc and its system tools, and v1.ai.inference builds docinfer on
+  go-ai's released library, each closed by acceptance that reruns the real workloads.
 - v1.client.stack builds the web client stack the UI builds on.
-- graph-ergonomics settles go-core's `graph` and `lifecycle`, and v1.data.extensions lands the
-  Postgres-extension strategy.
+- v1.data.extensions lands the Postgres-extension strategy.
 
 It needs no harness: its model calls go through go-ai's client, whose Open Responses protocol and
 wire-format packages reach every engine. Its repos gain docproc and the libraries the intakes
@@ -153,5 +155,5 @@ tell a thin layer from a whole one (design page, "Text layer and vision").
 - The scanned-document OCR tier isn't required: the capstone runs on vision transcription, and
   experiment.ocr settles the tier after it.
 - go-ai's `aitest` is its public API, which docinfer, go-ai's `tools/infer`, and Cerebro's tests
-  depend on, so a change to it breaks them. The capstone is the next goal to
-  hold go-ai after v1.ai.inference.
+  depend on, so a change to it breaks them. The capstone is the next goal to hold go-ai after
+  v1.ai.inference and v1.ai.hosting's `secrets`.

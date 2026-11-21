@@ -5,9 +5,9 @@ organization's context about itself — how it presents, the direction records, 
 of repositories the effort is built from — and coordinates the workspace as marathon's declared
 coordinator. Authoritative context lives at its single home and is linked from here:
 
-- **The vision** — the opening of the profiles: `../public/profile/README.md`, the authored
-  baseline, mirrored into the extended profile at `../private/profile/README.md` (the mirror
-  convention is in `../CLAUDE.md`).
+- **The vision** — the opening of the profiles: [the authored baseline](https://github.com/standards-lab/.github/blob/main/profile/README.md),
+  mirrored into the extended profile at `../private/profile/README.md` (member checkout; the
+  mirror convention is in `../CLAUDE.md`).
 - **The definitions** — the three-level hierarchy (architecture → standard → module) and the
   narrowing rule that binds it: the [architecture repository](https://github.com/standards-lab/architecture),
   home of the Elemental Architecture. `go-elemental` is the first standard, the Go
@@ -33,7 +33,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - A baseline catalog and a conformance suite.
 - The full source-control topology.
 - Documentation, diagram, and voice standards, and the Pages sites that serve the architecture
-  repository's and each repository's documentation (`goals.sites`, `sites.md`).
+  repository's and each repository's documentation (`sites`, `sites.md`).
 - Later service layers beyond the cohesive reference: portable IaC and a web-platform-native
   client, each with its provider-swap class declared.
 - Further application SDKs and their templates — worker and others — as a consumer earns them.
@@ -46,10 +46,11 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 ## Capability map
 
 - **Baseline profile** (built): the public org landing, the vision and the organization contents
-  index, authored in [the baseline](../public/profile/README.md).
+  index, authored in [the baseline](https://github.com/standards-lab/.github/blob/main/profile/README.md); [`../CLAUDE.md`](../CLAUDE.md)
+  states how the extended profile mirrors it.
 - **Extended profile** (built): what members see, the baseline mirrored verbatim plus a
-  member-only orientation, in [the extended profile](../private/profile/README.md); `../CLAUDE.md`
-  states the mirror convention.
+  member-only orientation, in `../private/profile/README.md` (member checkout);
+  [`../CLAUDE.md`](../CLAUDE.md) states the mirror convention.
 - **The workspace roadmap** (built): the goal tree and its tasks, each goal `active`, `planned`,
   or `backlog`, in [the index](../roadmap/index.toml) and the goal files beside it in the root
   `roadmap/`.
@@ -62,11 +63,13 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - **Experiments** (built): running spikes are goals under `experiment` in the roadmap, archived
   spikes are in [the catalog](../references.toml), and `[workspace.experiments]` in
   `.claude/marathon.toml` holds the hosting convention. Every spike carries go-core's Apache-2.0
-  `LICENSE` and a `main` ruleset, which `plan`'s spike setup applies, and takes secrets from
-  architecture's "Development-time secrets" principle. Capstones are `capstone.<slug>` goals at
-  `~/capstones/<slug>`, listed in `[workspace.paths]` (`naming.md`).
+  `LICENSE` and a `main` ruleset, which `plan`'s spike setup applies, and will take secrets from
+  architecture's planned "Development-time secrets" principle (v1.ai.hosting's `secrets` task).
+  Capstones are `capstone.<slug>` goals at `~/capstones/<repo>`, each repository named
+  `capstone-<name>`, listed in `[workspace.paths]` (`naming.md`).
 - **Cross-repo coordination** (built): the catalog is the repository list, and the workspace
-  order in [the configuration](../.claude/marathon.toml) is its dependency graph.
+  order in [the configuration](../.claude/marathon.toml) is its dependency graph; `../CLAUDE.md`
+  states the order's tiers, the exclusive group, and why the merge waits on no checks.
 
 ## Notes
 
@@ -78,8 +81,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   blobfs protocols and operating constraints a consumer sequences, what a shipped migration set
   requires of its shipper and consumers, and what sqlate needs to host a library.
 - `messaging.md` — the event and reactor layer: its decisions, the outbox sequencing, which
-  commands emit events, where the primitives live, lifecycle registration, the capability
-  ledger, and spike-messaging's evidence.
+  commands emit events, where the primitives live, lifecycle registration, and what is open; the
+  evidence and capability ledger are on its docs page.
 - `ai-strategy.md`, with `ai-hosting.md`: the AI capability's four layers (hosting, client,
   processing, harness) and their homes, the pivot from tau to external harnesses, the decided
   design of the client and processing layers (go-ai, and docproc with its system tools), the
@@ -91,17 +94,13 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
 - `web-client.md` — the web client stack: its repositories and what each owns, its conventions,
-  packaging and release, `NewClient`, the foundation's candidate additions, and the reference
-  client, for v1.client.
+  packaging and release, `NewClient`, browser support, the color profiles, Web Elemental, and the
+  reference client, for v1.client.
 - `sites.md` — the Pages sites: where HTML is used, the topology, serving and build, the layers
   the sites share, the docs/ guides' conventions, and live Go demos, for `sites` and
   v1.repository-docs.
-- `cli-applications.md` — the CLI application type: where the cobra-era tools differ, the role
-  interfaces across the stack, the cobra question, and the SDK and template plan.
-- `graph-ergonomics.md` — the graph and lifecycle API go-core v0.11.0 ships, as
-  experiment.graph's intake settled it, and the runners the libraries' releases built on it.
+- `cli-applications.md` — the CLI application type: why it leaves cobra, where the cobra-era tools
+  differ, and the role interfaces across the stack.
 - `waves.md` — the plan to the capstone.
-- `harness-adoption.md` — how every repository adopts marathon 0.21.0: ai-hosting's pattern,
-  the rules every adoption goal shares, the lock exceptions, and the orchestrated run.
 - `middleware.md` — v1.middleware's remaining adoptions: CORS's fired trigger and its
   findings, and what real client IP and compression wait for.

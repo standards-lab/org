@@ -42,10 +42,11 @@ the choice of model, and control of the worker pool.
 
 go-ai may need two surfaces: a **harness-session surface**, which runs an agentic session through
 an external harness and streams its events, and a **model-client surface**, a thin client for
-deterministic pipelines. These are surfaces, not `service-tiers.md`'s tiers; each has its own. If
-the harness-session surface also covers the native capabilities and the long-running workflows,
-go-ai has only that surface and tau retires; tau also retires if go-ai has both, since the
-model-client surface is rebuilt under go-elemental's rules. experiment.harness's intake decides.
+deterministic pipelines. These are surfaces, not `architecture/principles/service-tiers.md`'s
+tiers; each has its own. If the harness-session surface also covers the native capabilities and
+the long-running workflows, go-ai has only that surface and tau retires; tau also retires if go-ai
+has both, since the model-client surface is rebuilt under go-elemental's rules.
+experiment.harness's intake decides.
 
 ## The client and processing layers
 
@@ -56,9 +57,7 @@ transactional pgvector pipeline and the browser that follows it move, unproven, 
 
 The design reviews read [what spike-ai-pipeline
 built](../docs/ai-strategy.md#what-spike-ai-pipeline-built) and [the spike's
-answer](../docs/ai-strategy.md#the-spikes-answer), whose evidence numbers the notes cite. [go-ai's
-name map](../docs/ai-strategy.md#go-ais-name-map-and-requests) maps each name of docproc's
-[`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "go-ai's surface", to go-ai's.
+answer](../docs/ai-strategy.md#the-spikes-answer), whose evidence numbers the notes cite.
 
 ### Repositories and placement
 
@@ -82,20 +81,21 @@ name map](../docs/ai-strategy.md#go-ais-name-map-and-requests) maps each name of
   The Go module zip leaves `tools/` out.
 
 An adjacent library may depend on a stack library, which pins it above that library's tier
-(`repository-topology.md`, "Adjacent libraries"): only layers above go-ai's tier use docinfer. A
-provider sub-module pins only its own level, and one over sqlate pins no tier. A repository's
-place in `order` follows its base module; nested command modules and system tools don't move it.
-A cross-repository task orders its own exceptions in its brief. go-ai, docproc, and docinfer join
-`exclusive` after wave C.
+(`architecture/principles/repository-topology.md`, "Adjacent libraries"): only layers above
+go-ai's tier use docinfer. A provider sub-module pins only its own level, and one over sqlate pins
+no tier. A repository's place in `order` follows its base module; nested command modules and
+system tools don't move it. A cross-repository task orders its own exceptions in its brief. go-ai,
+docproc, and docinfer join `exclusive` after wave C.
 
 ### How v1.ai builds them
 
-v1.ai holds four sub-goals (`roadmap.toml`): v1.ai.processing, v1.ai.inference, v1.ai.hosting,
-and v1.ai.client. The design tasks build from docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), the signatures of
-every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by a Fable 5.2
-evaluation of each promoted artifact against the standards, the layers note, and Cerebro's
-requirements, and closes with an `acceptance` task that reruns the real workloads and fixes what
-it finds, never redesigning.
+v1.ai holds three sub-goals (`roadmap/v1.ai.toml`): v1.ai.processing, v1.ai.inference, and
+v1.ai.hosting; v1.ai.client built go-ai. The design tasks build from docproc's
+[`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md), the
+signatures of every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by
+a Fable 5.2 evaluation of each promoted artifact against the standards, the layers note, and
+Cerebro's requirements, and closes with an `acceptance` task that reruns the real workloads and
+fixes what it finds, never redesigning.
 
 Local models for application workloads have no sub-goal of their own: v1.ai.hosting serves set
 A's roles for them (vision with reasoning off, transcription, and embeddings), its `embedding`
@@ -108,8 +108,8 @@ pass smooths the seams; a gpt-oss pass over the seam words made every run worse.
 accuracy on multi-speaker audio, so whether audio that fits one request goes unsplit is the
 host's choice (docproc's `docs/acceptance.md`).
 
-[Inputs for docproc's `library` task](../docs/ai-strategy.md#inputs-for-docprocs-library-task)
-lists what the library left open.
+The detail page lists [what docproc's library left
+open](../docs/ai-strategy.md#what-docprocs-library-left-open).
 
 ## Open experiments
 
@@ -149,12 +149,8 @@ are checked on paper only ([evidence](../docs/ai-strategy.md#spike-harness-drive
 
 ## Assumptions
 
-- A harness can run as a process inside the service's container image.
-- llama.cpp's `/v1/messages` endpoint accepts Claude Code's tool schemas, streaming, and thinking
-  blocks.
 - The IL6 environment permits a harness process and its model endpoint.
-- OpenAI Chat Completions is the baseline wire format: both engines serve it, and llama.cpp also
-  serves Anthropic Messages. vLLM's gRPC server speaks raw generation for routers, not chat, so it
-  sits below the gateway, not under go-ai.
+- OpenAI Chat Completions is the baseline wire format vLLM serves; vLLM's gRPC server speaks raw
+  generation for routers, not chat, so it sits below the gateway, not under go-ai.
 - Pi, Claude Code, and OpenCode each expose a stable, non-interactive, machine-readable session
   mode.

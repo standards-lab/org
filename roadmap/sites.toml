@@ -39,9 +39,7 @@ repos = ["standards-lab.github.io"]
 [tasks.architecture-site]
 name = "The architecture site"
 summary = '''
-architecture as a project site, from spike-html-hosting-architecture. It repoints
-`architecture/context/README.md`, which names backlog.docs-site as the owner of site hosting, to
-this layout.
+architecture as a project site, from spike-html-hosting-architecture.
 '''
 repos = ["architecture"]
 

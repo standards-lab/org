@@ -2,9 +2,9 @@
 
 The detail behind `context/ai-hosting.md` that informs v1.ai.hosting's coming tasks and the goals
 after it: the spikes' answers, per-task inputs from experiment.hosting's spikes and intake, the
-host behaviours the setup scripts handle, and the hosting experiment rules. ai-hosting's design
-note (`ai-hosting/context/design.md`) holds what each task takes from which spike and the points
-each task's plan settles; this page doesn't restate them.
+host behaviours the setup scripts handle, and the hosting experiment rules. ai-hosting's capability
+notes, mapped in `ai-hosting/context/README.md`, hold what each task takes from which spike and the
+points each task's plan settles; this page doesn't restate them.
 
 ## The spikes' answers
 
@@ -112,8 +112,8 @@ audio in nine languages; its report lists "embeddings and search across language
 Azure's Hugging Face registry (Foundry managed compute) offers multilingual-e5-large (MIT, XLM-R
 base, GPU SKU), and the Chinese-origin Qwen3-Embedding-0.6B, bge-m3, and gte-multilingual-base; it
 lacks granite-embedding-278m/107m-multilingual, embeddinggemma-300m, and
-multilingual-e5-large-instruct. multilingual-e5-large's scope and price on Foundry are in the design
-note's "multilingual-e5-large on Foundry managed compute".
+multilingual-e5-large-instruct. multilingual-e5-large's scope and price on Foundry are in
+`ai-hosting/context/foundry-overflow.md`.
 
 No benchmark scenario covers embedding in spike-hosting-upgrades' `bench/`, and
 spike-model-layout's `bench/levels.jq` `client` mode stops with a jq error on an embedding
@@ -124,8 +124,8 @@ result, whose requests carry no first-chunk time.
 From spike-model-gateway (its answer: spike-model-gateway's README, "The answer"; the
 requirements: spike-model-gateway `docs/gateway.md`). The six open points its plan settles (the
 `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk concurrency, a
-sliding budget window, and authenticated OTLP) are in the design note's "Open at the task
-plans"; what follows is the evidence beside them.
+sliding budget window, and authenticated OTLP) are in `ai-hosting/context/gateway.md`, "Open at
+the gateway plan"; what follows is the evidence beside them.
 
 - **Observability.** Metrics and logs go through the same Collector into the full LGTM stack (the
   architect), on go-web-service's observability profile (its Collector, contrib 0.165.0, with
@@ -244,8 +244,6 @@ From experiment.hosting's intake:
   the relay's trip in its client-side figures (TTFT, request latency, RTFx), about 0.4 s for a 6 s
   audio clip; its server-side figures are unaffected (spike-model-layout
   `docs/findings/role-split.md`, "Stack, engine and network path" and L.7).
-- **uv.** spike-model-layout's `mise.bench.toml` pins uv 0.13.7, behind 0.13.8, left to the next
-  currency step.
 
 ## Inputs for later goals
 

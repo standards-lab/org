@@ -46,8 +46,7 @@ Sets up the workspace's development-time secret convention and adopts it in one 
 offline backup, in global and per-repository files. ai-hosting, go-ai, and docinfer import it
 through mise's `[secrets.fnox]`, and the integration tiers move onto it while a clone without it
 runs as today. Enrolls the laptop, gb10-2, and the backup, and writes architecture's
-"Development-time secrets" principle. Runs alone, after harness.adoption (design's note,
-`ai-hosting/context/design.md`).
+"Development-time secrets" principle. Runs alone (`ai-hosting/context/secrets.md`).
 '''
 repos = ["secrets", "ai-hosting", "go-ai", "docinfer", "architecture"]
 
@@ -82,7 +81,8 @@ gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions 
 text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
 model on Foundry managed compute, whose scope and price the design confirms first. Settled at its
 plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk
-concurrency, a sliding budget window, and authenticated OTLP, with what design's note defers to it.
+concurrency, a sliding budget window, and authenticated OTLP (`ai-hosting/context/gateway.md`,
+"Open at the gateway plan").
 '''
 
 [tasks.cleanup]
@@ -91,8 +91,8 @@ summary = '''
 Leaves ai-hosting as the only hosting repository and script infrastructure on each workstation:
 removes every spike clone (spike-model-engines and the rest), gb10-2's `~/gateway`,
 spike-ai-pipeline's host clone and router, personal-agents' `outpost` links, and the images,
-units, and sudoers rules no `hosting` command created, from the design note's inventory. Checks
-each host afterward holds only ai-hosting and what its commands installed.
+units, and sudoers rules no `hosting` command created, from `ai-hosting/context/cleanup.md`'s
+inventory. Checks each host afterward holds only ai-hosting and what its commands installed.
 '''
 
 [tasks.upgrades]

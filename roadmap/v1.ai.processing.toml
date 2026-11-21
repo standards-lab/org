@@ -37,26 +37,26 @@ context = [
 [tasks.layers]
 name = "The layers of Cerebro's stack"
 summary = '''
-Writes docproc's `context/layers.md`: each boundary of Cerebro's stack as signatures or schemas,
-traced to a capstone task or spike evidence: the tool contracts; docproc's API (inspection and
-routing, inference interfaces free of go-ai, batches as made, index and cache interfaces, event
-shapes, per-job cancellation); go-ai's surface as Cerebro uses it; and Cerebro's Queries,
-Commands, result batches, manifest, and events. Settles the tool contracts' schema version and
-lists what changes per tool and per package from the spikes. The client, processing, and
-capstone design tasks build from it; the gateway stays transparent to go-ai.
+Writes docproc's `docs/layers.md`: each boundary of Cerebro's stack as signatures or schemas, traced
+to a capstone task or spike evidence: the tool contracts; docproc's API (inspection and routing,
+inference interfaces free of go-ai, batches as made, index and cache interfaces, event shapes,
+per-job cancellation); go-ai's surface as Cerebro uses it; and Cerebro's Queries, Commands, result
+batches, manifest, and events. Settles the tool contracts' schema version and lists what changes per
+tool and per package from the spikes. The client, processing, and capstone design tasks build from
+it; the gateway stays transparent to go-ai.
 '''
 
 [tasks.design]
 name = "Design review of docproc and its tools"
 summary = '''
-Opens with a Fable 5.2 evaluation of each promoted artifact (spike-ai-pipeline-processing, the
-spike root's docproc, and the office, mail, and OneNote CLIs) for issues and simplifications,
-against the full architecture standards, `layers.md`, and Cerebro's requirements; then reviews
-them against the workspace and writes the review into docproc's notes. Settles each tool's
-contract additions field by field, each traced to a capstone design task and marked as the
-tool's, docproc's, or Cerebro's, and each tool's first tag and release targets. The root's
-STANDARDS.md applies cli-applications.md to docproc and domain-files.md to docproc's command
-packages only. docinfer's packages are v1.ai.inference's design review.
+Opens with a Fable 5.2 evaluation of each promoted artifact (spike-ai-pipeline-processing, the spike
+root's docproc, and the office, mail, and OneNote CLIs) for issues and simplifications, against the
+full architecture standards, `docs/layers.md`, and Cerebro's requirements; then reviews them against
+the workspace and writes the review into docproc's notes. Settles each tool's contract additions
+field by field, each traced to a capstone design task and marked as the tool's, docproc's, or
+Cerebro's, and each tool's first tag and release targets. The root's STANDARDS.md applies
+cli-applications.md to docproc and domain-files.md to docproc's command packages only. docinfer's
+packages are v1.ai.inference's design review.
 '''
 
 [tasks.architecture]
@@ -108,14 +108,13 @@ third-party notices, and MPL-2.0 allowed by name, and takes the envelope additio
 [tasks.library]
 name = "The processing library"
 summary = '''
-docproc's library module from spike-ai-pipeline-processing, without the client (`layers.md`,
-"docproc's packages"): inspection and routing, the tool runners and readers, the stages, and
-dispatch with its content store and index, each store an interface with filesystem and memory
-implementations. It holds no inference orchestration, which is docinfer's (v1.ai.inference). The
-Go CI job and module releases join docproc's CI. `internal/cli` holds the one refusal-reason
-mapping; failures are recorded by the classification table; `tool`'s `Spec.MemoryLimit` bounds
-every run's memory. A field's value never fails a PDF's form read, and the audio stage
-windows from one decode.
+docproc's library module from spike-ai-pipeline-processing, without the client (`docs/layers.md`):
+inspection and routing, the tool runners and readers, the stages, and dispatch with its content
+store and index, each store an interface with filesystem and memory implementations. It holds no
+inference orchestration, which is docinfer's (v1.ai.inference). The Go CI job and module releases
+join docproc's CI. `internal/cli` holds the one refusal-reason mapping; failures are recorded by the
+classification table; `tool`'s `Spec.MemoryLimit` bounds every run's memory. A field's value never
+fails a PDF's form read, and the audio stage windows from one decode.
 '''
 
 [tasks.providers]
@@ -138,18 +137,17 @@ summary = '''
 a versioned run directory, schema "2", with no inference, its record flushed per line. `rundir` is
 one handle, from `Open` or `Create`, with `rundir.json` at the run's root; main.go sits at the
 nested module's root, and a committed `go.work` spans the base module and `cmd/docproc` between
-tags. docproc's README names `stages` as the shipped wiring and `cmd/docproc` its first caller.
-Tags docproc v0.2.0 when `rundir` lands (design, 2026-11-13).
+tags. docproc's README names `stages` as the shipped wiring and `cmd/docproc` its first caller. Tags
+docproc v0.2.0 when `rundir` lands.
 '''
 
 [tasks.reports]
 name = "Holistic reports"
 summary = '''
-Makes `cmd/docproc`'s report holistic: an index page plus one page per input content, keyed by
-its SHA-256, not per input, holding the source link, the file and record metadata, and the whole
-part tree with every output inline, with no 1,000-character cut. Tags `cmd/docproc/v0.1.0`,
-re-tagging the base module first only if `rundir` changed (design, 2026-11-13). docinfer's report
-moves to v1.ai.inference.
+Makes `cmd/docproc`'s report holistic: an index page plus one page per input content, keyed by its
+SHA-256, not per input, holding the source link, the file and record metadata, and the whole part
+tree with every output inline, with no 1,000-character cut. Tags `cmd/docproc/v0.1.0`, re-tagging
+the base module first only if `rundir` changed. docinfer's report moves to v1.ai.inference.
 '''
 
 [tasks.acceptance]
@@ -158,9 +156,8 @@ summary = '''
 Reruns each tool's bench from its spike against its release, and `cmd/docproc` over ~/docs
 (corpus.docs), and fixes what it finds, never redesigning. Measures each tool's peak memory over
 ~/docs, dispatches the inspection evaluation's bombs through `cmd/docproc`'s starting bounds, and
-measures the word error rate on ~/docs' audio before the tag (design, 2026-11-13). Settles
-whether audio that fits in one request goes unsplit (`ai-strategy.md`, evidence 5). docinfer's
-reruns move to v1.ai.inference.
+measures the word error rate on ~/docs' audio before the tag. Settles whether audio that fits in one
+request goes unsplit (`ai-strategy.md`, evidence 5). docinfer's reruns move to v1.ai.inference.
 '''
 
 [tasks.hardening]
@@ -190,8 +187,7 @@ name = "Final acceptance and sync"
 summary = '''
 Reruns `cmd/docproc` over ~/docs, the mail bench, and the shared-gs identity check against the
 hardened releases, and records them in docproc's docs/acceptance.md; no word error rate or bomb
-reruns (acceptance, brief review, 2026-11-19). In architecture's
-`standards/go-elemental/README.md`, adds a go-ai row to the infrastructure table, naming no
-version, and docproc to the adjacent-library list, which then reads "Three libraries" (plan,
-2026-11-20, folding go-ai-row from v1.ai.client's sync). Then syncs the goal.
+reruns. In architecture's `standards/go-elemental/README.md`, adds a go-ai row to the infrastructure
+table, naming no version, and docproc to the adjacent-library list, which then reads "Three
+libraries". Then syncs the goal.
 '''

@@ -6,8 +6,8 @@ landed as `go-web-sdk/middleware/rate-limit`.
 
 ## Rate limiting's next release
 
-rate-limit's main carries untagged go-core v0.6.0, httprate v0.16.1, and the go-web-sdk v0.14.0
-requirement. Its next release tags them and can move to go-web-sdk v0.15.0.
+rate-limit's main carries, untagged since v0.5.0, the go-web-sdk v0.18.0 requirement; its next
+release tags it.
 
 ## CORS
 

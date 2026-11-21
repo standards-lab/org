@@ -2,8 +2,8 @@ name = "Data composition and CQRS"
 summary = '''
 A composed data model over plain SQL and a CQRS-oriented interface, spanning go-database,
 go-web-sdk, and the service's domain packages. The organization domain runs on authored SQL;
-the remaining domains build once the integration standards they enhance exist: the web SDK's
-handler contract, observability, and messaging's event and reactor infrastructure. Sequenced
+the remaining domains build on the integration standards they enhance: the web SDK's handler
+contract, observability, and messaging's event and reactor infrastructure. Sequenced
 ahead of auth by design, to prove how the domain layer scales before auth constrains it; each
 domain adopts the auth contract (`standards-lab/context/auth-strategy.md`) in a sweep task of its
 own once go-auth lands. The domain design lives in the linked note.

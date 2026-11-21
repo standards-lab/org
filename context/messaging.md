@@ -15,10 +15,10 @@ elements"): it defines emission only, and delivery guarantees belong to the mess
 ## Decisions
 
 - **The envelope is CloudEvents 1.0**, in binary mode with its attributes as message headers under
-  the CloudEvents NATS protocol binding. `service-tiers.md` says messaging has no formal standard;
-  that is true of broker operations, not of the event's shape: CloudEvents is the standard tier's
-  event vocabulary, the way OpenTelemetry is observability's. Rejected: an envelope of our own
-  evolved from signal-lab's `Signal`.
+  the CloudEvents NATS protocol binding. `architecture/principles/service-tiers.md` says messaging
+  has no formal standard; that is true of broker operations, not of the event's shape: CloudEvents
+  is the standard tier's event vocabulary, the way OpenTelemetry is observability's. Rejected: an
+  envelope of our own evolved from signal-lab's `Signal`.
 - **The CloudEvents type is go-core's own**, in `event`, on the standard library alone. Rejected:
   `github.com/cloudevents/sdk-go/v2/event`, whose event package imports json-iterator and whose
   module brings zap, testify, and x/time into the graph.
@@ -40,7 +40,8 @@ elements"): it defines emission only, and delivery guarantees belong to the mess
 - **`MaxDeliver` is set per subscription**, never as a default: a subscription whose input can
   arrive early bounds its redelivery.
 - **The providers are NATS JetStream and in-memory**, the conformance and test double. The tier
-  stays provisional until a second real broker proves it (`second-providers`, `service-tiers.md`).
+  stays provisional until a second real broker proves it (`second-providers`,
+  `architecture/principles/service-tiers.md`).
 - **A broker constructs without I/O and starts as a lowest-layer graph node**, so an outage makes
   it not ready rather than ending the process.
 - **A service's messaging is one `messaging.Runtime`**; the provider's configuration block sits
@@ -48,8 +49,7 @@ elements"): it defines emission only, and delivery guarantees belong to the mess
 - **Failures the runtime survives reach one error hook**, which logs by default and which a
   service replaces to throttle, count, or alert.
 - **A stream has one owner**, which creates or updates the stream; every other broker writes
-  nothing and binds it. This removes the spike's last-writer-wins `CreateOrUpdateStream` on every
-  broker.
+  nothing and binds it.
 - **An event's NATS subject is its type, unchanged**, and the nats block's prefix is the namespace
   every type must start with, not a token prepended to it. This and the one owner capturing
   `<prefix>.>` govern a web service's events for committed mutations of executed commands. A job's

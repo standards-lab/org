@@ -5,14 +5,13 @@ and past it. The roadmap's arrays hold the goals' order; this note holds the pla
 
 ## The path to the capstone
 
-1. Finish the pre-capstone experiments.
-2. Take them in and build out the libraries and infrastructure the capstone needs. Each library
-   promoted into ~/architecture opens with a design review, against the full architecture
-   standards and the workspace, and closes with an acceptance task that reruns the real
+1. Take in the pre-capstone experiments and build out the libraries and infrastructure the capstone
+   needs. Each library promoted into ~/architecture opens with a design review, against the full
+   architecture standards and the workspace, and closes with an acceptance task that reruns the real
    workloads.
-3. Design the capstone's protocols and practices, its first tasks.
-4. Build the capstone.
-5. Continue the roadmap.
+2. Design the capstone's protocols and practices, its first tasks.
+3. Build the capstone.
+4. Continue the roadmap.
 
 ## The waves
 
@@ -24,9 +23,9 @@ Each wave runs its goals side by side.
   task merges. v1.ai.inference (docinfer) builds on go-ai's released library. v1.client.stack,
   rooted in web-foundation, runs in B; once its `foundation` task ships, sites.status-reports and
   sites.training.foundation can start.
-- **C**: v1.ai's remaining sub-goals, beside the rest of v1.client.stack. go-ai and docproc stay
-  outside the exclusive group until C ends, and then join it. Then v1.data.extensions, the
-  Postgres-extension strategy.
+- **C**: the rest of v1.client.stack and of v1.ai's sub-goals still running; go-ai, docproc, and
+  docinfer join the exclusive group when C ends. Then v1.data.extensions, the Postgres-extension
+  strategy.
 - **D**: capstone.data-intelligence, the sole active goal apart from sites.status-reports and
   sites.training. It holds the libraries it may change, so a capstone task can fix a library and
   use the fix.

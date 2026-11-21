@@ -67,13 +67,3 @@ Recorded with what would need to become true before each moves to a scheduled ta
   engine alone. Trigger: the plan-cost log in sqlate's integration tier, or a consumer measuring
   the window as its own bottleneck.
 
-## What the built releases unblock
-
-`blobfs` v0.1.0 is built on `sqlate` v0.4.0: its listings are the library's projections with the
-counted total, its write, complete, move, and delete steps are returning commands, and its engine's
-variant holds only what an engine does better, the tree lock, path resolution, and a hold that
-writes no row version. `v1.auth`'s parameterized base requirement is met. `go-web-service` moving
-from v0.1.1 to v0.4.0 changes its organization domain's `domain/organization/database.go` at its
-two collection-read call sites (v0.2.0), retypes any hand-written scan from `*sql.Rows` to
-`query.Row` (v0.4.0), and sees an empty page after the first report `query.NoTotal`; the guard,
-verification, and mapper changes are additive.
