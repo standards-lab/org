@@ -1,12 +1,12 @@
 # Migration sets as layers
 
-What a shipped migration set requires of the library that ships it and the consumers that adopt
-it, now that `sqlate` hosts the multi-set model itself (`docs/features.md`, "migrate: schema
-versioning," in the `sqlate` repository): what a shipper guarantees and how a consumer adopts
-one. It concerns the shippers `blobfs` and `go-auth` and every consumer of a shipped set.
-`go-database`'s admin service administers every set a consumer's migrator runs, as its
-`admin/doc.go` documents from v0.6.0. It excludes the contents of `blobfs`'s own set, which `blobfs`'s `docs/features.md` documents, and
-every `sqlate` adjustment outside the migrate group, which is `sqlate-library-support.md`'s.
+What a shipped migration set requires of the library that ships it and the consumers that adopt it,
+on `sqlate`'s multi-set model (`docs/features.md`, "migrate: schema versioning," in the `sqlate`
+repository): what a shipper guarantees and how a consumer adopts one. It concerns the shippers
+`blobfs` and `go-auth` and every consumer of a shipped set. `go-database`'s admin service
+administers every set a consumer's migrator runs, as its `admin/doc.go` documents. It excludes the
+contents of `blobfs`'s own set, which `blobfs`'s `docs/features.md` documents, and every `sqlate`
+adjustment outside the migrate group, which is `sqlate-library-support.md`'s.
 
 ## What a shipper guarantees
 

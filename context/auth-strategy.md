@@ -2,7 +2,7 @@
 
 The reference architecture's auth strategy, the counterpart of the Go Elemental [DSL-driven
 services](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/dsl-driven-services.md)
-principle. go-auth is planned (`goals.v1.auth`): a domain built after it builds to this contract
+principle. go-auth is planned (`v1.auth`): a domain built after it builds to this contract
 directly, and one built ahead of it adopts the contract in a sweep task of its own. The [auth
 strategy page](../docs/auth-strategy.md) holds the build's design detail and the full case against
 each alternative; each consuming service's domain-architecture page (go-web-service's
@@ -39,8 +39,8 @@ is an ancestor-or-self of the record's unit. Two enforcement points, two failure
 The scope predicate is a published pattern under the `auth` namespace, parameterized by capability
 through a role-to-capability table that is a migration, not a seed. go-auth publishes its universal
 half (the subject holds the capability), making an infrastructure library a narrow third pattern
-publisher beyond `domain-architecture.md`'s two; each service composes the containment half over its
-own hierarchy. Capability names are globally unique, `<service>.<domain>.<verb>`, so grants
+publisher beyond go-web-service's `docs/domain-architecture.md`'s two; each service composes the
+containment half over its own hierarchy. Capability names are globally unique, `<service>.<domain>.<verb>`, so grants
 correlate across services (§9). One deployment serves one tenant: a tenant column is a pervasive
 shape no retrofit adds cheaply.
 
@@ -106,10 +106,10 @@ materialized, event-driven read model off the authorization path (recorded, not 
 Authorize the record, then reach the technology. Every object has a row in the virtual-directory
 library's tables, which hold no owner or unit; the consuming domain's join table carries `unit_id`
 and the scope predicate, or at directory grain an owner row binds a top-level directory to a unit
-(`blobfs-composition.md`). The object store never authorizes: one credential per environment, since
-S3 and Azure Blob share no authorization model standard tier could express. Keys stay opaque, never
-authorized by prefix (§10). Bytes are proxied both ways, never redirected to a presigned URL, a
-bearer credential the service cannot revoke.
+(go-web-service's storage domain, `domain/organization/storage.go`). The object store never
+authorizes: one credential per environment, since S3 and Azure Blob share no authorization model
+standard tier could express. Keys stay opaque, never authorized by prefix (§10). Bytes are proxied
+both ways, never redirected to a presigned URL, a bearer credential the service cannot revoke.
 
 ## 9. What's deferred, and their triggers
 
@@ -120,7 +120,7 @@ bearer credential the service cannot revoke.
 - **Extracting organization and its grants into a service**: held; §3's schema keeps it additive.
 - **The administration control plane**: until a second deployed service exists to administer.
 - **A cross-unit search or reporting view**: until the product asks; §7 names the mechanism, and
-  `goals.staged-query-aggregation` holds a live-orchestrated alternative.
+  `staged-query-aggregation` holds a live-orchestrated alternative.
 
 **Grant writes and identity-link writes emit events**, a commitment on whichever goal builds those
 writes, through go-messaging's outbox. They answer "what can this person do anywhere" by

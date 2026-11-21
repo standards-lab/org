@@ -27,12 +27,15 @@ go-web-sdk. Each repository's README documents its interface.
   RFC 9457 problem, the token provider, the domain-service pattern, and the event sequence.
 - **webappgen** (planned): a Go CLI that writes a client project, one `new` leaf per kind of app:
   a standalone static app, or a client embedded in a new or existing go-web-sdk service and served
-  through `NewClient`.
+  through `NewClient`. `webappgen new standalone <dir>` writes a static app that reads a
+  `config.json` placed beside its build, with `--install` to install it. A written project's check
+  reports the whole build's size and enforces no budget; the CLI's check writes a project and runs
+  that project's own check. The app's page uses Settings on S and Help on ?.
 - **`NewClient` in go-web-sdk** ("NewClient", below).
 
 A layer imports only from the layers below it. The foundation is at the bottom and web-icons above
-it; the components sit on the foundation and web-icons, and the SDK on the foundation; an app may
-import all four. No app imports another, and a component never imports the SDK, which is why the
+it; the components sit on the foundation and web-icons, and the SDK imports no layer of the stack;
+an app may import all four. No app imports another, and a component never imports the SDK, which is why the
 formatters are the foundation's. An app is one of two kinds:
 
 - a static app: an entry and its own Lit elements;
@@ -87,7 +90,7 @@ which the template and the web standard adopt. The choices underneath:
 - **One repository per layer**, each one package with its own check, CI, and release workflow,
   built on the layer below by its tag. The components take the foundation as a peer.
 - **A plain `vX.Y.Z` tag** marks a pack commit, parented on the merge commit, whose tree is the
-  package and the release asset. Releases are cut by hand on a green check (README, "Release").
+  package and the release asset. Releases are cut by hand on a green check (each repository's README, "Release").
 - **Consumers install by tag** under npm, pnpm, and bun. A page may also load a release from
   jsDelivr `/gh/` through an import map, though the components load that way only where CSS
   module scripts do ("Browser support"). GitHub Packages is the measured alternative: it resolves
@@ -130,13 +133,14 @@ state, its rules, and its validation.
 v1.client.reference (planned) builds go-web-service's client on spike-html-apps' app shape,
 served by `NewClient` from the service's binary, in parity with the service as slab is on the
 command line. It first shows the organizations, the document hierarchy, and a live view of
-go-web-service's reactors over the WebSocket bridge (`messaging.md`), against the open API. It
+go-web-service's reactors over the WebSocket bridge (`docs/messaging.md`, "The capability ledger"),
+against the open API. It
 applies Web Elemental. Its own planning writes its tasks.
 
 - **Embedded or external.** It evaluates the embedded client against an external client hosted
   apart from any one service.
-- **Inputs.** The organization logo's fallback (v1.storage), and NATS-native chat as a candidate
-  transport (`messaging.md`).
+- **Inputs.** The organization logo's fallback (go-web-service's storage domain), and NATS-native
+  chat as a candidate transport (`docs/messaging.md`, "The capability ledger").
 - **Auth.** v1.auth's client sweep puts the client behind authentication, and decides whether an
   image is fetched as an `<img>` with a cookie or with a bearer token.
 - **CORS.** An embedded client is same-origin and sends no cross-origin requests. An external

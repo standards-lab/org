@@ -3,8 +3,8 @@ summary = '''
 Already part of v1.middleware's recorded sourced set (chi/v5/middleware.RealIP's shape,
 reimplemented against a configured trusted-proxy list — middleware-sourcing.md), parked here
 rather than scheduled because nothing needs it yet: RemoteAddr already serves its only two live
-consumers, RequestLogger/Recoverer's client.address field and rate limiting's key. Becomes a task
-under goals.v1.middleware.tasks once a reverse proxy sits in front of the service (the deployment
+consumers, RequestLogger/Recoverer's client.address field and rate limiting's key. Becomes one of
+v1.middleware's tasks once a reverse proxy sits in front of the service (the deployment
 goal) or a consumer other than logging needs a trustworthy client identity — geo-blocking,
 per-client abuse detection, an IP-keyed audit trail.
 '''

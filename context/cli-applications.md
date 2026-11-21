@@ -12,8 +12,12 @@ spike-cli-architecture rebuilt spike-blobfs's command surface on the standard li
 with each command bringing up only the dependencies it declares, and proved the shape the
 architecture's
 [CLI applications](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/cli-applications.md)
-page states. This note records where the cobra-era tools differ, the role interfaces across the
-stack, and the plan that built the shape into the standard as go-cli-sdk and its template.
+page states. CLIs build on `flag`, not cobra: cobra fails Go Elemental's no-frameworks line and
+the sourcing markers 1 (its type is in every caller's signature) and 5 (argument parsing is a
+preference, kept in-house) of `architecture/standards/go-elemental/principles/dependencies.md`
+("Sourcing"). This note records where the cobra-era tools differ and the role interfaces across
+the stack. The evidence is spike-cli-architecture (archived):
+[the answer](https://github.com/JaimeStill/spike-cli-architecture/blob/main/context/README.md#the-answer).
 
 ## The layout and conventions
 
@@ -28,11 +32,12 @@ them. slab follows them, including these two:
 
 ## Where the tools differ
 
-The record of the tools that came before the standard. slab now runs on go-cli-sdk v0.2.0, with a
+The record of the tools that came before the standard. slab runs on go-cli-sdk, with a
 composition root modeled on go-cli-sdk-template's, and follows the scenario convention: its
 root-level `scenarios` package runs on go-cli-sdk's `scenario` runner as `slab scenario <name>`,
-and the root's and the `scenario` parent's help both end with the listing. blobfs and clutch stay
-on cobra:
+and the root's and the `scenario` parent's help both end with the listing. clutch, courier, and
+spike-blobfs stay on cobra; future spikes start from the template. Where blobfs and clutch differ
+from slab:
 
 - **Signal context:** slab uses go-core's `process.SignalContext`. blobfs and clutch use the
   standard library's `signal.NotifyContext`, which keeps go-core out of a spike's
@@ -66,42 +71,15 @@ interface is a contract a value can meet by accident. The role interfaces across
 No two packages declare the same method set, and go-cli-sdk declares no role interface of its
 own. The rules for the others:
 
-- **Readiness checks come only from a `lifecycle.ReadyStarter`.** go-core v0.8.0 infers a
-  readiness check from a node value only when the value is a `lifecycle.ReadyStarter`, a
-  `Starter` that implements `Ready`. A value with `Ready()` in another sense, such as a reactor
-  source, stays out of /readyz.
+- **Readiness checks come only from a `lifecycle.ReadyStarter`.** go-core infers a readiness
+  check from a node value only when the value is a `lifecycle.ReadyStarter`, a `Starter` that
+  implements `Ready`. A value with `Ready()` in another sense, such as a reactor source, stays out
+  of /readyz.
 - **`web.Doctor` stays in go-web-sdk**, because `RegisterHealth` is its only reader.
 - **`Subsystem` stays** as a composite name for Starter plus Stopper, as `io.ReadWriteCloser`
   names its parts, though the Coordinator never asserts it.
-- **`Source[T]` keeps `Ready()`**, since a value that is not a Starter no longer joins /readyz.
+- **`Source[T]` keeps `Ready()`**, since a value that is not a Starter stays out of /readyz.
 
 go-core's `reactor.Gate` is a struct; a consumer declares the view it holds, as go-messaging's
 `messaging.Gate` and `outbox.Gate` declare `Shared` alone.
 
-## The plan
-
-- **Cobra goes.** CLIs build on the standard library's `flag`. Cobra fails Go Elemental's
-  no-frameworks line and the sourcing markers 1 (its type is in every caller's signature) and 5
-  (argument parsing is a preference, kept in-house) of
-  `architecture/standards/go-elemental/principles/dependencies.md` ("Sourcing"). The tools use a
-  small part of it and carry code that works around its defaults: silenced errors,
-  `RunE: cmd.Help()` on parents, and tests asserting cobra's message text.
-- **go-cli-sdk** v0.2.0, one module, provides package `cli` and the `scenario` runner over the
-  standard library and go-core. Its [README](https://github.com/standards-lab/go-cli-sdk/blob/main/README.md)
-  and [`doc.go`](https://github.com/standards-lab/go-cli-sdk/blob/main/doc.go) state the API and
-  the features it leaves out. The `App` type stays out of it, in the template's `internal/app`,
-  as in web.
-- **Per-command composition through the graph.** Each command declares its nodes, and the
-  graph brings up only those, once each, closing them in reverse order. The same Coordinator
-  runs a web service's graph.
-- **go-cli-sdk-template** scaffolds, on go-cli-sdk, the composition root that the
-  [CLI applications](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/cli-applications.md)
-  page states.
-- **Promotions first.** go-core holds `graph`, the graph-backed `lifecycle` with
-  `Coordinator.Exec` as the one-shot form, and `processtest.Run(t, Cmd{Args, Stdin, Env})
-  Result{Stdout, Stderr, Code}`, the one-shot runner go-cli-sdk-template's integration suite
-  uses.
-- **slab** follows the conventions in "The layout and conventions". clutch, courier, and spike-blobfs stay on cobra; future spikes start from the
-  template.
-- **The evidence** is spike-cli-architecture (archived):
-  [the answer](https://github.com/JaimeStill/spike-cli-architecture/blob/main/context/README.md#the-answer).

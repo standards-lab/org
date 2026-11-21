@@ -1,7 +1,7 @@
 # Authentication and authorization: design detail
 
 The design detail behind the auth strategy note (`context/auth-strategy.md` in this repository):
-what go-auth, the goal `goals.v1.auth`, and each domain's auth sweep build to. The note holds the
+what go-auth, the goal `v1.auth`, and each domain's auth sweep build to. The note holds the
 decisions and their reasons; this page holds the specifics they need. Section numbers match the
 note's. go-auth's own `doc.go`, README, and CHANGELOG will state what it ships and at which version
 once it exists.
@@ -258,7 +258,7 @@ tables are joined detail and the join table anchors the authorized read.
 An owner row binds one top-level directory to a unit, and a scoped listing checks that row once, at
 the top-level ancestor of the path being read, before the path resolves further; the library's own
 directory-anchored listings run unchanged beneath that check and carry no ownership predicate of
-their own (`blobfs-composition.md` in `context/`). Because the owner row is read only at that one
+their own (go-web-service's storage domain, `domain/organization/storage.go`). Because the owner row is read only at that one
 depth, carrying an entry across two top-level directories would move it out of one unit's scope and
 into another's without either unit's say, so a move never crosses them. A unit's right to move
 within its own scope, and whether that right needs a check beyond the structural one, is
@@ -303,7 +303,7 @@ storage.
   own authority. Nothing beyond the identity-link and grant-change event obligation is committed.
 - **Live orchestration of staged hops.** Composing the staged hops of a single request into one
   response graph, each hop still independently authorized, is a separate question from the
-  materialized read model, held in `goals.staged-query-aggregation`.
+  materialized read model, held in `staged-query-aggregation`.
 
 Identity-link events, not only grant events, are what let a future aggregate view correlate one
 person across services on the one globally stable key available, the `(issuer, subject claim)` pair.
@@ -382,10 +382,10 @@ joined grant row at runtime, so the subtree test degrades to a scan.
 
 ## v1.auth
 
-- The admin listener (`goals.v1.admin-listener`) consumes the authentication this goal settles.
+- The admin listener (`v1.admin-listener`) consumes the authentication this goal settles.
 - The storage domain's auth sweep proves what the blobfs experiment cannot: the consumer's join
   table driving a blobfs listing under the scope predicate.
-- `goals.v1.client.reference` lands first, on the open API, so this goal's client sweep task puts
+- `v1.client.reference` lands first, on the open API, so this goal's client sweep task puts
   the reference client behind authentication and decides whether an image is fetched as an `<img>`
   with a cookie or with a bearer token.
 

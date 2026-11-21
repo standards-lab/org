@@ -7,9 +7,10 @@ the marathon workflow. Start from `context/README.md`.
 ## Three repositories in one directory
 
 This directory is the working tree of the public `standards-lab/org` repository, the workspace
-coordinator: `context/`, the public references catalog, the leadership briefs (`briefs/`) with
-their interview prompt (`interview.md`), and the Claude configuration. Two profile
-repositories are checked out nested inside it, each with its own `.git`, both gitignored by `org`:
+coordinator: `context/`, the roadmap (`roadmap/`) and the design pages its notes link (`docs/`),
+the public references catalog, the leadership briefs (`briefs/`) with their interview prompt
+(`interview.md`), and the Claude configuration. Two profile repositories are checked out nested
+inside it, each with its own `.git`, both gitignored by `org`:
 
 - `public/` is the working tree of the public `standards-lab/.github` repository: the baseline
   organizational profile (`public/profile/README.md`), the authored source of the profile body.
@@ -37,8 +38,17 @@ do not generalize it.
 This is distinct from marathon's **workspace coordination**, which this repository does use as the
 declared coordinator (see the `[workspace]` block in `.claude/marathon.toml`). That mechanism
 orchestrates a change across the sibling repositories in the workspace (each its own working tree
-and remote) and deliberately holds no context of its own. The two are different mechanisms for
-different problems.
+and remote), and keeps the workspace's notes, design pages, and roadmap here (`context/`, `docs/`,
+`roadmap/`). The two are different mechanisms for different problems.
+
+The workspace order lists the repositories lowest first: the harness, hosting, and secrets
+repositories; the core SDK beside sqlate and docproc; the infrastructure libraries and application
+SDKs; the templates and docinfer; the web client stack, from its tooling up to webappgen; the
+reference web service; and the architecture repository. At most one active goal touches the
+`exclusive` group, the reference-architecture code repositories, at a time; spikes, the harness,
+and the web client repositories run beside it (`context/waves.md` says when go-ai, docproc, and
+docinfer join it). No repository rooted in this directory runs CI, so `[remote]`'s merge waits on
+no checks.
 
 ## Visibility tiers (public / member / private)
 

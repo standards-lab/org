@@ -1,0 +1,24 @@
+name = "Repository access"
+summary = '''
+marathon learns from a declared flag whether a repository runs CI, and a goal locks only its root
+repository for its life. The goal also carries the claude-plugins findings of the
+architecture review, listed in its note.
+'''
+repos = ["claude-plugins"]
+root = "claude-plugins"
+order = ["ci-awareness", "shared-repos"]
+context = ["claude-plugins/context/repo-access.md"]
+
+[tasks.ci-awareness]
+name = "CI awareness"
+summary = '''
+Each repository declares whether it runs CI, so SHIP, merge, and the briefs know whether a pull
+request will have checks, and no session scripts a wait for CI that doesn't exist.
+'''
+
+[tasks.shared-repos]
+name = "Shared repositories"
+summary = '''
+A goal owns its root repository. A non-root repository locks only while it is off its default
+branch, so several goals queue on it.
+'''

@@ -56,7 +56,7 @@ size), `events` (the batch cap, the `dataschema` form), `state` (the stores', st
 names and retentions, and how a job whose last delivery died is found and failed), `chunks`
 (storing chunks by identity), `metadata` (typed metadata shapes, a message's threading keys on its
 output event), `athena-mapping` (typed cells for `sparse_rows`), `text-layer` (OCR text read from
-the Markdown's image text), and v1.ai.client (transcription retry).
+the Markdown's image text), and go-ai (transcription retry).
 
 ## Athena onto Cerebro
 

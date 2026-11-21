@@ -95,10 +95,11 @@ google/gemma-4-E4B-it serves more than speech to text, so it stays the audio mod
 `/v1/audio/transcriptions` only for a model implementing `SupportsTranscription`, which
 `Gemma4ForConditionalGeneration` doesn't, so the workstations transcribe over chat: go-ai's
 `TranscribeChat` sends the clip as input audio in a Chat Completions request. Against the
-workstations docinfer sets `Options.TranscriptionMode` to `TranscribeChat` in place of go-ai's
-default `TranscribeRoute`; a chat-mode reply that isn't completed returns
-`*ai.IncompleteTranscriptError`. Each row's refused reasoning efforts are in go-ai's format
-profiles (go-ai's `docs/concepts.md`, "Profiles").
+workstations, the host that builds docinfer's go-ai clients sets `Options.TranscriptionMode` to
+`TranscribeChat` in place of go-ai's default `TranscribeRoute`, and docinfer reads it from the
+client; a chat-mode reply that isn't completed returns `*ai.IncompleteTranscriptError`. Each
+row's refused reasoning efforts are in go-ai's format profiles (go-ai's `docs/concepts.md`,
+"Profiles").
 
 ## Production
 
@@ -115,7 +116,7 @@ architect's hosts use, generally enough that another host of the same class foll
 profiles, vLLM rows, the gateway's stack, runbooks, the upgrade-evaluation convention rebuilt on
 vLLM, and the admin tooling after experiment.admin's intake. It runs as one command suite,
 `hosting <group> <verb>`, and is the only hosting repository on the workstations; the suite's
-design is `ai-hosting/context/design.md`.
+design is `ai-hosting/context/hosting-suite.md`.
 
 The state of a particular host belongs nowhere in the workspace: a set-up host needs little
 attention, so the specification and instance split of
