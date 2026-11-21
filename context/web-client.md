@@ -79,7 +79,7 @@ which the template and the web standard adopt. The choices underneath:
   declares them and the hues stay role-free, so a page sets a role without touching a profile.
 - **Page types.** The foundation's opt-in page-layout sheet has two: an application page, one
   screen, and a prose page, a reading column.
-- **In-session review.** web-tooling's screenshot command (its README, "Screenshots"). Captures
+- **In-session review.** web-tooling's screenshot command (its `docs/screenshots.md`). Captures
   are never committed.
 
 ## Packaging and release
