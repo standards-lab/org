@@ -73,7 +73,8 @@ name map](../docs/ai-strategy.md#go-ais-name-map-and-requests) maps each name of
   `cmd/docproc` writes a run directory through the public `rundir` and `rundir/schema`.
 - **docinfer** is the inference library, adjacent and above go-ai's tier: it depends on docproc
   and go-ai. Its nested `docinfer/postgres` holds its cache in PostgreSQL, and `cmd/docinfer` is
-  its command; docinfer's `context/design.md` is its API's one home.
+  its command; docinfer's package docs are its built API's one home, and its command notes
+  (`context/command.md`, `command-api.md`, `command-report.md`) hold cmd/docinfer's design.
 - **docproc's system tools** live in docproc under `tools/<format>`, each on its own toolchain:
   docproc-ooxml (docx, xlsx, and pptx), docproc-mail, and docproc-onenote. Each has one versioned
   JSON Lines contract (`system-tools.md`, "The docproc-* tools and their contracts") and is tagged
