@@ -8,7 +8,6 @@ active = [
   "harness.adoption",
   "harness.adoption-go-web-service",
   "harness.adoption-docproc",
-  "harness.adoption-docinfer",
   "harness.adoption-web-foundation",
   "harness.adoption-web-components",
   "harness.adoption-web-rest",

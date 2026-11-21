@@ -5,8 +5,8 @@ library above go-ai's tier. Its base module requires docproc and go-ai v0.4.0 an
 pipeline over go-ai's client with extraction, the cache and `docinfertest`'s suite, `chunk`,
 `join`, and `job`; the nested `docinfer/postgres` holds the cache in PostgreSQL over sqlate, and
 the nested `cmd/docinfer` is its command. Each module starts at v0.1.0 on its own tags, the base
-tagged first. docinfer's `context/design.md` is its API's one home, taking over the docinfer
-sections of docproc's `context/layers.md`, which retire at this goal's sync.
+tagged first. docinfer's package docs are its built API's one home, and its `context/command.md`,
+`command-api.md`, and `command-report.md` notes hold cmd/docinfer's planned design.
 '''
 repos = ["go-ai", "docinfer"]
 root = "docinfer"
