@@ -57,6 +57,8 @@ name = "architecture adopts 0.21.0"
 summary = '''
 architecture's check calls lint-context and switches its own reference resolution to marathon's
 reference check; its context/README.md gains a capability map. principles/comments.md drops its
-closing "No code repository follows it yet".
+closing "No code repository follows it yet". go-elemental's release-and-ci.md, "One check per
+repository", names lint-context and lint-references among the lints after the module loop
+(from harness.adoption-core's sync).
 '''
 repos = ["architecture"]

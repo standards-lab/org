@@ -45,6 +45,13 @@ Each repository's adoption, as ai-hosting's shows:
   home in the code, package docs, or README, and that reasoning moves to a `docs/` page. Every
   pointer to a moved section names its new page, and coordinator citations become pending
   edits.
+- **SQL headers stay.** A SQL file's header is its package documentation (in sqlate's format,
+  also its template metadata, like front matter) and stays; a comment inside a statement body
+  follows the five kinds. A released migration stays byte-identical.
+- **Changelogs record requirements.** An adoption adds a CHANGELOG line only where a module's
+  `go.mod` requirements change; CI, dev-stack images, comments, and context get none.
+- **Configuration headers describe.** A configuration file's header is at most a short
+  description of the file plus `See` reference lines; its reasoning lives in `docs/` or the README.
 - **PostgreSQL 19.** Every development and integration PostgreSQL stack moves to
   `19.0-alpine`; no container volume holds data worth keeping.
 - **Releases.** Only the two Go templates tag: go-web-sdk-template `template/v0.16.0` and

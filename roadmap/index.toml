@@ -6,7 +6,6 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "harness.adoption",
-  "harness.adoption-core",
   "harness.adoption-go-base",
   "harness.adoption-go-web-sdk",
   "harness.adoption-go-storage",

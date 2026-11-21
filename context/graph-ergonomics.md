@@ -8,9 +8,9 @@ ships it, and every consumer has moved onto it: the libraries' releases, go-data
 go-web-sdk v0.16.0, go-observability v0.3.0, go-storage v0.7.0, and go-cli-sdk v0.3.0, with their
 providers; the templates' releases, go-web-sdk-template template/v0.14.0 and go-cli-sdk-template
 template/v0.2.0; and go-web-service with its slab CLI, which stay untagged. This note
-holds the settled API. The detail behind it (the pain points, the behavior that must not change,
-the rejected alternatives, and the sketches) lives in go-core's working context,
-`go-core/context/graph-ergonomics.md`.
+holds the settled API. The reasoning behind it (the pain points, the behavior that did not change,
+the decisions' reasons, the rejected alternatives, and the implementation invariants) lives in
+go-core's `docs/graph-design.md`; the sketches and migration detail are gone.
 
 ## The settled API
 
