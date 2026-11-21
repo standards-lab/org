@@ -49,7 +49,8 @@ Each repository's adoption, as ai-hosting's shows:
   also its template metadata, like front matter) and stays; a comment inside a statement body
   follows the five kinds. A released migration stays byte-identical.
 - **Changelogs record requirements.** An adoption adds a CHANGELOG line only where a module's
-  `go.mod` requirements change; CI, dev-stack images, comments, and context get none.
+  `go.mod` requirements change; CI, dev-stack images, comments, and context get none. A
+  template's release section is the exception: it lists what a generated project inherits.
 - **Configuration headers describe.** A configuration file's header is at most a short
   description of the file plus `See` reference lines; its reasoning lives in `docs/` or the README.
 - **PostgreSQL 19.** Every development and integration PostgreSQL stack moves to
