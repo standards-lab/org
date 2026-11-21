@@ -3,7 +3,7 @@
 The event and reactor layer for a web service: one consolidated contract through which a service
 emits events and runs reactors without knowing which broker carries the events between services.
 go-core and go-messaging implement it, and their behavior is documented in the `go-messaging`
-README and the package documentation of go-messaging and go-core's `event`, `reactor`, and
+README, its docs/, and the package documentation of go-messaging and go-core's `event`, `reactor`, and
 `lifecycle`; this note holds the decisions. spike-messaging's evidence and the
 capability ledger are in [the messaging docs](../docs/messaging.md).
 
