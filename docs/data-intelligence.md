@@ -2,7 +2,7 @@
 
 The detail `capstone.data-intelligence`'s design tasks start from. The capstone's intent and
 decisions are in [its note](../context/data-intelligence.md); Cerebro's boundaries as signatures
-and schemas are in docproc's `context/layers.md`, "Cerebro's API and events".
+and schemas are in docproc's `context/cerebro.md`.
 
 ## Embedding spaces
 
@@ -43,7 +43,7 @@ For the `protocol`, `state`, and `events` tasks.
   checkpoint (docinfer's `job`).
 - **Caching.** docproc's dispatch index keys by content SHA-256 and stage identity, docinfer's
   cache by capability, model, settings, and content; the content they name is held in blob storage
-  by its SHA-256 (docproc's `context/layers.md`, "The cache").
+  by its SHA-256 (docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "The cache").
 - **Models and stages.** Profiles live in Cerebro's configuration; the resolved identity names the
   models, dimensions, and chunker version. Cerebro calls the gateway with its own consumer key.
   Stages: inspect, extract, vision, transcribe, chunk, embed, and an extraction stage driven by a

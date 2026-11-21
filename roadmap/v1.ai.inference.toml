@@ -16,14 +16,13 @@ order = ["design", "go-ai", "library", "job", "postgres", "docinfer", "acceptanc
 context = [
   "standards-lab/context/ai-strategy.md",
   "standards-lab/context/data-intelligence.md",
-  "docproc/context/layers.md",
 ]
 
 [tasks.design]
 name = "Design review of docinfer"
 summary = '''
 Opens with Fable 5.2 evaluations of spike-ai-pipeline's docinfer at 6a631f1, its library sources
-and `cmd/docinfer`, against the full architecture standards, docproc's `layers.md`, go-ai v0.3.0
+and `cmd/docinfer`, against the full architecture standards, docproc's `context/layers.md` at commit f3633c3, go-ai v0.3.0
 as released, and Cerebro's requirements, and settles each finding with the architect, one review
 round per evaluation. Writes docinfer's design note, which takes over `layers.md`'s docinfer
 sections, restated in go-ai v0.3.0's names. Settles the join of work in flight

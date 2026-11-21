@@ -58,7 +58,7 @@ The design reviews read [what spike-ai-pipeline
 built](../docs/ai-strategy.md#what-spike-ai-pipeline-built) and [the spike's
 answer](../docs/ai-strategy.md#the-spikes-answer), whose evidence numbers the notes cite. [go-ai's
 name map](../docs/ai-strategy.md#go-ais-name-map-and-requests) maps each name of docproc's
-`context/layers.md`, "go-ai's surface", to go-ai's.
+[`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "go-ai's surface", to go-ai's.
 
 ### Repositories and placement
 
@@ -91,7 +91,7 @@ A cross-repository task orders its own exceptions in its brief. go-ai, docproc, 
 ### How v1.ai builds them
 
 v1.ai holds four sub-goals (`roadmap.toml`): v1.ai.processing, v1.ai.inference, v1.ai.hosting,
-and v1.ai.client. The design tasks build from docproc's `context/layers.md`, the signatures of
+and v1.ai.client. The design tasks build from docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), the signatures of
 every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by a Fable 5.2
 evaluation of each promoted artifact against the standards, the layers note, and Cerebro's
 requirements, and closes with an `acceptance` task that reruns the real workloads and fixes what
@@ -106,7 +106,7 @@ releasing the join, and the layer above transcribes it and owns the inference gu
 answered a short window with its own instruction, which the join can't tell from speech. No LLM
 pass smooths the seams; a gpt-oss pass over the seam words made every run worse. Windowing costs
 accuracy on multi-speaker audio, so whether audio that fits one request goes unsplit is the
-host's choice (docproc's `context/acceptance.md`).
+host's choice (docproc's `docs/acceptance.md`).
 
 [Inputs for docproc's `library` task](../docs/ai-strategy.md#inputs-for-docprocs-library-task)
 lists what the library left open.

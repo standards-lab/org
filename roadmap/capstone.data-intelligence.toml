@@ -91,7 +91,7 @@ repos = ["go-messaging"]
 [tasks.state]
 name = "Cerebro's state"
 summary = '''
-Cerebro's stores as docproc's `context/layers.md` designs them ("State and subjects"): the job as
+Cerebro's stores as docproc's `context/cerebro.md` designs them ("State and subjects"): the job as
 a stream-backed root folded from its events and the work queue on JetStream (file storage);
 content, staged inputs, and uploads in blob storage through `docproc/storage`, retained by age;
 and the index (`docproc/postgres`) and the result cache (`docinfer/postgres`) in PostgreSQL. On

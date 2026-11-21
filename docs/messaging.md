@@ -47,7 +47,7 @@ some turn out to strengthen a different architecture layer:
 Planned. In capstone.data-intelligence's Cerebro, each job is a root Entity whose state is folded
 from the events on its own subject, and appending an Event, guarded by an
 expected-last-subject-sequence check, is the transaction that makes the Command's change true. Its
-other events go through the outbox in PostgreSQL (docproc's `context/layers.md`, "State and
+other events go through the outbox in PostgreSQL (docproc's `context/cerebro.md`, "State and
 subjects"). go-messaging gains, through the capstone's own tasks (`roadmap.toml`,
 `capstone.data-intelligence.messaging-*`): that expected-sequence append beside the outbox, and a
 work-queue package (JetStream work-queue retention: heartbeat, `MaxDeliver`, backoff, a
