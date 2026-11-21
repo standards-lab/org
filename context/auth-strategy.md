@@ -5,7 +5,8 @@ services](https://github.com/standards-lab/architecture/blob/main/standards/go-e
 principle. go-auth is planned (`goals.v1.auth`): a domain built after it builds to this contract
 directly, and one built ahead of it adopts the contract in a sweep task of its own. The [auth
 strategy page](../docs/auth-strategy.md) holds the build's design detail and the full case against
-each alternative; each consuming service's `context/domain-architecture.md` states how its domains
+each alternative; each consuming service's domain-architecture page (go-web-service's
+`docs/domain-architecture.md`) states how its domains
 apply the contract, and `service-organization.md` holds the runtime cross-service rules.
 
 ## 1. Authentication

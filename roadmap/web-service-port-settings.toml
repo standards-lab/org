@@ -1,8 +1,8 @@
 name = "go-web-service's settings follow its container ports"
 summary = '''
 go-web-service's application settings follow `POSTGRES_PORT` and `AZURITE_BLOB_PORT`, as
-sqlate's `SQLATE_DSN` and blobfs's `BLOBFS_DSN` and `BLOBFS_STORAGE_ENDPOINT` do. Its README
-documents that moving a port splits the two until `APP_DATABASE_PORT` or `APP_STORAGE_ENDPOINT`
+sqlate's `SQLATE_DSN` and blobfs's `BLOBFS_DSN` and `BLOBFS_STORAGE_ENDPOINT` do. Its
+`docs/configuration.md` documents that moving a port splits the two until `APP_DATABASE_PORT` or `APP_STORAGE_ENDPOINT`
 follows.
 '''
 repos = []
