@@ -1,7 +1,7 @@
 # Composing `blobfs` into a consumer
 
 What go-web-service's storage layer proved about composing `blobfs` that neither go-web-service's
-code nor its `context/domain-architecture.md` states: the write, delete, and move protocols as a
+code nor its `docs/domain-architecture.md` states: the write, delete, and move protocols as a
 consumer sequences them, whose complete step is the transaction an event is enqueued in
 (`messaging.md`, "Outbox sequencing"), and the operating constraints. blobfs's guide documents the
 write and delete sequences and the branch-mark rule (`blobfs/docs/features.md`, "The protocols"

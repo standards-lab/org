@@ -1,7 +1,7 @@
 name = "Response caching"
 summary = '''
 HTTP response caching, raised alongside rate limiting but not part of the recorded sourced
-middleware set (middleware-sourcing.md) or the declared stack (go-web-service's README, Stack). Redis
+middleware set (middleware-sourcing.md) or the declared stack (go-web-service's `docs/stack.md`). Redis
 was the candidate provider; adopting it would be a new stack decision and most likely its own
 infrastructure library, the way storage, messaging, and AI are, rather than an SDK-level
 middleware. Split out of v1.middleware (2026-09-18) so caching gets its own planning session —
