@@ -219,9 +219,9 @@ and "Gates").
 
 ## go-ai's name map and requests
 
-go-ai's `context/design.md` maps each name of docproc's `context/layers.md`, "go-ai's surface",
+go-ai's `docs/design.md` maps each name of docproc's `context/layers.md`, "go-ai's surface",
 to one go-ai name, and decides what docinfer and Cerebro ask of go-ai. A finding cited here is
-that note's "Evaluation", a decision its "Surface" section's, and "modules" its "Modules"
+that page's "Evaluation", a decision its "Surface" section's, and "modules" its "Modules"
 section; "layers" is docproc's `context/layers.md`.
 
 ### The name map
