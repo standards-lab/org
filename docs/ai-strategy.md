@@ -534,7 +534,7 @@ sessions), on Pi, Claude Code, and OpenCode against local and cloud models.
 
 The experiment lives in `~/experiments/spike-harness-driver`
 ([JaimeStill/spike-harness-driver](https://github.com/JaimeStill/spike-harness-driver)):
-[the answer](https://github.com/JaimeStill/spike-harness-driver/blob/main/context/findings.md#the-answer).
+[the answer](https://github.com/JaimeStill/spike-harness-driver/blob/main/context/README.md#the-answer).
 
 ## Candidates for `marathon retro`
 

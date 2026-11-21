@@ -77,3 +77,18 @@ Each repository's adoption, as ai-hosting's shows:
   (`claude-plugins/.claude/plans/preplan-harness.adoption-<task>.md`, untracked).
 - **webappgen** adopts within v1.client.stack's `template` task, since its default branch holds
   only marathon's init files.
+
+## The Fable review
+
+The `architecture` task's final stage, before harness.adoption's sync: a Fable-model subagent
+reviews the context of every adopted repository, ai-hosting included. The task's plan proposes
+the review's scope and batching before it runs. Each repository's context must:
+
+1. be accurate and well formed, lose no critical information, and keep nothing extraneous or
+   outdated;
+2. describe only what is currently, objectively true, or what helps a move to an anticipated
+   future state; a log of how or why something changed that produced no standard or principle
+   ruling is flagged for removal;
+3. read in a natural flow from its entry point (README, `context/README.md`): any branch of links
+   builds understanding from its concepts, foundations before specifics, with no dead ends, no
+   forward references to undefined ideas, and no circular detours.

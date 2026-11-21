@@ -6,16 +6,15 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "harness.adoption",
-  "harness.adoption-spikes",
 ]
 
 planned = [
-  "sites.status-reports",
-  "sites.training.foundation",
   "corpus.docs",
   "v1.data.extensions",
   "docproc-coverage",
   "capstone.data-intelligence",
+  "sites.status-reports",
+  "sites.training.foundation",
   "v1.client.reference",
   "experiment.ocr.spike-scanned-documents",
   "experiment.admin.spike-host-admin",

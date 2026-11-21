@@ -58,5 +58,9 @@ summary = '''
 architecture's check calls lint-context and switches its own reference resolution to marathon's
 reference check; its context/README.md gains a capability map. principles/comments.md drops its
 closing "No code repository follows it yet".
+
+Its final stage, before the goal's sync, is the Fable review of every adopted repository's
+context (standards-lab/context/harness-adoption.md, "The Fable review"). The goal's sync then
+deletes that note and its pointers.
 '''
 repos = ["architecture"]
