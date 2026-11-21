@@ -115,7 +115,8 @@ A web-components minor, v0.2.0, on web-foundation ^0.4.0 and web-icons ^0.1.0: s
 theme and keys settings applied and stored at once, on S, and sl-shortcuts, Help's plain-text
 keyboard shortcuts, on ?, from spike-html-hosting-components v0.5.1. sl-drawer's Close renders
 web-icons' x-16 and gains a modal-only mode. The local copies of the patterns web-foundation v0.4.0
-takes go, and json.js goes with no re-export.
+takes go, and json.js goes with no re-export. It takes v0.4.0's hook renames (`--accent-color` to
+`--color-accent`, `--interaction-color` to `--color-primary`) and ends the adoption's v0.3.0 hold.
 '''
 repos = ["web-components"]
 
