@@ -2,7 +2,7 @@
 
 The evidence behind the messaging contract and the capabilities it classes. The decisions are in
 the coordinator's [messaging note](../context/messaging.md); the contract's behavior is in the
-`go-messaging` README and package documentation.
+`go-messaging` README, its docs/, and package documentation.
 
 ## The evidence
 
