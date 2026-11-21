@@ -7,7 +7,6 @@ active = [
   "v1.ai.hosting",
   "harness.adoption",
   "harness.adoption-docproc",
-  "harness.adoption-web-foundation",
   "harness.adoption-web-components",
   "harness.adoption-web-rest",
   "harness.adoption-spikes",

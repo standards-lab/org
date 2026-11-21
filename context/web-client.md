@@ -75,7 +75,7 @@ which the template and the web standard adopt. The choices underneath:
 - **Iconography.** web-icons is the convention for every web client and page. A page's glyph is a
   `<svg data-icon="set/name">` marker that web-icons' Vite plugin fills; a component imports the
   icon's module and renders it with Lit's `unsafeHTML`.
-- **Color roles.** Five `--color-*` hooks name the roles (web-foundation's README). No profile
+- **Color roles.** Five `--color-*` hooks name the roles (web-foundation's `docs/use.md`). No profile
   declares them and the hues stay role-free, so a page sets a role without touching a profile.
 - **Page types.** The foundation's opt-in page-layout sheet has two: an application page, one
   screen, and a prose page, a reading column.
