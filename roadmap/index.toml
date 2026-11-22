@@ -55,4 +55,5 @@ backlog = [
   "cross-service-tracing",
   "chunked-upload-graduation",
   "docproc-backlog",
+  "shared-secrets-lint",
 ]
