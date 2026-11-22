@@ -1,24 +1,34 @@
 name = "Repository access"
 summary = '''
-marathon learns from a declared flag whether a repository runs CI, and a goal locks only its root
-repository for its life. The goal also carries the claude-plugins findings of the
-architecture review, listed in its note.
+marathon learns from a declared command whether a repository's pull requests run CI, and a goal
+locks only its root repository for its life. The goal also carries the claude-plugins findings of
+the architecture review, and releases once, at its last task.
 '''
 repos = ["claude-plugins"]
 root = "claude-plugins"
-order = ["ci-awareness", "shared-repos"]
+order = ["ci-awareness", "review-findings", "shared-repos"]
 context = ["claude-plugins/context/repo-access.md"]
 
 [tasks.ci-awareness]
 name = "CI awareness"
 summary = '''
-Each repository declares whether it runs CI, so SHIP, merge, and the briefs know whether a pull
-request will have checks, and no session scripts a wait for CI that doesn't exist.
+An optional `[remote] checks` command declares a repository's pull-request CI: SHIP runs it before
+merging when set and merges directly when not, and the session brief says which. Sessions run
+each command that changes git or remote state in its own tool call. Opens with the currency fix.
+'''
+proof = "`marathon checks` runs the configured wait, and `marathon currency` exits 0 in claude-plugins."
+
+[tasks.review-findings]
+name = "Review findings"
+summary = '''
+The claude-plugins and marathon-architecture fixes CLP-2 through CLP-15, as the goal's note lists
+them. Tags nothing; the marathon-architecture changes release with the goal.
 '''
 
 [tasks.shared-repos]
 name = "Shared repositories"
 summary = '''
 A goal owns its root repository. A non-root repository locks only while it is off its default
-branch, so several goals queue on it.
+branch, so several goals queue on it. Moves claude-plugins to `[remote] checks` and releases
+`marathon/v0.23.0` and `marathon-architecture/v0.4.1`.
 '''

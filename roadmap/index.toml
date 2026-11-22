@@ -5,10 +5,10 @@ active = [
   "v1.client.stack",
   "v1.ai.inference",
   "v1.ai.hosting",
+  "marathon.repo-access",
 ]
 
 planned = [
-  "marathon.repo-access",
   "corpus.docs",
   "v1.data.extensions",
   "docproc-coverage",
