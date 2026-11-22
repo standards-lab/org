@@ -5,7 +5,6 @@ active = [
   "v1.client.stack",
   "v1.ai.inference",
   "v1.ai.hosting",
-  "marathon.repo-access",
 ]
 
 planned = [
