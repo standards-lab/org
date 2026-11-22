@@ -35,7 +35,7 @@ implements. A member repository's entry declares `standard = "<key>"`, so member
 where the repository is cataloged and never listed a second time. A repository also declares its
 standard in its README: a link to the definition, and its own principles stated as enhancements.
 A repository adjacent to a standard (sqlate, blobfs, docproc, docinfer) and the infrastructure
-outside the tiers (ai-hosting, secrets) declare none.
+outside the tiers (ai-hosting) declare none.
 
 A repository belongs to exactly one standard, the one whose author answers for it. Another
 standard that finds its modules sufficient adopts them as ordinary dependencies at pinned
@@ -199,12 +199,6 @@ its skill; admin tooling joins after experiment.admin's intake. Low-level infras
 the five tiers, beside the harness repositories, and the one hosting repository on each
 workstation. Its references are spike-model-engines, spike-model-gateway, spike-model-hosting,
 spike-hosting-upgrades, and spike-model-layout.
-
-### [secrets](https://github.com/standards-lab/secrets)
-The workspace's development-time secret store, private, created by v1.ai.hosting's `secrets` task:
-every value age-encrypted by fnox to one key per enrolled device plus an offline backup, in a
-global file and one file per repository. Each consuming repository imports it through mise's
-`[secrets.fnox]`. Its convention is the principle v1.ai.hosting's `secrets` task writes.
 
 ### [web-tooling](https://github.com/standards-lab/web-tooling)
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the

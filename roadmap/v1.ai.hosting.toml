@@ -8,7 +8,7 @@ embedding model; and the upgrade-evaluation convention rebuilt on vLLM. ai-hosti
 one hosting repository on each workstation. Runs before the capstone, which runs on the hosts and
 gateway it specifies.
 '''
-repos = ["ai-hosting", "architecture", "secrets", "go-ai", "docinfer"]
+repos = ["ai-hosting", "architecture"]
 root = "ai-hosting"
 remote = "https://github.com/standards-lab/ai-hosting.git"
 path = "~/architecture/ai-hosting"
@@ -39,16 +39,13 @@ scope and price on Foundry managed compute. No code.
 '''
 
 [tasks.secrets]
-name = "The development-time secret store"
+name = "Development-time secrets"
 summary = '''
-Sets up the workspace's development-time secret convention and adopts it in one sweep: a private
-`secrets` repository holds every value, age-encrypted by fnox to one key per device plus an
-offline backup, in global and per-repository files. ai-hosting, go-ai, and docinfer import it
-through mise's `[secrets.fnox]`, and the integration tiers move onto it while a clone without it
-runs as today. Enrolls the laptop, gb10-2, and the backup, and writes architecture's
-"Development-time secrets" principle. Runs alone (`ai-hosting/context/secrets.md`).
+Each repository that needs a secret commits its own age-encrypted `fnox.toml`, every secret
+described, read through mise's per-task grants and checked by a keyless `lint-secrets`; ai-hosting,
+go-ai, and docinfer adopt it, the laptop and gb10-2 are enrolled with an offline backup, and
+architecture's `principles/development-secrets.md` holds the convention and its procedures.
 '''
-repos = ["secrets", "ai-hosting", "go-ai", "docinfer", "architecture"]
 
 [tasks.hosts]
 name = "The hosts on ai-hosting"
@@ -79,10 +76,9 @@ agentgateway's compose stack on gb10-2: gateway keys, priority, budgets, embeddi
 LGTM telemetry, and path hardening. Overflow goes to Azure for all four aliases: agent to
 gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions (refusing a
 text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
-model on Foundry managed compute, whose scope and price the design confirms first. Settled at its
-plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk
-concurrency, a sliding budget window, and authenticated OTLP (`ai-hosting/context/gateway.md`,
-"Open at the gateway plan").
+model on Foundry managed compute. Settled at its plan: the `/models` root, route `ai` or `llm`,
+admission on `/metrics`, a cap on bulk concurrency, a sliding budget window, authenticated OTLP,
+and where `key issue` writes keys (`ai-hosting/context/gateway.md`, "Open at the gateway plan").
 '''
 
 [tasks.cleanup]
