@@ -56,8 +56,9 @@ ConnectX-7 carries about 185 Gb/s of RDMA. Three host behaviours shape the setup
 ## The goal's coordination
 
 - `secrets` shares go-ai and docinfer with v1.ai.inference until it ships.
-- The `architecture` task lands its pages in architecture on its own branch, sharing the
-  architecture lock with v1.ai.processing; the architect frees the lock before that task merges.
+- The `architecture` task lands its pages in architecture on its own branch. It and
+  v1.ai.processing each hold the architecture repository only while a task's branch is checked
+  out there.
 
 ## The `hosts` task
 

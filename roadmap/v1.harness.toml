@@ -70,7 +70,7 @@ the reviews, its session brief posted rather than accepted, while one-way doors 
 for evidence from the session brief's Verify section.
 '''
 repos = ["claude-plugins"]
-context = ["claude-plugins/context/harness-optimization.md"]
+context = ["claude-plugins/context/harness-findings.md"]
 
 [tasks.hosting-upgrades]
 name = "The hosting-upgrades skill as a plugin"
