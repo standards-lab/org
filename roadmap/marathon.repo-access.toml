@@ -6,7 +6,7 @@ the architecture review, and releases once, at its last task.
 '''
 repos = ["claude-plugins"]
 root = "claude-plugins"
-order = ["ci-awareness", "review-findings", "shared-repos"]
+order = ["ci-awareness", "read-first-split", "review-findings", "shared-repos"]
 context = ["claude-plugins/context/repo-access.md"]
 
 [tasks.ci-awareness]
@@ -17,6 +17,15 @@ merging when set and merges directly when not, and the session brief says which.
 each command that changes git or remote state in its own tool call. Opens with the currency fix.
 '''
 proof = "`marathon checks` runs the configured wait, and `marathon currency` exits 0 in claude-plugins."
+
+[tasks.read-first-split]
+name = "Read-first split"
+summary = '''
+`references/briefs.md` splits into one file per format, and each command's Read first list names
+only the formats it writes, so the read-first sets regain room without dropping a rule. The check
+holds each command to listing every format it writes; the budgets are re-baselined, the gate's
+eval runs, and the sentences ci-awareness cut for budget return where the room allows.
+'''
 
 [tasks.review-findings]
 name = "Review findings"
