@@ -1,8 +1,8 @@
 name = "The ~/docs corpus"
 summary = '''
 Reviews `~/docs`: what it holds, guidelines for how it changes, and how it is shared as a resource
-outside git, since it is too large for a repository. Ordered ahead of v1.ai.processing's
-`acceptance` task, which reruns the real workloads over it. It has no repos, so it touches only
-the coordinator's context and has no record.
+outside git, since it is too large for a repository. v1.ai.processing's acceptance measured
+~/docs as it stands. It has no repos, so it touches only the coordinator's context and has no
+record.
 '''
 repos = []

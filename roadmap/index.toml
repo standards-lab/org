@@ -1,7 +1,6 @@
 # Roadmap index: the three arrays, in the format of marathon's roadmap manifest.
 
 active = [
-  "v1.ai.processing",
   "v1.client.stack",
   "v1.ai.inference",
   "v1.ai.hosting",

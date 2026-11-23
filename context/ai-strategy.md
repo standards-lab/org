@@ -89,8 +89,9 @@ docproc, and docinfer join `exclusive` after wave C.
 
 ### How v1.ai builds them
 
-v1.ai holds three sub-goals (`roadmap/v1.ai.toml`): v1.ai.processing, v1.ai.inference, and
-v1.ai.hosting; v1.ai.client built go-ai. The design tasks build from docproc's
+v1.ai holds two sub-goals (`roadmap/v1.ai.toml`): v1.ai.inference and v1.ai.hosting;
+v1.ai.client built go-ai, and v1.ai.processing built docproc and its system tools. The design
+tasks build from docproc's
 [`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md), the
 signatures of every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by
 a Fable 5.2 evaluation of each promoted artifact against the standards, the layers note, and
@@ -101,12 +102,14 @@ Local models for application workloads have no sub-goal of their own: v1.ai.host
 A's roles for them (vision with reasoning off, transcription, and embeddings), its `embedding`
 task replacing set A's embedding model (`ai-hosting.md`, "Set A's embedding model").
 
-Evidence 5 bears on the layering. docproc prepares long audio, cutting windows at silences and
-releasing the join, and the layer above transcribes it and owns the inference guards: Gemma 4 E4B
-answered a short window with its own instruction, which the join can't tell from speech. No LLM
-pass smooths the seams; a gpt-oss pass over the seam words made every run worse. Windowing costs
-accuracy on multi-speaker audio, so whether audio that fits one request goes unsplit is the
-host's choice (docproc's `docs/acceptance.md`).
+Evidence 5, settled, bears on the layering. docproc prepares long audio, cutting windows at
+silences and releasing the join, and the layer above transcribes it and owns the inference
+guards: Gemma 4 E4B answered a short window with its own instruction, which the join can't tell
+from speech. No LLM pass smooths the seams; a gpt-oss pass over the seam words made every run
+worse. Windowing costs accuracy on multi-speaker audio, so whether audio that fits one model
+request goes unsplit is the host's choice, set through cmd/docproc's `DOCPROC_AUDIO_LIMIT`
+(starting 30s; 4 s or less refused); docproc's default stays 30 s (docproc's
+`docs/acceptance.md`).
 
 The detail page lists [what docproc's library left
 open](../docs/ai-strategy.md#what-docprocs-library-left-open).

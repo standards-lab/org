@@ -121,6 +121,7 @@ sparse rows, rerank). Read only; Athena's migration is later work outside the wo
 name = "Tools in Cerebro's image"
 summary = '''
 Cerebro's container image with docproc's external tools and docproc-ooxml, docproc-mail, and
-docproc-onenote, run through the
-exec runner, since the docker runner needs the host's socket.
+docproc-onenote, run through the exec runner, since the docker runner needs the host's socket.
+What the image holds is on the capstone's design page, "Tool packaging".
 '''
+context = ["standards-lab/docs/data-intelligence.md"]
