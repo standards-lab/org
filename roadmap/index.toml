@@ -1,7 +1,6 @@
 # Roadmap index: the three arrays, in the format of marathon's roadmap manifest.
 
 active = [
-  "v1.client.stack",
   "v1.ai.inference",
   "v1.ai.hosting",
 ]
@@ -47,11 +46,13 @@ backlog = [
   "api-versioning",
   "model-evaluation",
   "nats-credentials",
-  "client-create",
   "screenshots-in-neovim",
   "retrieval",
   "cross-service-tracing",
   "chunked-upload-graduation",
   "docproc-backlog",
   "shared-secrets-lint",
+  "color-profiles-extension",
+  "octicons-bump",
+  "web-client-backlog",
 ]

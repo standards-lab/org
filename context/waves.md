@@ -20,9 +20,9 @@ Each wave runs its goals side by side.
 - **B**: v1.ai.hosting builds ai-hosting before the capstone; v1.ai.processing built docproc and
   its system tools beside it. v1.ai.hosting holds the architecture repository only while a task's
   branch is checked out there. v1.ai.inference (docinfer) builds on go-ai's
-  released library. v1.client.stack, rooted in web-foundation, runs in B; once its `foundation`
-  task ships, sites.status-reports and sites.training.foundation can start.
-- **C**: the rest of v1.client.stack and of v1.ai's sub-goals still running; go-ai, docproc, and
+  released library. v1.client.stack built the web client stack in B and C; with its `foundation`
+  task shipped, sites.status-reports and sites.training.foundation can start.
+- **C**: the rest of v1.ai's sub-goals still running; go-ai, docproc, and
   docinfer join the exclusive group when C ends. Then v1.data.extensions, the Postgres-extension
   strategy.
 - **D**: capstone.data-intelligence, the sole active goal apart from sites.status-reports and
@@ -39,5 +39,4 @@ Each wave runs its goals side by side.
   sites.training.foundation's setup and syllabus.
 - **During it** (wave D): sites.status-reports' second report, an orientation to the capstone,
   and sites.training.foundation's writing tasks.
-- **After it**: v1.client.reference, v1.repository-docs, client-create, and the rest of sites,
-  last.
+- **After it**: v1.client.reference, v1.repository-docs, and the rest of sites, last.

@@ -23,7 +23,12 @@ has it.
 
 This catalog records the relationships between repositories and the prior R&D. A repository's stable
 documentation describes itself and the repositories it depends on, and justifies a convention by
-what it does; provenance lines and worked-case links excepted.
+what it does; third-party provenance lines and worked-case links excepted.
+
+This catalog is also the workspace's one lineage record. An entry's **Lineage** line holds where
+the repository's code came from in the workspace's own repositories and spikes, per repository at
+a commit. A README or working context that needs the lineage links to the entry, and a new seed
+adds its sources to its entry's line.
 
 ## Standards
 
@@ -31,7 +36,7 @@ A standard is a named, technology-specific implementation of an architecture tha
 repositories declares alignment to. Definitions live in the
 [architecture repository](https://github.com/standards-lab/architecture). Each standard has a
 `[standards.<key>]` entry in `references.toml` with a `definition` URL and the `architecture` it
-implements. A member repository's entry declares `standard = "<key>"`, so membership is declared
+implements, and `status = "draft"` while its definition is a draft. A member repository's entry declares `standard = "<key>"`, so membership is declared
 where the repository is cataloged and never listed a second time. A repository also declares its
 standard in its README: a link to the definition, and its own principles stated as enhancements.
 A repository adjacent to a standard (sqlate, blobfs, docproc, docinfer) and the infrastructure
@@ -51,15 +56,15 @@ Members: `go-core`, `go-database`, `go-observability`, `go-storage`, `go-web-sdk
 model client (released); and `go-web-service`, the reference web service (versionless until its
 1.0).
 
-### web-elemental (preliminary)
+### web-elemental
 
-The draft web standard beside Go Elemental, with Lit as its one runtime dependency. It has no
-definition yet: v1.client.stack's `standard` task founds it in the architecture repository, adds
-its `[standards.web-elemental]` entry, and declares its members. Until then its direction is in
-[`context/web-client.md`, "Toward Web Elemental"](context/web-client.md#toward-web-elemental).
-Intended members (v1.client.stack): `web-tooling`, `web-foundation`, `web-icons`,
-`web-components`, and `web-app-sdk` (released), and `webappgen` (planned); the `standard` task
-settles which join. Each entry declares `standard = "web-elemental"` once the task founds it.
+The web implementation of the Elemental Architecture, a draft beside Go Elemental, on the browser
+platform with Lit as its one runtime dependency and marked for Markdown alone. Defined at
+[standards/web-elemental](https://github.com/standards-lab/architecture/blob/main/standards/web-elemental/README.md).
+Members, all released: `web-tooling`, `web-foundation`, `web-icons`, `web-components`,
+`web-app-sdk`, and `webappgen`. Workflows, configs, and scripts copied between members come from
+web-tooling 1ff49e4; web-foundation 72e759f, ceaab61, and 309e6b9; web-components a659353,
+3f32a8f, 49f819b, and 6052866; and web-app-sdk fbaba50 and 35d1ab5.
 
 ## Effort repositories — Standards Lab
 
@@ -127,12 +132,13 @@ subscriptions, the runtime with its error hook, outbox emission and inbox idempo
 provider, and the `messagingtest` conformance suite, with the postgres engine, which also holds
 the outbox and inbox retentions, and the NATS JetStream provider as sub-modules. Its events are
 go-core's CloudEvents `event` type and its consumers go-core `reactor`s. Released, base and
-sub-modules tagged independently.
+sub-modules tagged independently. Lineage: spike-messaging 46a9f5a.
 
 ### [go-web-sdk](https://github.com/standards-lab/go-web-sdk)
 The Application SDK for web services of the `go-elemental` standard: the HTTP surface a service
 is built on, its middleware, and the HTTP half of the integration toolkit. Its README lists the
-packages. Released; depends on the standard library and `go-core`.
+packages. Released; depends on the standard library and `go-core`. Lineage: spike-html-apps
+2883d78, whose `sdk` package became `web.NewClient` (v0.18.0).
 
 ### [go-web-sdk-template](https://github.com/standards-lab/go-web-sdk-template)
 The web service template of the `go-elemental` standard: scaffolds an initial Go Elemental web
@@ -188,7 +194,10 @@ The inference library, released (v1.ai.inference): above go-ai's tier, it runs v
 transcription, extraction, chunking, and embedding over docproc's dispatched parts through go-ai,
 with a result cache behind an interface. Its PostgreSQL cache, `docinfer/postgres`, and its
 command, `cmd/docinfer`, are nested modules, each tagged on its own. Adjacent to the `go-elemental`
-standard, as `sqlate` is. Its reference is spike-ai-pipeline's docinfer.
+standard, as `sqlate` is. Its reference is spike-ai-pipeline's docinfer. Lineage:
+spike-ai-pipeline 6a631f1; spike-ai-pipeline-processing 4402f7c (v0.9.0); and, for
+`cmd/docinfer`, go-cli-sdk-template template/v0.3.1, docproc ddb1c07 and 6f955e3, and go-ai
+72f1b98 (`tools/infer`).
 
 ### [ai-hosting](https://github.com/standards-lab/ai-hosting)
 The hosting layer of the AI capability (v1.ai.hosting): the specification the organization's
@@ -202,43 +211,62 @@ spike-hosting-upgrades, and spike-model-layout.
 
 ### [web-tooling](https://github.com/standards-lab/web-tooling)
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
-test server, the process helper, the `web-screenshots` bin, and a pinned-font-set helper. Released
-(v1.client.stack), copied from spike-html-apps-tooling. An intended member of the preliminary
-`web-elemental` standard (above).
+test server, the process helper, the `web-screenshots` bin, and a helper that runs a browser suite
+in a pinned DejaVu font set, spike-html-go-wasm's. Released (v1.client.stack). A member of the
+`web-elemental` standard (above). Lineage: spike-html-apps-tooling d77877b;
+spike-html-apps-foundation 9c15b8d, 7e5d6c2, and 6e9669f; spike-html-apps-components 2fded6d and
+8ba2be0; spike-html-apps-noctis 7d7351a; spike-html-apps-sdk ca3089e; spike-html-apps a6ff18d;
+and spike-html-go-wasm f026de3.
 
 ### [web-foundation](https://github.com/standards-lab/web-foundation)
-The native foundation: CSS and ES modules with no dependencies, holding the baseline sheets, the
-color, space, and type profiles, the tool sheets, the DOM helpers, the keys family, the theme
-preferences and menu, the profile conformance check, and the Intl formatters. Released
-(v1.client.stack), copied from spike-html-apps-foundation v0.3.1; v1.client.stack's root. An
-intended member of the preliminary `web-elemental` standard (above).
+The native foundation: CSS and ES modules with no dependencies. Released at v0.4.0
+(v1.client.stack): baseline sheets with five color role hooks and control, focus, and tint
+tokens; color, space, and type profiles; tool sheets with utility classes; opt-in
+`glyph-button.css`, `dialog.css`, `layout.css`, and `motion.css`; DOM helpers, the registry and
+keys family (`bindings()`), theme preferences (no menu or keys help), the conformance check, and
+Intl and JSON formatters (`formatJson`, `tryFormatJson`). A member of the `web-elemental` standard
+(above). Lineage: spike-html-apps-foundation 07ba39a (v0.3.1) and 9c15b8d;
+spike-html-packages-foundation 5dd8a58; spike-html-design fe75220 (v0.7.0);
+spike-html-apps-tooling d77877b; spike-html-apps-components 2fded6d; spike-html-go-wasm f026de3;
+spike-html-hosting-sdk f49087e; and spike-html-hosting-components 9fa5850.
 
 ### [web-icons](https://github.com/standards-lab/web-icons)
-The icons layer, `@standards-lab/web-icons`: Octicons 19.42.0 (MIT, its LICENSE kept) as one
-string ES module per icon, and the Vite plugin that fills `<svg data-icon="set/name">` markers in
-dev and build; the iconography convention for every web client and page. Released
-(v1.client.stack's `icons` task), seeded from
-spike-html-hosting-icons at 8b8d955, its fill from spike-html-hosting-sdk. An intended member of
-the preliminary `web-elemental` standard (above).
+The icons layer, `@standards-lab/web-icons`, the iconography convention for every web client and
+page. Released at v0.1.0 (v1.client.stack): Octicons 19.42.0's 780 icons and 23 aliases, a string
+ES module each at `@standards-lab/web-icons/octicon/<name>`, under Octicons' MIT LICENSE; the
+`iconFill()` Vite plugin at `@standards-lab/web-icons/vite`, which fills
+`<svg data-icon="set/name">` markers in dev and build; no runtime dependency, and vite ^8.3.8 an
+optional peer. A member of the `web-elemental` standard (above). Lineage:
+spike-html-hosting-icons 8b8d955; spike-html-hosting-sdk f49087e, its fill.
 
 ### [web-components](https://github.com/standards-lab/web-components)
 The Lit components with a shadow root, on web-foundation as a peer: the chat thread, composer,
-upload dropzone, stage timeline, and the rest of the application set. Released (v1.client.stack),
-copied from spike-html-apps-components. An intended member of the preliminary `web-elemental`
-standard (above).
+upload dropzone, stage timeline, and the rest of the application set. Released at v0.2.0
+(v1.client.stack): fourteen Lit elements (new: `sl-settings`, `sl-shortcuts`) and `markdown()`,
+peering web-foundation `^0.4.0` and web-icons `^0.1.0`, on lit and marked (Markdown only); no
+`json.js`. A member of the `web-elemental` standard (above). Lineage: spike-html-apps-components
+10dde51; spike-html-hosting-components 9fa5850; spike-html-apps-foundation 618cb83 and 07ba39a;
+spike-html-design fe75220; and spike-html-go-wasm f026de3.
 
 ### [web-app-sdk](https://github.com/standards-lab/web-app-sdk)
 The web application SDK: the router on URLPattern and the Navigation API, the API client, the
 token provider, the domain-service pattern, and the resumable event sequence with its
-NATS-over-WebSocket adapter. Released (v1.client.stack), copied from spike-html-apps-sdk. An
-intended member of the preliminary `web-elemental` standard (above).
+NATS-over-WebSocket adapter. Released at v0.1.0 (v1.client.stack): six subpaths (`api`, `auth`,
+`router`, `service`, `events`, `events/nats`), no runtime dependency, and optional
+`@nats-io/nats-core` and `@nats-io/jetstream` `^3.5.0` peers, imported only by `events/nats`. A
+member of the `web-elemental` standard (above). Lineage: spike-html-apps-sdk df65376 (v0.4.0).
 
 ### [webappgen](https://github.com/standards-lab/webappgen)
-The web client CLI: `webappgen new <kind>` writes a project for each kind of app on the stack,
-from files embedded in its Go binary, released for Linux and macOS. Planned (v1.client.stack):
-the standalone kind first, then a new Go web service and an existing one, embedded and served by
-go-web-sdk's `NewClient`; its starter app is copied from spike-html-apps' app. Renamed from
-web-app-sdk-template. An intended member of the preliminary `web-elemental` standard (above).
+The web client CLI: it writes a project for each kind of app on the stack, from files embedded in
+its Go binary. Released (v1.client.stack) as linux and darwin binaries on amd64 and arm64, with
+SHA256SUMS. v0.1.0: `new standalone`, a static app on the layers by exact tag, with Settings,
+Help, web-icons' glyphs, and its own README. v0.2.0: `new service-app` and `inject service-app`,
+served by go-web-sdk v0.18.0's `NewClient`, at gonew x/tools v0.53.0 and go-web-sdk-template
+template/v0.16.0. v0.2.1: written projects and its own sources carry no workspace provenance
+lines. Renamed from web-app-sdk-template. A member of the `web-elemental` standard (above).
+Lineage: spike-html-apps 2883d78, its starter app; go-cli-sdk-template a4d314c; go-web-sdk
+c0c8267; herald c697566; and, for its fixtures, go-web-sdk-template 7e5f330 and go-web-service
+31b92a4.
 
 ## Experiments — archived spikes
 
@@ -300,8 +328,9 @@ components, released by tag. spike-html-apps' layer repositories were copied fro
 ### [spike-html-apps](https://github.com/JaimeStill/spike-html-apps)
 Asked what a client application on the stack looks like, and whether its layers hold when they
 compose the capstone's UI primitives live over a backend. Answered yes, in a pipeline app over a
-Go emulator and an external client over two services, served by a Go `NewClient`. Its layers seed
-v1.client.stack, and its app shape is v1.client.reference's.
+Go emulator and an external client over two services, served by a Go `NewClient`. Its layers
+seeded the web client stack, its `sdk` package go-web-sdk's `NewClient`, and its app shape is
+v1.client.reference's.
 
 ### [spike-html-apps-foundation](https://github.com/JaimeStill/spike-html-apps-foundation), [spike-html-apps-components](https://github.com/JaimeStill/spike-html-apps-components), [spike-html-apps-sdk](https://github.com/JaimeStill/spike-html-apps-sdk), [spike-html-apps-noctis](https://github.com/JaimeStill/spike-html-apps-noctis), [spike-html-apps-tooling](https://github.com/JaimeStill/spike-html-apps-tooling)
 spike-html-apps' layer repositories: the foundation, the components, the application SDK, an
@@ -324,7 +353,8 @@ from spike-html-hosting-components v0.5.1.
 ### [spike-html-go-wasm](https://github.com/JaimeStill/spike-html-go-wasm)
 Asked whether a page can run workspace Go live in the browser through `GOOS=js` WebAssembly:
 library demos, handlers called in-process, and a Go playground. Answered yes, as prebuilt modules
-or as source compiled in the page; each site chooses its demos (`context/sites.md`).
+or as source compiled in the page; each site chooses its demos (`context/sites.md`). Its pinned
+DejaVu font set is web-tooling's.
 
 ### [spike-model-hosting](https://github.com/JaimeStill/spike-model-hosting)
 Asked what llama.cpp's Vulkan router on the Framework establishes for the self-hosted stack.

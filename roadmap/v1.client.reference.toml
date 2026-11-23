@@ -4,7 +4,8 @@ go-web-service's client on spike-html-apps' app shape, embedded in the service a
 `NewClient`, in parity with the service as slab is on the command line, and applying
 web-elemental. It first demonstrates the organizations, the document hierarchy, and a live view
 of go-web-service's reactors over the WebSocket bridge, against the open API, and evaluates the
-embedded strategy against an external client (`web-client.md`, "The reference client"). Runs
+embedded strategy against an external client (`web-client.md`, "The reference client").
+`webappgen inject service-app` installs its client. Runs
 after the capstone, first in wave E, ahead of v1.data and v1.auth; its own planning writes its
 tasks.
 '''

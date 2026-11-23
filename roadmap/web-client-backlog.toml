@@ -1,0 +1,19 @@
+name = "The web client stack's backlog"
+summary = '''
+What remains from v1.client.stack, with no tasks: native Windows webappgen, which waits on written
+projects' bash tasks, web-tooling's POSIX process groups, and a Windows chrome-headless-shell pin;
+go-web-sdk-template's marathon 0.22.0 pin, which each generated service trails, and its
+`gofmt -l .`, which walks a nested client's `node_modules/.pnpm`; webappgen rejecting a `--base`
+that overlaps an API mount, such as `/api/`, which panics at `Router.Mount`; Web Elemental pages
+for what every web STANDARDS.md repeats (layer direction, `.ts` specifiers, type-stripping tests,
+one script per mise task); a pin for web-foundation's frozen `flexoki.css` fixture; and
+web-foundation exporting sl-shortcuts' screen-reader `NOTE`.
+'''
+repos = [
+  "web-tooling",
+  "web-foundation",
+  "webappgen",
+  "go-web-sdk-template",
+  "architecture",
+]
+context = ["standards-lab/context/web-client.md"]

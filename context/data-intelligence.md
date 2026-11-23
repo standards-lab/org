@@ -106,8 +106,8 @@ Each goal beneath the capstone designs around Cerebro:
   load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
-- **go-web-sdk** and **v1.client.stack:** the chunked upload after graduation, an SSE helper, a
-  stage timeline driven by the event protocol, and citations in the chat thread.
+- **go-web-sdk:** an SSE helper. The capstone builds the resumable upload, which graduates after
+  it, a stage timeline fed by events, and citations in the chat thread itself.
 - **go-core's graph API:** both composition roots are written against it.
 
 ## Gates
@@ -120,7 +120,7 @@ sites.status-reports and sites.training. Before it:
 - v1.ai.processing built docproc and its system tools, closed by acceptance over ~/docs, and
   v1.ai.inference builds docinfer on go-ai's released library, closed by acceptance that reruns
   the real workloads.
-- v1.client.stack builds the web client stack the UI builds on.
+- v1.client.stack built the web client stack the UI builds on.
 - v1.data.extensions lands the Postgres-extension strategy.
 
 It needs no harness: its model calls go through go-ai's client, whose Open Responses protocol and
