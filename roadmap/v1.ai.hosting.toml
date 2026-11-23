@@ -1,8 +1,8 @@
 name = "The ai-hosting specification repository"
 summary = '''
 Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
-container, laid out as agent on gb10-1, vision on gb10-2, and audio and embedding on the
-Framework; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority, budgets, and overflow to
+container, laid out as agent on gb10-1, vision on gb10-2, audio on the Framework, and embedding
+on framework-2; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority, budgets, and overflow to
 Azure AI Foundry on all four aliases; a multilingual model in place of set A's English-only
 embedding model; and the upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the
 one hosting repository on each workstation. Runs before the capstone, which runs on the hosts and
@@ -18,6 +18,7 @@ order = [
   "hosts",
   "migrate",
   "embedding",
+  "framework-2",
   "gateway",
   "cleanup",
   "upgrades",
@@ -82,6 +83,18 @@ alone and then beside embedding at load. A Chinese-origin candidate runs only if
 the reason recorded. Re-measures the embedding row, its 34 req/s limit, and the layout table.
 '''
 
+[tasks.framework-2]
+name = "Embedding on its own host"
+summary = '''
+Opens with the claude-plugins pin's upgrade slice. Brings framework-2, a second Strix Halo with
+LUKS and a console unlock, onto ai-hosting by the strix-halo runbook; moves the embedding row
+there and removes it from the Framework, which serves audio alone with its cap raised to 8 at
+fraction 0.18. Re-measures embedding alone on framework-2, the cap-32 sweep and a rate sweep to
+its own ceiling, dropping the 14 req/s limit that protected audio. Checks every row healthy on
+both hosts. framework-2 stays out of `fnox.toml` until the later enrollment.
+'''
+repos = ["ai-hosting"]
+
 [tasks.gateway]
 name = "The model gateway"
 summary = '''
@@ -108,7 +121,7 @@ inventory. Checks each host afterward holds only ai-hosting and what its command
 name = "The upgrade-evaluation convention on vLLM"
 summary = '''
 Rebuilds spike-hosting-upgrades' convention and its `hosting-upgrades` skill on vLLM, with a host
-descriptor for each of the three hosts, their purposes and load targets taken from the layout.
+descriptor for each of the four hosts, their purposes and load targets taken from the layout.
 The skill stays in ai-hosting's `.claude/` until v1.harness makes it a plugin.
 '''
 
