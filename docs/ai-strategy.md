@@ -125,7 +125,7 @@ layer repositories beside it.
   every image to vision with reasoning off, every audio window to transcription, joined per part
   by `audio.Join`, and every text and each input's metadata, chunked, to embeddings. It writes a
   directory of its own, schema "1"; the capstone's input is `cmd/docinfer`'s directory at schema
-  "2" (docproc's `docs/changes.md`, "The nested modules"). Its
+  "2" (docproc's `docs/api.md`, "Run directory"). Its
   [finding](https://github.com/JaimeStill/spike-ai-pipeline/blob/main/docs/findings/docinfer.md)
   records a run over all of ~/docs through set A on gb10-2: 3,470 images, 1,254 windows, and
   28,937 chunk lines in 6.0 h, with 0 failures.
@@ -245,16 +245,22 @@ left open:
 
 ## v1.ai.processing · mail-hardening
 
-docproc-mail's follow-ups from acceptance (docproc's `docs/acceptance.md`):
+The task took docproc-mail's follow-ups from acceptance and released them as docproc-mail 0.1.4
+(docproc's `tools/mail/CHANGELOG.md`):
 
-- Profile the schema "2" reads that slowed v0.1.2 (plaso's store 3.34 s against the spike's
-  1.61 s, scale.mboxrd 8.52 s against 6.73 s, likely the Markdown built for every message), and
-  measure a replacement allocator against musl's.
-- The RTF text reader breaks at `\cell` and `\row`, not only at `\par`, `\line`, and `\tab`.
-- An `IPM.Note.SMIME` .msg or .pst message gets the S/MIME warning a MIME part gets.
-- A fixture message and its golden pin the output differences tools/mail's CHANGELOG v0.1.2
-  lists: htmd 0.6's math form, a link's text with edge whitespace or a line ending, a whole title,
-  an `<img>` without a `src`, and a text beginning `+`, `1)`, or an autolink-like `<`.
+- **Speed.** The task removed the read's waste stage by stage, with the output unchanged byte for
+  byte and no time target (docproc's `docs/mail-performance.md`). With the content rule also gone,
+  a read of plaso's store takes 1.50 s in place of 3.41 s, and of scale.mboxrd 4.07 s in place of
+  7.70 s. musl's allocator was measured and kept: mimalloc read 13 to 35% faster with about twice
+  the peak memory, and its C build would add zig or a musl C toolchain to the static release.
+- **Markdown.** A message's Markdown comes from its HTML body alone when it has one, appending
+  nothing from its other bodies, since the parts of a `multipart/alternative` are one content
+  (RFC 2046 §5.1.4).
+- **Signed and protected messages.** A clear-signed .msg or .pst message with no body of its own
+  is read from its `multipart/signed` attachment. An `IPM.Note.SMIME` message gets the opaque
+  S/MIME warning, and a rights-managed message gets a warning that its content is not read.
+- **RTF and fixtures.** The RTF reader reads a table one line per row, and a fixture of its own
+  pins htmd 0.6's Markdown differences.
 
 ## Experiment: spike-scanned-documents
 

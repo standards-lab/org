@@ -1,9 +1,12 @@
 name = "docproc's format coverage"
 summary = '''
 Widens what docproc and its tools read, ahead of the capstone (acceptance, brief review,
-2026-11-19): HTML and EPUB; docproc-ooxml's text boxes, comments, and cell notes; RAR, ISO, xz,
-and bzip2 through 7zz; ODF, WordPerfect, and .xlsb through soffice; the MPEG-2 program stream;
-TNEF; and docproc-ooxml's arm64 memory floor. A later `plan` writes its tasks.
+2026-11-19): HTML and EPUB; XPS, which docproc routes to no processor; docproc-ooxml's text
+boxes, comments, and cell notes; RAR, ISO, xz, and bzip2 through 7zz; ODF, WordPerfect, and .xlsb
+through soffice; the MPEG-2 program stream; TNEF; and docproc-ooxml's arm64 memory floor. Its
+first tools/ooxml change corrects generate.py's `slide_objects` docstring, which says the
+pictures sit "beside another": the two overlap exactly, as tools/ooxml/fixtures/README.md says,
+with no fixture change. A later `plan` writes its tasks.
 '''
 repos = ["docproc"]
 root = "docproc"

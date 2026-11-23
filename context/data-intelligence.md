@@ -24,7 +24,7 @@ the workspace's extension strategy from this case. Each stage's output is a vers
 keyed by its input and configuration hash, so a stage reruns only when either changes; embeddings
 live in registered embedding spaces, so a model change re-embeds into a new space (design page,
 "Embedding spaces"). Its input is the schema "2" run directories of docproc's `cmd/docproc` and
-docinfer's `cmd/docinfer` (docproc's `docs/changes.md`, "The nested modules").
+docinfer's `cmd/docinfer` (docproc's `docs/api.md`, "Run directory").
 
 ## Cerebro and Athena
 
@@ -76,8 +76,8 @@ signal flow. The gateway's per-consumer keys stay, carrying the priority between
 
 **Missing layers** beyond the roadmap: the capstone designs the packaging of the docproc-* tools
 into Cerebro's image, since docproc's docker runner can't run in a container without the host's
-socket; `retrieval` (hybrid ANN with tsvector and rerank; set A has no reranker) and
-`cross-service-tracing` wait in the backlog.
+socket (design page, "Tool packaging"); `retrieval` (hybrid ANN with tsvector and rerank; set A
+has no reranker) and `cross-service-tracing` wait in the backlog.
 
 ### The layers
 
@@ -100,7 +100,7 @@ Each goal beneath the capstone designs around Cerebro:
   "Requests to go-ai"); concurrency bounds stay the caller's.
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
-  the tools pinned in Cerebro's image (docproc's `docs/changes.md`).
+  the tools pinned in Cerebro's image (docproc's README, "The system tools").
 - **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with
   its own key and budget, chat responsive during a ~/docs-scale run (design page, "Gateway
   load").
@@ -117,8 +117,9 @@ sites.status-reports and sites.training. Before it:
 
 - v1.ai.hosting builds the hosts, the gateway with its overflow, and the multilingual embedding
   model.
-- v1.ai.processing builds docproc and its system tools, and v1.ai.inference builds docinfer on
-  go-ai's released library, each closed by acceptance that reruns the real workloads.
+- v1.ai.processing built docproc and its system tools, closed by acceptance over ~/docs, and
+  v1.ai.inference builds docinfer on go-ai's released library, closed by acceptance that reruns
+  the real workloads.
 - v1.client.stack builds the web client stack the UI builds on.
 - v1.data.extensions lands the Postgres-extension strategy.
 

@@ -2,7 +2,7 @@ name = "AI"
 summary = '''
 The capability builds in four layers, each on the one below: hosting (`ai-hosting`, through
 v1.ai.hosting), the Go model client (go-ai), message, document, and stream processing (docproc,
-through v1.ai.processing, with its system tools nested in it, and docinfer, through
+built by v1.ai.processing, with its system tools nested in it, and docinfer, through
 v1.ai.inference), and the harness (v1.harness.local-models), lowest priority. go-web-service's AI
 layer demonstrates them. Each sub-goal opens with a `design` review of its spike code and closes
 with an `acceptance` task that reruns the real workloads and fixes what it finds, never

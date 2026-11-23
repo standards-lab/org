@@ -101,8 +101,27 @@ under mixed load (spike-model-layout's `docs/layout.md`).
 
 ## The input reports
 
-v1.ai.processing's `reports` task makes `cmd/docproc`'s report holistic: an index page plus one
-page per input, keyed by the input's SHA-256, each holding the source link, the file and record
-metadata, and the whole part tree with every output inline, uncut. docinfer's report, its pages
-linked to docproc's by the input's SHA-256 and holding the full vision texts, transcripts, and
-chunks, is v1.ai.inference's.
+`cmd/docproc`'s report is holistic: an index page plus one page per distinct content, keyed by its
+SHA-256, each listing the inputs that hold it, its part tree with each part's record metadata, and
+its outputs inline (docproc's `docs/command.md`). docinfer's report, its pages linked to docproc's
+by the input's SHA-256 and holding the full vision texts, transcripts, and chunks, is
+v1.ai.inference's.
+
+## Tool packaging
+
+For the `tool-packaging` task: what Cerebro's image holds for docproc's tools, which run through
+the exec runner.
+
+- **Versions.** The image pins 7zz at 24.07 or later, the floor docproc's README names. It fetches
+  each docproc-* tool by its `tools/<format>/v*` tag, never as `latest`, which docproc's tool and
+  Go module tags share. docproc builds on 64-bit platforms only.
+- **docproc-ooxml.** It links glibc, with its floor in its README. Whether to publish a static musl
+  build instead is this task's call.
+- **Environment.** The tools run under this task's user with a minimal environment. The image sets
+  `TMPDIR` to its scratch volume, since each tool run's temporary files go under docproc's
+  `TMPDIR`.
+- **Memory.** Replicas are sized from each tool's stated memory bound (docproc's `docs/limits.md`).
+  Whenever a memory bound is set, the image bundles util-linux's `prlimit`, since the exec runner
+  applies `RLIMIT_AS` through it before exec. docproc's `docs/acceptance.md` gives each tool's
+  peak memory, measured on v0.4.0's tool versions ("Peak memory"), under the 2 GiB starting bound,
+  which stood, and the bytes cap that bounds what a stage writes ("Bombs").
