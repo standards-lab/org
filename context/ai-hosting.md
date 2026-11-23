@@ -145,17 +145,18 @@ Every hosting spike, experiment.admin's included, keeps the rules in
 ## Experiment: spike-host-admin
 
 experiment.admin's one spike, run after capstone.data-intelligence: can one CLI on go-cli-sdk
-manage the vLLM rows on the three hosts, with `outpost` as its baseline? It decides `ai-hosting`'s
-admin tooling.
+manage the vLLM rows on the three hosts, with ai-hosting's `hosting` suite as its baseline? It
+decides `ai-hosting`'s admin tooling.
 
 ## Open for experiment.admin
 
 - **Form.** Keep a bash dispatcher, or write a Go CLI on go-cli-sdk, layered as specification,
   tooling, and skill (`claude-plugins/context/tool-based-skills.md`), with the profile schema as
-  its contract. spike-host-admin builds the Go CLI. The root command is `hosting`; `outpost`
+  its contract (ai-hosting's `classes/README.md`). spike-host-admin builds the Go CLI. The root command is `hosting`; `outpost`
   named where the admin sits, not what the tool does.
-- **Host-class differences.** How the tool reads GPU use: through `amdgpu_top` on Strix Halo,
-  while the GB10s' GPU and memory use can't come from `nvidia-smi`.
+- **Host-class differences.** How the tool reads GPU use: through `amdgpu_top -p` and GTT on
+  Strix Halo; on the GB10s, `nvidia-smi --query-compute-apps used_memory` gives each process's GPU
+  memory, though its totals report N/A. ai-hosting's `hosting engine memory` reads both.
 
 ## Answers · experiment.admin
 

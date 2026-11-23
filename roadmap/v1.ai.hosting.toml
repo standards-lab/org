@@ -16,6 +16,7 @@ order = [
   "design",
   "secrets",
   "hosts",
+  "migrate",
   "embedding",
   "gateway",
   "cleanup",
@@ -54,9 +55,21 @@ Each host class's vLLM rows with their install, update, and uninstall, the Tails
 fixes, a check for a stranded container, and a runbook per host class, which documents the
 Framework's LUKS unlock, all as `hosting <group> <verb>` commands symlinked into `~/.local/bin`: a
 command that differs by host class detects the class once and calls its private per-class
-function. Then moves every host off its spike clone onto ai-hosting, removing only what it
-replaces.
+function.
 '''
+repos = ["ai-hosting"]
+
+[tasks.migrate]
+name = "The hosts moved onto ai-hosting"
+summary = '''
+Moves gb10-1, gb10-2, and the Framework off their spike-model-engines clones onto ai-hosting:
+clones it, links the `hosting` suite, runs each class runbook's root steps with the architect,
+replaces each spike row container with `hosting engine install`, removing only what it
+replaces, and repoints the spike gateway's vision, audio, and embedding routes to their new
+ports. Checks every row healthy, `engine status` clean, and `engine update` a no-op. Settled at
+its plan: where ai-hosting is cloned on gb10-1 and the Framework.
+'''
+repos = ["ai-hosting"]
 
 [tasks.embedding]
 name = "A multilingual embedding model"
