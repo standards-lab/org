@@ -1,0 +1,9 @@
+name = "The color profiles' extension release"
+summary = '''
+An extension release of two more light-and-dark color profiles, mapped and checked in
+v1.client.stack's palettes task (web-foundation f1b63a1): Kanagawa, lotus and dragon, from
+rebelot/kanagawa.nvim at bb85e4b under MIT; and Tokyo Night, day and night, from
+folke/tokyonight.nvim v4.14.1 under Apache-2.0. Rosé Pine and Night Owl are its backups.
+'''
+repos = ["web-foundation"]
+context = ["standards-lab/context/web-client.md"]

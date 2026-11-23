@@ -10,7 +10,7 @@ the architect needs for leadership: they publish as standalone project sites und
 and wait on no `sites` task.
 '''
 repos = []
-order = ["components", "sdk", "org-site", "architecture-site", "repository-sites"]
+order = ["components", "sdk", "org-site", "architecture-site", "repository-sites", "icons-site"]
 context = ["standards-lab/context/sites.md"]
 
 [tasks.components]
@@ -51,3 +51,11 @@ in the shape of spike-html-hosting-sqlate, with the live Go demos each site choo
 warm the worker on intent, share one deployed toolchain across the project sites, and build with
 `-buildvcs=false` (`sites.md`, "Live Go demos").
 '''
+
+[tasks.icons-site]
+name = "The web-icons site"
+summary = '''
+web-icons' project site at `/web-icons/`: a Vite-built icon catalog and usage guide, with
+web-components' Settings, deployed by actions/deploy-pages.
+'''
+repos = ["web-icons"]

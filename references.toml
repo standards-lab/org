@@ -6,6 +6,12 @@ description = "The Go implementation of the Elemental Architecture: a complete r
 architecture = "elemental-architecture"
 definition = "https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/README.md"
 
+[standards.web-elemental]
+description = "The web implementation of the Elemental Architecture, a draft on the browser platform with the smallest deliberate dependency surface"
+architecture = "elemental-architecture"
+definition = "https://github.com/standards-lab/architecture/blob/main/standards/web-elemental/README.md"
+status = "draft"
+
 [repos.claude-plugins]
 remote = "https://github.com/standards-lab/claude-plugins.git"
 
@@ -82,21 +88,27 @@ remote = "https://github.com/standards-lab/ai-hosting.git"
 
 [repos.web-tooling]
 remote = "https://github.com/standards-lab/web-tooling.git"
+standard = "web-elemental"
 
 [repos.web-foundation]
 remote = "https://github.com/standards-lab/web-foundation.git"
+standard = "web-elemental"
 
 [repos.web-icons]
 remote = "https://github.com/standards-lab/web-icons.git"
+standard = "web-elemental"
 
 [repos.web-components]
 remote = "https://github.com/standards-lab/web-components.git"
+standard = "web-elemental"
 
 [repos.web-app-sdk]
 remote = "https://github.com/standards-lab/web-app-sdk.git"
+standard = "web-elemental"
 
 [repos.webappgen]
 remote = "https://github.com/standards-lab/webappgen.git"
+standard = "web-elemental"
 
 [repos.spike-sql-dsl]
 remote = "https://github.com/JaimeStill/spike-sql-dsl.git"

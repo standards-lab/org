@@ -1,0 +1,8 @@
+name = "Octicons past 19.42.0 in web-icons"
+summary = '''
+Once `@primer/octicons@19.43.0` is tagged, web-icons bumps `@iconify-json/octicon` from its
+1.2.40 hold; 1.2.41 follows untagged primer/octicons main, and web-icons records an upstream tag.
+It first commits v0.1.0's icon names and a test that each build keeps them, since Iconify can hide
+icons, then releases web-icons.
+'''
+repos = ["web-icons"]
