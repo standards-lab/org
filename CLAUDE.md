@@ -41,7 +41,7 @@ orchestrates a change across the sibling repositories in the workspace (each its
 and remote), and keeps the workspace's notes, design pages, and roadmap here (`context/`, `docs/`,
 `roadmap/`). The two are different mechanisms for different problems.
 
-The workspace order lists the repositories lowest first: the harness, hosting, and secrets
+The workspace order lists the repositories lowest first: the harness, hosting, secrets, and corpus
 repositories; the core SDK beside sqlate and docproc; the infrastructure libraries and application
 SDKs; the templates and docinfer; the web client stack, from its tooling up to webappgen; the
 reference web service; and the architecture repository. At most one active goal touches the

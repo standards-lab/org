@@ -209,6 +209,12 @@ the five tiers, beside the harness repositories, and the one hosting repository 
 workstation. Its references are spike-model-engines, spike-model-gateway, spike-model-hosting,
 spike-hosting-upgrades, and spike-model-layout.
 
+### [corpus-docs](https://github.com/standards-lab/corpus-docs)
+The real workloads' corpus (corpus.docs), private: the samples docproc's and docinfer's
+acceptance and capstone.data-intelligence run over, with each file's source, license, truth, and
+scenarios in its manifest, stored with Git LFS and versioned by git tag. It starts from the local
+pool at `~/docs`. Access requires membership of the organization.
+
 ### [web-tooling](https://github.com/standards-lab/web-tooling)
 The browser-test and screenshot tooling the web repositories take by tag: the browser driver, the
 test server, the process helper, the `web-screenshots` bin, and a helper that runs a browser suite
