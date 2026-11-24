@@ -91,6 +91,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
   Cerebro and Athena architecture and repositories, what it asks of the goals beneath it, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
+- `postgres-extensions.md` — Postgres extensions at the native tier: the image as the version,
+  the extensions layer in sqlate's migrator, extension-aware sqlint, and the pgvector modules.
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
 - `web-client.md` — the web client stack: its repositories and what each owns, its conventions,
