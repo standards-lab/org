@@ -265,9 +265,9 @@ From experiment.hosting's intake:
 
 Sessions do on any host whatever needs no sudo, the docker group included; root stays the
 architect's, run from exact commands. The architect may grant a root command a session must repeat
-as a sudoers rule naming that one command exactly, such as the page-cache drop, granted on gb10-1,
-gb10-2, and `framework` (`/usr/sbin/sysctl vm.drop_caches=3` on the GB10s, `/usr/bin/sysctl
-vm.drop_caches=3` on `framework`); framework-2 has none yet. Every session starts by bringing its hosts up to date. Every measurement
+as a sudoers rule naming that one command exactly, such as the page-cache drop, granted on all
+four hosts (`/usr/sbin/sysctl vm.drop_caches=3` on the GB10s, `/usr/bin/sysctl vm.drop_caches=3`
+on the Strix Halo hosts). Every session starts by bringing its hosts up to date. Every measurement
 records the engine version, the host's stack, and the laptop's network path to the host
 (`tailscale ping`): a DERP relay adds its round trip to TTFT and request latency, but not to
 inter-token latency or the server's own counters.
