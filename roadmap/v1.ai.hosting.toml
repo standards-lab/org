@@ -8,7 +8,7 @@ embedding; a multilingual model in place of set A's English-only embedding model
 upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the one hosting repository on
 each workstation. Runs before the capstone, which runs on the hosts and gateway it specifies.
 '''
-repos = ["ai-hosting", "architecture", "go-ai"]
+repos = ["ai-hosting", "architecture", "go-ai", "docinfer"]
 root = "ai-hosting"
 remote = "https://github.com/standards-lab/ai-hosting.git"
 path = "~/architecture/ai-hosting"
@@ -76,11 +76,10 @@ repos = ["ai-hosting", "go-ai"]
 name = "A multilingual embedding model"
 summary = '''
 Replaces set A's embedding model, granite-embedding-english-r2 (English-only), with a
-multilingual model that both the Framework's vLLM and Azure's managed compute serve,
-multilingual-e5-large first. Checks retrieval across ~/docs' languages, that docinfer's chunks
-fit in 512 tokens, and that the model doesn't degrade the Framework's audio row, by running audio
-alone and then beside embedding at load. Re-measures the embedding row, its 34 req/s limit, and
-the layout table.
+multilingual model the Framework's vLLM serves, multilingual-e5-large first. Checks retrieval
+across ~/docs' languages, that docinfer's chunks fit in 512 tokens, and that the model doesn't
+degrade the Framework's audio row, by running audio alone and then beside embedding at load.
+Re-measures the embedding row, its limit beside audio, and the layout table.
 '''
 repos = ["ai-hosting"]
 
@@ -95,7 +94,7 @@ the stream sweeps at caps 32 and 16 and a rate sweep to its ceiling, dropping th
 that protected audio. Checks every row healthy on both hosts. framework-2 stays out of `fnox.toml`
 until the later enrollment.
 '''
-repos = ["ai-hosting"]
+repos = ["ai-hosting", "go-ai", "docinfer"]
 
 [tasks.gateway]
 name = "The model gateway"
