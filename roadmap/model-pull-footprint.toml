@@ -1,0 +1,7 @@
+name = "Model pulls that store only the served weights"
+summary = '''
+`hosting model pull` downloads a model's whole repository: e5's is 9.5 GB with its ONNX and other
+exports. A pull stores only the weights the row serves, per architecture's
+`principles/minimal-footprint.md`.
+'''
+repos = ["ai-hosting"]

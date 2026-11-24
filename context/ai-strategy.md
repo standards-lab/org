@@ -130,11 +130,9 @@ open](../docs/ai-strategy.md#what-docprocs-library-left-open).
 
 ## Constraint: model origin
 
-Models of Chinese origin are avoided where an alternative serves, because of the risk of
-censorship and of hidden behavior in their weights. The constraint binds experiment.ocr,
-experiment.harness, and v1.ai. A model of Chinese origin is chosen only when no alternative
-serves, and the choice records why. A model fine-tuned from a Chinese-origin base takes its
-base's origin, whoever publishes the fine-tune.
+No model of Chinese origin is admitted, because of the risk of censorship and of hidden behavior
+in their weights. The constraint binds experiment.ocr, experiment.harness, and v1.ai. A model
+fine-tuned from a Chinese-origin base takes its base's origin, whoever publishes the fine-tune.
 
 ## Answers · experiment.ocr
 

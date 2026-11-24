@@ -34,10 +34,11 @@ For the `protocol`, `state`, and `events` tasks.
   drop. Chunks wait in blob storage, so any replica takes any chunk. Once graduated, the protocol
   moves to go-web-sdk and its browser half to web-app-sdk. The nested `client` module is tagged
   `client/vX`; consumers import it, and Cerebro imports none of them.
-- **Results.** ~/docs' 28,937 chunk lines with 768-dimension vectors come to about 200 MB. Each
-  result-batch event carries chunk records and vectors; the final event's manifest carries counts,
-  a digest, and the sequence range. The consumer de-duplicates batches through go-messaging's inbox
-  and checks completeness against the manifest.
+- **Results.** ~/docs' 28,937 chunk lines came to about 200 MB, sized with granite's
+  768-dimension vectors; e5's have 1,024. Each result-batch event carries chunk records and
+  vectors; the final event's manifest carries counts, a digest, and the sequence range. The
+  consumer de-duplicates batches through go-messaging's inbox and checks completeness against the
+  manifest.
 - **Distribution.** Inference inside a job is bounded per capability, spike-model-layout's
   capacity targets setting the defaults; a crash recovers through the result cache and the job's
   checkpoint (docinfer's `job`).
@@ -69,9 +70,9 @@ For the `athena-mapping` task: the facts from `~/s2va/athena` the mapping starts
   `pg_notify`, and the browser sees only claimed, done, and failed.
 - Chat reads `chunks` rows (vault, `<version>-<i>` id, content, page, blob key, chunk 0's summary
   and `processing_metadata`), a 1024-dimension snowflake-arctic-embed-l-v2.0 embedding, and
-  `entities` and `sparse_rows`. The workspace embeds at 768 dimensions with
-  granite-embedding-english-r2, an English-only model that v1.ai.hosting's `embedding` task
-  replaces with a multilingual one, so anything indexed with granite is re-embedded
+  `entities` and `sparse_rows`. The workspace embeds at 1,024 dimensions with
+  multilingual-e5-large, which replaced granite-embedding-english-r2, an English-only model, in
+  v1.ai.hosting's `embedding` task, so anything indexed with granite is re-embedded
   (`ai-hosting.md`, "Set A's embedding model"). Athena's registered embedding spaces carry the
   blue/green re-embed.
 - Its ingest also runs Tesseract OCR, Whisper, a summary chain, regex entities, tabular rows into

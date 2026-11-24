@@ -11,9 +11,14 @@ from experiment.hosting's five spikes. This note holds the stack they settled an
 
 - **The Framework** (`framework`): AMD Strix Halo, 128 GB of unified memory, 112 GiB of it
   reachable by the GPU as GTT.
+- **framework-2**: a second Strix Halo, set up as `framework` is.
 - **gb10-1 and gb10-2**: Dell Pro Max GB10 units (DGX Spark class), each aarch64 with an sm_121
   GPU and 128 GB of unified memory at 273 GB/s, about 121 GiB visible. A ConnectX-7 link joins
   them; no model is served across it.
+
+Each Strix Halo host keeps its model store on its second NVMe at `/srv/models`, plain ext4, and
+unlocks its LUKS root at the console or remotely, through dropbear in the initramfs, reached on
+the LAN through a host that is up (ai-hosting's `classes/strix-halo/runbook.md`, "Remote unlock").
 
 The setup scripts handle three host behaviours ([docs](../docs/ai-hosting.md#the-host-behaviours)).
 
@@ -41,14 +46,20 @@ spike-model-layout measured was two purposes on one GPU.
 | --- | --- | --- | --- | --- | --- |
 | gb10-1 | agent: openai/gpt-oss-120b, FP8 KV | `gpt-oss-120b-agent-fp8`, 0.80 | 12 × 131,072 | 4 sessions | 12 sessions |
 | gb10-2 | vision: nvidia/Gemma-4-26B-A4B-NVFP4 | `gemma-4-26B-A4B-NVFP4-vision-gb10`, 0.40 | 16 × 8,192 | 4 requests | 16 requests |
-| framework | audio: google/gemma-4-E4B-it, BF16 | `gemma-4-E4B-it-audio-framework`, 0.18 | 4 × 8,192 | 4 requests | 4, beside embedding at 34 req/s |
-| framework | embedding: ibm-granite/granite-embedding-english-r2 | `granite-embedding-english-r2-framework`, 0.03 | 128 × 8,192 | 16 streams, at most 34 req/s | knee at 16 streams |
+| framework | audio: google/gemma-4-E4B-it, BF16 | `gemma-4-E4B-it-audio-framework`, 0.18, queue limit 16 | 8 × 8,192 | 8 streams | 8 streams alone, an RTFx median of 5.32 on the LAN |
+| framework-2 | embedding: intfloat/multilingual-e5-large | `vllm-embed`, 0.03 | 16 × 512 | 16 streams, at most 78 req/s | 78 req/s at 16 streams alone |
 
 The floors are an agent inter-token latency median of at most 100 ms, a vision request latency
 median of at most 10 s, an audio RTFx median of at least 5, and embedding at 4,300 prompt tok/s or
-more. With all three hosts loaded to their targets for 240 s, every row met its floor on vLLM
-0.33.0; the hosts run 0.34.0, on which the layout is unmeasured. Unlike the GB10s, the Framework
-returns from a reboot only once its LUKS passphrase is entered at its console.
+more. Audio and embedding each run alone on their host, measured on vLLM 0.34.0 from a client on
+the LAN: audio at 8 streams held an RTFx median of 5.32 (ai-hosting's
+`docs/findings/audio.md#audio-8`), where beside granite, the earlier embedding row, it held 4.94
+(spike-model-layout `docs/findings/vllm-layout.md`, F.5); embedding's cap and limit come from its
+stream and rate sweeps (ai-hosting's `docs/findings/embedding.md#e5-lan-sweep`,
+`#e5-lan-sweep-16`, `#e5-rate-sweep`). In the earlier layout, with audio beside granite on
+`framework`, every row met its floor with all three hosts loaded to their targets for 240 s on
+vLLM 0.33.0 (spike-model-layout `docs/findings/vllm-layout.md`, J); the final layout is unmeasured
+as a whole.
 
 ## The gateway
 
@@ -56,7 +67,7 @@ agentgateway v1.7.0 fronts the rows from one compose stack on gb10-2, with Postg
 budgets and the request log. Each alias has its own base URL, `/<alias>/v1`. The gateway issues
 the consumers' keys (401 for a missing, unknown, or revoked key), routes only the eight serving
 paths, gives each key a priority, a request-rate bucket, and a token budget per UTC clock hour,
-and holds embedding to 34 requests a second with one global bucket (429, `Retry-After: 1`). Past
+and holds embedding to 78 requests a second with one global bucket (429, `Retry-After: 1`). Past
 a row's concurrency cap vLLM queues; past twice the cap the row answers 503 and the gateway evicts
 it. Cerebro (bulk) and Athena (chat) each get a key and a budget. The gateway task's inputs are
 in [docs](../docs/ai-hosting.md#the-gateway-task).
@@ -65,29 +76,25 @@ in [docs](../docs/ai-hosting.md#the-gateway-task).
 
 When a row is down or refuses, the gateway sends its alias's requests to an Azure AI Foundry
 deployment, marks the reply `x-gateway-overflow: azure`, and returns to the row once it is back.
-Nothing overflows under IL6. All four aliases overflow:
+Nothing overflows under IL6. Three aliases overflow:
 
 - **agent** to `gpt-oss-120b`, processed within the data zone;
-- **vision** to `gpt-5-mini`, processed globally;
+- **vision** to `gpt-5-mini`, processed globally; and
 - **audio** to `gpt-audio-mini` on Chat Completions, processed globally. It has two known
-  refusals: a text-only chat, and audio inside a Responses request, which the gateway refuses;
-- **embedding** to the `embedding` task's model on Foundry managed compute, enabled only once the
-  Framework's and Azure's vectors for the same input reach cosine ≥ 0.999.
+  refusals: a text-only chat, and audio inside a Responses request, which the gateway refuses.
+
+Embedding has no cloud fallback: it routes only to the self-hosted row.
 
 `text-embedding-3-small` stays deployed but is never routed: its vectors are in another space.
 
 ## Set A's embedding model
 
-Set A embeds with granite-embedding-english-r2 (IBM, Apache-2.0, 768 dimensions), chosen because
-vLLM couldn't serve EmbeddingGemma 2 on the GB10's SM121. It is English-only; ~/docs is
-multilingual.
-
-The `embedding` task (planned) replaces it with a multilingual model that both the Framework's
-vLLM and Foundry managed compute serve, trying multilingual-e5-large (MIT, XLM-R base) first. The
-model must hold retrieval across ~/docs' languages, fit docinfer's chunks in 512 tokens, and leave
-the Framework's audio row at its floor. A Chinese-origin candidate runs only if
-multilingual-e5-large fails, with the reason recorded (`ai-strategy.md`, "Constraint: model
-origin"). Anything indexed with granite is re-embedded, docinfer's embeddings among them.
+Set A embeds with multilingual-e5-large (Microsoft, MIT, 1,024 dimensions, a 512-token context),
+which replaced granite-embedding-english-r2, an English-only model; ~/docs is multilingual. Callers
+prefix a query with `query: ` and a stored passage with `passage: `. Served on vLLM, it scored
+within 0.02 nDCG@10 of its published score on all 37 BelebeleRetrieval subsets (ai-hosting's
+`docs/findings/embedding.md#e5-retrieval`). Anything indexed with granite is re-embedded,
+docinfer's embeddings among them.
 
 ## The audio role transcribes over chat
 
