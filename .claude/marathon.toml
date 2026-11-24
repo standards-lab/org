@@ -30,7 +30,7 @@ order = [
   [
     "claude-plugins",
     "ai-hosting",
-    "corpus-docs",
+    "docs-corpus",
   ],
   [
     "go-core",

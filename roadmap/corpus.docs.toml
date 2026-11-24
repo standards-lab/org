@@ -1,53 +1,55 @@
 name = "The ~/docs corpus"
 summary = '''
-~/docs becomes corpus-docs: a curated corpus whose every sample exercises a scenario in the
-underlying libraries that no other sample covers, versioned by git tag in a private Git LFS
-repository, shared to the model hosts, with a baseline run for capstone.data-intelligence.
+~/docs inspires docs-corpus: a curated public corpus whose every sample exercises a scenario in
+the underlying libraries that no other sample covers, with its files published as release assets
+on each version's tag, shared to the model hosts, and run as capstone.data-intelligence's
+baseline. Once v1's reruns repoint the acceptance citations, ~/docs is removed.
 '''
-repos = ["corpus-docs"]
-root = "corpus-docs"
+repos = ["docs-corpus"]
+root = "docs-corpus"
 order = ["review", "curate", "snapshot", "baseline"]
 criteria = [
-  "corpus-docs holds v1 in Git LFS, tagged, and its check passes over it.",
+  "docs-corpus v1 is tagged with its release assets, and its check passes over it.",
   "Every sample in v1 exercises a library scenario no other sample covers.",
-  "~/docs is a clone of corpus-docs at v1, and gb10-2 holds a verified clone.",
-  "docproc's and docinfer's runs over v1 are recorded as the capstone's baseline.",
+  "gb10-2 holds a verified fetch of v1.",
+  "docproc's and docinfer's runs over v1 are the capstone's baseline, their acceptance cites v1, and ~/docs is removed.",
 ]
 
 [tasks.review]
 name = "Coverage review"
 summary = '''
-A coverage page in corpus-docs mapping each scenario the underlying libraries exercise (docproc,
-docinfer, go-ai, and the capstone's Cerebro and Athena) to the ~/docs samples that exercise it.
-Normalizes `covers` to a fixed vocabulary, lists the samples whose scenarios another covers
-(trim), and the scenarios no sample covers (gaps), each gap with a source or a generating command
-and its license. Sourced or generated alike, judged on quality and fit; never hand-built.
+A coverage data file and page in docs-corpus mapping the scenarios docproc and docinfer exercise
+to the ~/docs samples that exercise them, on three axes: library IDs, traits, and features. Each
+sample is adopted, trimmed, or replaced; only redistributable samples are adopted; and every gap
+names a verified candidate, sourced or generated, never hand-built. Cerebro and Athena add no
+scenarios until their design tasks close.
 '''
 proof = "The page places or trims every ~/docs sample, and names a candidate for every gap."
 
 [tasks.curate]
 name = "The curated set"
 summary = '''
-Builds the curated set beside ~/docs, which stays untouched: applies the review's trims, adds the
-sourced and generated samples with their truth and manifest entries, redacts the hosts and IPs in
-`text/txt/ssh-session-log.txt`, and sets `version = 1` in MANIFEST.json.
+Builds the set in docs-corpus from the review's adopt list and gap candidates, sourced or
+generated, with their truth, their manifest entries, `covers` in the review's vocabulary, and
+`version = 1` in MANIFEST.json, and adds the fetch step that verifies release assets against the
+manifest's sha256.
 '''
-proof = "corpus-docs' check passes over the curated set, with no duplicate scenarios."
+proof = "docs-corpus' check passes over the curated set, with no duplicate scenarios."
 
 [tasks.snapshot]
 name = "Snapshot v1"
 summary = '''
-Once v1.ai.inference's acceptance ships, imports the curated set into corpus-docs with Git LFS
-and tags v1, clones and verifies it on gb10-2, and replaces ~/docs with a clone at v1. Pending
-edits repoint docproc's and docinfer's acceptance citations to corpus-docs v1, and write the
-coordinator's `context/corpus-docs.md`.
+Tags v1, publishes one release asset per format area (each under 2 GiB), makes docs-corpus
+public, and verifies a fetch on gb10-2. A pending edit writes the coordinator's
+`context/docs-corpus.md`.
 '''
-proof = "A fresh clone at v1 on gb10-2 passes the check."
+proof = "A fresh fetch at v1 on gb10-2 passes the check."
 
 [tasks.baseline]
 name = "The capstone's baseline"
 summary = '''
-Runs `docproc` and `docinfer` over v1 through v1.ai.hosting's hosts and records the timings and
-counts in corpus-docs as the reference capstone.data-intelligence measures against; a pending
-edit replaces data-intelligence.md's 6.0 h and 3.1 s baseline.
+Runs `docproc` and `docinfer` over v1 through v1.ai.hosting's hosts, records the timings and
+counts in docs-corpus as the reference capstone.data-intelligence measures against, repoints
+docproc's and docinfer's acceptance citations to v1, and removes ~/docs. A pending edit replaces
+data-intelligence.md's 6.0 h and 3.1 s baseline.
 '''
