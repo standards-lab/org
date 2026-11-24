@@ -92,9 +92,10 @@ name = "Acceptance of docinfer"
 summary = '''
 Reruns `cmd/docinfer` over v1.ai.processing's accepted ~/docs run, and docinfer's model tiers, and
 fixes what it finds, never redesigning (moved from v1.ai.processing's `acceptance`); it also
-exercises extraction against the live gateway. The accepted run is the one v1.ai.processing's
-`final` task kept, at `~/runs/docproc/final`, run id `01a208e5-e581-7b95-b43a-0f91f8d3b40e`
-(docproc's docs/acceptance.md, "The ~/docs run"). The spike's run is the baseline: 3,470 images,
-1,254 windows, and 28,937 chunk lines in 6.0 h, with 0 failures. Whether it runs through the
-gateway or straight against the workstations' rows is its own plan's.
+exercises extraction against the live gateway (before `gateway` ships, the rows: agent gb10-1:8000,
+vision gb10-2:8001, audio framework:8002, embedding framework-2:8003). The accepted run is the one
+v1.ai.processing's `final` task kept, at `~/runs/docproc/final`, run id
+`01a208e5-e581-7b95-b43a-0f91f8d3b40e` (docproc's docs/acceptance.md, "The ~/docs run"). The spike's
+run is the baseline: 3,470 images, 1,254 windows, and 28,937 chunk lines in 6.0 h, with 0 failures.
+Whether it runs through the gateway or straight against the workstations' rows is its own plan's.
 '''

@@ -55,4 +55,5 @@ backlog = [
   "color-profiles-extension",
   "octicons-bump",
   "web-client-backlog",
+  "model-pull-footprint",
 ]

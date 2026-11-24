@@ -48,10 +48,10 @@ ConnectX-7 carries about 185 Gb/s of RDMA. Three host behaviours shape the setup
 - **Binding the Tailscale address at boot.** A container that publishes a port on the host's
   Tailscale address races Tailscale at boot: docker's start fails ("cannot assign requested
   address"), leaving the container on no network, and a later `docker start` runs it with no
-  published port. All three hosts set `net.ipv4.ip_nonlocal_bind = 1` persistently, so the bind
-  succeeds first: the GB10s in `/etc/sysctl.d/90-nonlocal-bind.conf`, the Framework in
-  `60-tailnet-bind.conf`. `docker network connect bridge <container>` fixes a container already
-  stranded.
+  published port. All four hosts set `net.ipv4.ip_nonlocal_bind = 1` persistently, so the bind
+  succeeds first: the GB10s and framework-2 in `/etc/sysctl.d/90-nonlocal-bind.conf`, the
+  Framework in `60-tailnet-bind.conf`. `docker network connect bridge <container>` fixes a
+  container already stranded.
 
 ## The goal's coordination
 
@@ -64,27 +64,27 @@ ConnectX-7 carries about 185 Gb/s of RDMA. Three host behaviours shape the setup
 - **A stranded container.** Beyond the nonlocal bind ("The host behaviours"), the update script
   can detect a running container with no published port, or no network, and print the fix,
   `docker network connect bridge <container>`, instead of waiting out its health check.
-- **The Framework's LUKS unlock.** Its root is LUKS-encrypted, so it returns from a reboot only
-  after a person enters the passphrase at its console, and it can't be rebooted remotely or
-  unattended as the GB10s can. How it unlocks is the architect's security decision: TPM2
-  enrollment or a keyfile (no person), or SSH in the initramfs (remote) (spike-model-layout
-  `docs/findings/vllm-layout.md`, I.4 and N.3).
+- **The Framework's LUKS unlock.** Decided: each Strix Halo host unlocks its LUKS root at the
+  console or remotely, through dropbear in the initramfs, reached on the LAN through a host that
+  is up (`context/ai-hosting.md`, "The hosts"; ai-hosting's `classes/strix-halo/runbook.md`,
+  "Remote unlock"). TPM2 auto-unlock and Tailscale in the initramfs were rejected there.
 - **The Framework's GTT and memory floors.** The GTT ceiling is 112 GiB (`ttm.pages_limit`
   29,360,128, set by spike-model-engines' setup); the deprecated amdgpu `gttsize` option is unset.
   The BIOS VRAM carve-out is 512 MiB. The system's 12.5 GiB floor binds before GTT's
   (capability-vllm, at 0.81 of GTT). The Framework stays on Omarchy with Hyprland by the
   architect's choice, over headless Ubuntu Server.
 - **Model stores.** Each host's store holds only the models its rows serve: gb10-1
-  `openai/gpt-oss-120b`, gb10-2 `nvidia/Gemma-4-26B-A4B-NVFP4`, and the Framework
-  `google/gemma-4-E4B-it` and `ibm-granite/granite-embedding-english-r2` (spike-model-layout
-  `docs/findings/framework.md`, A; `docs/findings/vllm-layout.md`, G.4 and H).
+  `openai/gpt-oss-120b`, gb10-2 `nvidia/Gemma-4-26B-A4B-NVFP4`, `framework`
+  `google/gemma-4-E4B-it`, and framework-2 `intfloat/multilingual-e5-large` (spike-model-layout
+  `docs/findings/framework.md`, A; `docs/findings/vllm-layout.md`, G.4 and H; ai-hosting's
+  `classes/strix-halo/profile.toml`).
 - **The vLLM guides.** spike-model-engines' guides (`docs/engines/vllm/`) describe v0.32.0 and one
   `vllm` container on port 8000. They don't cover a row's own container, port, and image
   (4ad76e6), `VLLM_ROCM_BUILD` and the `-rocm72` fallback, building the Framework's audio image,
   or the Framework's ufw route rules for ports 8001 and 8002, and they list none of the standing
   rows or their caps: `gpt-oss-120b-agent-fp8` (12) and `gpt-oss-120b-agent` (8) on gb10-1,
-  `gemma-4-26B-A4B-NVFP4-vision-gb10` (16), `gemma-4-E4B-it-audio-framework` (4), and
-  `granite-embedding-english-r2-framework` (128, 65,536 batched tokens). `api.md`'s examples
+  `gemma-4-26B-A4B-NVFP4-vision-gb10` (16), `gemma-4-E4B-it-audio-framework` (8), and the
+  embedding row on framework-2, `vllm-embed` (16, 65,536 batched tokens). `api.md`'s examples
   send the Hugging Face repository as `"model"`, while each standing row serves only its alias;
   `models.md`, "The rows", lists the four rows with their queue limits and scheduling policy
   (#19, 683b78e).
@@ -109,15 +109,11 @@ ConnectX-7 carries about 185 Gb/s of RDMA. Three host behaviours shape the setup
 
 ~/docs holds text in Bulgarian, Greek, Polish, Arabic, Hebrew, Japanese, Russian, and Chinese, and
 audio in nine languages; its report lists "embeddings and search across languages" as a purpose.
-Azure's Hugging Face registry (Foundry managed compute) offers multilingual-e5-large (MIT, XLM-R
-base, GPU SKU), and the Chinese-origin Qwen3-Embedding-0.6B, bge-m3, and gte-multilingual-base; it
-lacks granite-embedding-278m/107m-multilingual, embeddinggemma-300m, and
-multilingual-e5-large-instruct. multilingual-e5-large's scope and price on Foundry are in
-`ai-hosting/context/foundry-overflow.md`.
+Embedding has no cloud fallback: multilingual-e5-large on Foundry managed compute was rejected,
+and embeddings route only to self-hosted rows (`ai-hosting/context/gateway.md`).
 
-No benchmark scenario covers embedding in spike-hosting-upgrades' `bench/`, and
-spike-model-layout's `bench/levels.jq` `client` mode stops with a jq error on an embedding
-result, whose requests carry no first-chunk time.
+ai-hosting's `bench/` carries the embedding scenarios, and its `levels.jq` reads embedding results
+(`ai-hosting/bench/README.md`).
 
 ## The `gateway` task
 
@@ -151,12 +147,11 @@ the gateway plan"; what follows is the evidence beside them.
   the fallback (`docs/gateway.md`, "Priority's gaps").
 - **Embedding overflow.** Every Azure-answered reply carries an overflow marker
   (`x-gateway-overflow: azure`). The spike gave embedding no Azure group, since
-  text-embedding-3-small's replies come from another vector space. A client that stores vectors
-  refuses or re-routes a marked reply from a model whose vectors don't match the row's
-  (`docs/gateway.md`, requirements 8 and 9); acceptance's vector-parity cell gates embedding's
-  overflow.
-- **Embedding past its limit.** spike-model-layout's `docs/layout.md` requirement 3 says traffic
-  past embedding's 34 req/s limit "queues or overflows"; agentgateway answers it with 429 and
+  text-embedding-3-small's replies come from another vector space, and embedding keeps none: it
+  has no cloud fallback.
+- **Embedding past its limit.** Embedding's limit is 78 req/s (ai-hosting's
+  `docs/findings/embedding.md#e5-rate-sweep`). spike-model-layout's `docs/layout.md` requirement 3
+  says traffic past the limit "queues or overflows"; past it the gateway answers 429 and
   `Retry-After: 1` instead, and the client waits (`docs/gateway.md`, requirement 6).
 - **Priority's gaps.** vLLM's queue limit counts every key alike, so a bulk flood also refuses
   interactive requests, which then overflow. Under saturation a row's 503 with eviction sends
@@ -218,8 +213,9 @@ From spike-hosting-upgrades and spike-model-layout:
   lowest against its 12.2 GiB floor; its compiling start dips to 11.39 GiB. gb10-1's spike
   descriptor says gb10-2 is reserved for spike-ai-pipeline. gb10-2 has no descriptor: vision
   alone (4 requests, 16 at most), with the hosts task's within-session spread on gb10-2 (output
-  tok/s: A 2.37%, B 0.52%) as its first run-noise figure. The Framework serves audio (4
-  requests, 4 at most) and embedding (16 streams, admitted at up to 34 requests a second).
+  tok/s: A 2.37%, B 0.52%) as its first run-noise figure. `framework` serves audio alone (8
+  streams, 8 at most), and framework-2 serves embedding alone (16 streams, at most 78 requests a
+  second).
 - **The convention's measurements.** It was measured on llama.cpp hosts only. The weekly cadence
   has never run, the measure mode has run once, as a settings check, and no register entry has
   reached "cleared on the host".
@@ -237,8 +233,9 @@ From experiment.hosting's intake:
   −10.7 to +1.6 points, so a loss of up to about 10 points isn't excluded. Calibration or a
   larger set would narrow it (spike-model-layout `docs/findings/vllm-layout.md`, C.5 and N.1).
 - **Vision's load from streamed video** is unmeasured: every vision cell sent image questions.
-- **Audio has no headroom** above its target of 4; 8 streams beside embedding at 8.4 requests a
-  second is untested. Sessions of 131,072 tokens are computed from the KV cache, not run.
+- **Audio has no headroom**: it runs alone on `framework` at its cap of 8, with an RTFx median of
+  5.32 on the LAN against its floor of 5 (ai-hosting's `docs/findings/audio.md#audio-8`).
+  Sessions of 131,072 tokens are computed from the KV cache, not run.
 - **Benchmarks over the network.** Production clients sit on the same direct network as the GPUs,
   so the layout is sized on LAN figures. A cell run from the laptop over a Tailscale relay carries
   the relay's trip in its client-side figures (TTFT, request latency, RTFx), about 0.4 s for a 6 s
@@ -269,8 +266,8 @@ From experiment.hosting's intake:
 Sessions do on any host whatever needs no sudo, the docker group included; root stays the
 architect's, run from exact commands. The architect may grant a root command a session must repeat
 as a sudoers rule naming that one command exactly, such as the page-cache drop, granted on all
-three hosts (`/usr/sbin/sysctl vm.drop_caches=3` on the GB10s, `/usr/bin/sysctl vm.drop_caches=3`
-on the Framework). Every session starts by bringing its hosts up to date. Every measurement
+four hosts (`/usr/sbin/sysctl vm.drop_caches=3` on the GB10s, `/usr/bin/sysctl vm.drop_caches=3`
+on the Strix Halo hosts). Every session starts by bringing its hosts up to date. Every measurement
 records the engine version, the host's stack, and the laptop's network path to the host
 (`tailscale ping`): a DERP relay adds its round trip to TTFT and request latency, but not to
 inter-token latency or the server's own counters.

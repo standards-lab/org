@@ -2,13 +2,13 @@ name = "The ai-hosting specification repository"
 summary = '''
 Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
 container, laid out as agent on gb10-1, vision on gb10-2, audio on the Framework, and embedding
-on framework-2; agentgateway's compose stack on gb10-2 in front of them, with gateway keys, priority, budgets, and overflow to
-Azure AI Foundry on all four aliases; a multilingual model in place of set A's English-only
-embedding model; and the upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the
-one hosting repository on each workstation. Runs before the capstone, which runs on the hosts and
-gateway it specifies.
+on framework-2; agentgateway's compose stack on gb10-2 in front of them, with gateway keys,
+priority, budgets, and overflow to Azure AI Foundry for agent, vision, and audio, never
+embedding; a multilingual model in place of set A's English-only embedding model; and the
+upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the one hosting repository on
+each workstation. Runs before the capstone, which runs on the hosts and gateway it specifies.
 '''
-repos = ["ai-hosting", "architecture"]
+repos = ["ai-hosting", "architecture", "go-ai", "docinfer"]
 root = "ai-hosting"
 remote = "https://github.com/standards-lab/ai-hosting.git"
 path = "~/architecture/ai-hosting"
@@ -20,7 +20,6 @@ order = [
   "embedding",
   "framework-2",
   "gateway",
-  "cleanup",
   "upgrades",
   "acceptance",
   "architecture",
@@ -63,58 +62,50 @@ repos = ["ai-hosting"]
 [tasks.migrate]
 name = "The hosts moved onto ai-hosting"
 summary = '''
-Moves gb10-1, gb10-2, and the Framework off their spike-model-engines clones onto ai-hosting:
-clones it, links the `hosting` suite, runs each class runbook's root steps with the architect,
-replaces each spike row container with `hosting engine install`, removing only what it
-replaces, and repoints the spike gateway's vision, audio, and embedding routes to their new
-ports. Checks every row healthy, `engine status` clean, and `engine update` a no-op. Settled at
-its plan: where ai-hosting is cloned on gb10-1 and the Framework.
+Moves gb10-1, gb10-2, and the Framework off their spike-model-engines clones onto ai-hosting: clones
+it, links the `hosting` suite, runs each class runbook's root steps with the architect, replaces
+each spike row container with `hosting engine install`, and retires the spike gateway. Checks every
+row healthy, `engine status` clean, and `engine update` a no-op. Then leaves ai-hosting as each
+workstation's only hosting repository and script infrastructure: removes every spike clone, gb10-2's
+`~/gateway`, spike-ai-pipeline's host clone and router, personal-agents' `outpost` links, and the
+images, units, and sudoers rules no `hosting` command created.
 '''
-repos = ["ai-hosting"]
+repos = ["ai-hosting", "go-ai"]
 
 [tasks.embedding]
 name = "A multilingual embedding model"
 summary = '''
 Replaces set A's embedding model, granite-embedding-english-r2 (English-only), with a
-multilingual model that both the Framework's vLLM and Azure's managed compute serve,
-multilingual-e5-large first. Checks retrieval across ~/docs' languages, that docinfer's chunks
-fit in 512 tokens, and that the model doesn't degrade the Framework's audio row, by running audio
-alone and then beside embedding at load. A Chinese-origin candidate runs only if e5 fails, with
-the reason recorded. Re-measures the embedding row, its 34 req/s limit, and the layout table.
+multilingual model the Framework's vLLM serves, multilingual-e5-large first. Checks retrieval
+across ~/docs' languages, that docinfer's chunks fit in 512 tokens, and that the model doesn't
+degrade the Framework's audio row, by running audio alone and then beside embedding at load.
+Re-measures the embedding row, its limit beside audio, and the layout table.
 '''
+repos = ["ai-hosting"]
 
 [tasks.framework-2]
 name = "Embedding on its own host"
 summary = '''
-Opens with the claude-plugins pin's upgrade slice. Brings framework-2, a second Strix Halo with
-LUKS and a console unlock, onto ai-hosting by the strix-halo runbook; moves the embedding row
-there and removes it from the Framework, which serves audio alone with its cap raised to 8 at
-fraction 0.18. Re-measures embedding alone on framework-2, the cap-32 sweep and a rate sweep to
-its own ceiling, dropping the 14 req/s limit that protected audio. Checks every row healthy on
-both hosts. framework-2 stays out of `fnox.toml` until the later enrollment.
+Opens with the claude-plugins pin's upgrade slice. Brings framework-2, a second Strix Halo with LUKS
+unlocked at the console or remotely, onto ai-hosting by the strix-halo runbook; moves each Strix
+Halo host's model store onto its second NVMe; moves the embedding row to framework-2 and leaves the
+Framework serving audio alone at cap 8, fraction 0.18. Re-measures embedding alone on framework-2,
+the stream sweeps at caps 32 and 16 and a rate sweep to its ceiling, dropping the 14 req/s limit
+that protected audio. Checks every row healthy on both hosts. framework-2 stays out of `fnox.toml`
+until the later enrollment.
 '''
-repos = ["ai-hosting"]
+repos = ["ai-hosting", "go-ai", "docinfer"]
 
 [tasks.gateway]
 name = "The model gateway"
 summary = '''
-agentgateway's compose stack on gb10-2: gateway keys, priority, budgets, embedding's rate bucket,
-LGTM telemetry, and path hardening. Overflow goes to Azure for all four aliases: agent to
-gpt-oss-120b, vision to gpt-5-mini, audio to gpt-audio-mini on Chat Completions (refusing a
-text-only chat and audio inside a Responses request), and embedding to the `embedding` task's
-model on Foundry managed compute. Settled at its plan: the `/models` root, route `ai` or `llm`,
-admission on `/metrics`, a cap on bulk concurrency, a sliding budget window, authenticated OTLP,
-and where `key issue` writes keys (`ai-hosting/context/gateway.md`, "Open at the gateway plan").
-'''
-
-[tasks.cleanup]
-name = "ai-hosting alone on the workstations"
-summary = '''
-Leaves ai-hosting as the only hosting repository and script infrastructure on each workstation:
-removes every spike clone (spike-model-engines and the rest), gb10-2's `~/gateway`,
-spike-ai-pipeline's host clone and router, personal-agents' `outpost` links, and the images,
-units, and sudoers rules no `hosting` command created, from `ai-hosting/context/cleanup.md`'s
-inventory. Checks each host afterward holds only ai-hosting and what its commands installed.
+agentgateway's compose stack on gb10-2, started with no spike gateway there: gateway keys, priority,
+budgets, embedding's rate bucket, LGTM telemetry, and path hardening. Overflow goes to Azure for
+agent, vision, and audio only; embedding is self-hosted only. It owns the off-LAN path: client
+timeouts sized for a relayed tailnet path, and a Tailscale peer relay on a home host. Settled at its
+plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk concurrency, a
+sliding budget window, authenticated OTLP, and where `key issue` writes keys
+(`ai-hosting/context/gateway.md`, "Open at the gateway plan").
 '''
 
 [tasks.upgrades]
@@ -128,9 +119,10 @@ The skill stays in ai-hosting's `.claude/` until v1.harness makes it a plugin.
 [tasks.acceptance]
 name = "Acceptance of the hosting stack"
 summary = '''
-Reruns the standing layout cell on vLLM 0.34, and go-ai's and docinfer's tiers through the
-gateway. Adds an overflow cell for each alias, and a vector-parity cell: the Framework's and
-Azure's embeddings must reach cosine ≥ 0.999 before embedding's overflow is enabled. Fixes what it
+Reruns the standing layout cell on vLLM 0.34, and go-ai's and docinfer's tiers through the gateway.
+Judges audio's floor, an RTFx median of at least 5, with audio alone on `framework` at its cap of 8,
+on a direct path. Adds an overflow cell for each of the three aliases that overflow, and an off-LAN
+cell per alias from a client on the DERP relay, which passes only with zero errors. Fixes what it
 finds, never redesigning.
 '''
 
