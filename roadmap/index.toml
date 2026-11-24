@@ -4,10 +4,10 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "corpus.docs",
+  "v1.data.extensions",
 ]
 
 planned = [
-  "v1.data.extensions",
   "docproc-coverage",
   "capstone.data-intelligence",
   "sites.status-reports",

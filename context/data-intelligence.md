@@ -121,7 +121,8 @@ sites.status-reports and sites.training. Before it:
   v1.ai.inference builds docinfer on go-ai's released library, closed by acceptance that reruns
   the real workloads.
 - v1.client.stack built the web client stack the UI builds on.
-- v1.data.extensions lands the Postgres-extension strategy.
+- v1.data.extensions builds the Postgres-extension layer and pgvector's modules
+  (`postgres-extensions.md`).
 
 It needs no harness: its model calls go through go-ai's client, whose Open Responses protocol and
 wire-format packages reach every engine. Its repos gain docproc and the libraries the intakes
@@ -137,7 +138,7 @@ Carried from spike-ai-pipeline, which keeps the rest of its evidence:
    each stage as it runs.
 8. The client runs unchanged through spike-model-gateway's gateway.
 10. pgvector as a declared native-tier extension: its install, migration, image pin, and the
-    packages allowed to use it. v1.data.extensions designs the strategy from these terms, since no
+    packages allowed to use it. v1.data.extensions builds it to `postgres-extensions.md`, since no
     spike ran pgvector.
 15. The browser's consumption of the event sequence, NATS over WebSocket against a backend relay,
     compared on latency, ordering, auth, ports, and native-tier use, on Athena's stream only.

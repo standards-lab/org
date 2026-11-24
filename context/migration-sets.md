@@ -21,7 +21,8 @@ carries no checksum column of its own. From v1.0, a breaking schema change is a 
 library; before it, a minor release whose changelog marks the break. No Postgres schema per set: `sqlate`'s migration catalog targets engines where a schema is
 a whole separate database, so a schema-qualified statement would not be portable and a foreign key
 across schemas would fail. `blobfs` is the first shipper of a set under this model; `go-auth` is the
-second.
+second. A shipped set declares no Postgres extension; only the application does
+(`postgres-extensions.md`).
 
 ## How a consumer adopts a set
 
