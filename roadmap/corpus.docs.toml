@@ -1,8 +1,53 @@
 name = "The ~/docs corpus"
 summary = '''
-Reviews `~/docs`: what it holds, guidelines for how it changes, and how it is shared as a resource
-outside git, since it is too large for a repository. v1.ai.processing's acceptance measured
-~/docs as it stands. It has no repos, so it touches only the coordinator's context and has no
-record.
+~/docs becomes corpus-docs: a curated corpus whose every sample exercises a scenario in the
+underlying libraries that no other sample covers, versioned by git tag in a private Git LFS
+repository, shared to the model hosts, with a baseline run for capstone.data-intelligence.
 '''
-repos = []
+repos = ["corpus-docs"]
+root = "corpus-docs"
+order = ["review", "curate", "snapshot", "baseline"]
+criteria = [
+  "corpus-docs holds v1 in Git LFS, tagged, and its check passes over it.",
+  "Every sample in v1 exercises a library scenario no other sample covers.",
+  "~/docs is a clone of corpus-docs at v1, and gb10-2 holds a verified clone.",
+  "docproc's and docinfer's runs over v1 are recorded as the capstone's baseline.",
+]
+
+[tasks.review]
+name = "Coverage review"
+summary = '''
+A coverage page in corpus-docs mapping each scenario the underlying libraries exercise (docproc,
+docinfer, go-ai, and the capstone's Cerebro and Athena) to the ~/docs samples that exercise it.
+Normalizes `covers` to a fixed vocabulary, lists the samples whose scenarios another covers
+(trim), and the scenarios no sample covers (gaps), each gap with a source or a generating command
+and its license. Sourced or generated alike, judged on quality and fit; never hand-built.
+'''
+proof = "The page places or trims every ~/docs sample, and names a candidate for every gap."
+
+[tasks.curate]
+name = "The curated set"
+summary = '''
+Builds the curated set beside ~/docs, which stays untouched: applies the review's trims, adds the
+sourced and generated samples with their truth and manifest entries, redacts the hosts and IPs in
+`text/txt/ssh-session-log.txt`, and sets `version = 1` in MANIFEST.json.
+'''
+proof = "corpus-docs' check passes over the curated set, with no duplicate scenarios."
+
+[tasks.snapshot]
+name = "Snapshot v1"
+summary = '''
+Once v1.ai.inference's acceptance ships, imports the curated set into corpus-docs with Git LFS
+and tags v1, clones and verifies it on gb10-2, and replaces ~/docs with a clone at v1. Pending
+edits repoint docproc's and docinfer's acceptance citations to corpus-docs v1, and write the
+coordinator's `context/corpus-docs.md`.
+'''
+proof = "A fresh clone at v1 on gb10-2 passes the check."
+
+[tasks.baseline]
+name = "The capstone's baseline"
+summary = '''
+Runs `docproc` and `docinfer` over v1 through v1.ai.hosting's hosts and records the timings and
+counts in corpus-docs as the reference capstone.data-intelligence measures against; a pending
+edit replaces data-intelligence.md's 6.0 h and 3.1 s baseline.
+'''
