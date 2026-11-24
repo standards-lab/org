@@ -86,8 +86,8 @@ remote = "https://github.com/standards-lab/docinfer.git"
 [repos.ai-hosting]
 remote = "https://github.com/standards-lab/ai-hosting.git"
 
-[repos.corpus-docs]
-remote = "https://github.com/standards-lab/corpus-docs.git"
+[repos.docs-corpus]
+remote = "https://github.com/standards-lab/docs-corpus.git"
 
 [repos.web-tooling]
 remote = "https://github.com/standards-lab/web-tooling.git"
