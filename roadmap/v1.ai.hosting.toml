@@ -3,7 +3,7 @@ summary = '''
 Builds `ai-hosting` from experiment.hosting's five spikes: vLLM on every host, one model to each
 container, laid out as agent on gb10-1, vision on gb10-2, audio on the Framework, and embedding
 on framework-2; agentgateway's compose stack on gb10-2 in front of them, with gateway keys,
-priority, budgets, and overflow to Azure AI Foundry for agent, vision, and audio, never
+priority, and overflow to Azure AI Foundry for agent, vision, and audio, never
 embedding; a multilingual model in place of set A's English-only embedding model; and the
 upgrade-evaluation convention rebuilt on vLLM. ai-hosting becomes the one hosting repository on
 each workstation. Runs before the capstone, which runs on the hosts and gateway it specifies.
@@ -101,9 +101,7 @@ name = "The model gateway"
 summary = '''
 agentgateway's compose stack on gb10-2, started with no spike gateway there: gateway keys, priority,
 budgets, embedding's rate bucket, LGTM telemetry, and path hardening. Overflow goes to Azure for
-agent, vision, and audio only; embedding is self-hosted only. It owns the off-LAN path: client
-timeouts sized for a relayed tailnet path, and a Tailscale peer relay on a home host. Settled at its
-plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk concurrency, a
+agent, vision, and audio only; embedding is self-hosted only. Settled at its plan: the `/models` root, route `ai` or `llm`, admission on `/metrics`, a cap on bulk concurrency, a
 sliding budget window, authenticated OTLP, and where `key issue` writes keys
 (`ai-hosting/context/gateway.md`, "Open at the gateway plan").
 '''
@@ -111,27 +109,35 @@ sliding budget window, authenticated OTLP, and where `key issue` writes keys
 [tasks.upgrades]
 name = "The upgrade-evaluation convention on vLLM"
 summary = '''
-Rebuilds spike-hosting-upgrades' convention and its `hosting-upgrades` skill on vLLM, with a host
-descriptor for each of the four hosts, their purposes and load targets taken from the layout.
-The skill stays in ai-hosting's `.claude/` until v1.harness makes it a plugin.
+Rebuilds spike-hosting-upgrades' convention, policy, and `hosting-upgrades` skill (setup, survey,
+measure) on vLLM in ai-hosting alone, with a descriptor for each of the four hosts, its purposes and
+load targets taken from the current layout: agent 4, vision cap 4, audio cap 32, embedding 16.
+Measure runs engine moves and settings checks as bench cells, each level on its own over distinct
+inputs from a restarted row, reading the cache counters. Screening a model's agent tiers stays with
+`model-evaluation`. The skill stays in `.claude/` until v1.harness makes it a plugin.
 '''
+repos = ["ai-hosting"]
 
 [tasks.acceptance]
 name = "Acceptance of the hosting stack"
 summary = '''
-Reruns the standing layout cell on vLLM 0.34, and go-ai's and docinfer's tiers through the gateway.
-Judges audio's floor, an RTFx median of at least 5, with audio alone on `framework` at its cap of 8,
-on a direct path. Adds an overflow cell for each of the three aliases that overflow, and an off-LAN
-cell per alias from a client on the DERP relay, which passes only with zero errors. Fixes what it
-finds, never redesigning.
+Closes the gaps left after the rows' tuning (`docs/findings/`), not re-tuning them. Re-measures
+vision at 1120 on docinfer's dense pages and audio on its real windows, each level on its own over
+distinct inputs, sets cap and queue limit to the throughput peak, and moves `measured_vllm` to
+v0.34.0. Proves bulk priority and the chat buckets with a bulk key. Removes the gateway's key
+budgets and the unrouted Azure embedding deployment. Raises the overflow capacities, adds an Azure
+budget alert, and records both. Reruns the layout cell, go-ai's and docinfer's tiers, and an
+overflow cell per alias, fixing what it finds.
 '''
+repos = ["ai-hosting", "go-ai", "docinfer"]
 
 [tasks.architecture]
 name = "The hosting method pages in the architecture"
 summary = '''
-Writes four method pages on its own branch in architecture: reading a model card (from
-spike-model-hosting's `docs/model-cards.md`), tool-call reliability (from its
-`docs/findings/tool-reliability.md`), sizing a vLLM row, and the placement rule. The architect
-frees the architecture lock before it merges.
+Closes the goal. Writes four method pages on its own branch in architecture: reading a model card
+(from spike-model-hosting's `docs/model-cards.md`), tool-call reliability (from its
+`docs/findings/tool-reliability.md`), sizing a vLLM row, and the placement rule. Closes
+ai-hosting's remaining open notes, and readies the goal record's pending edits for the sync, which
+archives the spike repositories. The architect frees the architecture lock before it merges.
 '''
-repos = ["architecture"]
+repos = ["architecture", "ai-hosting"]
