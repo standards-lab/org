@@ -4,7 +4,6 @@ active = [
   "v1.ai.inference",
   "v1.ai.hosting",
   "corpus.docs",
-  "v1.data.extensions",
   "docproc-coverage",
 ]
 
@@ -30,6 +29,8 @@ backlog = [
   "v1.observability",
   "v1.harness",
   "sqlate-past-last-total",
+  "sqlate-test-tier",
+  "sqlate-extension-match",
   "organization-image-active",
   "second-providers",
   "dotnet-mirror",

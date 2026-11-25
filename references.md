@@ -100,7 +100,8 @@ packages. Released; depends on the standard library alone.
 ### [go-database](https://github.com/standards-lab/go-database)
 The SQL infrastructure library of the `go-elemental` standard: the infrastructure service over
 a pool, the database admin service over `sqlate`, and the general sweeper (`sweep`), which runs a
-service's reclaimers as one reactor, with the PostgreSQL provider as the `postgres` sub-module.
+service's reclaimers as one reactor, with the PostgreSQL provider as the `postgres` sub-module
+and pgvector's metric resolution and integration tier as the `postgres/pgvector` sub-module.
 Its README lists the packages. Released, base and provider tagged independently; the base depends
 on the standard library, `go-core`, and `sqlate`.
 
@@ -167,8 +168,8 @@ the template. Versionless until its 1.0.
 
 ### [sqlate](https://github.com/standards-lab/sqlate)
 The SQL templating library: authored `.sql` files made dynamic and composable, with the
-PostgreSQL dialect as the `postgres` sub-module and the conventions linter as the `sqlint`
-sub-module. A standalone library any Go project can adopt, adjacent to the `go-elemental`
+PostgreSQL dialect as the `postgres` sub-module, pgvector's SQL layer as the `postgres/pgvector`
+sub-module, and the conventions linter as the `sqlint` sub-module. A standalone library any Go project can adopt, adjacent to the `go-elemental`
 standard rather than a member of it: the standard's libraries consume it, and it is the
 blueprint for how a domain-specific language gains host-language support. The base module
 depends on the standard library alone; the base and each sub-module are tagged independently.
@@ -421,6 +422,15 @@ infrastructure. go-core's breaking release ships its API, whose reasoning is go-
 ### [octicons](https://github.com/primer/octicons)
 GitHub's Primer icon set. web-icons reads it at 9a274e2 (tag `@primer/octicons@19.42.0`), as
 spike-html-hosting-icons did before it, and copies its LICENSE; never written.
+
+### [pgvector](https://github.com/pgvector/pgvector)
+The PostgreSQL vector extension. sqlate's and go-database's compose images build it from source,
+pinned by `ARG PGVECTOR_VERSION`, and sqlate's `postgres/pgvector` names its native forms and
+metrics; never written.
+
+### [pgvector-go](https://github.com/pgvector/pgvector-go)
+pgvector's Go types. Applications use it directly; go-database's `postgres/pgvector` requires it
+for its integration tier only; never written.
 
 ## Prior R&D — Go web service architecture
 
