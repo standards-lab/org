@@ -7,7 +7,7 @@ baseline. Once v1's reruns repoint the acceptance citations, ~/docs is removed.
 '''
 repos = ["docs-corpus"]
 root = "docs-corpus"
-order = ["review", "curate", "snapshot", "baseline"]
+order = ["review", "curate", "docproc-final", "snapshot", "baseline"]
 criteria = [
   "docs-corpus v1 is tagged with its release assets, and its check passes over it.",
   "Every sample in v1 exercises a library scenario no other sample covers.",
@@ -35,6 +35,15 @@ generated, with their truth, their manifest entries, `covers` in the review's vo
 manifest's sha256.
 '''
 proof = "docs-corpus' check passes over the curated set, with no duplicate scenarios."
+
+[tasks.docproc-final]
+name = "The corpus on docproc's final release"
+summary = '''
+Re-curates the set against docproc-coverage's final release, once that goal syncs: the ~/docs
+review placement and the corpus placement are rerun at it, dispositions and covers follow, gap
+covers the release changes by design are edited to match, and exec-4's polyglot gap reopens.
+'''
+proof = "docs-corpus' check passes with both placements from docproc-coverage's final release, and dispose, manifest, and place-traits reproduce their files."
 
 [tasks.snapshot]
 name = "Snapshot v1"
