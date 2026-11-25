@@ -1,10 +1,10 @@
-name = "Test-tier follow-ups for sqlate and go-database"
+name = "sqlate and go-database follow-ups"
 summary = '''
-sqlate's check doesn't vet, fix or lint the `integration`-tagged suites of `postgres` and
-`postgres/pgvector` with their tag, as tests-and-docs.md and release-and-ci.md require. Neither
-sqlate nor go-database has a CI integration job; building pgvector adds about 10 seconds to one.
-The live tests' `text` helper in sqlate's `postgres/migrate_live_test.go`, and its copy in
-`postgres/pgvector`, lose a Scan error. pgvector's forms tests copy sqlint's stripping, and can go
-through `sqlint.Lint`, since `sqlint/v0.5.0` is tagged.
+sqlate's check skips vet, fix and lint for the `integration`-tagged suites of `postgres` and
+`postgres/pgvector`. Neither repository has a CI integration job (pgvector's build adds about 10
+seconds). The live tests' `text` helper, in `postgres` and its `postgres/pgvector` copy, loses a
+Scan error. pgvector's forms tests copy sqlint's stripping and can call `sqlint.Lint`
+(`sqlint/v0.5.0` is tagged). The shared `scripts/currency.sh` keeps a `go.mod` `toolchain` line
+while the `go` directive is current: `report` should list it and `upgrade` remove it.
 '''
 repos = ["sqlate", "go-database"]
