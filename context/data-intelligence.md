@@ -153,8 +153,9 @@ tell a thin layer from a whole one (design page, "Text layer and vision").
 
 ## Carried notes
 
-- Web content (HTML, MHTML, WARC, EPUB: text extraction or rendering for vision) waits, unplanned,
-  until the capstone needs it.
+- Web content: docproc-coverage reads HTML and EPUB chapters as raw text; MHTML, WARC, and
+  rendering for vision wait, unplanned. docproc-backlog holds pandoc (rejected a Go converter and
+  htmd), XPS through mutool (rejected libgxps, GhostXPS), and ISO and UDF images.
 - The scanned-document OCR tier isn't required: the capstone runs on vision transcription, and
   experiment.ocr settles the tier after it.
 - go-ai's `aitest` is its public API, which docinfer, go-ai's `tools/infer`, and Cerebro's tests
