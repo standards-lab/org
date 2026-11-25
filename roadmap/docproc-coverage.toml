@@ -1,12 +1,101 @@
 name = "docproc's format coverage"
 summary = '''
-Widens what docproc and its tools read, ahead of the capstone (acceptance, brief review,
-2026-11-19): HTML and EPUB; XPS, which docproc routes to no processor; docproc-ooxml's text
-boxes, comments, and cell notes; RAR, ISO, xz, and bzip2 through 7zz; ODF, WordPerfect, and .xlsb
-through soffice; the MPEG-2 program stream; TNEF; and docproc-ooxml's arm64 memory floor. Its
-first tools/ooxml change corrects generate.py's `slide_objects` docstring, which says the
-pictures sit "beside another": the two overlap exactly, as tools/ooxml/fixtures/README.md says,
-with no fixture change. A later `plan` writes its tasks.
+Widens what docproc and its tools read, ahead of the capstone (acceptance, 2026-11-19; plan,
+2026-11-25): the text encoding's two keys; RAR, ISO, and xz through 7zz, bzip2 through Go's
+standard library, and MPEG-2 program streams and Ogg video as video; PDF page text without column
+padding; ODF, WordPerfect, and .xlsb through soffice; docproc-ooxml's text boxes, comments, cell
+notes, and arm64 memory floor; TNEF; XPS through mutool; and HTML and EPUB through pandoc.
 '''
 repos = ["docproc"]
 root = "docproc"
+order = [
+  "text-encoding-keys",
+  "archives-and-mpeg",
+  "pdf-text-padding",
+  "office-soffice",
+  "ooxml-unread",
+  "ooxml-arm64-floor",
+  "tnef",
+  "xps",
+  "web-content",
+]
+criteria = [
+  "docproc's docs/limits.md names none of the summary's formats as unrouted or without a processor.",
+  "docproc-ooxml warns of no text box, pptx comment, or xlsx cell note, and docs/limits.md states its arm64 floor.",
+  "A docproc run over ~/docs prepares its ODF, WordPerfect, .xlsb, HTML, EPUB, MPEG-2, and XPS inputs.",
+]
+context = [
+  "docproc/context/tool-gaps.md",
+  "docproc/docs/limits.md",
+]
+
+[tasks.text-encoding-keys]
+name = "The text encoding's two keys"
+summary = '''
+The text stage's combined encoding value splits into `encoding`, the charset alone, and
+`encoding_by`, "bom" or "fallback", absent for plain UTF-8, under wire "1" and schema "2" as a
+recorded exception; the upgrade slices bring docproc current.
+'''
+proof = "A run's text outputs carry the two keys, and docproc's currency reports only held items."
+
+[tasks.archives-and-mpeg]
+name = "RAR, ISO, xz, bzip2, MPEG-2, and Ogg video"
+summary = '''
+route identifies RAR, ISO 9660 and UDF images, xz, bzip2, the MPEG program stream, and Ogg holding
+video; the archive stage reads the first three through 7zz and bzip2 through compress/bzip2, and
+the video stage reads the program stream and Ogg video. Split RAR volumes stay unread.
+'''
+proof = '''
+Committed RAR, ISO, xz, and bzip2 fixtures are prepared with their entries as parts, and ~/docs's
+duck-and-cover-mpeg2.mpeg and duck-and-cover-theora.ogv are prepared as video.
+'''
+
+[tasks.pdf-text-padding]
+name = "PDF page text without column padding"
+summary = '''
+A PDF page's text layer no longer pads its columns with long runs of spaces (docinfer's
+acceptance: multi-column scanned pages up to 97% spaces); the design is the task's own.
+'''
+proof = "~/docs's multi-column PDF page texts hold no column-padding space runs, their words kept."
+
+[tasks.office-soffice]
+name = "ODF, WordPerfect, and .xlsb through soffice"
+summary = '''
+The office stage converts ODF packages, WordPerfect documents, and Excel binary workbooks through
+soffice and reads the result through docproc-ooxml, as it does legacy documents.
+'''
+proof = "~/docs's ODF, WordPerfect, and .xlsb inputs are prepared, none left without a processor."
+
+[tasks.ooxml-unread]
+name = "docproc-ooxml's text boxes, comments, and cell notes"
+summary = '''
+docproc-ooxml reads docx and xlsx text boxes, a pptx's comments, and an xlsx's cell notes into
+its Markdown; its first change corrects generate.py's `slide_objects` docstring.
+'''
+proof = "Goldens hold the new text, and a ~/docs run has no warning for those kinds."
+
+[tasks.ooxml-arm64-floor]
+name = "docproc-ooxml's arm64 memory floor"
+summary = '''
+Measures the released docproc-ooxml's memory floor on arm64, as acceptance measured x64's, and
+states it in docs/limits.md and docs/acceptance.md.
+'''
+proof = "docs/limits.md states the arm64 floor, with its measurement's recipe in docs/acceptance.md."
+
+[tasks.tnef]
+name = "docproc-mail reads TNEF"
+summary = "docproc-mail reads a TNEF part's body and attachments into its message, in place of its note."
+proof = "A TNEF fixture's body and attachments are in its message's Markdown and media, with no TNEF note."
+
+[tasks.xps]
+name = "XPS through mutool"
+summary = "An XPS package converts to PDF through mutool and goes through the document stage."
+proof = "LargeData.one's XPS package is prepared at all 135 of its occurrences."
+
+[tasks.web-content]
+name = "HTML and EPUB through pandoc"
+summary = '''
+HTML and EPUB route to a stage that runs pandoc, sandboxed, to Markdown, an EPUB in spine order
+with its media handed onward.
+'''
+proof = "~/docs's 5 HTML files and its EPUB are prepared as Markdown."
