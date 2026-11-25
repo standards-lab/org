@@ -1,28 +1,28 @@
 name = "docproc's format coverage"
 summary = '''
-Widens what docproc and its tools read, ahead of the capstone (acceptance, 2026-11-19; plan,
-2026-11-25): the text encoding's two keys; RAR, ISO, and xz through 7zz, bzip2 through Go's
-standard library, and MPEG-2 program streams and Ogg video as video; PDF page text without column
-padding; ODF, WordPerfect, and .xlsb through soffice; docproc-ooxml's text boxes, comments, cell
-notes, and arm64 memory floor; TNEF; XPS through mutool; and HTML and EPUB through pandoc.
+Widens what docproc and its tools read, ahead of the capstone, through the tools docproc already
+requires (acceptance, 2026-11-19; plan, 2026-11-25; curated 2026-11-25): the text encoding's two
+keys; RAR and xz through 7zz, bzip2 through Go's standard library, and MPEG program streams and Ogg
+video as video; text as the last resort, HTML, EPUB chapters, and `#!` scripts among it; PDF page
+text without column padding; ODF, WordPerfect, and .xlsb through soffice; docproc-ooxml's text
+boxes, comments, cell notes, and arm64 memory floor; and TNEF.
 '''
 repos = ["docproc"]
 root = "docproc"
 order = [
   "text-encoding-keys",
   "archives-and-mpeg",
+  "text-last-resort",
   "pdf-text-padding",
   "office-soffice",
   "ooxml-unread",
   "ooxml-arm64-floor",
   "tnef",
-  "xps",
-  "web-content",
 ]
 criteria = [
   "docproc's docs/limits.md names none of the summary's formats as unrouted or without a processor.",
   "docproc-ooxml warns of no text box, pptx comment, or xlsx cell note, and docs/limits.md states its arm64 floor.",
-  "A docproc run over ~/docs prepares its ODF, WordPerfect, .xlsb, HTML, EPUB, MPEG-2, and XPS inputs.",
+  "A docproc run over ~/docs prepares its ODF, WordPerfect, .xlsb, MPEG-2, and Ogg video inputs, and its HTML and EPUB as raw text.",
 ]
 context = [
   "docproc/context/tool-gaps.md",
@@ -39,15 +39,29 @@ recorded exception; the upgrade slices bring docproc current.
 proof = "A run's text outputs carry the two keys, and docproc's currency reports only held items."
 
 [tasks.archives-and-mpeg]
-name = "RAR, ISO, xz, bzip2, MPEG-2, and Ogg video"
+name = "RAR, xz, bzip2, MPEG program streams, and Ogg video"
 summary = '''
-route identifies RAR, ISO 9660 and UDF images, xz, bzip2, the MPEG program stream, and Ogg holding
-video; the archive stage reads the first three through 7zz and bzip2 through compress/bzip2, and
-the video stage reads the program stream and Ogg video. Split RAR volumes stay unread.
+route identifies RAR4 and RAR5, xz, bzip2, the MPEG program stream, and Ogg holding video; the
+archive stage reads RAR and xz through 7zz and bzip2 through compress/bzip2, and the video stage
+reads the program stream and Ogg video. Split RAR volumes stay unread.
 '''
 proof = '''
-Committed RAR, ISO, xz, and bzip2 fixtures are prepared with their entries as parts, and ~/docs's
+Committed RAR, xz, and bzip2 fixtures are prepared with their entries as parts, and ~/docs's
 duck-and-cover-mpeg2.mpeg and duck-and-cover-theora.ogv are prepared as video.
+'''
+
+[tasks.text-last-resort]
+name = "Text as the last resort"
+summary = '''
+Content route places nowhere else whose head reads as text routes to the text stage, raw: HTML
+(the web-content rule goes), EPUB chapters, CSS, JavaScript, notes, and `#!` scripts. Its first
+question is whether the text-extension list goes (a windows-1252 sniff; precedence over mbox and
+header-sniffed messages). inspect's polyglot scan reaches `#!` scripts and text kinds, exempt
+today (docs-corpus's exec-4 gap).
+'''
+proof = '''
+~/docs's HTML, EPUB chapters, and extensionless or unlisted text files are prepared as text, and
+a `#!` script with an appended ZIP is flagged polyglot.
 '''
 
 [tasks.pdf-text-padding]
@@ -86,16 +100,3 @@ proof = "docs/limits.md states the arm64 floor, with its measurement's recipe in
 name = "docproc-mail reads TNEF"
 summary = "docproc-mail reads a TNEF part's body and attachments into its message, in place of its note."
 proof = "A TNEF fixture's body and attachments are in its message's Markdown and media, with no TNEF note."
-
-[tasks.xps]
-name = "XPS through mutool"
-summary = "An XPS package converts to PDF through mutool and goes through the document stage."
-proof = "LargeData.one's XPS package is prepared at all 135 of its occurrences."
-
-[tasks.web-content]
-name = "HTML and EPUB through pandoc"
-summary = '''
-HTML and EPUB route to a stage that runs pandoc, sandboxed, to Markdown, an EPUB in spine order
-with its media handed onward.
-'''
-proof = "~/docs's 5 HTML files and its EPUB are prepared as Markdown."

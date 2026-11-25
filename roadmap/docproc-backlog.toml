@@ -3,15 +3,16 @@ summary = '''
 What remains of docproc's and its tools' backlog after v1.ai.processing and docproc-coverage, with
 no tasks (acceptance, brief review, 2026-11-19): the email Threader's memory past a million
 messages; docproc-mail's .msg nesting cap; SmartArt and equations; a bare RFC 822 file with no
-extension; plain-text sniffing; class-specific mail fields (contacts, appointments, tasks); text
-encoding detection; an ANSI .pst fixture; split RAR volumes; and the gated items: ClamAV, media's
-live sources, outlook-pst's contacts lacking a sub-node tree (1.2.0 skips passworded.pst's and
+extension; class-specific mail fields (contacts, appointments, tasks); text encoding detection; an
+ANSI .pst fixture; split RAR volumes; ISO, XPS, pandoc; and the gated items: ClamAV, media's live
+sources, outlook-pst's contacts lacking a sub-node tree (1.2.0 skips passworded.pst's and
 dist-list.pst's `/message 2097188`) and embedded messages, OneNote section decryption, and an
 authored notebook. Capstone findings are addressed as found (plan, 2026-11-20).
 '''
 repos = ["docproc"]
 root = "docproc"
 context = [
+  "standards-lab/context/data-intelligence.md",
   "docproc/tools/mail/README.md",
   "docproc/docs/acceptance.md",
 ]
