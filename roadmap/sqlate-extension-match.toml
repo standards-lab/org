@@ -1,0 +1,7 @@
+name = "admin follows sqlate's extension match rule"
+summary = '''
+go-database admin's readiness (`matched` in `admin/service.go`) re-derives sqlate's unexported
+`classify` from `ExtensionStatus` fields. sqlate could export whether a declaration matches, and
+admin call it.
+'''
+repos = ["sqlate", "go-database"]

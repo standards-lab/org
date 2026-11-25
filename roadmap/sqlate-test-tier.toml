@@ -1,0 +1,10 @@
+name = "Test-tier follow-ups for sqlate and go-database"
+summary = '''
+sqlate's check doesn't vet, fix or lint the `integration`-tagged suites of `postgres` and
+`postgres/pgvector` with their tag, as tests-and-docs.md and release-and-ci.md require. Neither
+sqlate nor go-database has a CI integration job; building pgvector adds about 10 seconds to one.
+The live tests' `text` helper in sqlate's `postgres/migrate_live_test.go`, and its copy in
+`postgres/pgvector`, lose a Scan error. pgvector's forms tests copy sqlint's stripping, and can go
+through `sqlint.Lint`, since `sqlint/v0.5.0` is tagged.
+'''
+repos = ["sqlate", "go-database"]

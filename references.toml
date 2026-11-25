@@ -215,6 +215,12 @@ archived = true
 [repos.octicons]
 remote = "https://github.com/primer/octicons.git"
 
+[repos.pgvector]
+remote = "https://github.com/pgvector/pgvector.git"
+
+[repos.pgvector-go]
+remote = "https://github.com/pgvector/pgvector-go.git"
+
 [repos.spike-model-hosting]
 remote = "https://github.com/JaimeStill/spike-model-hosting.git"
 archived = true

@@ -24,7 +24,7 @@ Each wave runs its goals side by side.
   task shipped, sites.status-reports and sites.training.foundation can start.
 - **C**: the rest of v1.ai's sub-goals still running; go-ai, docproc, and
   docinfer join the exclusive group when C ends. v1.data.extensions, the Postgres-extension
-  layer, runs beside C in sqlate and go-database, holding the exclusive group until it syncs.
+  layer, ran beside C in sqlate and go-database, holding the exclusive group until it synced.
 - **D**: capstone.data-intelligence, the sole active goal apart from sites.status-reports and
   sites.training. It holds the libraries it may change, so a capstone task can fix a library and
   use the fix.

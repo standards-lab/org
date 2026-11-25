@@ -19,7 +19,7 @@ extracts data by inference, stores embeddings in PostgreSQL with pgvector for se
 and shows each stage as it runs. It came out of spike-ai-pipeline (`ai-strategy.md`, "The client
 and processing layers") but lives outside the experiment.
 
-pgvector is a declared native-tier extension in capstone-athena only, and v1.data.extensions writes
+pgvector is a declared native-tier extension in capstone-athena only, and v1.data.extensions wrote
 the workspace's extension strategy from this case. Each stage's output is a versioned artifact
 keyed by its input and configuration hash, so a stage reruns only when either changes; embeddings
 live in registered embedding spaces, so a model change re-embeds into a new space (design page,
@@ -121,8 +121,9 @@ sites.status-reports and sites.training. Before it:
   v1.ai.inference builds docinfer on go-ai's released library, closed by acceptance that reruns
   the real workloads.
 - v1.client.stack built the web client stack the UI builds on.
-- v1.data.extensions builds the Postgres-extension layer and pgvector's modules
-  (`postgres-extensions.md`).
+- v1.data.extensions built the Postgres-extension layer and pgvector's modules, under Go
+  Elemental's [Database extensions](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/database-extensions.md) principle. Its one open check: go-database's
+  `database/sql` text format is fast enough for the capstone's batch loads of embeddings.
 
 It needs no harness: its model calls go through go-ai's client, whose Open Responses protocol and
 wire-format packages reach every engine. Its repos gain docproc and the libraries the intakes
@@ -138,8 +139,8 @@ Carried from spike-ai-pipeline, which keeps the rest of its evidence:
    each stage as it runs.
 8. The client runs unchanged through spike-model-gateway's gateway.
 10. pgvector as a declared native-tier extension: its install, migration, image pin, and the
-    packages allowed to use it. v1.data.extensions builds it to `postgres-extensions.md`, since no
-    spike ran pgvector.
+    packages allowed to use it. v1.data.extensions built it, since no spike ran pgvector, and Go
+    Elemental's [Database extensions](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/database-extensions.md) principle states it.
 15. The browser's consumption of the event sequence, NATS over WebSocket against a backend relay,
     compared on latency, ordering, auth, ports, and native-tier use, on Athena's stream only.
 
