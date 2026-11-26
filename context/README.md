@@ -91,6 +91,8 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
   Cerebro and Athena architecture and repositories, what it asks of the goals beneath it, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
+- `docs-corpus.md` — the real workloads' corpus: what it holds, how it changes, how it is shared,
+  the verified checkout on gb10-2, and the baseline.
 - `system-tools.md` — the system-tools principle: Go builds only what it must own, and runs
   mature Linux tools through adapters it owns; spike-ai-pipeline is its first case.
 - `web-client.md` — the web client stack: its repositories and what each owns, its conventions,

@@ -1,7 +1,6 @@
 # Roadmap index: the three arrays, in the format of marathon's roadmap manifest.
 
 active = [
-  "corpus.docs",
   "capstone.data-intelligence",
 ]
 
@@ -54,4 +53,6 @@ backlog = [
   "octicons-bump",
   "web-client-backlog",
   "model-pull-footprint",
+  "corpus-measurement-reruns",
+  "corpus-olmocr-provenance",
 ]

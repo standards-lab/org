@@ -46,8 +46,8 @@ repositories; the core SDK beside sqlate and docproc; the infrastructure librari
 SDKs; the templates and docinfer; the web client stack, from its tooling up to webappgen; the
 reference web service; and the architecture repository. At most one active goal touches the
 `exclusive` group, the reference-architecture code repositories, at a time; spikes, the harness,
-and the web client repositories run beside it (`context/waves.md` says when go-ai, docproc, and
-docinfer join it). No repository rooted in this directory runs CI, so `[remote]`'s merge waits on
+and the web client repositories run beside it (go-ai, docproc, and docinfer among
+them). No repository rooted in this directory runs CI, so `[remote]`'s merge waits on
 no checks.
 
 ## Visibility tiers (public / member / private)

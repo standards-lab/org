@@ -85,7 +85,7 @@ An adjacent library may depend on a stack library, which pins it above that libr
 go-ai's tier use docinfer. A provider sub-module pins only its own level, and one over sqlate pins
 no tier. A repository's place in `order` follows its base module; nested command modules and
 system tools don't move it. A cross-repository task orders its own exceptions in its brief. go-ai,
-docproc, and docinfer join `exclusive` when corpus.docs syncs.
+docproc, and docinfer are in `exclusive`.
 
 ### How v1.ai builds them
 

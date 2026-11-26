@@ -1,0 +1,11 @@
+name = "Acceptance measurements rerun over docs-corpus"
+summary = '''
+Reruns the targeted acceptance sections that corpus.docs's baseline leaves dated to the retired
+`~/docs` pool, docproc's "Word error rate", "PDF pages in shared gs processes", "Peak memory", and
+"The office-and-mail ~/docs run", and docinfer's "Transcription", over docs-corpus's measurement
+inputs, peak memory without `archive/mixed-bundle.tar.zst`, which its measurement doesn't list,
+citing the docs-corpus tag in each. Writes docinfer's "Video interpretation" acceptance section,
+which runs the `video-interpretation` measurement over DVIDS 882019 and judges the run against its
+interpretation key.
+'''
+repos = ["docproc", "docinfer"]

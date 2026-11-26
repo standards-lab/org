@@ -1,5 +1,0 @@
-name = "Corpora"
-summary = '''
-The real workloads' inputs, each a `corpus.<slug>`, reviewed in the coordinator's context.
-'''
-repos = []
