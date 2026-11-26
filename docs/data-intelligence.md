@@ -39,16 +39,43 @@ For the `protocol`, `state`, and `events` tasks.
   vectors; the final event's manifest carries counts, a digest, and the sequence range. The
   consumer de-duplicates batches through go-messaging's inbox and checks completeness against the
   manifest.
-- **Distribution.** Inference inside a job is bounded per capability, spike-model-layout's
-  capacity targets setting the defaults; a crash recovers through the result cache and the job's
-  checkpoint (docinfer's `job`).
+- **Distribution.** Inference inside a job is bounded per capability. docinfer ships no defaults
+  (docinfer's [`docs/no-defaults.md`](https://github.com/standards-lab/docinfer/blob/main/docs/no-defaults.md)),
+  so Cerebro sets the starting values of `Bounds`, `Pending`, `BatchBytes`, and
+  `join.Request.WordsPerSecond` from spike-model-layout's capacity targets, and of
+  `job.Config.CheckpointEvery`, which sets how much work a crash repeats. A crash recovers through
+  the result cache and the job's checkpoint (docinfer's `job`).
 - **Caching.** docproc's dispatch index keys by content SHA-256 and stage identity, docinfer's
-  cache by capability, model, settings, and content; the content they name is held in blob storage
-  by its SHA-256 (docproc's [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md), "The cache").
+  cache by capability, model, settings, and content (docinfer's root
+  [`doc.go`](https://github.com/standards-lab/docinfer/blob/main/doc.go)); the content they name is
+  held in blob storage by its SHA-256.
 - **Models and stages.** Profiles live in Cerebro's configuration; the resolved identity names the
   models, dimensions, and chunker version. Cerebro calls the gateway with its own consumer key.
   Stages: inspect, extract, vision, transcribe, chunk, embed, and an extraction stage driven by a
   caller's prompt and JSON schema, whose hash joins the cache key.
+
+### docinfer's configuration
+
+Cerebro's docinfer configuration starts from the settings docinfer's acceptance settled (docinfer's
+[`docs/acceptance.md`](https://github.com/standards-lab/docinfer/blob/main/docs/acceptance.md)):
+
+- **Tokenizer.** The gateway serves the embedding tokenizer at `/embedding/v1/tokenize`, so through
+  the gateway `embeddings.tokenizer` names the embeddings endpoint, and straight to a row it names
+  the row's root. Either way it names the embeddings' own deployment.
+- **Chunk length.** `embeddings.chunk_runes` is 8,192, the input length vLLM refuses before
+  tokenizing, less the document prefix.
+- **Served models.** Each capability's served model comes from the model listing's `root`, else
+  its `served_model`.
+- **Embedding prefixes.** e5's `input_types` are
+  `{"document":{"prefix":"passage: "},"query":{"prefix":"query: "}}`, and Cerebro applies
+  `Profile`'s `embedding_query` to its search queries.
+- **Vision.** Vision sends Gemma 4's card sampling `{"temperature":1.0,"top_p":0.95,"top_k":64}` at
+  concurrency 4, with `max_pixels` 2,580,480 and a 600 s `response_header_timeout`, since a
+  non-streaming reply's header waits for up to 2,048 tokens.
+- **Transcription.** Chat transcription sends `{"temperature":0}` with `max_tokens` 512 at
+  concurrency 32.
+- **Hosting rows.** The hosting rows are tuned as general endpoints, never to docinfer's
+  requests, so Cerebro shapes its requests to each row's measured limits.
 
 ### Open items
 
