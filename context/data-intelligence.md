@@ -20,11 +20,11 @@ and shows each stage as it runs. It came out of spike-ai-pipeline (`ai-strategy.
 and processing layers") but lives outside the experiment.
 
 pgvector is a declared native-tier extension in capstone-athena only, and v1.data.extensions wrote
-the workspace's extension strategy from this case. Each stage's output is a versioned artifact
-keyed by its input and configuration hash, so a stage reruns only when either changes; embeddings
-live in registered embedding spaces, so a model change re-embeds into a new space (design page,
-"Embedding spaces"). Its input is the schema "2" run directories of docproc's `cmd/docproc` and
-docinfer's `cmd/docinfer` (docproc's `docs/api.md`, "Run directory").
+the workspace's extension strategy from this case. Each stage's output is a versioned artifact,
+and embeddings live in registered embedding spaces (design page, "Embedding spaces"). Its input is
+the schema "2" run directories of docproc's `cmd/docproc` (docproc's `docs/api.md`, "Run
+directory") and docinfer's `cmd/docinfer` (docinfer's `context/command-api.md` and
+`context/command-report.md`).
 
 ## Cerebro and Athena
 
@@ -51,9 +51,10 @@ consumer, a harness among them.
   closed by a manifest; the consumer commits each batch in one transaction (evidence 7).
 - **Distribution.** Jobs go through go-messaging's work-queue package, one job per input the
   unit of retry, inference fanned out inside it; spreading an input's parts across replicas
-  waits until the acceptance run shows a replica is the bottleneck.
+  waits until the acceptance run shows a replica is the bottleneck. docinfer ships no defaults;
+  Cerebro sets every starting value (design page, "docinfer's configuration").
 - **Caching.** Results are keyed by content and stage identity (docproc) and by capability,
-  model, settings, and content (docinfer); content seen before is replayed.
+  model, settings, and content (docinfer's root `doc.go`); content seen before is replayed.
 - **Models and stages.** A request names a versioned processing profile, never models; each result
   records the profile's resolved identity, so the consumer registers the matching embedding space.
   Regex entities and sparse rows stay the consumer's.
@@ -83,21 +84,23 @@ has no reranker) and `cross-service-tracing` wait in the backlog.
 
 Five layers: system tools → docproc → docinfer ← go-ai, and Cerebro over docproc, docinfer, and
 go-ai. docproc's [`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md)
-states each boundary as signatures and schemas, and its
+states docproc's boundaries as signatures and schemas, and its
 [`context/cerebro.md`](https://github.com/standards-lab/docproc/blob/main/context/cerebro.md)
 Cerebro's API, state, and events, whose open questions pass to the capstone's tasks (design page,
-"Open items"). The go-ai surface docinfer calls is kept in docproc's
-[`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md) ("go-ai's surface").
+"Open items"). docinfer's [capability map](https://github.com/standards-lab/docinfer/blob/main/context/README.md#capability-map)
+links its boundaries, and its root [`doc.go`](https://github.com/standards-lab/docinfer/blob/main/doc.go)'s
+failure table maps each go-ai result.
 
 ### What it asks of the goals beneath it
 
 Each goal beneath the capstone designs around Cerebro:
 
 - **go-ai** (built by v1.ai.client), Cerebro its first long-running service consumer: retry
-  proven against the live gateway, cancellation by context, a per-consumer key, Embed batching,
-  and a relayable streaming Generate (docproc's
-  [`context/layers.md` at commit f3633c3](https://github.com/standards-lab/docproc/blob/f3633c3/context/layers.md),
-  "Requests to go-ai"); concurrency bounds stay the caller's.
+  proven against the live gateway, cancellation by context, a consumer key in a header other than
+  the bearer token if the gateway asks for one, Embed batching, and a relayable streaming
+  Generate; concurrency bounds stay the caller's. A request's time is the host's transport, not
+  a per-call timeout: Cerebro sets `ai.Options.StreamIdleTimeout` for extraction's stream;
+  cmd/docinfer doesn't.
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
   the tools pinned in Cerebro's image (docproc's README, "The system tools").
@@ -139,8 +142,7 @@ Carried from spike-ai-pipeline, which keeps the rest of its evidence:
    each stage as it runs.
 8. The client runs unchanged through spike-model-gateway's gateway.
 10. pgvector as a declared native-tier extension: its install, migration, image pin, and the
-    packages allowed to use it. v1.data.extensions built it, since no spike ran pgvector, and Go
-    Elemental's [Database extensions](https://github.com/standards-lab/architecture/blob/main/standards/go-elemental/principles/database-extensions.md) principle states it.
+    packages allowed to use it, built by v1.data.extensions (Gates).
 15. The browser's consumption of the event sequence, NATS over WebSocket against a backend relay,
     compared on latency, ordering, auth, ports, and native-tier use, on Athena's stream only.
 

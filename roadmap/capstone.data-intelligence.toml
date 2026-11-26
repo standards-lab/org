@@ -15,6 +15,7 @@ repos = [
   "capstone-athena",
   "go-messaging",
   "docproc",
+  "docinfer",
 ]
 root = "capstone-data-intelligence"
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
