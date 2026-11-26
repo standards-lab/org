@@ -1,14 +1,14 @@
 name = "docproc's backlog"
 summary = '''
 docproc's and its tools' backlog after v1.ai.processing and docproc-coverage (acceptance, brief
-review, 2026-11-19): the email Threader's memory past a million messages; docproc-mail's .msg
-nesting cap; SmartArt and equations; a bare RFC 822 file; mail's class-specific fields; text
-encoding detection; an ANSI .pst fixture; split RAR volumes; ISO, XPS, pandoc;
-`rundir.ReportPage` for docinfer's report pages; a text retry after a stage fails;
-docproc-ooxml's silent out-of-memory exit; the gated items: ClamAV, media's live sources,
-outlook-pst's contacts and embedded messages, OneNote section decryption, an authored notebook,
-and pdftotext's `-remove-hyphens` once stable distros carry poppler 26.05. Capstone findings are
-addressed as found (plan, 2026-11-20).
+review, 2026-11-19): the Threader's memory past 1M messages; docproc-mail's .msg nesting cap;
+SmartArt, equations; a bare RFC 822 file; mail's class-specific fields; encoding detection; an ANSI
+.pst fixture; split RAR volumes; ISO, XPS, pandoc; docinfer's `rundir.ReportPage`; text retry after
+a failed stage; docproc-ooxml's silent out-of-memory exit; a multi-page TIFF numbered from 10
+(corpus.docs baseline, 2026-11-26); gated: ClamAV, media's live sources, outlook-pst's contacts and
+embedded messages, OneNote section decryption, an authored notebook, and pdftotext's
+`-remove-hyphens` once stable distros carry poppler 26.05. Capstone findings are addressed as found
+(plan, 2026-11-20).
 '''
 repos = ["docproc"]
 root = "docproc"

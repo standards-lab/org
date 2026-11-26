@@ -2,12 +2,12 @@ name = "data-intelligence"
 summary = '''
 Liberates data held in binary files on a file share, in three repositories: capstone-cerebro, a
 document-processing service on go-ai, docproc, and docinfer that never knows its caller and emits
-results as ordered batches closed by a manifest; capstone-athena, a prototype client-facing
-service with pgvector that commits those batches, chats through the model gateway, and shows each
-stage live; and capstone-data-intelligence, the integration root with the compose stack and the
-~/docs acceptance run. Carries spike-ai-pipeline's evidence 7, 8, 10, and 15. Builds Cerebro's
-stream-backed root and work queue in go-messaging. Design tasks come first
-(`data-intelligence.md`).
+results as ordered batches closed by a manifest; capstone-athena, a prototype client-facing service
+with pgvector that commits those batches, chats through the model gateway, and shows each stage
+live; and capstone-data-intelligence, the integration root with the compose stack and the acceptance
+run over docs-corpus v0.2.0, measured against its baseline. Carries spike-ai-pipeline's evidence 7,
+8, 10, and 15. Builds Cerebro's stream-backed root and work queue in go-messaging. Design tasks come
+first (`data-intelligence.md`).
 '''
 repos = [
   "capstone-data-intelligence",

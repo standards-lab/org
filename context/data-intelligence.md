@@ -28,10 +28,10 @@ directory") and docinfer's `cmd/docinfer` (docinfer's `context/command-api.md` a
 
 ## Cerebro and Athena
 
-The architect's whiteboard architecture: it shows how a processing service and the model gateway
-replace the `ingest` layer of the existing Athena (`~/s2va/athena`) without carrying its
-complexity, so that Athena becomes a standard web service and what it defines internally sinks
-into libraries (detail on the design page, "Cerebro").
+The architect's whiteboard shows how a processing service and the model gateway replace the `ingest`
+layer of the existing Athena (`~/s2va/athena`) without carrying its complexity, so that Athena
+becomes a standard web service and what it defines internally sinks into libraries (design page,
+"Cerebro").
 
 **Cerebro** (capstone-cerebro) is a document-processing service from go-web-sdk-template that
 never knows its caller. It queues and orchestrates processing, infers through the gateway with
@@ -69,8 +69,10 @@ onto Cerebro (design page, "Athena onto Cerebro"), and its migration is later wo
 workspace.
 
 **capstone-data-intelligence** is the integration root: the goal record, the compose stack
-(Cerebro, Athena, NATS, Postgres with pgvector, the gateway), and the acceptance run over ~/docs
-(592 files, 1.7 GB), measured against docinfer's baseline: 6.0 h, and a 3.1 s rerun.
+(Cerebro, Athena, NATS, Postgres with pgvector, the gateway), and the acceptance run over
+docs-corpus v0.2.0 (299 files), measured against
+[its baseline](https://github.com/standards-lab/docs-corpus/blob/main/docs/baseline.md): docproc's
+run took 123.5 s, docinfer's 8,330.5 s (2.3 h), and docinfer's cached rerun 1.4 s.
 
 **Auth stays out of Cerebro**: Athena has solved its auth strategy, and the capstone focuses on
 signal flow. The gateway's per-consumer keys stay, carrying the priority between bulk and chat.
@@ -104,9 +106,10 @@ Each goal beneath the capstone designs around Cerebro:
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
   the tools pinned in Cerebro's image (docproc's README, "The system tools").
-- **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with a
-  key and no budget, chat responsive during a ~/docs-scale run. The capstone tunes each client's
-  concurrency per alias live; clients transcribe in chat mode (design page, "Gateway load").
+- **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with a key
+  and no budget, chat responsive during a run over docs-corpus v0.2.0. The capstone tunes each
+  client's concurrency per alias live; clients transcribe in chat mode (design page, "Gateway
+  load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
 - **go-web-sdk:** an SSE helper. The capstone builds the resumable upload, which graduates after

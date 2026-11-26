@@ -21,12 +21,11 @@ Each wave runs its goals side by side.
   its system tools beside it, and v1.ai.inference built docinfer on go-ai's released library.
   v1.client.stack built the web client stack in B and C; with its `foundation`
   task shipped, sites.status-reports and sites.training.foundation can start.
-- **C**: the rest of v1.ai's sub-goals, all since shipped. go-ai, docproc, and docinfer join the
-  exclusive group when corpus.docs syncs, since it and the capstone both touch docproc and docinfer.
-  v1.data.extensions, the Postgres-extension layer, ran beside C in sqlate and go-database, holding
-  the exclusive group until it synced.
-- **D**: capstone.data-intelligence, the sole active goal apart from corpus.docs,
-  sites.status-reports, and sites.training. It holds the libraries it may change, so a capstone task
+- **C**: the rest of v1.ai's sub-goals, all since shipped. go-ai, docproc, and docinfer are in the
+  exclusive group. v1.data.extensions, the Postgres-extension layer, ran beside C in sqlate and
+  go-database, holding the exclusive group until it synced.
+- **D**: capstone.data-intelligence, the sole active goal apart from sites.status-reports
+  and sites.training. It holds the libraries it may change, so a capstone task
   can fix a library and use the fix.
 - **E**: v1.client.reference first; experiment.ocr, experiment.admin, and experiment.harness;
   then v1.data, v1.auth, v1.admin-listener, v1.deployment, v1.repository-docs, and v1.middleware;

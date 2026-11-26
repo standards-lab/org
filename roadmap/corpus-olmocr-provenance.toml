@@ -1,0 +1,6 @@
+name = "olmOCR-bench's third-party documents reviewed"
+summary = '''
+The third-party documents inside olmOCR-bench, read today under the dataset's ODC-BY license, are
+reviewed against docs-corpus's STANDARDS.md reading rule.
+'''
+repos = ["docs-corpus"]
