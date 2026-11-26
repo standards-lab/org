@@ -15,6 +15,7 @@ order = [
   "snapshot",
   "measurement-set",
   "truth",
+  "sourcing",
   "snapshot-2",
   "baseline",
 ]
@@ -102,6 +103,20 @@ regenerates coverage and the manifest through dispose and manifest. Needs ~/docs
 repos = ["docs-corpus"]
 proof = "docs-corpus' check passes with every listed input in MANIFEST.json, and place-traits, dispose, and manifest reproduce their files."
 
+[tasks.sourcing]
+name = "Sourcing guidance"
+summary = '''
+From truth's retro (findings 1, 3, 4). STANDARDS.md gains two judgement calls: a sourced candidate
+is sought first in government publications (US federal works, govinfo.gov first; EU documents),
+redistributable only when cleared for public release, with contractor works and embedded
+third-party material read like any other; and a license reading is the publisher's own statement
+at the source's own URL, never a statute, mirror, or aggregator. `mise run place-traits` runs
+against mise's pinned tools rather than the older system ffprobe, magick, and bsdtar, retiring
+baseline's `go run` workaround.
+'''
+repos = ["docs-corpus"]
+proof = "STANDARDS.md states both judgement calls, and `mise run place-traits --corpus` reproduces docs/corpus-placement.json on the laptop with no PATH set by hand."
+
 [tasks.snapshot-2]
 name = "Snapshot v0.2.0"
 summary = '''
@@ -120,6 +135,7 @@ reruns PDF page text, the vision re-probe, and its confirmation over the corpus,
 docproc's and docinfer's acceptance citations to v0.2.0. The other targeted reruns go to a backlog
 goal, their inputs already in the corpus. Rebuilds ai-hosting's bench inputs from the corpus run,
 commits docinfer's acceptance recipes, then removes ~/docs and every run built from it. A pending
-edit replaces data-intelligence.md's 6.0 h and 3.1 s baseline.
+edit replaces data-intelligence.md's 6.0 h and 3.1 s baseline. The check then fails placeholder
+URLs.
 '''
 repos = ["docs-corpus", "docproc", "docinfer", "ai-hosting"]
