@@ -3,10 +3,10 @@
 active = [
   "v1.ai.hosting",
   "corpus.docs",
-  "capstone.data-intelligence",
 ]
 
 planned = [
+  "capstone.data-intelligence",
   "sites.status-reports",
   "sites.training.foundation",
   "v1.client.reference",
