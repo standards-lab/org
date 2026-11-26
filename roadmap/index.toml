@@ -3,7 +3,6 @@
 active = [
   "v1.ai.hosting",
   "corpus.docs",
-  "docproc-coverage",
   "capstone.data-intelligence",
 ]
 
