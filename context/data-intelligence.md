@@ -115,8 +115,7 @@ Each goal beneath the capstone designs around Cerebro:
 
 ## Gates
 
-The capstone runs in wave D of the roadmap (`waves.md`), as the sole active goal apart from
-sites.status-reports and sites.training. Before it:
+The capstone runs in wave D of the roadmap, beside the goals `waves.md` names. Before it:
 
 - v1.ai.hosting built the hosts, the gateway with its overflow, and the multilingual embedding
   model.
