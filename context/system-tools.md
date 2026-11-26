@@ -43,5 +43,5 @@ and grow by addition only from there (docproc's `docs/tool-contract.md`, "Versio
 
 ## What the tools' tasks left open
 
-Beyond what `roadmap/docproc-backlog.toml` and `roadmap/docproc-coverage.toml` list,
+Beyond what `roadmap/docproc-backlog.toml` lists,
 v1.ai.processing's design review left docproc-mail's opaque S/MIME in its backlog.

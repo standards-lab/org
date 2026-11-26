@@ -50,7 +50,11 @@ covers follow, gap covers the release changes by design are matched, and exec-4'
 gap reopens.
 '''
 proof = "Neither OneNote timing section remains in the corpus or docproc's acceptance citations, docs-corpus' check passes with both placements from docproc-coverage's final release, and dispose, manifest, and place-traits reproduce their files."
-context = ["docinfer/docs/acceptance.md"]
+context = [
+  "docinfer/docs/acceptance.md",
+  "docproc/CHANGELOG.md",
+  "docproc/docs/acceptance.md",
+]
 
 [tasks.snapshot]
 name = "Snapshot v1"
