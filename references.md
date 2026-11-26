@@ -373,15 +373,13 @@ budget on unified memory, and a measurement method.
 Asked which engine, llama.cpp or vLLM, serves each workstation, in a container or on bare metal.
 Answered llama.cpp in a container on both host classes, in ggml's CUDA image on the GB10s and its
 Vulkan image on the Framework; vLLM superseded that answer on every workstation. Its `host/`
-suite, the hosts' vLLM rows and scripts, is the source v1.ai.hosting's design reviews, and
-v1.ai.hosting's sync archives it.
+suite, the hosts' vLLM rows and scripts, is the source v1.ai.hosting's design reviewed.
 
 ### [spike-hosting-upgrades](https://github.com/JaimeStill/spike-hosting-upgrades)
 Asked what convention evaluates an upgrade to the hosting stack (hardware configuration, model
 host, or models) from what others publish: a project-local Claude Code skill writes dated, cited
 reports of ranked upgrades, and anchors A and B verify each on our host. Answered with the
-survey-and-measure convention and its cadence, which v1.ai.hosting rebuilds on vLLM;
-v1.ai.hosting's sync archives it.
+survey-and-measure convention and its cadence, which ai-hosting rebuilt on vLLM.
 
 ### [spike-model-layout](https://github.com/JaimeStill/spike-model-layout)
 Asked how models are placed across the memory pools of gb10-1, gb10-2 and the Framework, and what
@@ -393,7 +391,7 @@ Framework audio beside embedding.
 Asked which gateway fronts the vLLM layout and how access to the model APIs is restricted without
 the tailnet. Answered with agentgateway v1.7.0 on gb10-2: purpose aliases on per-purpose base
 URLs, gateway-issued keys with priority, buckets, and budgets, and overflow to Azure AI Foundry for
-agent and vision; v1.ai.hosting builds its gateway, and its sync archives it.
+agent and vision; ai-hosting's gateway is built from it.
 
 ### [spike-ai-pipeline](https://github.com/JaimeStill/spike-ai-pipeline)
 Asked whether a Go model client and a message, document, and stream processing layer can carry a
@@ -500,8 +498,8 @@ lifecycle adapted from Herald. (Deferred to the later events/NATS layer.)
 ### [personal-agents](https://github.com/JaimeStill/personal-agents)
 The architect's self-hosted model setup: a llama.cpp router on the Framework desktop (Strix Halo,
 Vulkan) driven by Pi over Tailscale, the `outpost` admin dispatcher, and a measured reference on
-model tiers, context sizing, and memory footprint. Read-only; v1.ai.hosting's sync archives it,
-with a forward link to `ai-hosting`.
+model tiers, context sizing, and memory footprint. Archived; its README links forward to
+`ai-hosting`.
 Draw from: presets keyed by capability tier (a recipe per model, instantiated per tier); the
 context-sizing and memory-footprint methods; the deferral test in `capabilities/gateway-proxy.md`;
 outpost's verb set.

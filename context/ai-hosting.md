@@ -2,10 +2,10 @@
 
 The hosting layer of the AI capability (`ai-strategy.md`) runs the machines that serve local
 models to the organization's consumers: Pi sessions, Claude Code subagents, go-ai, and the
-capstone's services. Its home is the member repository `ai-hosting`, which v1.ai.hosting builds
+capstone's services. Its home is the member repository `ai-hosting`, which v1.ai.hosting built
 from experiment.hosting's five spikes. This note holds the stack they settled and what
-`ai-hosting` must specify; the spikes' answers, each task's inputs, and the experiment rules are in
-[docs/ai-hosting.md](../docs/ai-hosting.md).
+`ai-hosting` must specify; the spikes' answers, the inputs for later goals, and the experiment
+rules are in [docs/ai-hosting.md](../docs/ai-hosting.md).
 
 ## The hosts
 
@@ -28,9 +28,8 @@ Every host serves with vLLM, one model to each container (a row), under its role
 (`agent`, `vision`, `audio`, or `embedding`); a request naming the model itself gets a 404. No
 workstation runs llama.cpp.
 
-- **Concurrency decides the engine.** The agent row met its latency floor through 12 sessions
-  against llama.cpp's 4; vision and audio each held 16 requests against llama.cpp's 1; embedding
-  reached 4.4 times llama.cpp's throughput at 16 streams.
+- **Concurrency decides the engine.** The agent row met its floor at 12 sessions to llama.cpp's
+  4, vision and audio held 16 requests to its 1, and embedding reached 4.4 times its throughput.
 - **Models aren't loaded on demand.** GPU compute, not memory, is the bottleneck, and loading and
   unloading add compute on top of inference.
 - **Model management stays off the serving API.** A user-device client able to change a host's
@@ -39,53 +38,58 @@ workstation runs llama.cpp.
 ## The layout
 
 Each role has one host, and nothing fails over between hosts; overflow to Azure is the only
-fallback. Purposes sharing one GPU's compute, not memory, decided the placement: every miss
-spike-model-layout measured was two purposes on one GPU.
+fallback. Rows are placed by the GPU compute they share, not the memory they fit
+([ai-hosting's placement rule](https://github.com/standards-lab/ai-hosting/blob/main/docs/policy.md#placement)).
+The table reads ai-hosting's class profiles on vLLM v0.34.0.
 
 | Host | Role and model | Row, GPU memory fraction | Sequences × context | Load target | Holds alone |
 | --- | --- | --- | --- | --- | --- |
 | gb10-1 | agent: openai/gpt-oss-120b, FP8 KV | `gpt-oss-120b-agent-fp8`, 0.80 | 12 × 131,072 | 4 sessions | 12 sessions |
-| gb10-2 | vision: nvidia/Gemma-4-26B-A4B-NVFP4 | `gemma-4-26B-A4B-NVFP4-vision-gb10`, 0.40 | 16 × 8,192 | 4 requests | 16 requests |
-| framework | audio: google/gemma-4-E4B-it, BF16 | `gemma-4-E4B-it-audio-framework`, 0.18, queue limit 16 | 8 × 8,192 | 8 streams | 8 streams alone, an RTFx median of 5.32 on the LAN |
+| gb10-2 | vision: nvidia/Gemma-4-26B-A4B-NVFP4 | `gemma-4-26B-A4B-NVFP4-vision-gb10`, 0.55, queue limit 64 (32 waiting) | 32 × 8,192, an image budget of 1120 soft tokens | 32 requests | 13.4 images a minute of dense pages at 32 streams |
+| framework | audio: google/gemma-4-E4B-it, BF16 | `gemma-4-E4B-it-audio-framework`, 0.30, queue limit 192 | 48 × 8,192 | 48 streams | 2.133 req/s of 30 s windows at 48 streams, its throughput peak |
 | framework-2 | embedding: intfloat/multilingual-e5-large | `vllm-embed`, 0.03 | 16 × 512 | 16 streams, at most 78 req/s | 78 req/s at 16 streams alone |
 
-The floors are an agent inter-token latency median of at most 100 ms, a vision request latency
-median of at most 10 s, an audio RTFx median of at least 5, and embedding at 4,300 prompt tok/s or
-more. Audio and embedding each run alone on their host, measured on vLLM 0.34.0 from a client on
-the LAN: audio at 8 streams held an RTFx median of 5.32 (ai-hosting's
-`docs/findings/audio.md#audio-8`), where beside granite, the earlier embedding row, it held 4.94
-(spike-model-layout `docs/findings/vllm-layout.md`, F.5); embedding's cap and limit come from its
-stream and rate sweeps (ai-hosting's `docs/findings/embedding.md#e5-lan-sweep`,
-`#e5-lan-sweep-16`, `#e5-rate-sweep`). In the earlier layout, with audio beside granite on
-`framework`, every row met its floor with all three hosts loaded to their targets for 240 s on
-vLLM 0.33.0 (spike-model-layout `docs/findings/vllm-layout.md`, J); the final layout is unmeasured
-as a whole.
+The floors are an agent inter-token latency median of at most 100 ms, vision's throughput peak at
+the accuracy-first image budget, audio's throughput peak at full transcription, and embedding at
+4,300 prompt tok/s or more. Vision found no throughput peak within the KV cache that holds
+full-context requests (ai-hosting's `docs/findings/vision.md`, `#dense-1120-high`,
+`#start-1120-055`). Audio's model transcribes at most 30 s of a clip (`docs/findings/audio.md`,
+`#audio-real-30s`, `#audio-real-30s-64`).
+
+The four rows ran together on v0.34.0. Agent, audio, and embedding matched their rows alone
+within their hosts' run noise. Vision matched at 2, 4, and 8 streams; at 32 its decode rate (total
+output, ITL) matched, while its finished-page count read 3–4% under, past gb10-2's 1.5% run noise
+(`docs/findings/vision.md#layout`, `#dense-noise-32`).
 
 ## The gateway
 
-agentgateway v1.7.0 fronts the rows from one compose stack on gb10-2, with Postgres holding
-budgets and the request log. Each alias has its own base URL, `/<alias>/v1`. The gateway issues
-the consumers' keys (401 for a missing, unknown, or revoked key), routes only the eight serving
-paths, gives each key a priority, a request-rate bucket, and a token budget per UTC clock hour,
-and holds embedding to 78 requests a second with one global bucket (429, `Retry-After: 1`). Past
-a row's concurrency cap vLLM queues; past twice the cap the row answers 503 and the gateway evicts
-it. Cerebro (bulk) and Athena (chat) each get a key and a budget. The gateway task's inputs are
-in [docs](../docs/ai-hosting.md#the-gateway-task).
+agentgateway v1.7.0 fronts the rows from one compose stack on gb10-2, with Postgres holding only
+the request log. Each alias has its own base URL, `/<alias>/v1`. The gateway issues the
+consumers' keys (401 for a missing, unknown, or revoked key), routes only the eight serving paths,
+gives each key a priority and a request-rate bucket, and holds embedding to 78 requests a second
+with one global bucket (429, `Retry-After: 1`). Past a row's concurrency cap vLLM queues; past its
+queue limit (running plus waiting) the row answers 503 and the gateway evicts it. Priority orders
+only the waiting queue.
+
+Cloud spend is held in Azure, by each deployment's capacity (agent 133, vision 41, and audio 30,
+its quota) and a $50 monthly Cost Management budget alert.
 
 ## Overflow to Azure AI Foundry
 
 When a row is down or refuses, the gateway sends its alias's requests to an Azure AI Foundry
 deployment, marks the reply `x-gateway-overflow: azure`, and returns to the row once it is back.
-Nothing overflows under IL6. Three aliases overflow:
+Nothing overflows under IL6. The gateway rewrites each request for its deployment, dropping or
+renaming the fields the deployment refuses, and sets vision's `reasoning_effort` to `minimal`, so
+a client addresses an alias without knowing which backend answers (ai-hosting's
+`docs/gateway.md#overflow`). Three aliases overflow:
 
 - **agent** to `gpt-oss-120b`, processed within the data zone;
 - **vision** to `gpt-5-mini`, processed globally; and
 - **audio** to `gpt-audio-mini` on Chat Completions, processed globally. It has two known
   refusals: a text-only chat, and audio inside a Responses request, which the gateway refuses.
 
-Embedding has no cloud fallback: it routes only to the self-hosted row.
-
-`text-embedding-3-small` stays deployed but is never routed: its vectors are in another space.
+Embedding has no cloud fallback, since a cloud model's vectors are in another space;
+`text-embedding-3-small` is deleted.
 
 ## Set A's embedding model
 
@@ -101,11 +105,9 @@ docinfer's embeddings among them.
 google/gemma-4-E4B-it serves more than speech to text, so it stays the audio model. vLLM serves
 `/v1/audio/transcriptions` only for a model implementing `SupportsTranscription`, which
 `Gemma4ForConditionalGeneration` doesn't, so the workstations transcribe over chat: go-ai's
-`TranscribeChat` sends the clip as input audio in a Chat Completions request. Against the
-workstations, the host that builds docinfer's go-ai clients sets `Options.TranscriptionMode` to
-`TranscribeChat` in place of go-ai's default `TranscribeRoute`, and docinfer reads it from the
-client; a chat-mode reply that isn't completed returns `*ai.IncompleteTranscriptError`. Each
-row's refused reasoning efforts are in go-ai's format profiles (go-ai's `docs/concepts.md`,
+`TranscribeChat` sends the clip as input audio in a Chat Completions request; how a client selects
+it is in [docs](../docs/ai-hosting.md#inputs-for-later-goals). Each row's refused reasoning
+efforts are in go-ai's format profiles (go-ai's `docs/concepts.md`,
 "Profiles").
 
 ## Production
@@ -125,15 +127,14 @@ vLLM, and the admin tooling after experiment.admin's intake. It runs as one comm
 `hosting <group> <verb>`, and is the only hosting repository on the workstations; the suite's
 design is `ai-hosting/context/hosting-suite.md`.
 
-The state of a particular host belongs nowhere in the workspace: a set-up host needs little
-attention, so the specification and instance split of
-`claude-plugins/context/tool-based-skills.md` has no instance half here.
+A particular host's state stays out of tracked files, so the specification and instance split of
+`claude-plugins/context/tool-based-skills.md` has no instance half here: a survey report is host
+state, kept untracked in ai-hosting's `.state/upgrades/<host>/<UTC date>T<HHMM>Z.md`. A
+measurement is a findings cell in `docs/findings/`, which the profiles' reasons cite.
 
-The `architecture` task (planned) writes four method pages: reading a model card, tool-call
-reliability, sizing a vLLM row, and the placement rule. The goal's sync archives personal-agents
-([JaimeStill/personal-agents](https://github.com/JaimeStill/personal-agents), the earlier
-llama.cpp setup with the `outpost` dispatcher), its README linking forward to `ai-hosting`, and
-spike-model-engines, spike-model-gateway, and spike-hosting-upgrades.
+Architecture's `principles/model-cards.md` and `principles/tool-call-reliability.md` cover reading
+a model card and tool-call reliability; sizing and placing rows stay in ai-hosting's
+`docs/policy.md`, "The tuning rule" and "Placement".
 
 `ai-hosting` is public. Tailnet identifiers (the MagicDNS suffix and addresses) stay out of it,
 and its docs name hosts by short name.
@@ -152,7 +153,7 @@ Every hosting spike, experiment.admin's included, keeps the rules in
 ## Experiment: spike-host-admin
 
 experiment.admin's one spike, run after capstone.data-intelligence: can one CLI on go-cli-sdk
-manage the vLLM rows on the three hosts, with ai-hosting's `hosting` suite as its baseline? It
+manage the vLLM rows on the four hosts, with ai-hosting's `hosting` suite as its baseline? It
 decides `ai-hosting`'s admin tooling.
 
 ## Open for experiment.admin

@@ -4,7 +4,7 @@ The planned AI capability builds in four layers, each on the one below. `v1.ai` 
 go-web-service's AI layer demonstrates them. Around the capstone, capstone.data-intelligence
 (`data-intelligence.md`):
 
-- **v1.ai.hosting** (`ai-hosting.md`) builds layer 1, the self-hosted stack, before the capstone.
+- **v1.ai.hosting** (`ai-hosting.md`) built layer 1, the self-hosted stack, before the capstone.
 - **v1.ai** builds the client and processing layers before the capstone, in go-ai, docproc, and
   docinfer.
 - **experiment.ocr**, after the capstone: spike-scanned-documents.
@@ -89,8 +89,9 @@ docproc, and docinfer join `exclusive` after wave C.
 
 ### How v1.ai builds them
 
-v1.ai holds two sub-goals (`roadmap/v1.ai.toml`): v1.ai.inference and v1.ai.hosting;
-v1.ai.client built go-ai, and v1.ai.processing built docproc and its system tools. The design
+v1.ai's sub-goals have all shipped: v1.ai.client built go-ai,
+v1.ai.processing built docproc and its system tools, v1.ai.inference built docinfer, and
+v1.ai.hosting built ai-hosting. The design
 tasks build from docproc's
 [`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md), the
 signatures of every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by
@@ -98,9 +99,9 @@ a Fable 5.2 evaluation of each promoted artifact against the standards, the laye
 Cerebro's requirements, and closes with an `acceptance` task that reruns the real workloads and
 fixes what it finds, never redesigning.
 
-Local models for application workloads have no sub-goal of their own: v1.ai.hosting serves set
-A's roles for them (vision with reasoning off, transcription, and embeddings), its `embedding`
-task replacing set A's embedding model (`ai-hosting.md`, "Set A's embedding model").
+Local models for application workloads have no sub-goal of their own: ai-hosting serves set A's
+roles for them (vision with reasoning off, transcription, and embeddings), and v1.ai.hosting's
+`embedding` task replaced set A's embedding model (`ai-hosting.md`, "Set A's embedding model").
 
 Evidence 5, settled, bears on the layering. docproc prepares long audio, cutting windows at
 silences and releasing the join, and the layer above transcribes it and owns the inference
@@ -130,9 +131,14 @@ open](../docs/ai-strategy.md#what-docprocs-library-left-open).
 
 ## Constraint: model origin
 
-No model of Chinese origin is admitted, because of the risk of censorship and of hidden behavior
-in their weights. The constraint binds experiment.ocr, experiment.harness, and v1.ai. A model
-fine-tuned from a Chinese-origin base takes its base's origin, whoever publishes the fine-tune.
+No model of Chinese origin is admitted unless cleared, because of the risk of censorship and of
+hidden behavior in their weights. The constraint binds experiment.ocr, experiment.harness, and
+v1.ai. A model fine-tuned from a Chinese-origin base takes its base's origin, whoever publishes the
+fine-tune, and a model takes its teacher's origin, the generator of its training targets. A model
+is cleared when NIST's CAISSI or the UK AISI evaluated that exact release, assessed covert
+behavior, backdoors, and agent hijacking, and found parity with its U.S. references, and the
+architect admits it
+([ai-hosting's model-origin rule](https://github.com/standards-lab/ai-hosting/blob/main/docs/policy.md#model-origin)).
 
 ## Answers · experiment.ocr
 

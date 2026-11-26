@@ -1,6 +1,6 @@
 name = "Using local models"
 summary = '''
-On the stack v1.ai.hosting builds, with agentgateway as its gateway candidate, how does a Claude
+On the stack v1.ai.hosting built, with agentgateway as its gateway candidate, how does a Claude
 Code session route subagent tasks to locally hosted models, and for which kinds of task is the
 output acceptable? Harness layer, a
 later priority: runs last, after spike-go-harness; application workloads on local models are
