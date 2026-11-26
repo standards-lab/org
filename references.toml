@@ -227,9 +227,11 @@ archived = true
 
 [repos.spike-model-engines]
 remote = "https://github.com/JaimeStill/spike-model-engines.git"
+archived = true
 
 [repos.spike-hosting-upgrades]
 remote = "https://github.com/JaimeStill/spike-hosting-upgrades.git"
+archived = true
 
 [repos.spike-model-layout]
 remote = "https://github.com/JaimeStill/spike-model-layout.git"
@@ -237,6 +239,7 @@ archived = true
 
 [repos.spike-model-gateway]
 remote = "https://github.com/JaimeStill/spike-model-gateway.git"
+archived = true
 
 [repos.spike-ai-pipeline]
 remote = "https://github.com/JaimeStill/spike-ai-pipeline.git"
@@ -307,6 +310,7 @@ remote = "https://github.com/JaimeStill/signal-lab.git"
 
 [repos.personal-agents]
 remote = "https://github.com/JaimeStill/personal-agents.git"
+archived = true
 
 [repos.dotfiles]
 remote = "https://github.com/JaimeStill/dotfiles.git"

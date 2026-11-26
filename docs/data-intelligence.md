@@ -127,6 +127,11 @@ For v1.ai.hosting's ask that chat stays responsive during a ~/docs-scale run: do
 3,470 vision images, 20,395 s of vision, and vision latency on gb10-2 rose to 38.9 s an image
 under mixed load (spike-model-layout's `docs/layout.md`).
 
+The capstone tunes each client's concurrency per alias live, against ai-hosting's row caps and
+findings; a cap bounds only the worst case (ai-hosting's class profiles). No row serves
+`/v1/audio/transcriptions`, so clients transcribe in chat mode (`context/ai-hosting.md`, "The audio
+role transcribes over chat").
+
 ## The input reports
 
 `cmd/docproc`'s report is holistic: an index page plus one page per distinct content, keyed by its

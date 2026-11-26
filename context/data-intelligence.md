@@ -104,9 +104,9 @@ Each goal beneath the capstone designs around Cerebro:
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
   storage providers, stable event shapes, results in batches as made, cancellation per job, and
   the tools pinned in Cerebro's image (docproc's README, "The system tools").
-- **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with
-  its own key and budget, chat responsive during a ~/docs-scale run (design page, "Gateway
-  load").
+- **v1.ai.hosting:** Cerebro (bulk) and Athena (chat) as separate gateway consumers, each with a
+  key and no budget, chat responsive during a ~/docs-scale run. The capstone tunes each client's
+  concurrency per alias live; clients transcribe in chat mode (design page, "Gateway load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
 - **go-web-sdk:** an SSE helper. The capstone builds the resumable upload, which graduates after
@@ -118,10 +118,10 @@ Each goal beneath the capstone designs around Cerebro:
 The capstone runs in wave D of the roadmap (`waves.md`), as the sole active goal apart from
 sites.status-reports and sites.training. Before it:
 
-- v1.ai.hosting builds the hosts, the gateway with its overflow, and the multilingual embedding
+- v1.ai.hosting built the hosts, the gateway with its overflow, and the multilingual embedding
   model.
 - v1.ai.processing built docproc and its system tools, closed by acceptance over ~/docs, and
-  v1.ai.inference builds docinfer on go-ai's released library, closed by acceptance that reruns
+  v1.ai.inference built docinfer on go-ai's released library, closed by acceptance that reruns
   the real workloads.
 - v1.client.stack built the web client stack the UI builds on.
 - v1.data.extensions built the Postgres-extension layer and pgvector's modules, under Go
@@ -161,5 +161,4 @@ tell a thin layer from a whole one (design page, "Text layer and vision").
 - The scanned-document OCR tier isn't required: the capstone runs on vision transcription, and
   experiment.ocr settles the tier after it.
 - go-ai's `aitest` is its public API, which docinfer, go-ai's `tools/infer`, and Cerebro's tests
-  depend on, so a change to it breaks them. The capstone is the next goal to hold go-ai after
-  v1.ai.inference and v1.ai.hosting's `secrets`.
+  depend on, so a change to it breaks them.

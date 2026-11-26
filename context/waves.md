@@ -17,10 +17,9 @@ and past it. The roadmap's arrays hold the goals' order; this note holds the pla
 
 Each wave runs its goals side by side.
 
-- **B**: v1.ai.hosting builds ai-hosting before the capstone; v1.ai.processing built docproc and
-  its system tools beside it. v1.ai.hosting holds the architecture repository only while a task's
-  branch is checked out there. v1.ai.inference (docinfer) builds on go-ai's
-  released library. v1.client.stack built the web client stack in B and C; with its `foundation`
+- **B**: v1.ai.hosting built ai-hosting before the capstone; v1.ai.processing built docproc and
+  its system tools beside it, and v1.ai.inference built docinfer on go-ai's released library.
+  v1.client.stack built the web client stack in B and C; with its `foundation`
   task shipped, sites.status-reports and sites.training.foundation can start.
 - **C**: the rest of v1.ai's sub-goals still running; go-ai, docproc, and
   docinfer join the exclusive group when C ends. v1.data.extensions, the Postgres-extension

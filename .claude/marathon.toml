@@ -65,9 +65,6 @@ order = [
 ]
 
 [workspace.paths]
-spike-model-engines = "~/experiments/spike-model-engines"
-spike-model-gateway = "~/experiments/spike-model-gateway"
-spike-hosting-upgrades = "~/experiments/spike-hosting-upgrades"
 spike-harness-driver = "~/experiments/spike-harness-driver"
 capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
 capstone-cerebro = "~/capstones/capstone-cerebro"

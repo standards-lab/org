@@ -306,7 +306,7 @@ client of its own.
 
 ## Experiment: spike-local-models
 
-**Question.** On the stack v1.ai.hosting builds (`ai-hosting.md`), how does a Claude Code session
+**Question.** On the stack v1.ai.hosting built (`ai-hosting.md`), how does a Claude Code session
 that stays on Anthropic models route subagent tasks to locally hosted models, and for which kinds
 of task is the output acceptable? It is harness-layer work at a later priority, run after
 spike-go-harness. Application workloads on local models are spike-ai-pipeline's.

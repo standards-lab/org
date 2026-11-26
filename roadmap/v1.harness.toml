@@ -75,9 +75,8 @@ context = ["claude-plugins/context/harness-findings.md"]
 [tasks.hosting-upgrades]
 name = "The hosting-upgrades skill as a plugin"
 summary = '''
-The plugin form of the `hosting-upgrades` skill, which v1.ai.hosting's `upgrades` task rebuilds on
-vLLM in ai-hosting's `.claude/`, with the convention for where its `docs/` initializes. Waits on
-ai-hosting.
+The plugin form of the `hosting-upgrades` skill, which v1.ai.hosting's `upgrades` task rebuilt on
+vLLM in ai-hosting's `.claude/`, with the convention for where its `docs/` initializes.
 '''
 repos = ["claude-plugins"]
 context = ["standards-lab/context/ai-hosting.md"]
@@ -85,7 +84,7 @@ context = ["standards-lab/context/ai-hosting.md"]
 [tasks.watch-register]
 name = "The watch register as a shared check at PLAN"
 summary = '''
-spike-model-gateway's watch register (`docs/watch.md`) as a shared feature for the infrastructure
+ai-hosting's watch register (`docs/watch.md`) as a shared feature for the infrastructure
 repositories: one entry per dependency for anticipated capabilities, deprecations, and other
 changes that would affect the infrastructure we maintain, with a read-only `gh` check run at each
 PLAN beside currency (architect, 2026-11-16).
