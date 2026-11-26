@@ -44,9 +44,9 @@ The table reads ai-hosting's class profiles on vLLM v0.34.0.
 
 | Host | Role and model | Row, GPU memory fraction | Sequences × context | Load target | Holds alone |
 | --- | --- | --- | --- | --- | --- |
-| gb10-1 | agent: openai/gpt-oss-120b, FP8 KV | `gpt-oss-120b-agent-fp8`, 0.80 | 12 × 131,072 | 4 sessions | 12 sessions |
-| gb10-2 | vision: nvidia/Gemma-4-26B-A4B-NVFP4 | `gemma-4-26B-A4B-NVFP4-vision-gb10`, 0.55, queue limit 64 (32 waiting) | 32 × 8,192, an image budget of 1120 soft tokens | 32 requests | 13.4 images a minute of dense pages at 32 streams |
-| framework | audio: google/gemma-4-E4B-it, BF16 | `gemma-4-E4B-it-audio-framework`, 0.30, queue limit 192 | 48 × 8,192 | 48 streams | 2.133 req/s of 30 s windows at 48 streams, its throughput peak |
+| gb10-1 | agent: openai/gpt-oss-120b, FP8 KV | `vllm-agent`, 0.80 | 12 × 131,072 | 4 sessions | 12 sessions |
+| gb10-2 | vision: nvidia/Gemma-4-26B-A4B-NVFP4 | `vllm-vision`, 0.55, queue limit 64 (32 waiting) | 32 × 8,192, an image budget of 1120 soft tokens | 32 requests | 13.4 images a minute of dense pages at 32 streams |
+| framework | audio: google/gemma-4-E4B-it, BF16 | `vllm-audio`, 0.30, queue limit 192 | 48 × 8,192 | 48 streams | 2.133 req/s of 30 s windows at 48 streams, its throughput peak |
 | framework-2 | embedding: intfloat/multilingual-e5-large | `vllm-embed`, 0.03 | 16 × 512 | 16 streams, at most 78 req/s | 78 req/s at 16 streams alone |
 
 The floors are an agent inter-token latency median of at most 100 ms, vision's throughput peak at
