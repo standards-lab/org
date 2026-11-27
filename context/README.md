@@ -89,7 +89,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   questions of experiment.ocr and experiment.harness, and the self-hosted stack v1.ai.hosting
   built, with experiment.admin's question.
 - `data-intelligence.md` — the first capstone, capstone.data-intelligence: what it is, its
-  Cerebro and Athena architecture and repositories, what it asks of the goals beneath it, its
+  Bunrei and Mikoshi architecture and repositories, what it asks of the goals beneath it, its
   gates, the evidence it carries from spike-ai-pipeline, and its design tasks.
 - `docs-corpus.md` — the real workloads' corpus: what it holds, how it changes, how it is shared,
   the verified checkout on gb10-2, and the baseline.

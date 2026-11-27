@@ -22,10 +22,10 @@ page](../docs/ai-strategy.md).
 
 | Layer | What it covers | Home |
 |---|---|---|
-| 1 Hosting | The machines serving local models (the Framework desktop and two GB10 workstations): model selection, layout, upgrade evaluation, and a gateway serving the pool as one service | `ai-hosting`, plus promoted architecture pages (`ai-hosting.md`) |
+| 1 Hosting | The machines serving local models (the Framework desktop and two GB10 workstations): model selection, layout, upgrade evaluation, and a gateway serving the pool as one service, Torii (agentgateway) | `ai-hosting`, plus promoted architecture pages (`ai-hosting.md`) |
 | 2 Client | Go primitives over the engines' native APIs (chat with tools and reasoning, vision, embeddings, transcription), the wire format pluggable | `go-ai`'s model-client surface |
 | 3 Processing | Preparing messages, documents, and streams, whole or streamed, for native model capabilities | `docproc` and its system tools (`v1.ai.processing`); `docinfer` (`v1.ai.inference`) |
-| 4 Harness | Agentic sessions driven from Go, and local models taking Claude Code subagent work; lowest priority | `go-ai`'s harness-session surface; claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned) |
+| 4 Harness | Agentic sessions driven from Go, and local models taking Claude Code subagent work; lowest priority | `go-ai`'s harness-session surface; claude-plugins (`claude-plugins/context/tool-based-skills.md`) through `v1.harness.local-models` (planned); Kannushi, the planned production harness service, a gateway consumer beside Bunrei |
 
 ## External harnesses in place of tau
 
@@ -94,9 +94,9 @@ v1.ai.processing built docproc and its system tools, v1.ai.inference built docin
 v1.ai.hosting built ai-hosting. The design
 tasks build from docproc's
 [`docs/layers.md`](https://github.com/standards-lab/docproc/blob/main/docs/layers.md), the
-signatures of every layer of Cerebro's stack. Each sub-goal opens with a `design` review, led by
+signatures of every layer of Bunrei's stack. Each sub-goal opens with a `design` review, led by
 a Fable 5.2 evaluation of each promoted artifact against the standards, the layers note, and
-Cerebro's requirements, and closes with an `acceptance` task that reruns the real workloads and
+Bunrei's requirements, and closes with an `acceptance` task that reruns the real workloads and
 fixes what it finds, never redesigning.
 
 Local models for application workloads have no sub-goal of their own: ai-hosting serves set A's

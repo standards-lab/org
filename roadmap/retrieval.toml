@@ -1,7 +1,8 @@
 name = "A retrieval library"
 summary = '''
-Hybrid retrieval over pgvector, ANN fused with tsvector keyword search, and reranking, which
-~/s2va/athena defines in-process (`rag/`, `postgres/hybrid_search.go`); set A has no reranker. From
-capstone.data-intelligence (plan, 2026-11-10).
+Graduates the capstone's hybrid search (Mikoshi's `hybrid-search`: tsvector and pgvector fused by
+reciprocal rank fusion inside a context, with facet filters) into a library, then adds reranking,
+which ~/s2va/athena defines in-process (`rag/`, `postgres/hybrid_search.go`); set A has no
+reranker. From capstone.data-intelligence (plan, 2026-11-10 and 2026-11-27).
 '''
 repos = []

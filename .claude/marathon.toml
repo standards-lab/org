@@ -70,8 +70,8 @@ order = [
 [workspace.paths]
 spike-harness-driver = "~/experiments/spike-harness-driver"
 capstone-data-intelligence = "~/capstones/capstone-data-intelligence"
-capstone-cerebro = "~/capstones/capstone-cerebro"
-capstone-athena = "~/capstones/capstone-athena"
+capstone-bunrei = "~/capstones/capstone-bunrei"
+capstone-mikoshi = "~/capstones/capstone-mikoshi"
 
 [workspace.experiments]
 path = "~/experiments/spike-<slug>"

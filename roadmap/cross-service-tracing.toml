@@ -1,6 +1,6 @@
 name = "Tracing across services"
 summary = '''
-One trace across Athena, Cerebro, and the gateway, through CloudEvents `traceparent` and
-v1.observability. From capstone.data-intelligence (plan, 2026-11-10).
+One trace across Mikoshi, Bunrei, and Torii, through CloudEvents `traceparent` and
+v1.observability, beyond the capstone's event lineage, which needs no tracing. From capstone.data-intelligence (plan, 2026-11-10).
 '''
 repos = []

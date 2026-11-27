@@ -42,4 +42,9 @@ concept; a marathon proposal waits until the first capstone ships.
   `.claude/marathon.toml`, outside `order` and the references catalog.
 
 The first is data-intelligence (`data-intelligence.md`): capstone-data-intelligence,
-capstone-cerebro, and capstone-athena.
+capstone-bunrei, and capstone-mikoshi.
+
+Its services take names from Shinto practice: **Bunrei** processes, **Mikoshi** holds the
+knowledge people work in, **Torii** is the workspace's agentgateway deployment in ai-hosting, and
+**Kannushi** is the planned production harness service (`ai-strategy.md`, layer 4). The existing
+system at `~/s2va/athena` keeps the name Athena.

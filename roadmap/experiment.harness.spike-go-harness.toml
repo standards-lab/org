@@ -4,7 +4,8 @@ Does a native Go harness behind spike-harness-driver's driver interface, with se
 calls, skills, and MCP, reach Pi's fidelity on the self-hosted stack? Measured beside Pi with
 spike-harness-driver's conform; reads spike-model-hosting's harness-fit profiles' failed cells and
 reasons (forcing the tool call, reasoning round-trip, no blind resend on a parse 500, image drop)
-as its design input. Decides whether go-ai carries its own agent loop and what replacing the
+as its design input, with Mikoshi's context-bound tool loop (capstone.data-intelligence.mikoshi,
+`context-tools`). Decides whether go-ai carries its own agent loop and what replacing the
 process-backed drivers costs. Its Go layout is settled at its setup.
 '''
 repos = ["spike-go-harness"]

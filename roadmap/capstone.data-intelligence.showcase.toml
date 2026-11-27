@@ -1,0 +1,28 @@
+name = "The capstone's acceptance and presentation"
+summary = '''
+The acceptance run over docs-corpus v0.2.0 measured against its baseline, and the live
+presentation that walks the signal flow layer by layer and argues for elemental architecture.
+'''
+repos = ["capstone-data-intelligence"]
+root = "capstone-data-intelligence"
+remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
+path = "~/capstones/capstone-data-intelligence"
+order = ["acceptance", "presentation"]
+context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
+
+[tasks.acceptance]
+name = "The acceptance run"
+summary = '''
+Waits on: `.torii`, `.bunrei`, and `.mikoshi` having synced. The whole stack over docs-corpus
+v0.2.0, measured against its baseline, with chat responsive during the run and evidence 7, 8,
+10, and 15 shown.
+'''
+
+[tasks.presentation]
+name = "The presentation"
+summary = '''
+A presenterm deck in `presentation/` directing a live run through Mikoshi: the signal flow layer
+by layer, the merits of an elemental architecture, and each layer's expansion points. Diagrams
+from ~/tau/diagrams/ingredients, laid out as ~/presentations/open-inference-stack. Accepted by a
+rehearsed run that includes the recovery scenario.
+'''
