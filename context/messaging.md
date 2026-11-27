@@ -53,7 +53,7 @@ elements"): it defines emission only, and delivery guarantees belong to the mess
 - **An event's NATS subject is its type, unchanged**, and the nats block's prefix is the namespace
   every type must start with, not a token prepended to it. This and the one owner capturing
   `<prefix>.>` govern a web service's events for committed mutations of executed commands. A job's
-  progress and result stream, such as Cerebro's (`cerebro.job.<job>`, one subject per job for the
+  progress and result stream, such as Bunrei's (`bunrei.job.<job>`, one subject per job for the
   job's gap-free sequence), is a different use case these conventions don't govern.
 - **The scope is the standard tier plus one native use**: request and reply through the `nats`
   provider's `Conn()`, in the composition root alone. The rest of the capability ledger is not
@@ -127,7 +127,7 @@ drains first and the database and the broker last.
 - Whether go-messaging names the change-only event pattern: an event that carries its producer's
   whole state and a monotonic sequence, so a consumer that skips stale input loses nothing.
 - A dead-letter stream, deferred until a consumer needs replay.
-- **A stream-backed root** (planned). In capstone.data-intelligence's Cerebro, each job is a root
+- **A stream-backed root** (planned). In capstone.data-intelligence's Bunrei, each job is a root
   Entity folded from the events on its own subject, so a guarded append is the transaction that
   makes the Command's change true (`architecture/architecture.md`, "The elements", asks for that
   atomicity, not for SQL). go-messaging gains an expected-sequence append beside the outbox and a
@@ -137,6 +137,6 @@ drains first and the database and the broker last.
 
 - Assumes JetStream's deduplication window covers the relay's retry interval.
 - Assumes every event a service emits reports a mutation in its own database, so an outbox table
-  in that database suffices. Cerebro breaks it on purpose: a job's events are its root Entity,
+  in that database suffices. Bunrei breaks it on purpose: a job's events are its root Entity,
   appended to a JetStream subject outside any outbox ("A stream-backed root", under Open).
 - Assumes the service stays on `database/sql`-shaped sessions (sqlate's `Session`).

@@ -36,7 +36,7 @@ docproc-ooxml (docx, xlsx, and pptx), docproc-mail, and docproc-onenote (`ai-str
 - **Golden outputs prove a contract.** Each tool commits golden outputs; no JSON Schema is
   written.
 - **The tools stay narrow.** Batch IDs, per-item digests, provenance, warnings, and typed
-  metadata belong to docproc, docinfer, and Cerebro, not the tools.
+  metadata belong to docproc, docinfer, and Bunrei, not the tools.
 
 The contracts move to schema "2", since the cuts remove fields each spike reader of "1" declares,
 and grow by addition only from there (docproc's `docs/tool-contract.md`, "Versioning").
