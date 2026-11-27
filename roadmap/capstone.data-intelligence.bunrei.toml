@@ -12,6 +12,7 @@ remote = "https://github.com/JaimeStill/capstone-bunrei.git"
 path = "~/capstones/capstone-bunrei"
 order = [
   "metadata",
+  "metadata-text",
   "text-layer",
   "vision",
   "messaging-append",
@@ -34,6 +35,17 @@ Compositional metadata structures that extend docproc's base file metadata per f
 office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
 schema "2" metadata of docproc's `cmd/docproc`. `.foundation`'s `events` reads it.
 '''
+
+[tasks.metadata-text]
+name = "Metadata in the embedded text"
+summary = '''
+docinfer's metadata source, `MetadataText`, widens from the input file's name, size and type to
+every part with a metadata record, rendered from docproc v0.10.0's PDF, office, media and picture
+records and its mail message and OneNote page records, so a message's sender and subject or a
+document's author and title are searchable text. Takes docproc v0.10.0 first, and releases
+docinfer.
+'''
+repos = ["docinfer"]
 
 [tasks.text-layer]
 name = "Text layer or vision"
