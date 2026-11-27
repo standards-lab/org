@@ -221,6 +221,15 @@ per-layer latency waterfall, queue and retry pressure, and a context's activity;
 analyses fire from them; and the chat reads them as data. A replica killed mid-job is a scripted
 demo of recovery through redelivery, the cache, the checkpoint, and the manifest check.
 
+The signal boundary: a model's token stream travels as SSE inside the one request that asked for
+it, and dies with it. The chat's answer goes from go-ai to the browser through Mikoshi, and the
+browser disconnecting cancels the generation. Only committed outcomes become go-messaging events,
+one per committed turn or analysis, carrying lineage; live views (the stage timeline, signal flow)
+read events, never streams. Deltas stay off JetStream: each publish waits on an ack, each outbox
+event costs a row and a transaction, and the stream keeps every event until its `MaxAge`. The SSE
+codec is go-core's, its writer go-web-sdk's, and go-ai reads through the codec (`.bunrei`'s
+`sse-codec`, `sse-writer`, and `go-ai-sse`).
+
 ## The presentation
 
 For the `presentation` task.
