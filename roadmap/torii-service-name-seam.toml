@@ -1,8 +1,0 @@
-name = "A seam test of Torii's service name"
-summary = '''
-The service name `torii` must match in ai-hosting's `compose/torii.yml`, the override's
-`services.torii` in `lib/gateway.sh`, and `status`'s `ps --quiet torii`, and no test ties them
-while Docker is stubbed. A test that runs `docker compose config` unstubbed on the rendered stack
-would.
-'''
-repos = ["ai-hosting"]

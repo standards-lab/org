@@ -61,6 +61,4 @@ backlog = [
   "context-tree-graduation",
   "context-connectors",
   "mikoshi-web-graduation",
-  "torii-tailnet-name",
-  "torii-service-name-seam",
 ]
