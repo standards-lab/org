@@ -3,9 +3,10 @@ summary = '''
 Mikoshi, the knowledge service people work in: a hierarchy of data contexts over files, records,
 and analyses, with hybrid search, a chat whose tools see only the selected context, standing
 analyses, lineage, and a live view of every signal crossing the architecture. Its web pieces sit
-behind a `web/` boundary shaped to graduate.
+behind a `web/` boundary shaped to graduate. Builds the resumable upload, the SSE codec and
+writer, and go-ai's reading through the codec in the libraries.
 '''
-repos = ["capstone-mikoshi", "web-app-sdk"]
+repos = ["capstone-mikoshi", "web-app-sdk", "go-core", "go-web-sdk", "go-ai"]
 root = "capstone-mikoshi"
 remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
 path = "~/capstones/capstone-mikoshi"
@@ -13,13 +14,20 @@ order = [
   "web-shell",
   "store",
   "contexts",
+  "upload",
   "browser-upload",
   "items",
-  "ingest",
+  "sse-codec",
+  "event-extensions",
+  "sse-writer",
+  "go-ai-sse",
   "hybrid-search",
   "context-tools",
+  "ingest",
   "standing-analyses",
   "lineage",
+  "sse-event-sequence",
+  "event-relay",
   "signal-flow",
   "image",
 ]
@@ -52,13 +60,25 @@ membership by reference, coverage of descendants, the filter format, moves, and 
 filters chunks by a context's items, shaped to graduate (`context-tree-graduation`).
 '''
 
+[tasks.upload]
+name = "The resumable upload in go-web-sdk"
+summary = '''
+Waits on: `.foundation` `protocol`'s `upload` note. go-web-sdk's base module implements
+draft-ietf-httpbis-resumable-upload-16 on net/http: a handler behind a chunk-store interface and a
+Go append client, with RFC 9530 digests and sequential appends across replicas, tusd as an interop
+peer only. go-web-sdk v0.18.0's `ReadUpload` refuses a body with no Content-Length, which a
+creating POST of unknown length lacks. go-web-sdk's currency pins the draft revision and reads
+datatracker's latest. Released as go-web-sdk's next minor.
+'''
+repos = ["go-web-sdk"]
+
 [tasks.browser-upload]
 name = "The browser's resumable upload"
 summary = '''
-Waits on: `.bunrei` `upload`'s go-web-sdk release. web-app-sdk's browser client for
-draft-ietf-httpbis-resumable-upload-16, against the root's `upload` note: appends with digests,
-resume after a dropped connection, progress. web-app-sdk's currency pins the draft revision with
-go-web-sdk's. Released as web-app-sdk's next minor.
+web-app-sdk's browser client for draft-ietf-httpbis-resumable-upload-16 on `upload`'s release,
+against the root's `upload` note: appends with digests, resume after a dropped connection, progress.
+web-app-sdk's currency pins the draft revision with go-web-sdk's. Released as web-app-sdk's next
+minor.
 '''
 repos = ["web-app-sdk"]
 
@@ -69,6 +89,43 @@ Files, API-authored records, and analyses as items: upload into blob storage thr
 resumable upload handler and `browser-upload`'s client, records through the API, references into
 contexts, and the context-activity events.
 '''
+
+[tasks.sse-codec]
+name = "The SSE codec"
+summary = '''
+go-core's `text/event-stream` codec beside `event`: events read and written to the WHATWG rules
+(type, data, and id; comments and retry parsed), with no HTTP or model concerns, so go-web-sdk
+writes through it and go-ai reads through it. Released as go-core's next minor, which carries its
+unreleased main.
+'''
+repos = ["go-core"]
+
+[tasks.event-extensions]
+name = "Event extension attributes"
+summary = '''
+go-core's `Raise` sets an event's extension attributes, which `ingest` and `.bunrei`
+`event-stream` need for lineage and `layer`. Released in go-core's next minor with `sse-codec`.
+'''
+repos = ["go-core"]
+
+[tasks.sse-writer]
+name = "The SSE writer"
+summary = '''
+go-web-sdk's writer of a request-scoped stream on go-core's codec: the media type and
+`Cache-Control: no-store`, a flush per event, the write deadline reset past the server's
+`WriteTimeout`, and the stream ended on the run context so a drain exits 0. A token stream answers
+the one request that asked for it; committed outcomes are events (the design page,
+"Events"). Released as go-web-sdk's next minor.
+'''
+repos = ["go-web-sdk"]
+
+[tasks.go-ai-sse]
+name = "go-ai on go-core's codec"
+summary = '''
+go-ai takes go-core as its first standards-lab requirement: `format.SSE` reads through go-core's
+codec in place of `internal/sse`, its `EventStream` seam unchanged. Released as go-ai's next minor.
+'''
+repos = ["go-ai"]
 
 [tasks.ingest]
 name = "Committing Bunrei's batches"
@@ -89,11 +146,10 @@ filters (item kind, content type, metadata, dates), with no reranker; shaped to 
 [tasks.context-tools]
 name = "Context tools and chat"
 summary = '''
-Waits on: `.bunrei` `sse-writer` and `go-ai-sse`. A tool-calling chat on go-ai's agent alias
-whose tools (search, list, read, run an extraction, read the event history) refuse anything
-outside the selected context, its answer streamed as SSE through go-web-sdk's writer inside the
-request, one event per committed turn or analysis, analyses saved as items with provenance, and
-citations in the thread.
+A tool-calling chat on go-ai's agent alias, on `sse-writer` and `go-ai-sse`, whose tools (search,
+list, read, run an extraction, read the event history) refuse anything outside the selected context,
+its answer streamed as SSE through go-web-sdk's writer inside the request, one event per committed
+turn or analysis, analyses saved as items with provenance, and citations in the thread.
 '''
 
 [tasks.standing-analyses]
@@ -108,6 +164,21 @@ name = "Lineage"
 summary = '''
 A citation walked back through chunk, embedding, model identity, inference, docproc stage, and
 upload to the source bytes, from the events' causation ids.
+'''
+
+[tasks.sse-event-sequence]
+name = "The browser's SSE event sequence"
+summary = '''
+web-app-sdk's SSE `EventSequence` adapter, for `event-relay`'s client. Released as web-app-sdk's
+next minor.
+'''
+repos = ["web-app-sdk"]
+
+[tasks.event-relay]
+name = "The event relay"
+summary = '''
+Mikoshi's SSE relay of its JetStream stream to the browser through `sse-writer`, stateless per
+replica, its cursor the stream sequence.
 '''
 
 [tasks.signal-flow]

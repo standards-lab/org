@@ -2,11 +2,10 @@ name = "Bunrei"
 summary = '''
 Bunrei, the processing service that never knows its caller: files and records in; metadata,
 extracted text, inferences, chunks, and embeddings out as ordered events closed by a manifest.
-Builds its stream-backed root and work queue in go-messaging and the SSE codec and writer in
-go-core and go-web-sdk, with go-ai reading through the codec, and fixes docproc or docinfer where
-a task needs it; the only capstone sub-goal in the exclusive group.
+Builds its stream-backed root and work queue in go-messaging, and fixes docproc or docinfer where
+a task needs it.
 '''
-repos = ["capstone-bunrei", "docproc", "docinfer", "go-messaging", "go-core", "go-web-sdk", "go-ai"]
+repos = ["capstone-bunrei", "docproc", "docinfer", "go-messaging"]
 root = "capstone-bunrei"
 remote = "https://github.com/JaimeStill/capstone-bunrei.git"
 path = "~/capstones/capstone-bunrei"
@@ -17,10 +16,6 @@ order = [
   "vision",
   "messaging-append",
   "messaging-work-queue",
-  "sse-codec",
-  "sse-writer",
-  "go-ai-sse",
-  "upload",
   "state",
   "api",
   "jobs",
@@ -79,48 +74,6 @@ backoff, and a dead-letter subject, a contract a Postgres SKIP LOCKED provider c
 '''
 repos = ["go-messaging"]
 
-[tasks.sse-codec]
-name = "The SSE codec"
-summary = '''
-go-core's `text/event-stream` codec beside `event`: events read and written to the WHATWG rules
-(type, data, and id; comments and retry parsed), with no HTTP or model concerns, so go-web-sdk
-writes through it and go-ai reads through it. Released as go-core's next minor, which carries its
-unreleased main.
-'''
-repos = ["go-core"]
-
-[tasks.sse-writer]
-name = "The SSE writer"
-summary = '''
-go-web-sdk's writer of a request-scoped stream on go-core's codec: the media type and
-`Cache-Control: no-store`, a flush per event, the write deadline reset past the server's
-`WriteTimeout`, and the stream ended on the run context so a drain exits 0. A token stream answers
-the one request that asked for it; committed outcomes are events (the design page,
-"Events"). Released as go-web-sdk's next minor.
-'''
-repos = ["go-web-sdk"]
-
-[tasks.go-ai-sse]
-name = "go-ai on go-core's codec"
-summary = '''
-go-ai takes go-core as its first standards-lab requirement: `format.SSE` reads through go-core's
-codec in place of `internal/sse`, its `EventStream` seam unchanged. Released as go-ai's next minor,
-before `jobs` reads extraction's stream through it.
-'''
-repos = ["go-ai"]
-
-[tasks.upload]
-name = "The resumable upload in go-web-sdk"
-summary = '''
-Waits on: `.foundation` `protocol`'s `upload` note. go-web-sdk's base module implements
-draft-ietf-httpbis-resumable-upload-16 on net/http: a handler behind a chunk-store interface and a
-Go append client, with RFC 9530 digests and sequential appends across replicas, tusd as an interop
-peer only. go-web-sdk v0.18.0's `ReadUpload` refuses a body with no Content-Length, which a
-creating POST of unknown length lacks. go-web-sdk's currency pins the draft revision and reads
-datatracker's latest. Released as go-web-sdk's next minor.
-'''
-repos = ["go-web-sdk"]
-
 [tasks.state]
 name = "Bunrei's state"
 summary = '''
@@ -134,10 +87,10 @@ messaging tasks' release.
 [tasks.api]
 name = "Bunrei's API and client module"
 summary = '''
-Waits on: `.foundation` `protocol` and `upload`'s release. The Queries and Commands, with records
-as Submit content, served from the template's domain layer; go-web-sdk's upload handler mounted
-over Bunrei's blob storage, CompleteUpload its one upload Command; the nested `client` module,
-wrapping go-web-sdk's upload client, released as `client/v0.1.0` for Mikoshi.
+Waits on: `.foundation` `protocol` and `.mikoshi` `upload`'s release. The Queries and Commands,
+with records as Submit content, served from the template's domain layer; go-web-sdk's upload
+handler mounted over Bunrei's blob storage, CompleteUpload its one upload Command; the nested
+`client` module, wrapping go-web-sdk's upload client, released as `client/v0.1.0` for Mikoshi.
 '''
 
 [tasks.jobs]
@@ -151,8 +104,9 @@ unit of retry.
 [tasks.event-stream]
 name = "The event stream"
 summary = '''
-Waits on: `.foundation` `events`. Every stage, inference, and result-batch event on the job's
-subject with its causation, correlation, and layer, closed by the manifest.
+Waits on: `.foundation` `events` and `.mikoshi` `event-extensions`. Every stage, inference, and
+result-batch event on the job's subject with its causation, correlation, and layer, closed by the
+manifest.
 '''
 
 [tasks.tool-packaging]

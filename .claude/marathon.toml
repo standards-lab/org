@@ -10,25 +10,6 @@ check = "lint-context && lint-references"
 [workspace]
 role = "coordinator"
 extensions = ["marathon-architecture"]
-exclusive = [
-  [
-    "go-core",
-    "sqlate",
-    "docproc",
-    "go-database",
-    "go-web-sdk",
-    "go-observability",
-    "go-storage",
-    "go-ai",
-    "go-messaging",
-    "blobfs",
-    "go-cli-sdk",
-    "go-web-sdk-template",
-    "go-cli-sdk-template",
-    "docinfer",
-    "go-web-service",
-  ],
-]
 order = [
   [
     "claude-plugins",

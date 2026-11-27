@@ -20,5 +20,5 @@ summary = '''
 `init`, the standard report layout, its components on web-foundation, its conventions, the base
 exploration guide and per-report template, and the report workflow, with agent help planning
 reports. Takes in the coordinator's briefs/ and interview.md, which the org repository then
-drops; joins `order` and the catalog outside the exclusive group.
+drops; joins `order` and the catalog.
 '''

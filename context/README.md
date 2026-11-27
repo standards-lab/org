@@ -69,7 +69,7 @@ Beyond the roadmap's goal tree, the ecosystem grows toward:
   `capstone-<name>`, listed in `[workspace.paths]` (`naming.md`).
 - **Cross-repo coordination** (built): the catalog is the repository list, and the workspace
   order in [the configuration](../.claude/marathon.toml) is its dependency graph; `../CLAUDE.md`
-  states the order's tiers, the exclusive group, and why the merge waits on no checks.
+  states the order's tiers and why the merge waits on no checks.
 
 ## Notes
 

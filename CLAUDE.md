@@ -44,11 +44,8 @@ and remote), and keeps the workspace's notes, design pages, and roadmap here (`c
 The workspace order lists the repositories lowest first: the harness, hosting, secrets, and corpus
 repositories; the core SDK beside sqlate and docproc; the infrastructure libraries and application
 SDKs; the templates and docinfer; the web client stack, from its tooling up to webappgen; the
-reference web service; and the architecture repository. At most one active goal touches the
-`exclusive` group, the reference-architecture code repositories, at a time; spikes, the harness,
-and the web client repositories run beside it (go-ai, docproc, and docinfer among
-them). No repository rooted in this directory runs CI, so `[remote]`'s merge waits on
-no checks.
+reference web service; and the architecture repository. No repository rooted in this directory
+runs CI, so `[remote]`'s merge waits on no checks.
 
 ## Visibility tiers (public / member / private)
 

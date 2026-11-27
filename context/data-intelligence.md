@@ -99,9 +99,10 @@ Each goal beneath the capstone designs around Bunrei:
   load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
-- **go-core, go-web-sdk, go-ai:** the SSE codec, its writer, and go-ai reading through it.
-- **go-web-sdk, web-app-sdk:** the resumable upload, by `.bunrei` `upload` and `.mikoshi`
-  `browser-upload`. The capstone builds a stage timeline fed by events, and chat citations.
+- **go-core, go-web-sdk, go-ai:** the SSE codec, its writer, and go-ai reading through it, by
+  `.mikoshi`'s SSE tasks.
+- **go-web-sdk, web-app-sdk:** the resumable upload, by `.mikoshi` `upload` and `browser-upload`.
+  The capstone builds a stage timeline fed by events, and chat citations.
 - **go-core's graph API:** both composition roots are written against it.
 
 ## Gates
@@ -146,16 +147,17 @@ The goal is a container; its layer sub-goals run side by side, each design-first
 | Sub-goal | Root | Holds |
 |---|---|---|
 | `.foundation` | capstone-data-intelligence | the shared contracts (chunks, protocol, events), the stack, athena-mapping, the demo dataset |
-| `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's and the SSE tasks, then the service; the only one in the exclusive group |
-| `.mikoshi` | capstone-mikoshi | the web shell, the database, contexts, items, ingest, hybrid search, chat, standing analyses, lineage, signal flow |
+| `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's tasks, then the service |
+| `.mikoshi` | capstone-mikoshi | the web shell, the database, contexts, the upload and SSE tasks, items, ingest, hybrid search, chat, standing analyses, lineage, signal flow |
 | `.showcase` | capstone-data-intelligence | the acceptance run and the presentation, staged once `.foundation` syncs |
 
 Each blocked task's summary opens with "Waits on":
 
 - `.foundation` `events` waits on `.bunrei` `metadata` (the metadata shapes it carries).
-- `.bunrei` `state` and `api` wait on `.foundation` `protocol` and `events`.
+- `.bunrei` `state` and `api` wait on `.foundation` `protocol` and `events`, and `api` on
+  `.mikoshi` `upload`'s release; `event-stream` on `.mikoshi` `event-extensions`.
 - `.mikoshi` `store` and `contexts` wait on `.foundation` `chunks`; `ingest` on `events` and on
-  `.bunrei` `api`'s release of `client/v0.1.0`; `context-tools` on `.bunrei`'s SSE tasks.
+  `.bunrei` `api`'s release of `client/v0.1.0`.
 - `.showcase` `acceptance` waits on `.bunrei` and `.mikoshi` having synced; `.torii` synced on
   2026-11-27, with the gateway running as Torii on gb10-2.
 

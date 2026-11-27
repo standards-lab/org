@@ -225,7 +225,7 @@ browser disconnecting cancels the generation. Only committed outcomes become go-
 one per committed turn or analysis, carrying lineage; live views (the stage timeline, signal flow)
 read events, never streams. Deltas stay off JetStream: each publish waits on an ack, each outbox
 event costs a row and a transaction, and the stream keeps every event until its `MaxAge`. The SSE
-codec is go-core's, its writer go-web-sdk's, and go-ai reads through the codec (`.bunrei`'s
+codec is go-core's, its writer go-web-sdk's, and go-ai reads through the codec (`.mikoshi`'s
 `sse-codec`, `sse-writer`, and `go-ai-sse`).
 
 ## The presentation

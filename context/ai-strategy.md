@@ -84,8 +84,7 @@ An adjacent library may depend on a stack library, which pins it above that libr
 (`architecture/principles/repository-topology.md`, "Adjacent libraries"): only layers above
 go-ai's tier use docinfer. A provider sub-module pins only its own level, and one over sqlate pins
 no tier. A repository's place in `order` follows its base module; nested command modules and
-system tools don't move it. A cross-repository task orders its own exceptions in its brief. go-ai,
-docproc, and docinfer are in `exclusive`.
+system tools don't move it. A cross-repository task orders its own exceptions in its brief.
 
 ### How v1.ai builds them
 
