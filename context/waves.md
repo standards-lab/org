@@ -21,16 +21,15 @@ Each wave runs its goals side by side.
   its system tools beside it, and v1.ai.inference built docinfer on go-ai's released library.
   v1.client.stack built the web client stack in B and C; with its `foundation`
   task shipped, sites.status-reports and sites.training.foundation can start.
-- **C**: the rest of v1.ai's sub-goals, all since shipped. go-ai, docproc, and docinfer are in the
-  exclusive group. v1.data.extensions, the Postgres-extension layer, ran beside C in sqlate and
-  go-database, holding the exclusive group until it synced.
+- **C**: the rest of v1.ai's sub-goals, all since shipped. v1.data.extensions, the
+  Postgres-extension layer, ran beside C in sqlate and go-database.
 - **D**: capstone.data-intelligence, run as layer sub-goals side by side: `.foundation` (the
   shared contracts and the stack), `.torii`, `.bunrei`, and `.mikoshi`, then `.showcase` (the
-  acceptance run and the presentation). Only `.bunrei` holds the exclusive group, through docproc,
-  docinfer, and go-messaging, so a Bunrei task can fix a library and use the fix.
+  acceptance run and the presentation). A capstone task can fix a library in its goal's `repos`
+  and use the fix.
 - **E**: v1.client.reference first; experiment.ocr, experiment.admin, and experiment.harness;
   then v1.data, v1.auth, v1.admin-listener, v1.deployment, v1.repository-docs, and v1.middleware;
-  and sites last. sites.training units that lock libraries run where the exclusive group is free.
+  and sites last.
 
 ## The line at the capstone
 
