@@ -1,0 +1,18 @@
+name = "Torii"
+summary = '''
+The workspace's agentgateway deployment is named torii: the boundary every model call passes
+through, as the presentation shows it.
+'''
+repos = ["ai-hosting"]
+root = "ai-hosting"
+order = ["torii"]
+context = ["ai-hosting/context/gateway.md"]
+
+[tasks.torii]
+name = "Rename the gateway stack to torii"
+summary = '''
+Renames ai-hosting's agentgateway compose service, its config directory, its containers, and the
+docs, host pages, and tests that name it (including the Cerebro mentions in `docs/gateway.md`,
+`docs/watch.md`, and `tests/`), keeping agentgateway as the product's name; redeploys on gb10-2
+and reruns the gateway smoke.
+'''

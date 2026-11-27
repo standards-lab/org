@@ -1,0 +1,105 @@
+name = "Bunrei"
+summary = '''
+Bunrei, the processing service that never knows its caller: files and records in; metadata,
+extracted text, inferences, chunks, and embeddings out as ordered events closed by a manifest.
+Builds its stream-backed root and work queue in go-messaging, and fixes docproc or docinfer where
+a task needs it; the only capstone sub-goal in the exclusive group.
+'''
+repos = ["capstone-bunrei", "docproc", "docinfer", "go-messaging"]
+root = "capstone-bunrei"
+remote = "https://github.com/JaimeStill/capstone-bunrei.git"
+path = "~/capstones/capstone-bunrei"
+order = [
+  "metadata",
+  "text-layer",
+  "vision",
+  "messaging-append",
+  "messaging-work-queue",
+  "state",
+  "api",
+  "jobs",
+  "event-stream",
+  "tool-packaging",
+]
+context = ["standards-lab/context/data-intelligence.md", "docproc/context/bunrei.md"]
+
+[tasks.metadata]
+name = "Metadata"
+summary = '''
+Compositional metadata structures that extend docproc's base file metadata per format (PDF,
+office, mail, OneNote, media), and where authoritative metadata capture lives. Its input is the
+schema "2" metadata of docproc's `cmd/docproc`. `.foundation`'s `events` reads it.
+'''
+
+[tasks.text-layer]
+name = "Text layer or vision"
+summary = '''
+When a page's text layer stands in for its vision text: a skip rule that tells a thin layer from a
+whole one, from spike-ai-pipeline's docs/findings/docinfer.md.
+'''
+
+[tasks.vision]
+name = "The vision prompt and sampling"
+summary = '''
+The vision prompt and sampling that keep a page with text transcribed rather than described, from
+the same finding.
+'''
+
+[tasks.messaging-append]
+name = "The expected-sequence append"
+summary = '''
+go-messaging appends an Event to a root's subject with an expected last sequence, beside the
+outbox, for a job stream whose appends are its Commands' transactions (`messaging.md`, "A
+stream-backed root").
+'''
+repos = ["go-messaging"]
+
+[tasks.messaging-work-queue]
+name = "The work-queue package"
+summary = '''
+go-messaging's durable jobs on JetStream work-queue retention: heartbeat, bounded redelivery,
+backoff, and a dead-letter subject, a contract a Postgres SKIP LOCKED provider could also meet.
+'''
+repos = ["go-messaging"]
+
+[tasks.state]
+name = "Bunrei's state"
+summary = '''
+Waits on: `.foundation` `events`. Bunrei's stores as docproc's `context/bunrei.md` designs them
+("State and subjects"): the job as a stream-backed root folded from its events and the work queue
+on JetStream (file storage); content, staged inputs, and uploads in blob storage through
+`docproc/storage`, retained by age; and the index and the result cache in PostgreSQL. On the
+messaging tasks' release.
+'''
+
+[tasks.api]
+name = "Bunrei's API and client module"
+summary = '''
+Waits on: `.foundation` `protocol`. The Queries and Commands, the small-document and record
+Command, and the chunked upload, served from the template's domain layer, with the nested
+`client` module released as `client/v0.1.0` for Mikoshi.
+'''
+
+[tasks.jobs]
+name = "Jobs"
+summary = '''
+A job's run: the work queue's delivery, docproc's dispatch and docinfer's job under the profile's
+settings, the result cache's replay, the checkpoint, and cancellation, one job per input as the
+unit of retry.
+'''
+
+[tasks.event-stream]
+name = "The event stream"
+summary = '''
+Waits on: `.foundation` `events`. Every stage, inference, and result-batch event on the job's
+subject with its causation, correlation, and layer, closed by the manifest.
+'''
+
+[tasks.tool-packaging]
+name = "Tools in Bunrei's image"
+summary = '''
+Bunrei's container image with docproc's external tools and docproc-ooxml, docproc-mail, and
+docproc-onenote, run through the exec runner, since the docker runner needs the host's socket.
+What the image holds is on the capstone's design page, "Tool packaging".
+'''
+context = ["standards-lab/docs/data-intelligence.md"]

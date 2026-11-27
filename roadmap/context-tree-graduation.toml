@@ -1,0 +1,7 @@
+name = "The context tree as a library"
+summary = '''
+Moves Mikoshi's context tree (explicit and query nodes, membership by reference, coverage of
+descendants, and the retrieval filter) into a library of its own, as blobfs holds a file tree,
+once the capstone's demo has proved its model. After capstone.data-intelligence (plan, 2026-11-27).
+'''
+repos = []

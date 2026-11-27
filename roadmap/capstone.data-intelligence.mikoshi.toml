@@ -1,0 +1,93 @@
+name = "Mikoshi"
+summary = '''
+Mikoshi, the knowledge service people work in: a hierarchy of data contexts over files, records,
+and analyses, with hybrid search, a chat whose tools see only the selected context, standing
+analyses, lineage, and a live view of every signal crossing the architecture. Its web pieces sit
+behind a `web/` boundary shaped to graduate.
+'''
+repos = ["capstone-mikoshi"]
+root = "capstone-mikoshi"
+remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
+path = "~/capstones/capstone-mikoshi"
+order = [
+  "web-shell",
+  "contexts",
+  "items",
+  "ingest",
+  "hybrid-search",
+  "context-tools",
+  "standing-analyses",
+  "lineage",
+  "signal-flow",
+]
+context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
+
+[tasks.web-shell]
+name = "The web shell"
+summary = '''
+The client through `webappgen inject`, the `web/` boundary mirroring web-components and
+web-app-sdk, and the SSE relay as a writer-side counterpart of go-ai's `format.EventStream` and
+`WireEvent` (a framing's media type and its writer), so a later framing plugs in. spike-html-apps*
+are references, not sources.
+'''
+
+[tasks.contexts]
+name = "The context tree"
+summary = '''
+Waits on: `.foundation` `chunks`. The design of the context tree: explicit and query nodes,
+membership by reference, coverage of descendants, the filter format, moves, and how retrieval
+filters chunks by a context's items, shaped to graduate (`context-tree-graduation`).
+'''
+
+[tasks.items]
+name = "Items"
+summary = '''
+Files, API-authored records, and analyses as items: upload into blob storage, records through the
+API, references into contexts, and the context-activity events.
+'''
+
+[tasks.ingest]
+name = "Committing Bunrei's batches"
+summary = '''
+Waits on: `.foundation` `events` and `.bunrei` `api`'s `client/v0.1.0`. Submitting items to Bunrei
+and committing each result batch in one transaction with its outbox events, de-duplicated through
+the inbox and checked against the manifest, into the registered embedding space.
+'''
+
+[tasks.hybrid-search]
+name = "Hybrid search"
+summary = '''
+tsvector and pgvector rankings fused by reciprocal rank fusion inside a context, narrowed by facet
+filters (item kind, content type, metadata, dates), with no reranker; shaped to graduate into
+`retrieval`.
+'''
+
+[tasks.context-tools]
+name = "Context tools and chat"
+summary = '''
+A tool-calling chat on go-ai's agent alias whose tools (search, list, read, run an extraction,
+read the event history) refuse anything outside the selected context, analyses saved as items
+with provenance, and citations in the thread.
+'''
+
+[tasks.standing-analyses]
+name = "Standing analyses"
+summary = '''
+Analyses that rerun when a context's events say it changed, query contexts checked against each
+new item, and the result saved as a new version of the analysis item.
+'''
+
+[tasks.lineage]
+name = "Lineage"
+summary = '''
+A citation walked back through chunk, embedding, model identity, inference, docproc stage, and
+upload to the source bytes, from the events' causation ids.
+'''
+
+[tasks.signal-flow]
+name = "The signal-flow view"
+summary = '''
+Each event shown crossing its layer live (upload, blob, Bunrei job, docproc, docinfer, go-ai,
+Torii, result batches, pgvector commit, browser), with the per-layer latency waterfall and queue
+and retry pressure from the same stream.
+'''

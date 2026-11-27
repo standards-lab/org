@@ -1,0 +1,8 @@
+name = "Mikoshi's web pieces in the web stack"
+summary = '''
+Moves the pieces behind Mikoshi's `web/` boundary into the stack once proved: the context-tree
+browser, the chat thread with tool calls, the stage timeline, and the signal-flow and lineage
+views into web-components; stream subscription, context selection, and the upload into
+web-app-sdk; and the SSE relay into go-web-sdk. After capstone.data-intelligence (plan, 2026-11-27).
+'''
+repos = []

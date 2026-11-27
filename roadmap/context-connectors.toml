@@ -1,0 +1,7 @@
+name = "External connectors into data contexts"
+summary = '''
+Brings data from external platforms (Git, SharePoint, databases) into Mikoshi's data contexts as
+another item kind, beside files, records, and analyses. An expansion point of
+capstone.data-intelligence (plan, 2026-11-27).
+'''
+repos = []
