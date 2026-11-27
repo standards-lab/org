@@ -82,8 +82,8 @@ summary = '''
 go-web-sdk's writer of a request-scoped stream on go-core's codec: the media type and
 `Cache-Control: no-store`, a flush per event, the write deadline reset past the server's
 `WriteTimeout`, and the stream ended on the run context so a drain exits 0. A token stream answers
-the one request that asked for it; committed outcomes are events (`data-intelligence.md`, "The
-signal boundary"). Released as go-web-sdk's next minor.
+the one request that asked for it; committed outcomes are events (the design page,
+"Events"). Released as go-web-sdk's next minor.
 '''
 repos = ["go-web-sdk"]
 
