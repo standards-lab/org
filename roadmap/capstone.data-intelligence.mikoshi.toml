@@ -5,7 +5,7 @@ and analyses, with hybrid search, a chat whose tools see only the selected conte
 analyses, lineage, and a live view of every signal crossing the architecture. Its web pieces sit
 behind a `web/` boundary shaped to graduate.
 '''
-repos = ["capstone-mikoshi"]
+repos = ["capstone-mikoshi", "web-app-sdk"]
 root = "capstone-mikoshi"
 remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
 path = "~/capstones/capstone-mikoshi"
@@ -13,6 +13,7 @@ order = [
   "web-shell",
   "store",
   "contexts",
+  "browser-upload",
   "items",
   "ingest",
   "hybrid-search",
@@ -50,11 +51,22 @@ membership by reference, coverage of descendants, the filter format, moves, and 
 filters chunks by a context's items, shaped to graduate (`context-tree-graduation`).
 '''
 
+[tasks.browser-upload]
+name = "The browser's resumable upload"
+summary = '''
+Waits on: `.bunrei` `upload`'s go-web-sdk release. web-app-sdk's browser client for
+draft-ietf-httpbis-resumable-upload-16, against the root's `upload` note: appends with digests,
+resume after a dropped connection, progress. web-app-sdk's currency pins the draft revision with
+go-web-sdk's. Released as web-app-sdk's next minor.
+'''
+repos = ["web-app-sdk"]
+
 [tasks.items]
 name = "Items"
 summary = '''
-Files, API-authored records, and analyses as items: upload into blob storage, records through the
-API, references into contexts, and the context-activity events.
+Files, API-authored records, and analyses as items: upload into blob storage through go-web-sdk's
+resumable upload handler and `browser-upload`'s client, records through the API, references into
+contexts, and the context-activity events.
 '''
 
 [tasks.ingest]

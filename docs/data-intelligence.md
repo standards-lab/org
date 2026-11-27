@@ -10,8 +10,8 @@ For the `chunks` task. Source blobs stay in Mikoshi's blob storage; its database
 stages derive from them, each stage's output a versioned artifact (source blob hash → extraction →
 chunk → embedding) keyed by its input and configuration hash (model, revision, prompt, parameters,
 chunker version), so a stage reruns only when its input or configuration changes. Embeddings live
-in registered embedding spaces (model, revision, dims, metric, normalization, prompt template,
-chunker), vectors partitioned by space with one partial ANN index each. A model change adds a space
+in registered embedding spaces (model, dims, metric, normalization, prompt template), in one table
+with a partial ANN index per space ([chunks](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/chunks.md)). A model change adds a space
 and re-embeds the stored chunks (blue/green, switched after a recall evaluation), a chunker change
 re-chunks, and only an extractor change reruns inference. Translation between spaces is limited to
 truncation and quantization within one model; a learned mapping only bridges a migration.
@@ -25,10 +25,10 @@ The service's settled shape:
   events appended to its own JetStream subject under the expected-last-subject-sequence check,
   all Elemental's Event asks (`architecture/architecture.md`, "The elements");
   go-messaging's outbox serves its other events (`messaging.md`, "A stream-backed root").
-- **API.** Go Elemental Queries and Commands, with Events published; a large document arrives
-  through a resumable chunked upload shaped to graduate to go-web-sdk once capstone-mikoshi reuses
-  it (`chunked-upload-graduation`). A nested `client` module holds the protocol types and the Go
-  client.
+- **API.** Go Elemental Queries and Commands over HTTP, with Events published on NATS; a large
+  document arrives through go-web-sdk's resumable upload (draft-ietf-httpbis-resumable-upload-16),
+  which Mikoshi mounts too. A nested `client` module holds the protocol types and the Go client
+  ([protocol](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/protocol.md), [upload](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/upload.md)).
 - **Results.** Results don't fit one NATS event, so Bunrei emits ordered result-batch events
   closed by a manifest; the consumer commits each batch in one transaction (evidence 7).
 - **Distribution.** Jobs go through go-messaging's work-queue package, one job per input the
@@ -53,11 +53,10 @@ The detail for the `protocol`, `state`, and `events` tasks:
   keeps one). `messaging.md`'s subject and stream conventions govern a web service's events for
   committed command mutations, not a job's progress and result stream. Bunrei holds no state for
   an external service.
-- **API.** The Commands start from Submit, OpenUpload, AppendChunk, CompleteUpload, AbortUpload,
-  and CancelJob, the Queries from GetJob, GetUpload, GetOutput, and ListProfiles. The chunked
-  upload opens a session, appends chunks with offsets and digests, completes, and resumes after a
-  drop. Chunks wait in blob storage, so any replica takes any chunk. Once graduated, the protocol
-  moves to go-web-sdk and its browser half to web-app-sdk. The nested `client` module is tagged
+- **API.** The Commands are Submit, CompleteUpload, and CancelJob, the Queries GetJob, GetOutput,
+  and ListProfiles ([protocol](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/protocol.md)). The upload itself is go-web-sdk's handler,
+  mounted with a chunk store over Bunrei's blob storage, so any replica takes any chunk; its
+  browser client is web-app-sdk's ([upload](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/upload.md)). The nested `client` module is tagged
   `client/vX`; consumers import it, and Bunrei imports none of them.
 - **Results.** ~/docs' 28,937 chunk lines came to about 200 MB, sized with granite's
   768-dimension vectors; e5's have 1,024. Each result-batch event carries chunk records and
@@ -104,10 +103,9 @@ Bunrei's docinfer configuration starts from the settings docinfer's acceptance s
 
 ### Open items
 
-Questions the layers leave to the capstone's tasks: `protocol` (live sources, the small-document
-size), `events` (the batch cap, the `dataschema` form), `state` (the stores', streams', and keys'
-names and retentions, and how a job whose last delivery died is found and failed), `chunks`
-(storing chunks by identity), `metadata` (typed metadata shapes, a message's threading keys on its
+Questions the layers leave to the capstone's tasks: `events` (the batch cap, the `dataschema` form),
+`state` (the stores', streams', and keys' names and retentions, and how a job whose last delivery
+died is found and failed), `metadata` (typed metadata shapes, a message's threading keys on its
 output event), `athena-mapping` (typed cells for `sparse_rows`), `text-layer` (OCR text read from
 the Markdown's image text), and go-ai (transcription retry).
 

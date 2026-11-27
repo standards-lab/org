@@ -1,7 +1,0 @@
-name = "The chunked upload protocol in the SDKs"
-summary = '''
-Moves the chunked upload protocol capstone-bunrei proves and capstone-mikoshi reuses into
-go-web-sdk, its browser half into web-app-sdk. After capstone.data-intelligence (plan,
-2026-11-10).
-'''
-repos = []
