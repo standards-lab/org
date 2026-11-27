@@ -146,7 +146,6 @@ The goal is a container; its layer sub-goals run side by side, each design-first
 | Sub-goal | Root | Holds |
 |---|---|---|
 | `.foundation` | capstone-data-intelligence | the shared contracts (chunks, protocol, events), the stack, athena-mapping, the demo dataset |
-| `.torii` | ai-hosting | the gateway's rename to torii, redeployed |
 | `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's tasks, then the service; the only one in the exclusive group (docproc, docinfer, go-messaging) |
 | `.mikoshi` | capstone-mikoshi | the web shell, the database, contexts, items, ingest, hybrid search, chat, standing analyses, lineage, signal flow |
 | `.showcase` | capstone-data-intelligence | the acceptance run and the presentation, staged once `.foundation` syncs |
@@ -157,7 +156,8 @@ Each blocked task's summary opens with "Waits on":
 - `.bunrei` `state` and `api` wait on `.foundation` `protocol` and `events`.
 - `.mikoshi` `store` and `contexts` wait on `.foundation` `chunks`; `ingest` on `events` and on
   `.bunrei` `api`'s release of `client/v0.1.0`.
-- `.showcase` `acceptance` waits on `.torii`, `.bunrei`, and `.mikoshi` having synced.
+- `.showcase` `acceptance` waits on `.bunrei` and `.mikoshi` having synced; `.torii` synced on
+  2026-11-27, with the gateway running as Torii on gb10-2.
 
 ## Carried notes
 
