@@ -49,7 +49,6 @@ backlog = [
   "screenshots-in-neovim",
   "retrieval",
   "cross-service-tracing",
-  "chunked-upload-graduation",
   "docproc-backlog",
   "shared-secrets-lint",
   "color-profiles-extension",

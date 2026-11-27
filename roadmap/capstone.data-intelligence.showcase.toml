@@ -22,7 +22,8 @@ v0.2.0, measured against its baseline, with chat responsive during the run and e
 name = "The presentation"
 summary = '''
 A presenterm deck in `presentation/` directing a live run through Mikoshi: the signal flow layer
-by layer, the merits of an elemental architecture, and each layer's expansion points. Diagrams
+by layer, the merits of an elemental architecture, and each layer's expansion points, live sources
+(srt, rtmp, http, udp read as they arrive) among the future capabilities. Diagrams
 from ~/tau/diagrams/ingredients, laid out as ~/presentations/open-inference-stack. Accepted by a
 rehearsed run that includes the recovery scenario.
 '''

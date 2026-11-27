@@ -41,8 +41,8 @@ consumer, a harness among them.
 
 - **State.** Its jobs, uploads, and job streams only; a job is a root Entity folded from its own
   JetStream subject (`messaging.md`, "A stream-backed root").
-- **API.** Queries and Commands, a resumable chunked upload (`chunked-upload-graduation`), and a
-  nested `client` module.
+- **API.** Queries and Commands over HTTP, go-web-sdk's resumable upload, and a nested `client`
+  module.
 - **Results.** Ordered result-batch events closed by a manifest (evidence 7).
 - **Browser.** The browser reads only the consumer's stream; Bunrei's events stay
   service-to-service.
@@ -99,8 +99,9 @@ Each goal beneath the capstone designs around Bunrei:
   load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
-- **go-core, go-web-sdk, go-ai:** the SSE codec, its writer, and go-ai reading through it. The capstone builds the resumable upload, which graduates after
-  it, a stage timeline fed by events, and citations in the chat thread itself.
+- **go-core, go-web-sdk, go-ai:** the SSE codec, its writer, and go-ai reading through it.
+- **go-web-sdk, web-app-sdk:** the resumable upload, by `.bunrei` `upload` and `.mikoshi`
+  `browser-upload`. The capstone builds a stage timeline fed by events, and chat citations.
 - **go-core's graph API:** both composition roots are written against it.
 
 ## Gates

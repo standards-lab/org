@@ -20,6 +20,7 @@ order = [
   "sse-codec",
   "sse-writer",
   "go-ai-sse",
+  "upload",
   "state",
   "api",
   "jobs",
@@ -108,6 +109,18 @@ before `jobs` reads extraction's stream through it.
 '''
 repos = ["go-ai"]
 
+[tasks.upload]
+name = "The resumable upload in go-web-sdk"
+summary = '''
+Waits on: `.foundation` `protocol`'s `upload` note. go-web-sdk's base module implements
+draft-ietf-httpbis-resumable-upload-16 on net/http: a handler behind a chunk-store interface and a
+Go append client, with RFC 9530 digests and sequential appends across replicas, tusd as an interop
+peer only. go-web-sdk v0.18.0's `ReadUpload` refuses a body with no Content-Length, which a
+creating POST of unknown length lacks. go-web-sdk's currency pins the draft revision and reads
+datatracker's latest. Released as go-web-sdk's next minor.
+'''
+repos = ["go-web-sdk"]
+
 [tasks.state]
 name = "Bunrei's state"
 summary = '''
@@ -121,9 +134,10 @@ messaging tasks' release.
 [tasks.api]
 name = "Bunrei's API and client module"
 summary = '''
-Waits on: `.foundation` `protocol`. The Queries and Commands, the small-document and record
-Command, and the chunked upload, served from the template's domain layer, with the nested
-`client` module released as `client/v0.1.0` for Mikoshi.
+Waits on: `.foundation` `protocol` and `upload`'s release. The Queries and Commands, with records
+as Submit content, served from the template's domain layer; go-web-sdk's upload handler mounted
+over Bunrei's blob storage, CompleteUpload its one upload Command; the nested `client` module,
+wrapping go-web-sdk's upload client, released as `client/v0.1.0` for Mikoshi.
 '''
 
 [tasks.jobs]
