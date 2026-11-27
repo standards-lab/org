@@ -13,8 +13,7 @@ order = ["setup", "syllabus"]
 [tasks.setup]
 name = "Setup"
 summary = '''
-`init`, the components on web-foundation, and the conventions; joins `order` and the catalog
-outside the exclusive group.
+`init`, the components on web-foundation, and the conventions; joins `order` and the catalog.
 '''
 
 [tasks.syllabus]
