@@ -13,7 +13,7 @@ context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/dat
 [tasks.acceptance]
 name = "The acceptance run"
 summary = '''
-Waits on: `.torii`, `.bunrei`, and `.mikoshi` having synced. The whole stack over docs-corpus
+Waits on: `.bunrei` and `.mikoshi` having synced. The whole stack over docs-corpus
 v0.2.0, measured against its baseline, with chat responsive during the run and evidence 7, 8,
 10, and 15 shown.
 '''

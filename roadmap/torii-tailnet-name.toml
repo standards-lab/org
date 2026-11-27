@@ -1,0 +1,7 @@
+name = "Torii at a tailnet name of its own"
+summary = '''
+Torii answers at gb10-2:3000, so its consumers' base URL names the host it runs on. A tailnet name
+of its own (a Tailscale Service or a second node) would let it move hosts; it moves the clients'
+default base URL in docinfer, docs-corpus, ai-hosting's bench, and the capstone services.
+'''
+repos = ["ai-hosting"]

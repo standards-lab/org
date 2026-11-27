@@ -63,8 +63,8 @@ output, ITL) matched, while its finished-page count read 3–4% under, past gb10
 
 ## The gateway
 
-agentgateway v1.7.0 fronts the rows from one compose stack on gb10-2, with Postgres holding only
-the request log. Each alias has its own base URL, `/<alias>/v1`. The gateway issues the
+Torii (agentgateway v1.7.0) fronts the rows from one compose stack on gb10-2, with Postgres
+holding only the request log. Each alias has its own base URL, `/<alias>/v1`. Torii issues the
 consumers' keys (401 for a missing, unknown, or revoked key), routes only the eight serving paths,
 gives each key a priority and a request-rate bucket, and holds embedding to 78 requests a second
 with one global bucket (429, `Retry-After: 1`). Past a row's concurrency cap vLLM queues; past its
