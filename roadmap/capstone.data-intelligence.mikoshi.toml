@@ -11,6 +11,7 @@ remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
 path = "~/capstones/capstone-mikoshi"
 order = [
   "web-shell",
+  "store",
   "contexts",
   "items",
   "ingest",
@@ -30,6 +31,17 @@ web-app-sdk, and the SSE relay as a writer-side counterpart of go-ai's `format.E
 `WireEvent` (a framing's media type and its writer), so a later framing plugs in. spike-html-apps*
 are references, not sources.
 '''
+
+[tasks.store]
+name = "The database"
+summary = '''
+Waits on: `.foundation` `chunks`. Mikoshi's database: PostgreSQL with pgvector declared as a
+native-tier extension, the migrator's readiness, and the migration of the chunks contract's
+records (embedding spaces, source occurrences, chunks with their `simple` tsvector, and embeddings
+with a partial ANN index per space), proven in the integration tier against an image carrying
+pgvector.
+'''
+proof = "On an empty database, Mikoshi migrates, reports ready, and a nearest-neighbour query over fixture chunks in one registered space uses that space's index."
 
 [tasks.contexts]
 name = "The context tree"
