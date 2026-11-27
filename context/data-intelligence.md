@@ -53,11 +53,12 @@ The rest (distribution, caching, models and stages) is on the design page, "Bunr
 data: upload, blob storage, SQL with pgvector, RAG chat through the
 gateway, and live stages, its UI embedded through `NewClient`, its events through go-messaging's
 outbox in each batch's transaction. No code comes from `~/s2va/athena`: `athena-mapping` maps it
-onto Bunrei (design page, "Athena onto Bunrei"), and its migration is later work outside the
+onto Bunrei (the root's [athena](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/athena.md) note), and its migration is later work outside the
 workspace.
 
 **capstone-data-intelligence** is the integration root: the goal record, the compose stack
-(Bunrei, Mikoshi, NATS, Postgres with pgvector, the gateway), and the acceptance run over
+(NATS with JetStream, a PostgreSQL with pgvector per service, and SeaweedFS), against Torii on
+gb10-2, which Bunrei and Mikoshi join in `.showcase` `services`, and the acceptance run over
 docs-corpus v0.2.0 (299 files), measured against
 [its baseline](https://github.com/standards-lab/docs-corpus/blob/main/docs/baseline.md): docproc's
 run took 123.5 s, docinfer's 8,330.5 s (2.3 h), and docinfer's cached rerun 1.4 s.
@@ -127,8 +128,7 @@ Carried from spike-ai-pipeline, which keeps the rest of its evidence:
 8. The client runs unchanged through spike-model-gateway's gateway.
 10. pgvector as a declared native-tier extension: its install, migration, image pin, and the
     packages allowed to use it, built by v1.data.extensions (Gates).
-15. The browser's consumption of the event sequence, NATS over WebSocket against a backend relay,
-    compared on latency, ordering, auth, ports, and native-tier use, on Mikoshi's stream only.
+15. The browser's consumption of Mikoshi's event stream. Decided: Mikoshi's SSE relay ([events](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/events.md#the-browsers-transport)).
 
 ## Scope
 
@@ -149,7 +149,7 @@ The goal is a container; its layer sub-goals run side by side, each design-first
 | `.foundation` | capstone-data-intelligence | the shared contracts (chunks, protocol, events), the stack, athena-mapping, the demo dataset |
 | `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's tasks, then the service |
 | `.mikoshi` | capstone-mikoshi | the web shell, the database, contexts, the upload and SSE tasks, items, ingest, hybrid search, chat, standing analyses, lineage, signal flow |
-| `.showcase` | capstone-data-intelligence | the acceptance run and the presentation, staged once `.foundation` syncs |
+| `.showcase` | capstone-data-intelligence | the acceptance run and the presentation |
 
 Each blocked task's summary opens with "Waits on":
 

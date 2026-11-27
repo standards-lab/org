@@ -264,20 +264,19 @@ The task took docproc-mail's follow-ups from acceptance and released them as doc
 
 ## Experiment: spike-scanned-documents
 
-**Question.** spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision transcription
-on only 7 scanned pages: the model invented seal text, never read page 7's faded NOFORN, and
-scored a scanned CER of about 0.11 to 0.13. Does that transcription hold at scale, on
-olmOCR-bench (allenai/olmOCR-bench: 1,403 PDFs and 7,010 checkable assertions, ODC-BY as
-reported), and does a dedicated OCR model, olmOCR's own on vLLM, or Tesseract beat it on GB10? It
-also measures the vision models themselves on spike-ai-pipeline-processing's committed scanned
-fixtures (document/testdata/scanned.pdf, ground truth beside it): a larger image-token budget
-than gemma-4-26B-A4B's default, a dense vision model, and a lighter quantization than Q4_0, since
-Gemma 4 26B-A4B Q4_0 never read page 7's faded NOFORN, even on a 122-token 300-dpi tile, which
-points to the model, not resolution (processing's docs/findings/documents.md).
+**Question.** Is an OCR tier needed at all beside self-hosted vision transcription?
+spike-ai-pipeline's documents finding judged Gemma 4 26B-A4B's vision transcription on only 7
+scanned pages: the model invented seal text, never read page 7's faded NOFORN, and scored a
+scanned CER of about 0.11 to 0.13. The spike sets Tesseract against Gemma 4 and a dense vision
+model on olmOCR-bench's dataset (allenai/olmOCR-bench: 1,403 PDFs and 7,010 checkable assertions,
+ODC-BY as reported) and on spike-ai-pipeline-processing's committed scanned fixtures
+(document/testdata/scanned.pdf, ground truth beside it). It measures fidelity, cost, latency, CPU
+throughput, and whether boxes and confidence come back. olmOCR's own model is left out for its
+model origin; the bench's dataset stays.
 
 **Decision it changes.** Whether processing's document stage needs an OCR tier beside vision, and
-which vision model, image-token budget, and quantization the vision tier runs. It is
-experiment.ocr's one spike, after the capstone, which runs on vision transcription without it.
+which vision model the vision tier runs. It is experiment.ocr's one spike, after the capstone,
+which runs on vision transcription without it, and it is not part of the capstone's deliverable.
 
 **Host.** gb10-2, after capstone.data-intelligence. Third-party and crawled documents are
 processed only in sandboxed converters.

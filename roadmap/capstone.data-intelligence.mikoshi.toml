@@ -6,7 +6,7 @@ analyses, lineage, and a live view of every signal crossing the architecture. It
 behind a `web/` boundary shaped to graduate. Builds the resumable upload, the SSE codec and
 writer, and go-ai's reading through the codec in the libraries.
 '''
-repos = ["capstone-mikoshi", "web-app-sdk", "go-core", "go-web-sdk", "go-ai"]
+repos = ["capstone-mikoshi", "web-app-sdk", "go-core", "go-web-sdk", "go-ai", "sqlate"]
 root = "capstone-mikoshi"
 remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
 path = "~/capstones/capstone-mikoshi"
@@ -24,12 +24,15 @@ order = [
   "hybrid-search",
   "context-tools",
   "ingest",
+  "pgvector-types",
+  "space-switch",
   "standing-analyses",
   "lineage",
   "sse-event-sequence",
   "event-relay",
   "signal-flow",
   "image",
+  "foundation-notes",
 ]
 context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
 
@@ -87,7 +90,9 @@ name = "Items"
 summary = '''
 Files, API-authored records, and analyses as items: upload into blob storage through go-web-sdk's
 resumable upload handler and `browser-upload`'s client, records through the API, references into
-contexts, and the context-activity events.
+contexts, and the context-activity events. The item projection declares `route`, `kind`
+(docproc's sniffed content type), and `duration` as filter fields, which the contexts domain
+checks a query context's field names against (the root's `dataset` note).
 '''
 
 [tasks.sse-codec]
@@ -139,8 +144,9 @@ the inbox and checked against the manifest, into the registered embedding space.
 name = "Hybrid search"
 summary = '''
 tsvector and pgvector rankings fused by reciprocal rank fusion inside a context, narrowed by facet
-filters (item kind, content type, metadata, dates), with no reranker; shaped to graduate into
-`retrieval`.
+filters (item kind, content type, metadata, dates), with no reranker, reading the active
+embedding space; shaped to graduate into `retrieval`. Adds Mikoshi's `fnox.toml` and issues its
+interactive Torii key with `hosting key issue`.
 '''
 
 [tasks.context-tools]
@@ -152,6 +158,22 @@ its answer streamed as SSE through go-web-sdk's writer inside the request, one e
 turn or analysis, analyses saved as items with provenance, and citations in the thread. The
 agent's system prompt is a default that an active override stored in Mikoshi replaces, as Bunrei's
 profile prompts are.
+'''
+
+[tasks.pgvector-types]
+name = "Every pgvector type in sqlate"
+summary = '''
+sqlate's pgvector package covers every pgvector type and metric, with live tests per type, for
+the per-space type migration. Released as `postgres/pgvector/v0.2.0`.
+'''
+repos = ["sqlate"]
+
+[tasks.space-switch]
+name = "Switching embedding spaces"
+summary = '''
+Waits on: `pgvector-types`. A space's status and the active marker, a re-embed by resubmitting
+the items through Bunrei while the active space serves, rollback, and the per-space type
+migration (the root's `chunks` and `athena` notes).
 '''
 
 [tasks.standing-analyses]
@@ -196,4 +218,12 @@ name = "Mikoshi's service image"
 summary = '''
 Mikoshi's service image with its web client embedded, built from its own Dockerfile under its
 own currency, so the root's compose stack can run Mikoshi in `.showcase` `services`.
+'''
+
+[tasks.foundation-notes]
+name = "Notes from .foundation"
+summary = '''
+The goal record takes `.foundation`'s edits: the evidence-15 Decision points at the root's
+`events` note (Mikoshi's SSE relay), and a Decision for `items`: Mikoshi's blob storage is
+go-storage's `s3` provider against the root stack's SeaweedFS, its bucket created on start.
 '''

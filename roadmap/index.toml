@@ -1,13 +1,12 @@
 # Roadmap index: the three arrays, in the format of marathon's roadmap manifest.
 
 active = [
-  "capstone.data-intelligence.foundation",
   "capstone.data-intelligence.bunrei",
   "capstone.data-intelligence.mikoshi",
+  "capstone.data-intelligence.showcase",
 ]
 
 planned = [
-  "capstone.data-intelligence.showcase",
   "sites.status-reports",
   "sites.training.foundation",
   "v1.client.reference",

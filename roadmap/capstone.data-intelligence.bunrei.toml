@@ -17,11 +17,13 @@ order = [
   "messaging-append",
   "messaging-work-queue",
   "state",
+  "document-extraction",
   "api",
   "jobs",
   "prompts",
   "event-stream",
   "tool-packaging",
+  "foundation-notes",
 ]
 context = ["standards-lab/context/data-intelligence.md", "docproc/context/bunrei.md"]
 
@@ -85,6 +87,14 @@ on JetStream (file storage); content, staged inputs, and uploads in blob storage
 messaging tasks' release.
 '''
 
+[tasks.document-extraction]
+name = "Document-scope and video-timeline extraction"
+summary = '''
+docinfer's extraction over a whole document and along a video's timeline, beside its per-source
+extraction (the root's `athena` note). Released as docinfer's next minor.
+'''
+repos = ["docinfer"]
+
 [tasks.api]
 name = "Bunrei's API and client module"
 summary = '''
@@ -99,7 +109,7 @@ name = "Jobs"
 summary = '''
 A job's run: the work queue's delivery, docproc's dispatch and docinfer's job under the profile's
 settings, the result cache's replay, the checkpoint, and cancellation, one job per input as the
-unit of retry.
+unit of retry. Adds Bunrei's `fnox.toml` and issues its bulk Torii key with `hosting key issue`.
 '''
 
 [tasks.prompts]
@@ -128,3 +138,11 @@ docproc-onenote, run through the exec runner, since the docker runner needs the 
 What the image holds is on the capstone's design page, "Tool packaging".
 '''
 context = ["standards-lab/docs/data-intelligence.md"]
+
+[tasks.foundation-notes]
+name = "Notes from .foundation"
+summary = '''
+The context README takes `.foundation`'s edits: "Protocol and client module" links the root's
+`protocol` note, and "Chunked upload" links the root's `upload` note and says go-web-sdk's
+handler, mounted by Bunrei, serves it.
+'''
