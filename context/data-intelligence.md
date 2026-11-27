@@ -87,8 +87,7 @@ Each goal beneath the capstone designs around Bunrei:
 
 - **go-ai** (built by v1.ai.client), Bunrei its first long-running service consumer: retry
   proven against the live gateway, cancellation by context, a consumer key in a header other than
-  the bearer token if the gateway asks for one, Embed batching, and a relayable streaming
-  Generate; concurrency bounds stay the caller's. A request's time is the host's transport, not
+  the bearer token if the gateway asks for one, Embed batching, and a streaming Generate; concurrency bounds stay the caller's. A request's time is the host's transport, not
   a per-call timeout: Bunrei sets `ai.Options.StreamIdleTimeout` for extraction's stream;
   cmd/docinfer doesn't.
 - **v1.ai.processing and v1.ai.inference:** stores behind interfaces with PostgreSQL and object
@@ -100,7 +99,7 @@ Each goal beneath the capstone designs around Bunrei:
   load").
 - **go-messaging:** the expected-sequence append and the work-queue package, which the capstone
   builds itself.
-- **go-web-sdk:** an SSE helper. The capstone builds the resumable upload, which graduates after
+- **go-core, go-web-sdk, go-ai:** the SSE codec, its writer, and go-ai reading through it. The capstone builds the resumable upload, which graduates after
   it, a stage timeline fed by events, and citations in the chat thread itself.
 - **go-core's graph API:** both composition roots are written against it.
 
@@ -146,7 +145,7 @@ The goal is a container; its layer sub-goals run side by side, each design-first
 | Sub-goal | Root | Holds |
 |---|---|---|
 | `.foundation` | capstone-data-intelligence | the shared contracts (chunks, protocol, events), the stack, athena-mapping, the demo dataset |
-| `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's tasks, then the service; the only one in the exclusive group (docproc, docinfer, go-messaging) |
+| `.bunrei` | capstone-bunrei | metadata, text-layer, vision, go-messaging's and the SSE tasks, then the service; the only one in the exclusive group |
 | `.mikoshi` | capstone-mikoshi | the web shell, the database, contexts, items, ingest, hybrid search, chat, standing analyses, lineage, signal flow |
 | `.showcase` | capstone-data-intelligence | the acceptance run and the presentation, staged once `.foundation` syncs |
 
@@ -155,7 +154,7 @@ Each blocked task's summary opens with "Waits on":
 - `.foundation` `events` waits on `.bunrei` `metadata` (the metadata shapes it carries).
 - `.bunrei` `state` and `api` wait on `.foundation` `protocol` and `events`.
 - `.mikoshi` `store` and `contexts` wait on `.foundation` `chunks`; `ingest` on `events` and on
-  `.bunrei` `api`'s release of `client/v0.1.0`.
+  `.bunrei` `api`'s release of `client/v0.1.0`; `context-tools` on `.bunrei`'s SSE tasks.
 - `.showcase` `acceptance` waits on `.bunrei` and `.mikoshi` having synced; `.torii` synced on
   2026-11-27, with the gateway running as Torii on gb10-2.
 

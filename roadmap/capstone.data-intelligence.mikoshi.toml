@@ -26,10 +26,9 @@ context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/dat
 [tasks.web-shell]
 name = "The web shell"
 summary = '''
-The client through `webappgen inject`, the `web/` boundary mirroring web-components and
-web-app-sdk, and the SSE relay as a writer-side counterpart of go-ai's `format.EventStream` and
-`WireEvent` (a framing's media type and its writer), so a later framing plugs in. spike-html-apps*
-are references, not sources.
+The client through `webappgen inject` under `web/`, the boundary mirroring web-components and
+web-app-sdk, its `src/` layers held to one import direction by its lint. spike-html-apps* are
+references, not sources.
 '''
 
 [tasks.store]
@@ -77,9 +76,11 @@ filters (item kind, content type, metadata, dates), with no reranker; shaped to 
 [tasks.context-tools]
 name = "Context tools and chat"
 summary = '''
-A tool-calling chat on go-ai's agent alias whose tools (search, list, read, run an extraction,
-read the event history) refuse anything outside the selected context, analyses saved as items
-with provenance, and citations in the thread.
+Waits on: `.bunrei` `sse-writer` and `go-ai-sse`. A tool-calling chat on go-ai's agent alias
+whose tools (search, list, read, run an extraction, read the event history) refuse anything
+outside the selected context, its answer streamed as SSE through go-web-sdk's writer inside the
+request, one event per committed turn or analysis, analyses saved as items with provenance, and
+citations in the thread.
 '''
 
 [tasks.standing-analyses]
