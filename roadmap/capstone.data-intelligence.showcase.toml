@@ -7,7 +7,7 @@ repos = ["capstone-data-intelligence"]
 root = "capstone-data-intelligence"
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
-order = ["services", "acceptance", "presentation"]
+order = ["services", "demo-load", "acceptance", "presentation"]
 context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
 
 [tasks.services]
@@ -16,6 +16,14 @@ summary = '''
 Waits on: `.bunrei` `tool-packaging` and `.mikoshi` `image`, for the services' images. Bunrei and
 Mikoshi join the root's compose stack (context/stack.md) against its NATS, their PostgreSQL
 servers, and SeaweedFS, each with its Torii key, so `acceptance` runs the whole stack in compose.
+'''
+
+[tasks.demo-load]
+name = "The demo dataset in Mikoshi"
+summary = '''
+Waits on: `.mikoshi` `items` and `ingest`. Loads the demo dataset's items, authored records, and
+references into the context tree that `.foundation` `demo-dataset` builds (the root's `dataset`
+note), and reviews the share, tour, and authored lists.
 '''
 
 [tasks.acceptance]

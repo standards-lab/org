@@ -1,12 +1,10 @@
 name = "Scanned-document fidelity at scale"
 summary = '''
-Does Gemma 4 26B-A4B's vision transcription, judged by spike-ai-pipeline on only 7 scanned
-pages (invented seal text, an unread NOFORN, CER about 0.11 to 0.13), hold on olmOCR-bench, and
-does olmOCR's own model on vLLM or Tesseract beat it on GB10? It also tries a larger image-token
-budget, a dense vision model, and a lighter quantization on processing's scanned fixtures
-(processing's docs/findings/documents.md). Decides whether processing's document stage needs an
-OCR tier, and the vision tier's model. Runs on gb10-2 after capstone.data-intelligence;
-crawled documents are processed only in sandboxed converters.
+Is an OCR tier needed at all beside self-hosted vision? Tesseract against Gemma 4 26B-A4B and a
+dense vision model, on olmOCR-bench's dataset and processing's scanned fixtures, measuring
+fidelity, cost, latency, CPU throughput, and boxes and confidence; olmOCR's model is left out for
+its model origin. Not part of the capstone's deliverable. Runs on gb10-2 after
+capstone.data-intelligence; crawled documents are processed only in sandboxed converters.
 '''
 repos = ["spike-scanned-documents"]
 root = "spike-scanned-documents"

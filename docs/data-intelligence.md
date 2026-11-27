@@ -12,7 +12,8 @@ chunk → embedding) keyed by its input and configuration hash (model, revision,
 chunker version), so a stage reruns only when its input or configuration changes. Embeddings live
 in registered embedding spaces (model, dims, metric, normalization, prompt template), in one table
 with a partial ANN index per space ([chunks](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/chunks.md)). A model change adds a space
-and re-embeds the stored chunks (blue/green, switched after a recall evaluation), a chunker change
+and fills it by resubmitting the items through Bunrei, while the active space serves until the new
+one is ready ([chunks](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/chunks.md#embedding-space), "Embedding space"), a chunker change
 re-chunks, and only an extractor change reruns inference. Translation between spaces is limited to
 truncation and quantization within one model; a learned mapping only bridges a migration.
 
@@ -103,31 +104,14 @@ Bunrei's docinfer configuration starts from the settings docinfer's acceptance s
 
 ### Open items
 
-Questions the layers leave to the capstone's tasks: `events` (the batch cap, the `dataschema` form),
-`state` (the stores', streams', and keys' names and retentions, and how a job whose last delivery
-died is found and failed), `metadata` (typed metadata shapes, a message's threading keys on its
-output event), `athena-mapping` (typed cells for `sparse_rows`), `text-layer` (OCR text read from
-the Markdown's image text), and go-ai (transcription retry).
+Questions the layers leave to the capstone's tasks: `state` (the stores', streams', and keys'
+names and retentions, and how a job whose last delivery died is found and failed), `metadata`
+(typed metadata shapes, a message's threading keys on its output event), `text-layer` (OCR text
+read from the Markdown's image text), and go-ai (transcription retry).
 
 ## Athena onto Bunrei
 
-For the `athena-mapping` task: the facts from `~/s2va/athena` the mapping starts from.
-
-- Its `gateway/` is an Envoy OAuth2 and JWT proxy, not a model gateway; models route in-process
-  (`server/internal/infrastructure/ai`, chains with a circuit breaker). Bunrei and the gateway
-  replace both `cmd/ingest` and that router.
-- It runs no NATS: a Postgres `ingest_jobs` queue (`SKIP LOCKED`, leases, fencing) and
-  `pg_notify`, and the browser sees only claimed, done, and failed.
-- Chat reads `chunks` rows (vault, `<version>-<i>` id, content, page, blob key, chunk 0's summary
-  and `processing_metadata`), a 1024-dimension snowflake-arctic-embed-l-v2.0 embedding, and
-  `entities` and `sparse_rows`. The workspace embeds at 1,024 dimensions with
-  multilingual-e5-large, which replaced granite-embedding-english-r2, an English-only model, in
-  v1.ai.hosting's `embedding` task, so anything indexed with granite is re-embedded
-  (`ai-hosting.md`, "Set A's embedding model"). Mikoshi's registered embedding spaces carry the
-  blue/green re-embed.
-- Its ingest also runs Tesseract OCR, Whisper, a summary chain, regex entities, tabular rows into
-  `sparse_rows`, and TEI reranking. Summary maps onto Bunrei's extraction stage; the rest stays
-  Athena's.
+The mapping of `~/s2va/athena` onto Bunrei is the root's [athena](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/athena.md) note.
 
 ## Text layer and vision
 
@@ -227,6 +211,10 @@ read events, never streams. Deltas stay off JetStream: each publish waits on an 
 event costs a row and a transaction, and the stream keeps every event until its `MaxAge`. The SSE
 codec is go-core's, its writer go-web-sdk's, and go-ai reads through the codec (`.mikoshi`'s
 `sse-codec`, `sse-writer`, and `go-ai-sse`).
+
+Evidence 15 is decided: the browser reads Mikoshi's stream through Mikoshi's SSE relay
+(`.mikoshi` `event-relay`), not NATS over WebSocket
+([events](https://github.com/JaimeStill/capstone-data-intelligence/blob/main/context/events.md#the-browsers-transport), "The browser's transport").
 
 ## The presentation
 
