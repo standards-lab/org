@@ -19,6 +19,7 @@ order = [
   "state",
   "api",
   "jobs",
+  "prompts",
   "event-stream",
   "tool-packaging",
 ]
@@ -99,6 +100,16 @@ summary = '''
 A job's run: the work queue's delivery, docproc's dispatch and docinfer's job under the profile's
 settings, the result cache's replay, the checkpoint, and cancellation, one job per input as the
 unit of retry.
+'''
+
+[tasks.prompts]
+name = "Prompt overrides"
+summary = '''
+A profile's vision and transcription prompts are defaults: an active override stored in Bunrei's
+PostgreSQL replaces each, per profile and stage, at most one active per pair, as ~/code/herald
+does. Bunrei rebuilds the profile's docinfer pipeline when its resolved prompts change; each
+attempt's `started` records them. The override Queries and Commands join the protocol and the
+`client` module.
 '''
 
 [tasks.event-stream]

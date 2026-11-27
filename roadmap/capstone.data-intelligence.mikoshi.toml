@@ -149,7 +149,9 @@ summary = '''
 A tool-calling chat on go-ai's agent alias, on `sse-writer` and `go-ai-sse`, whose tools (search,
 list, read, run an extraction, read the event history) refuse anything outside the selected context,
 its answer streamed as SSE through go-web-sdk's writer inside the request, one event per committed
-turn or analysis, analyses saved as items with provenance, and citations in the thread.
+turn or analysis, analyses saved as items with provenance, and citations in the thread. The
+agent's system prompt is a default that an active override stored in Mikoshi replaces, as Bunrei's
+profile prompts are.
 '''
 
 [tasks.standing-analyses]
