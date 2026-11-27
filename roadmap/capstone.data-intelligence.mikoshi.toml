@@ -21,6 +21,7 @@ order = [
   "standing-analyses",
   "lineage",
   "signal-flow",
+  "image",
 ]
 context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
 
@@ -115,4 +116,11 @@ summary = '''
 Each event shown crossing its layer live (upload, blob, Bunrei job, docproc, docinfer, go-ai,
 Torii, result batches, pgvector commit, browser), with the per-layer latency waterfall and queue
 and retry pressure from the same stream.
+'''
+
+[tasks.image]
+name = "Mikoshi's service image"
+summary = '''
+Mikoshi's service image with its web client embedded, built from its own Dockerfile under its
+own currency, so the root's compose stack can run Mikoshi in `.showcase` `services`.
 '''

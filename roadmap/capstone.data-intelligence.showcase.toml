@@ -7,8 +7,16 @@ repos = ["capstone-data-intelligence"]
 root = "capstone-data-intelligence"
 remote = "https://github.com/JaimeStill/capstone-data-intelligence.git"
 path = "~/capstones/capstone-data-intelligence"
-order = ["acceptance", "presentation"]
+order = ["services", "acceptance", "presentation"]
 context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/data-intelligence.md"]
+
+[tasks.services]
+name = "Bunrei and Mikoshi in the compose stack"
+summary = '''
+Waits on: `.bunrei` `tool-packaging` and `.mikoshi` `image`, for the services' images. Bunrei and
+Mikoshi join the root's compose stack (context/stack.md) against its NATS, their PostgreSQL
+servers, and SeaweedFS, each with its Torii key, so `acceptance` runs the whole stack in compose.
+'''
 
 [tasks.acceptance]
 name = "The acceptance run"
