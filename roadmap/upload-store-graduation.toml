@@ -1,0 +1,7 @@
+name = "A shared upload chunk store"
+summary = '''
+A shared cross-replica chunk store for go-web-sdk's resumable upload handler, an adjacent library
+over sqlate, once Bunrei's chunk store and Mikoshi's, in PostgreSQL, exist and show what they
+share. After capstone.data-intelligence (plan, 2026-11-27).
+'''
+repos = []

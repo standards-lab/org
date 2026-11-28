@@ -6,7 +6,7 @@ analyses, lineage, and a live view of every signal crossing the architecture. It
 behind a `web/` boundary shaped to graduate. Builds the resumable upload, the SSE codec and
 writer, and go-ai's reading through the codec in the libraries.
 '''
-repos = ["capstone-mikoshi", "web-app-sdk", "go-core", "go-web-sdk", "go-ai", "sqlate"]
+repos = ["capstone-mikoshi", "capstone-data-intelligence", "web-app-sdk", "go-core", "go-web-sdk", "go-ai", "sqlate"]
 root = "capstone-mikoshi"
 remote = "https://github.com/JaimeStill/capstone-mikoshi.git"
 path = "~/capstones/capstone-mikoshi"
@@ -17,19 +17,24 @@ order = [
   "upload",
   "browser-upload",
   "items",
-  "sse-codec",
   "event-extensions",
+  "context-events",
+  "sse-codec",
   "sse-writer",
   "go-ai-sse",
   "hybrid-search",
   "context-tools",
-  "ingest",
   "pgvector-types",
+  "ingest",
   "space-switch",
   "standing-analyses",
   "lineage",
   "sse-event-sequence",
   "event-relay",
+  "client-design",
+  "items-client",
+  "chat-client",
+  "admin-overlay",
   "signal-flow",
   "image",
   "foundation-notes",
@@ -68,10 +73,9 @@ name = "The resumable upload in go-web-sdk"
 summary = '''
 Waits on: `.foundation` `protocol`'s `upload` note. go-web-sdk's base module implements
 draft-ietf-httpbis-resumable-upload-16 on net/http: a handler behind a chunk-store interface and a
-Go append client, with RFC 9530 digests and sequential appends across replicas, tusd as an interop
-peer only. go-web-sdk v0.18.0's `ReadUpload` refuses a body with no Content-Length, which a
-creating POST of unknown length lacks. go-web-sdk's currency pins the draft revision and reads
-datatracker's latest. Released as go-web-sdk's next minor.
+Go append client, with RFC 9530 digests and sequential appends across replicas. The handler reads
+a body of unknown length itself, as a creating POST of unknown length sends. go-web-sdk's currency
+pins the draft revision and reads datatracker's latest. Released as go-web-sdk's next minor.
 '''
 repos = ["go-web-sdk"]
 
@@ -88,12 +92,34 @@ repos = ["web-app-sdk"]
 [tasks.items]
 name = "Items"
 summary = '''
-Files, API-authored records, and analyses as items: upload into blob storage through go-web-sdk's
-resumable upload handler and `browser-upload`'s client, records through the API, references into
-contexts, and the context-activity events. The item projection declares `route`, `kind`
-(docproc's sniffed content type), and `duration` as filter fields, which the contexts domain
-checks a query context's field names against (the root's `dataset` note).
+Files and API-authored records as items: upload into blob storage through go-web-sdk's resumable
+upload handler, records through the API, and references into contexts. The item projection
+declares `route`, `kind` (docproc's sniffed content type), and `duration` as filter fields, which
+the contexts domain checks a query context's field names against (the root's `dataset` note).
+`context-events` adds its events, `context-tools` the analysis item type, and `items-client` the
+browser's upload.
 '''
+
+[tasks.event-extensions]
+name = "Event extension attributes"
+summary = '''
+go-core's `Raise` sets an event's extension attributes, which `context-events`, `ingest`, and
+`.bunrei` `event-stream` need for lineage and `layer`. Released as go-core's next minor.
+'''
+repos = ["go-core"]
+
+[tasks.context-events]
+name = "Mikoshi's events"
+summary = '''
+go-messaging v0.4.0's outbox, inbox, and relay in Mikoshi, publishing to Mikoshi's own stream on
+the root stack's NATS, with the outbox and inbox retentions run as reclaimers. Each public
+command of contexts (create, rename, move, delete) and of items (a file or record created, an
+item deleted, a reference placed or withdrawn) emits its one event in its transaction, and the
+database admin's reset emits `mikoshi.database.reset` (`messaging.md`, "Which commands emit
+events"; the root's `events` note).
+'''
+repos = ["capstone-mikoshi", "capstone-data-intelligence"]
+proof = "A context created over HTTP publishes `mikoshi.context.created` on Mikoshi's stream once its transaction commits, and a reset publishes `mikoshi.database.reset`."
 
 [tasks.sse-codec]
 name = "The SSE codec"
@@ -102,14 +128,6 @@ go-core's `text/event-stream` codec beside `event`: events read and written to t
 (type, data, and id; comments and retry parsed), with no HTTP or model concerns, so go-web-sdk
 writes through it and go-ai reads through it. Released as go-core's next minor, which carries its
 unreleased main.
-'''
-repos = ["go-core"]
-
-[tasks.event-extensions]
-name = "Event extension attributes"
-summary = '''
-go-core's `Raise` sets an event's extension attributes, which `ingest` and `.bunrei`
-`event-stream` need for lineage and `layer`. Released in go-core's next minor with `sse-codec`.
 '''
 repos = ["go-core"]
 
@@ -132,14 +150,6 @@ codec in place of `internal/sse`, its `EventStream` seam unchanged. Released as 
 '''
 repos = ["go-ai"]
 
-[tasks.ingest]
-name = "Committing Bunrei's batches"
-summary = '''
-Waits on: `.foundation` `events` and `.bunrei` `api`'s `client/v0.1.0`. Submitting items to Bunrei
-and committing each result batch in one transaction with its outbox events, de-duplicated through
-the inbox and checked against the manifest, into the registered embedding space.
-'''
-
 [tasks.hybrid-search]
 name = "Hybrid search"
 summary = '''
@@ -153,11 +163,12 @@ interactive Torii key with `hosting key issue`.
 name = "Context tools and chat"
 summary = '''
 A tool-calling chat on go-ai's agent alias, on `sse-writer` and `go-ai-sse`, whose tools (search,
-list, read, run an extraction, read the event history) refuse anything outside the selected context,
-its answer streamed as SSE through go-web-sdk's writer inside the request, one event per committed
-turn or analysis, analyses saved as items with provenance, and citations in the thread. The
-agent's system prompt is a default that an active override stored in Mikoshi replaces, as Bunrei's
-profile prompts are.
+list, read, run an extraction, read the event history) refuse anything outside the selected
+context, its answer streamed as SSE through go-web-sdk's writer inside the request, one event per
+committed turn or analysis, with citations, served over the API with no client view. Analyses are
+saved as items with provenance, under an `analysis` item type a migration adds by widening
+`item`'s type check. The agent's system prompt is a default that an active override stored in
+Mikoshi replaces, as Bunrei's profile prompts are.
 '''
 
 [tasks.pgvector-types]
@@ -167,6 +178,15 @@ sqlate's pgvector package covers every pgvector type and metric, with live tests
 the per-space type migration. Released as `postgres/pgvector/v0.2.0`.
 '''
 repos = ["sqlate"]
+
+[tasks.ingest]
+name = "Committing Bunrei's batches"
+summary = '''
+Waits on: `.foundation` `events`, `.bunrei` `api`'s `client/v0.1.0`, and `.bunrei` `event-stream`.
+Submitting items to Bunrei and committing each result batch in one transaction with its outbox
+events, de-duplicated through the inbox and checked against the manifest, into the registered
+embedding space.
+'''
 
 [tasks.space-switch]
 name = "Switching embedding spaces"
@@ -186,32 +206,92 @@ new item, and the result saved as a new version of the analysis item.
 [tasks.lineage]
 name = "Lineage"
 summary = '''
-A citation walked back through chunk, embedding, model identity, inference, docproc stage, and
-upload to the source bytes, from the events' causation ids.
+Waits on: `.bunrei` `event-stream`. A citation walked back through chunk, embedding, model identity,
+inference, docproc stage, and upload to the source bytes, from the events' causation ids.
 '''
 
 [tasks.sse-event-sequence]
 name = "The browser's SSE event sequence"
 summary = '''
-web-app-sdk's SSE `EventSequence` adapter, for `event-relay`'s client. Released as web-app-sdk's
-next minor.
+web-app-sdk's SSE `EventSequence` adapter on its event-stream parser, for `event-relay`'s client,
+which settles a connection lost for good, a gap spike-html-apps left to the capstone. Released as
+web-app-sdk's next minor.
 '''
 repos = ["web-app-sdk"]
 
 [tasks.event-relay]
 name = "The event relay"
 summary = '''
-Mikoshi's SSE relay of its JetStream stream to the browser through `sse-writer`, stateless per
-replica, its cursor the stream sequence.
+Waits on: `.bunrei` `event-stream`. Mikoshi's SSE relay to the browser through `sse-writer`,
+stateless per replica: its own JetStream stream, and the job subjects of the jobs Mikoshi
+submitted, read from Bunrei's job stream, so the live views see Bunrei's stages while the browser
+reaches only Mikoshi; its cursor the streams' sequences. A recreated stream, as a database reset or
+the root's `stack:reset` makes, is detected rather than resumed partway in, a gap spike-html-apps
+left to the capstone.
 '''
 
-[tasks.signal-flow]
-name = "The signal-flow view"
+[tasks.client-design]
+name = "The client's design"
 summary = '''
-Each event shown crossing its layer live (upload, blob, Bunrei job, docproc, docinfer, go-ai,
-Torii, result batches, pgvector commit, browser), with the per-layer latency waterfall and queue
-and retry pressure from the same stream.
+A holistic evaluation of the client's UI/UX and layout once the services it shows are built, from
+spike-html-apps' pipeline app, web-components' elements, web-foundation's layout and profiles, and
+the presentation's walk through the demo dataset. The context-tree browser is the side pane every
+view shares, its selection the context the item, search, chat, and live views read. It builds the
+layout skeleton in `web/` (routes, panes, placeholder views), reviewed with web-tooling's
+screenshots, writes `docs/client.md`, and names each later client task's gaps and new elements.
 '''
+repos = ["capstone-mikoshi"]
+proof = "The skeleton's routes and panes render in every profile, light and dark, in the architect's screenshot review, and docs/client.md maps every view the design page promises to a client task."
+
+[tasks.items-client]
+name = "The context workspace in the client"
+summary = '''
+The context workspace on `client-design`'s layout: the context-tree browser first, the side pane
+where explicit and query contexts (a filter editor over `route`, `kind`, and `duration`) are
+created, renamed, moved, and deleted, as the root's `dataset` note's live steps need; the upload
+through web-app-sdk's `./upload.js` and `sl-upload-dropzone`, resumed after a reload; and the item
+views: a file or record through `sl-artifact-viewer`, and an analysis with its provenance and
+versions. New elements live in `web/src/components`, shaped to graduate.
+'''
+repos = ["capstone-mikoshi"]
+proof = "In the browser tier against a running Mikoshi, the dataset's live steps and two live uploads succeed, an upload resumes after a reload, and an analysis shows its provenance and versions."
+
+[tasks.chat-client]
+name = "Search, chat, and lineage in the client"
+summary = '''
+The retrieval views on `client-design`'s layout: hybrid search inside the selected context with its
+facet filters, through `sl-search-results`; the chat through `sl-chat-thread` and `sl-composer`, its
+answer read from `context-tools`' SSE stream with web-app-sdk's `Client.stream`, its tool calls
+shown and Escape cancelling it, its citations linked to their items; saving an answer as an
+analysis; and a citation's or a match's lineage walked back to the source bytes. The citations,
+facet filters, and lineage walk are `web/src/components` elements shaped to graduate.
+'''
+repos = ["capstone-mikoshi"]
+proof = "In the browser tier, a search shows only the selected context's matches under a facet, a streamed answer cites items in that context, and a citation's walk reaches its upload."
+
+[tasks.admin-overlay]
+name = "The admin overlay"
+summary = '''
+Waits on: `.bunrei` `prompts`. An admin overlay editor opened from the client's header, as
+web-components' `sl-settings` is in the Settings and Help pattern: prompt tuning over Bunrei's
+prompt override Queries and Commands through its `client` module, per profile and stage, and over
+Mikoshi's agent system prompt override (`context-tools`), each showing the default and the active
+override; and the embedding spaces' status, activation, and rollback (`space-switch`).
+'''
+repos = ["capstone-mikoshi"]
+proof = "From the overlay, activating a prompt override changes the next chat answer's resolved prompt, and rolling back a space restores the previous active space."
+
+[tasks.signal-flow]
+name = "The live views"
+summary = '''
+Waits on: `.bunrei` `event-stream`. Every view that reads `event-relay`'s stream, on
+`client-design`'s layout: the signal-flow view, each event crossing its layer live (upload, blob,
+Bunrei job, docproc, docinfer, go-ai, Torii, result batches, pgvector commit, browser), with the
+per-layer latency waterfall and queue and retry pressure; an item's stage timeline in its item
+view through `sl-stage-timeline` (evidence 7); and a context's activity in its context view. It
+measures the relay's latency for evidence 15.
+'''
+proof = "During a demo-dataset run, an upload's stages advance live in its item view, the waterfall shows each layer's latency, and a killed Bunrei replica shows as retry pressure."
 
 [tasks.image]
 name = "Mikoshi's service image"

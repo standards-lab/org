@@ -5,3 +5,4 @@ descendants, and the retrieval filter) into a library of its own, as blobfs hold
 once the capstone's demo has proved its model. After capstone.data-intelligence (plan, 2026-11-27).
 '''
 repos = []
+context = ["capstone-mikoshi/docs/contexts.md"]
