@@ -13,9 +13,10 @@ context = ["standards-lab/context/data-intelligence.md", "standards-lab/docs/dat
 [tasks.services]
 name = "Bunrei and Mikoshi in the compose stack"
 summary = '''
-Waits on: `.bunrei` `tool-packaging` and `.mikoshi` `image`, for the services' images. Bunrei and
-Mikoshi join the root's compose stack (context/stack.md) against its NATS, their PostgreSQL
-servers, and SeaweedFS, each with its Torii key, so `acceptance` runs the whole stack in compose.
+Waits on: `.bunrei` `tool-packaging` and `.mikoshi` `image`, for the services' images. Bunrei, at
+two replicas, and Mikoshi join the root's compose stack (context/stack.md) against its NATS, their
+PostgreSQL servers, and SeaweedFS, each with its Torii key, so `acceptance` runs the whole stack in
+compose.
 '''
 
 [tasks.demo-load]
@@ -29,9 +30,10 @@ note), and reviews the share, tour, and authored lists.
 [tasks.acceptance]
 name = "The acceptance run"
 summary = '''
-Waits on: `.bunrei` and `.mikoshi` having synced. The whole stack over docs-corpus
-v0.2.0, measured against its baseline, with chat responsive during the run and evidence 7, 8,
-10, and 15 shown.
+Waits on: `.bunrei` and `.mikoshi` having synced. The whole stack over docs-corpus v0.2.0, measured
+against its baseline, with chat responsive during the run, evidence 7, 8, 10, and 15 shown, and the
+recovery scenario scripted: a Bunrei replica killed mid-job recovers through redelivery, the cache,
+the checkpoint, and the manifest check, as `presentation` rehearses it.
 '''
 
 [tasks.presentation]
